@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Info, Users, Car, Tool, Calculator } from 'lucide-react';
+import { Info, Users, Car, Wrench, Calculator } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
@@ -21,7 +21,7 @@ import { useQuote, QuoteProvider } from '@/context/QuoteContext';
 const STEPS = [
   { id: 'client', name: 'Cliente', icon: <Users size={18} /> },
   { id: 'vehicle', name: 'Veículo', icon: <Car size={18} /> },
-  { id: 'params', name: 'Parâmetros', icon: <Tool size={18} /> },
+  { id: 'params', name: 'Parâmetros', icon: <Wrench size={18} /> },
   { id: 'result', name: 'Resultado', icon: <Calculator size={18} /> },
 ];
 
