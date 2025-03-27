@@ -115,12 +115,6 @@ const QuoteForm = () => {
   const handleClientSelect = (client: Client | CustomClient) => {
     console.log("Cliente selecionado:", client);
     setClient(client);
-    
-    // Notificar o usuário sobre a seleção
-    toast({
-      title: "Cliente selecionado",
-      description: `Cliente ${client.name} selecionado para o orçamento.`
-    });
   };
 
   const renderClientStep = () => (

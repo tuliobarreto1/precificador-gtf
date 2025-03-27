@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +5,6 @@ import { Label } from '@/components/ui/label';
 import { Client, addClient, getClientByDocument } from '@/lib/mock-data';
 import { useToast } from '@/hooks/use-toast';
 
-// Definição do tipo CustomClient
 export interface CustomClient extends Client {
   isCustom: boolean;
 }
@@ -31,19 +29,14 @@ export default function ClientForm({ onClientSelect, existingClients = [] }: Cli
   const { toast } = useToast();
 
   const formatDocument = (value: string) => {
-    // Remove tudo que não é número
     const numbers = value.replace(/\D/g, '');
-
-    // Detecta o tipo pelo número de dígitos
     if (numbers.length <= 11) {
-      // Formato CPF: 000.000.000-00
       return numbers
         .replace(/(\d{3})(\d)/, '$1.$2')
         .replace(/(\d{3})(\d)/, '$1.$2')
         .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
         .slice(0, 14);
     } else {
-      // Formato CNPJ: 00.000.000/0001-00
       return numbers
         .replace(/(\d{2})(\d)/, '$1.$2')
         .replace(/(\d{3})(\d)/, '$1.$2')
@@ -77,7 +70,6 @@ export default function ClientForm({ onClientSelect, existingClients = [] }: Cli
     const formatted = formatDocument(value);
     setFormData(prev => ({ ...prev, document: formatted }));
 
-    // Se for CNPJ (14 dígitos) busca automaticamente
     const numbers = value.replace(/\D/g, '');
     if (numbers.length === 14) {
       searchCNPJ(numbers);
@@ -87,7 +79,6 @@ export default function ClientForm({ onClientSelect, existingClients = [] }: Cli
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validações básicas
     if (!formData.document || !formData.name) {
       toast({
         title: "Campos obrigatórios",
@@ -97,7 +88,6 @@ export default function ClientForm({ onClientSelect, existingClients = [] }: Cli
       return;
     }
 
-    // Verificar se já existe um cliente com o mesmo documento
     const existingClient = getClientByDocument(formData.document);
     if (existingClient) {
       toast({
@@ -108,7 +98,6 @@ export default function ClientForm({ onClientSelect, existingClients = [] }: Cli
       return;
     }
 
-    // Criar e salvar novo cliente
     const newClient: Client = {
       id: Date.now().toString(),
       name: formData.name,
@@ -117,19 +106,15 @@ export default function ClientForm({ onClientSelect, existingClients = [] }: Cli
       email: formData.email || '',
     };
 
-    // Adicionar cliente na base de dados simulada
     const savedClient = addClient(newClient);
     
-    // Notificar o componente pai sobre a seleção do cliente
     if (onClientSelect) {
-      // Aqui criamos uma CustomClient a partir do Client
       const customClient: CustomClient = {
         ...savedClient,
         isCustom: true
       };
       onClientSelect(customClient);
       
-      // Atualizar o cliente selecionado
       setSelectedClientId(savedClient.id);
     }
     
@@ -141,17 +126,9 @@ export default function ClientForm({ onClientSelect, existingClients = [] }: Cli
 
   const handleSelectClient = (client: Client) => {
     if (onClientSelect) {
-      // Chamamos a função de callback com o cliente selecionado
       onClientSelect(client);
       
-      // Atualizamos o estado para destacar o cliente selecionado
       setSelectedClientId(client.id);
-      
-      // Notificar o usuário
-      toast({
-        title: "Cliente selecionado",
-        description: `Cliente ${client.name} selecionado com sucesso!`,
-      });
     }
   };
 
