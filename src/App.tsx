@@ -3,7 +3,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { useQuote } from "./context/QuoteContext";
 import Index from "./pages/Index";
 import NewQuote from "./pages/NewQuote";
 import Quotes from "./pages/Quotes";
@@ -12,10 +14,28 @@ import Settings from "./pages/Settings";
 import Parameters from "./pages/Parameters";
 import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
+import Login from "./pages/Login";
 import { QuoteProvider } from "./context/QuoteContext";
 
 // Create a client
 const queryClient = new QueryClient();
+
+// Componente para proteger rotas
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { getCurrentUser } = useQuote();
+  const location = useLocation();
+
+  // Verificar se o usuário está autenticado
+  const user = getCurrentUser();
+  
+  // Se não há usuário no localStorage, redirecionar para login
+  if (!user) {
+    // Redirecionar para a página de login, salvando o caminho atual para redirecionamento após login
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return <>{children}</>;
+};
 
 function App() {
   return (
@@ -26,15 +46,19 @@ function App() {
         <QuoteProvider>
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/orcamento/novo" element={<NewQuote />} />
-              <Route path="/orcamentos" element={<Quotes />} />
-              <Route path="/orcamento/:id" element={<QuoteDetail />} />
-              <Route path="/editar-orcamento/:id" element={<NewQuote />} />
-              <Route path="/configuracoes" element={<Settings />} />
-              <Route path="/parametros" element={<Parameters />} />
-              <Route path="/usuarios" element={<Users />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="/login" element={<Login />} />
+              
+              {/* Rotas protegidas */}
+              <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/orcamento/novo" element={<ProtectedRoute><NewQuote /></ProtectedRoute>} />
+              <Route path="/orcamentos" element={<ProtectedRoute><Quotes /></ProtectedRoute>} />
+              <Route path="/orcamento/:id" element={<ProtectedRoute><QuoteDetail /></ProtectedRoute>} />
+              <Route path="/editar-orcamento/:id" element={<ProtectedRoute><NewQuote /></ProtectedRoute>} />
+              <Route path="/configuracoes" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/parametros" element={<ProtectedRoute><Parameters /></ProtectedRoute>} />
+              <Route path="/usuarios" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+              
+              {/* Rota padrão para página não encontrada */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

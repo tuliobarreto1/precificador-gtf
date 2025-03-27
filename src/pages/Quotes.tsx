@@ -17,7 +17,6 @@ import {
 import { quotes, getClientById, getVehicleById } from '@/lib/mock-data';
 import { SavedQuote, useQuote, mockUsers } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
-import UserSelector from '@/components/ui-custom/UserSelector';
 
 // Type guard para determinar se um objeto é um SavedQuote
 const isSavedQuote = (quote: any): quote is SavedQuote => {
@@ -150,8 +149,6 @@ const Quotes = () => {
           />
           
           <div className="flex items-center gap-4">
-            <UserSelector />
-            
             <Link to="/orcamento/novo">
               <Button className="w-full sm:w-auto">
                 <FileText className="mr-2 h-4 w-4" />

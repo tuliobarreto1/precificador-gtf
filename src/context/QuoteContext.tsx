@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Vehicle, Client, VehicleGroup, getVehicleGroupById } from '@/lib/mock-data';
 import { DepreciationParams, MaintenanceParams, calculateLeaseCost, calculateExtraKmRate } from '@/lib/calculation';
@@ -145,6 +144,7 @@ type QuoteContextType = {
   updateQuote: (quoteId: string, updates: Partial<QuoteFormData>, changeDescription: string) => boolean;
   availableUsers: User[];
   authenticateUser: (userId: number) => boolean;
+  mockUsers: User[];
 };
 
 // Initial state
@@ -230,7 +230,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     setQuoteForm(prev => {
       // Verificar se o veículo já existe na lista
       if (prev.vehicles.some(item => item.vehicle.id === vehicle.id)) {
-        return prev; // Não fazer nada se o veículo já estiver na lista
+        return prev; // Não fazer nada se o veículo j�� estiver na lista
       }
       
       // Criar um novo veículo com parâmetros globais como base
@@ -595,6 +595,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       updateQuote,
       availableUsers,
       authenticateUser,
+      mockUsers,
     }}>
       {children}
     </QuoteContext.Provider>
