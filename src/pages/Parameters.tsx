@@ -253,7 +253,7 @@ const Parameters = () => {
                             <FormControl>
                               <Input 
                                 type="number" 
-                                step="0.0001" 
+                                step="0.0000001" 
                                 min="0" 
                                 {...field} 
                                 onChange={e => field.onChange(Number(e.target.value))}
@@ -261,7 +261,7 @@ const Parameters = () => {
                             </FormControl>
                             <FormMessage />
                             <p className="text-xs text-muted-foreground">
-                              Ex: 0.01 = 1% do valor do veículo será cobrado por quilômetro excedente
+                              Ex: 0.0000075 = 0,00075% do valor do veículo será cobrado por quilômetro excedente
                             </p>
                           </FormItem>
                         )}

@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NewQuote from "./pages/NewQuote";
 import Quotes from "./pages/Quotes";
+import QuoteDetail from "./pages/QuoteDetail";
 import Settings from "./pages/Settings";
 import Parameters from "./pages/Parameters";
 import Users from "./pages/Users";
@@ -26,6 +27,7 @@ function App() {
             <Route path="/" element={<Index />} />
             <Route path="/orcamento/novo" element={<NewQuote />} />
             <Route path="/orcamentos" element={<Quotes />} />
+            <Route path="/orcamento/:id" element={<QuoteDetail />} />
             <Route path="/configuracoes" element={<Settings />} />
             <Route path="/parametros" element={<Parameters />} />
             <Route path="/usuarios" element={<Users />} />
