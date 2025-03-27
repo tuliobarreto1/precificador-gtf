@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,7 +18,6 @@ const ClientForm: React.FC<ClientFormProps> = ({ onClientSelect }) => {
   const { createCustomClient, setQuoteResponsible, quoteForm } = useQuote();
   const [activeTab, setActiveTab] = useState<string>('existing');
   
-  // Campos de formulário para cliente personalizado
   const [clientType, setClientType] = useState<'PF' | 'PJ'>('PJ');
   const [document, setDocument] = useState('');
   const [name, setName] = useState('');
@@ -28,26 +26,21 @@ const ClientForm: React.FC<ClientFormProps> = ({ onClientSelect }) => {
   const [contactPerson, setContactPerson] = useState('');
   const [responsible, setResponsible] = useState('');
   
-  // Loading state para consulta CNPJ
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Atualizar o responsável no contexto global
     setQuoteResponsible(responsible);
   }, [responsible, setQuoteResponsible]);
 
-  // Formatar CNPJ/CPF para exibição
   const formatDocument = (value: string): string => {
     const digits = value.replace(/\D/g, '');
     
     if (clientType === 'PF') {
-      // Formatar CPF: 000.000.000-00
       if (digits.length <= 3) return digits;
       if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
       if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
       return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9, 11)}`;
     } else {
-      // Formatar CNPJ: 00.000.000/0000-00
       if (digits.length <= 2) return digits;
       if (digits.length <= 5) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
       if (digits.length <= 8) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`;
@@ -56,7 +49,6 @@ const ClientForm: React.FC<ClientFormProps> = ({ onClientSelect }) => {
     }
   };
 
-  // Limpar máscara para processamento
   const cleanDocumentValue = (value: string): string => {
     return value.replace(/\D/g, '');
   };
@@ -65,7 +57,6 @@ const ClientForm: React.FC<ClientFormProps> = ({ onClientSelect }) => {
     const rawValue = e.target.value;
     const digits = cleanDocumentValue(rawValue);
     
-    // Limitar a quantidade de caracteres conforme o tipo
     if ((clientType === 'PF' && digits.length <= 11) || 
         (clientType === 'PJ' && digits.length <= 14)) {
       setDocument(formatDocument(digits));
@@ -76,7 +67,6 @@ const ClientForm: React.FC<ClientFormProps> = ({ onClientSelect }) => {
     const rawValue = e.target.value;
     const digits = rawValue.replace(/\D/g, '');
     
-    // Formatar telefone: (00) 00000-0000
     let formattedValue = digits;
     if (digits.length > 0) {
       formattedValue = `(${digits.slice(0, 2)}`;
@@ -96,7 +86,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ onClientSelect }) => {
   const handleTypeChange = (value: string) => {
     const newType = value as 'PF' | 'PJ';
     setClientType(newType);
-    setDocument(''); // Limpar o documento ao mudar o tipo
+    setDocument('');
   };
 
   const handleConsultarCNPJ = async () => {
@@ -141,7 +131,6 @@ const ClientForm: React.FC<ClientFormProps> = ({ onClientSelect }) => {
   };
 
   const handleCreateCustomClient = () => {
-    // Validar campos obrigatórios
     if (!name.trim()) {
       toast({
         title: "Campo obrigatório",
@@ -171,7 +160,6 @@ const ClientForm: React.FC<ClientFormProps> = ({ onClientSelect }) => {
       return;
     }
 
-    // Criar cliente personalizado
     const customClient = createCustomClient({
       name,
       document: cleanDocumentValue(document),
@@ -181,12 +169,14 @@ const ClientForm: React.FC<ClientFormProps> = ({ onClientSelect }) => {
       contactPerson: contactPerson.trim() || undefined
     });
     
-    onClientSelect(customClient);
-    
-    toast({
-      title: "Cliente adicionado",
-      description: "O cliente foi adicionado à proposta com sucesso"
-    });
+    if (customClient) {
+      onClientSelect(customClient);
+      
+      toast({
+        title: "Cliente adicionado",
+        description: "O cliente foi adicionado à proposta com sucesso"
+      });
+    }
   };
 
   const handleSelectExistingClient = (client: Client) => {

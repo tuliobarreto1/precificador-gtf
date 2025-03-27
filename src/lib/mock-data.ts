@@ -1,4 +1,3 @@
-
 export type Client = {
   id: string;
   name: string;
@@ -31,7 +30,7 @@ export type Vehicle = {
   odometer?: number;      // Add odometer for used vehicles
 };
 
-// Quote type - added to fix the import errors
+// Quote type - expanded to include all needed properties
 export type Quote = {
   id: string;
   clientId: string;
@@ -46,6 +45,15 @@ export type Quote = {
   maintenanceCost: number;
   trackingCost: number;
   costPerKm: number;
+  // Propriedades adicionais para compatibilidade
+  date?: string;
+  clientName: string;
+  vehicleBrand: string;
+  vehicleModel: string;
+  vehicleGroup: string;
+  value: number;
+  months: number;
+  extraKmRate: number;
 };
 
 export const clients: Client[] = [
@@ -158,97 +166,145 @@ export const vehicles: Vehicle[] = [
   },
 ];
 
-// Sample quotes data - added to fix the import errors
+// Sample quotes data com campos expandidos para compatibilidade
 export const quotes: Quote[] = [
   {
     id: '1',
     clientId: '1',
+    clientName: 'João da Silva',
     vehicleId: '5',
+    vehicleBrand: 'Toyota',
+    vehicleModel: 'Corolla',
+    vehicleGroup: 'C',
     contractMonths: 24,
+    months: 24,
     monthlyKm: 2000,
     operationSeverity: 2,
     hasTracking: true,
     createdAt: '2023-10-10T10:00:00Z',
+    date: '2023-10-10T10:00:00Z',
     totalCost: 1850,
+    value: 1850,
     depreciationCost: 1200,
     maintenanceCost: 600,
     trackingCost: 50,
-    costPerKm: 0.925
+    costPerKm: 0.925,
+    extraKmRate: 0.5
   },
   {
     id: '2',
     clientId: '2',
+    clientName: 'Empresa ABC Ltda',
     vehicleId: '3',
+    vehicleBrand: 'Hyundai',
+    vehicleModel: 'HB20',
+    vehicleGroup: 'B',
     contractMonths: 36,
+    months: 36,
     monthlyKm: 1500,
     operationSeverity: 1,
     hasTracking: true,
     createdAt: '2023-10-12T14:30:00Z',
+    date: '2023-10-12T14:30:00Z',
     totalCost: 1450,
+    value: 1450,
     depreciationCost: 900,
     maintenanceCost: 500, 
     trackingCost: 50,
-    costPerKm: 0.967
+    costPerKm: 0.967,
+    extraKmRate: 0.45
   },
   {
     id: '3',
     clientId: '3',
+    clientName: 'Maria Souza',
     vehicleId: '1',
+    vehicleBrand: 'Fiat',
+    vehicleModel: 'Uno',
+    vehicleGroup: 'A',
     contractMonths: 12,
+    months: 12,
     monthlyKm: 3000,
     operationSeverity: 3,
     hasTracking: false,
     createdAt: '2023-10-15T09:15:00Z',
+    date: '2023-10-15T09:15:00Z',
     totalCost: 1200,
+    value: 1200,
     depreciationCost: 850,
     maintenanceCost: 350,
     trackingCost: 0,
-    costPerKm: 0.4
+    costPerKm: 0.4,
+    extraKmRate: 0.4
   },
   {
     id: '4',
     clientId: '1',
+    clientName: 'João da Silva',
     vehicleId: '6',
+    vehicleBrand: 'Honda',
+    vehicleModel: 'Civic',
+    vehicleGroup: 'C',
     contractMonths: 48,
+    months: 48,
     monthlyKm: 2500,
     operationSeverity: 2,
     hasTracking: true,
     createdAt: '2023-10-18T16:45:00Z',
+    date: '2023-10-18T16:45:00Z',
     totalCost: 1750,
+    value: 1750,
     depreciationCost: 1100,
     maintenanceCost: 600,
     trackingCost: 50,
-    costPerKm: 0.7
+    costPerKm: 0.7,
+    extraKmRate: 0.48
   },
   {
     id: '5',
     clientId: '2',
+    clientName: 'Empresa ABC Ltda',
     vehicleId: '2',
+    vehicleBrand: 'Volkswagen',
+    vehicleModel: 'Gol',
+    vehicleGroup: 'A',
     contractMonths: 24,
+    months: 24,
     monthlyKm: 1000,
     operationSeverity: 1,
     hasTracking: false,
     createdAt: '2023-10-20T11:30:00Z',
+    date: '2023-10-20T11:30:00Z',
     totalCost: 1150,
+    value: 1150,
     depreciationCost: 850,
     maintenanceCost: 300,
     trackingCost: 0,
-    costPerKm: 1.15
+    costPerKm: 1.15,
+    extraKmRate: 0.43
   },
   {
     id: '6',
     clientId: '3',
+    clientName: 'Maria Souza',
     vehicleId: '4',
+    vehicleBrand: 'Chevrolet',
+    vehicleModel: 'Onix',
+    vehicleGroup: 'B',
     contractMonths: 36,
+    months: 36,
     monthlyKm: 2000,
     operationSeverity: 2,
     hasTracking: true,
     createdAt: '2023-10-22T13:20:00Z',
+    date: '2023-10-22T13:20:00Z',
     totalCost: 1600,
+    value: 1600,
     depreciationCost: 1000,
     maintenanceCost: 550,
     trackingCost: 50,
-    costPerKm: 0.8
+    costPerKm: 0.8,
+    extraKmRate: 0.46
   }
 ];
 
@@ -264,3 +320,11 @@ export const getClientById = (id: string) => {
 export const getVehicleById = (id: string) => {
   return vehicles.find(vehicle => vehicle.id === id);
 };
+
+// Função para obter cotação por ID
+export const getQuoteById = (id: string) => {
+  return quotes.find(quote => quote.id === id);
+};
+
+// Para compatibilidade com o Quotes.tsx
+export const mockQuotes = quotes;

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, Car, Users, MapPin, Wallet } from 'lucide-react';
@@ -90,7 +89,7 @@ const QuoteDetail = () => {
       const date = new Date(quote.createdAt);
       formattedDate = format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
     } else {
-      const date = new Date(quote.date);
+      const date = new Date(quote.createdAt);
       formattedDate = format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
     }
   } catch (error) {
@@ -101,7 +100,7 @@ const QuoteDetail = () => {
   // Preço formatado
   const totalPrice = isSavedQuote(quote) 
     ? quote.totalCost 
-    : quote.value;
+    : quote.totalCost;
 
   return (
     <MainLayout>
@@ -189,7 +188,7 @@ const QuoteDetail = () => {
                       <h3 className="font-medium">Prazo</h3>
                     </div>
                     <p className="text-lg font-semibold">
-                      {isSavedQuote(quote) ? quote.contractMonths : quote.months} meses
+                      {isSavedQuote(quote) ? quote.contractMonths : quote.contractMonths} meses
                     </p>
                   </div>
                   
@@ -263,7 +262,7 @@ const QuoteDetail = () => {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium">R$ {quote.value.toLocaleString('pt-BR')}</p>
+                        <p className="font-medium">R$ {quote.totalCost.toLocaleString('pt-BR')}</p>
                         <p className="text-xs text-muted-foreground">Valor mensal</p>
                       </div>
                     </div>
@@ -304,7 +303,7 @@ const QuoteDetail = () => {
                   <div className="flex justify-between items-center pb-2 border-b">
                     <p className="text-muted-foreground">Prazo</p>
                     <p className="font-medium">
-                      {isSavedQuote(quote) ? quote.contractMonths : quote.months} meses
+                      {isSavedQuote(quote) ? quote.contractMonths : quote.contractMonths} meses
                     </p>
                   </div>
                   
@@ -313,7 +312,7 @@ const QuoteDetail = () => {
                     <p className="font-medium">
                       {isSavedQuote(quote) 
                         ? `${(quote.monthlyKm * quote.contractMonths).toLocaleString('pt-BR')} km`
-                        : `${(quote.monthlyKm * quote.months).toLocaleString('pt-BR')} km`}
+                        : `${(quote.monthlyKm * quote.contractMonths).toLocaleString('pt-BR')} km`}
                     </p>
                   </div>
                   

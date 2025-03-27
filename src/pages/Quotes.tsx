@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -18,7 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
-import { mockQuotes, Quote } from '@/lib/mock-data';
+import { quotes as mockQuotes, Quote } from '@/lib/mock-data';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { SavedQuote } from '@/context/QuoteContext';
@@ -87,8 +86,8 @@ const Quotes = () => {
       const direction = sortDirection === 'asc' ? 1 : -1;
       
       if (sortField === 'date') {
-        const dateA = isSavedQuote(a) ? new Date(a.createdAt) : new Date(a.date);
-        const dateB = isSavedQuote(b) ? new Date(b.createdAt) : new Date(b.date);
+        const dateA = isSavedQuote(a) ? new Date(a.createdAt) : new Date(a.createdAt);
+        const dateB = isSavedQuote(b) ? new Date(b.createdAt) : new Date(b.createdAt);
         return (dateA.getTime() - dateB.getTime()) * direction;
       }
       
@@ -99,8 +98,8 @@ const Quotes = () => {
       }
       
       if (sortField === 'value') {
-        const valueA = isSavedQuote(a) ? a.totalCost : a.value;
-        const valueB = isSavedQuote(b) ? b.totalCost : b.value;
+        const valueA = isSavedQuote(a) ? a.totalCost : a.totalCost;
+        const valueB = isSavedQuote(b) ? b.totalCost : b.totalCost;
         return (valueA - valueB) * direction;
       }
       
@@ -214,17 +213,17 @@ const Quotes = () => {
                     // Formatar a data
                     const formattedDate = isSavedQuote(quote)
                       ? format(new Date(quote.createdAt), 'dd/MM/yyyy', { locale: ptBR })
-                      : format(new Date(quote.date), 'dd/MM/yyyy', { locale: ptBR });
+                      : format(new Date(quote.createdAt), 'dd/MM/yyyy', { locale: ptBR });
                     
                     // Obter prazo do contrato
                     const contractMonths = isSavedQuote(quote)
                       ? quote.contractMonths
-                      : quote.months;
+                      : quote.contractMonths;
                     
                     // Obter valor
                     const value = isSavedQuote(quote)
                       ? quote.totalCost
-                      : quote.value;
+                      : quote.totalCost;
                     
                     // Obter responsável
                     const responsible = isSavedQuote(quote)
