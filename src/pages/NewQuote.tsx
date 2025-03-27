@@ -1,8 +1,7 @@
-{/* Preserve the original imports and types */}
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Info, Users, Car, Wrench, Calculator, Plus, Trash2, Settings } from 'lucide-react';
-import NewClientForm from '@/components/client/NewClientForm';
+import ClientForm from '@/components/quote/ClientForm';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
@@ -15,8 +14,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import VehicleSelector from '@/components/vehicle/VehicleSelector';
 import VehicleCard from '@/components/ui-custom/VehicleCard';
-import { getClients } from '@/lib/mock-data';
+import { getClients, Client } from '@/lib/mock-data';
 import { useQuote, QuoteProvider } from '@/context/QuoteContext';
+import { CustomClient } from '@/components/quote/ClientForm';
 
 const STEPS = [
   { id: 'client', name: 'Cliente', icon: <Users size={18} /> },
@@ -45,7 +45,6 @@ const QuoteForm = () => {
     saveQuote
   } = useQuote();
 
-  // Effect to handle tab selection when vehicles change
   useEffect(() => {
     if (currentStep === 'params' && quoteForm.vehicles.length > 0) {
       setSelectedVehicleTab(quoteForm.vehicles[0].vehicle.id);
@@ -53,6 +52,8 @@ const QuoteForm = () => {
   }, [currentStep, quoteForm.vehicles]);
 
   const goToNextStep = () => {
+    console.log("Avançando para próximo passo. Estado atual:", currentStep, "Cliente selecionado:", quoteForm.client);
+    
     switch (currentStep) {
       case 'client':
         if (!quoteForm.client) {
@@ -111,71 +112,17 @@ const QuoteForm = () => {
     }
   };
 
-  const [isNewClient, setIsNewClient] = useState(false);
-  const [clientListKey, setClientListKey] = useState(0);
+  const handleClientSelect = (client: Client | CustomClient) => {
+    console.log("Cliente selecionado:", client);
+    setClient(client);
+  };
 
   const renderClientStep = () => (
     <div className="space-y-6 animate-fadeIn">
-      <div className="flex items-center space-x-2 mb-4">
-        <Button
-          type="button"
-          variant={!isNewClient ? "default" : "outline"}
-          onClick={() => setIsNewClient(false)}
-        >
-          Selecionar Cliente
-        </Button>
-        <Button
-          type="button"
-          variant={isNewClient ? "default" : "outline"}
-          onClick={() => setIsNewClient(true)}
-        >
-          Novo Cliente
-        </Button>
-      </div>
-
-      {isNewClient ? (
-        <NewClientForm
-          onSave={(client) => {
-            setClient(client);
-            setIsNewClient(false);
-            setClientListKey(prev => prev + 1);
-          }}
-          onCancel={() => setIsNewClient(false)}
-        />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {React.useMemo(() => getClients(), [clientListKey]).map((client) => (
-            <div
-              key={client.id}
-              className={`p-4 rounded-lg border cursor-pointer transition-all ${
-                quoteForm.client?.id === client.id
-                  ? 'border-primary/70 ring-1 ring-primary/30 shadow-sm'
-                  : 'border-border hover:border-primary/30'
-              }`}
-              onClick={() => setClient(client)}
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-medium">{client.name}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {client.type === 'PJ' ? 'CNPJ' : 'CPF'}: {client.document}
-                  </p>
-                </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${
-                  client.type === 'PJ' 
-                    ? 'bg-blue-100 text-blue-800' 
-                    : 'bg-green-100 text-green-800'
-                }`}>
-                  {client.type === 'PJ' ? 'Pessoa Jurídica' : 'Pessoa Física'}
-                </span>
-              </div>
-              {client.email && (
-                <p className="text-sm mt-2">{client.email}</p>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      <ClientForm 
+        onClientSelect={handleClientSelect} 
+        existingClients={getClients()} 
+      />
     </div>
   );
 
