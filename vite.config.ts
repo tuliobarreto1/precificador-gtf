@@ -30,6 +30,10 @@ export default defineConfig(({ mode }) => ({
           });
           proxy.on('proxyReq', (proxyReq, req, _res) => {
             console.log('Sending Request:', req.method, req.url);
+            // Garantir que o Content-Type está definido corretamente
+            if (req.method === 'POST') {
+              proxyReq.setHeader('Content-Type', 'application/json');
+            }
           });
           proxy.on('proxyRes', (proxyRes, req, _res) => {
             console.log('Received Response:', proxyRes.statusCode, req.url);

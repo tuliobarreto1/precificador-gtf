@@ -5,9 +5,9 @@
 
 const express = require('express');
 const cors = require('cors');
-const sql = require('mssql');
 const path = require('path');
 const dotenv = require('dotenv');
+const { Connection, Request, TYPES } = require('tedious');
 
 // Carregar variáveis de ambiente do arquivo .env
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
@@ -47,21 +47,27 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
-// Configurações do banco de dados padrão
-const getDbConfig = (customConfig = null) => {
+// Obter configurações de conexão com o banco de dados
+const getConnectionConfig = (customConfig = null) => {
   // Se receber configurações personalizadas, use-as
   if (customConfig) {
     console.log('Usando configurações de conexão personalizadas');
     return {
-      user: customConfig.user,
-      password: customConfig.password,
       server: customConfig.server || process.env.DB_SERVER,
-      database: customConfig.database || process.env.DB_DATABASE,
-      port: parseInt(customConfig.port || process.env.DB_PORT || '1433', 10),
+      authentication: {
+        type: 'default',
+        options: {
+          userName: customConfig.user,
+          password: customConfig.password
+        }
+      },
       options: {
-        encrypt: true,
+        port: parseInt(customConfig.port || process.env.DB_PORT || '1433', 10),
+        database: customConfig.database || process.env.DB_DATABASE,
         trustServerCertificate: true,
-        connectionTimeout: 30000,
+        encrypt: true,
+        rowCollectionOnRequestCompletion: true,
+        connectTimeout: 30000,
         requestTimeout: 30000
       }
     };
@@ -69,18 +75,79 @@ const getDbConfig = (customConfig = null) => {
   
   // Caso contrário, use as configurações do .env
   return {
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
     server: process.env.DB_SERVER,
-    database: process.env.DB_DATABASE,
-    port: parseInt(process.env.DB_PORT || '1433', 10),
+    authentication: {
+      type: 'default',
+      options: {
+        userName: process.env.DB_USER,
+        password: process.env.DB_PASSWORD
+      }
+    },
     options: {
-      encrypt: true,
+      port: parseInt(process.env.DB_PORT || '1433', 10),
+      database: process.env.DB_DATABASE,
       trustServerCertificate: true,
-      connectionTimeout: 30000,
+      encrypt: true,
+      rowCollectionOnRequestCompletion: true,
+      connectTimeout: 30000,
       requestTimeout: 30000
     }
   };
+};
+
+// Função para criar uma conexão com o banco de dados
+const createConnection = (config) => {
+  return new Promise((resolve, reject) => {
+    const connection = new Connection(config);
+    
+    connection.on('connect', (err) => {
+      if (err) {
+        console.error('Erro ao conectar ao banco de dados:', err);
+        return reject(err);
+      }
+      console.log('Conexão estabelecida com sucesso!');
+      resolve(connection);
+    });
+    
+    connection.on('error', (err) => {
+      console.error('Erro na conexão:', err);
+      reject(err);
+    });
+    
+    // Iniciar a conexão
+    connection.connect();
+  });
+};
+
+// Função para executar uma consulta e retornar os resultados
+const executeQuery = (connection, query, params = []) => {
+  return new Promise((resolve, reject) => {
+    const request = new Request(query, (err, rowCount, rows) => {
+      if (err) {
+        console.error('Erro ao executar consulta:', err);
+        return reject(err);
+      }
+      
+      // Transformar as linhas em objetos JSON
+      const results = rows.map(row => {
+        const item = {};
+        row.forEach(column => {
+          item[column.metadata.colName] = column.value;
+        });
+        return item;
+      });
+      
+      resolve(results);
+    });
+    
+    // Adicionar parâmetros à consulta
+    params.forEach(param => {
+      request.addParameter(param.name, param.type, param.value);
+    });
+    
+    // Executar a consulta
+    connection.execSql(request);
+  });
 };
 
 // Logs detalhados para depuração
@@ -114,28 +181,12 @@ app.get('/api/vehicles/:plate', async (req, res) => {
     }
     
     console.log('Tentando conectar ao banco de dados...');
-    let pool;
-    try {
-      pool = await sql.connect(getDbConfig());
-      console.log('Conexão com o banco de dados estabelecida com sucesso.');
-    } catch (connError) {
-      console.error('Erro ao conectar ao banco de dados:', connError);
-      return res.status(500).json({ 
-        message: 'Erro ao conectar ao banco de dados', 
-        error: connError.message,
-        config: {
-          server: process.env.DB_SERVER,
-          user: process.env.DB_USER,
-          database: process.env.DB_DATABASE,
-          port: process.env.DB_PORT
-        }
-      });
-    }
+    let connection;
     
-    console.log('Executando consulta SQL...');
-    const result = await pool.request()
-      .input('plate', sql.VarChar, plate)
-      .query(`
+    try {
+      connection = await createConnection(getConnectionConfig());
+      
+      const query = `
         SELECT 
           V.Placa, 
           M.Descricao AS DescricaoModelo, 
@@ -155,32 +206,44 @@ app.get('/api/vehicles/:plate', async (req, res) => {
           TBGruposVeiculosParametros GVP ON M.CodGrupoVeiculo = GVP.CodGrupoVeiculo
         WHERE 
           V.Placa = @plate
-      `);
-    
-    console.log('Consulta SQL executada com sucesso.');
-    console.log(`Registros encontrados: ${result.recordset.length}`);
-    
-    if (result.recordset.length > 0) {
-      console.log('Veículo encontrado:', result.recordset[0]);
-      res.json(result.recordset[0]);
-    } else {
-      console.log(`Nenhum veículo encontrado com a placa ${plate}`);
-      res.status(404).json({ message: `Nenhum veículo encontrado com a placa ${plate}` });
+      `;
+      
+      const params = [
+        { name: 'plate', type: TYPES.VarChar, value: plate }
+      ];
+      
+      console.log('Executando consulta SQL...');
+      const results = await executeQuery(connection, query, params);
+      console.log('Consulta SQL executada com sucesso.');
+      console.log(`Registros encontrados: ${results.length}`);
+      
+      if (results.length > 0) {
+        console.log('Veículo encontrado:', results[0]);
+        res.json(results[0]);
+      } else {
+        console.log(`Nenhum veículo encontrado com a placa ${plate}`);
+        res.status(404).json({ message: `Nenhum veículo encontrado com a placa ${plate}` });
+      }
+    } catch (dbError) {
+      console.error('Erro na operação do banco de dados:', dbError);
+      res.status(500).json({ 
+        message: 'Erro ao buscar veículo no banco de dados', 
+        error: dbError.message,
+        stack: dbError.stack
+      });
+    } finally {
+      if (connection) {
+        connection.close();
+        console.log('Conexão com o banco de dados fechada.');
+      }
     }
   } catch (error) {
-    console.error('Erro na consulta SQL:', error);
+    console.error('Erro geral na rota:', error);
     res.status(500).json({ 
-      message: 'Erro ao buscar veículo', 
+      message: 'Erro ao processar requisição', 
       error: error.message,
       stack: error.stack
     });
-  } finally {
-    try {
-      await sql.close();
-      console.log('Conexão com o banco de dados fechada.');
-    } catch (err) {
-      console.error('Erro ao fechar conexão:', err);
-    }
   }
 });
 
@@ -212,8 +275,8 @@ app.get('/api/status', (req, res) => {
 
 // Rota para testar conexão com o banco de dados com credenciais personalizadas
 app.post('/api/test-connection-custom', async (req, res) => {
-  let pool = null;
   console.log('Recebida requisição para testar conexão personalizada');
+  let connection = null;
   
   try {
     const { server, port, user, password, database } = req.body;
@@ -236,41 +299,25 @@ app.post('/api/test-connection-custom', async (req, res) => {
     
     const customConfig = {
       server,
-      port: port || '1433',
+      port,
       user,
       password,
-      database: database || 'Locavia',
-      options: {
-        encrypt: true,
-        trustServerCertificate: true,
-        connectionTimeout: 30000,
-        requestTimeout: 30000
-      }
+      database: database || 'Locavia'
     };
     
-    console.log('Tentando conectar com as credenciais fornecidas...');
+    console.log('Criando conexão com as credenciais fornecidas...');
     
-    // Fechar conexões anteriores para evitar problemas
     try {
-      await sql.close();
-      console.log('Conexões anteriores fechadas com sucesso');
-    } catch (e) {
-      console.log('Nenhuma conexão anterior para fechar');
-    }
-    
-    // Criar nova pool de conexão
-    try {
-      pool = await new sql.ConnectionPool(customConfig).connect();
-      console.log('Conexão com o banco de dados estabelecida com sucesso!');
+      connection = await createConnection(getConnectionConfig(customConfig));
       
       // Testar consulta simples
-      const testResult = await pool.request().query('SELECT 1 as testValue');
-      console.log('Consulta de teste executada com sucesso:', testResult);
+      const results = await executeQuery(connection, 'SELECT 1 as testValue');
+      console.log('Consulta de teste executada com sucesso:', results);
       
       const responseData = { 
         status: 'success', 
         message: 'Conexão com o banco de dados estabelecida com sucesso!',
-        testResult: testResult.recordset,
+        testResult: results,
         config: {
           server: customConfig.server,
           user: customConfig.user,
@@ -294,16 +341,6 @@ app.post('/api/test-connection-custom', async (req, res) => {
       
       console.log('Enviando resposta de erro:', errorData);
       res.status(500).json(errorData);
-    } finally {
-      // Fechar conexão
-      if (pool) {
-        try {
-          await pool.close();
-          console.log('Conexão com o banco de dados fechada.');
-        } catch (err) {
-          console.error('Erro ao fechar conexão:', err);
-        }
-      }
     }
   } catch (error) {
     console.error('Erro geral ao processar requisição:', error);
@@ -318,12 +355,18 @@ app.post('/api/test-connection-custom', async (req, res) => {
     
     console.log('Enviando resposta de erro crítico:', criticalError);
     res.status(500).json(criticalError);
+  } finally {
+    // Fechar conexão
+    if (connection) {
+      connection.close();
+      console.log('Conexão com o banco de dados fechada.');
+    }
   }
 });
 
 // Rota para testar conexão com o banco de dados
 app.get('/api/test-connection', async (req, res) => {
-  let pool = null;
+  let connection = null;
   
   try {
     console.log('Testando conexão com o banco de dados...');
@@ -341,66 +384,54 @@ app.get('/api/test-connection', async (req, res) => {
       });
     }
     
-    console.log('Configuração utilizada:', {
-      server: process.env.DB_SERVER,
-      user: process.env.DB_USER,
-      database: process.env.DB_DATABASE,
-      port: process.env.DB_PORT,
-      options: {
-        encrypt: true,
-        trustServerCertificate: true
-      }
-    });
+    console.log('Criando conexão com as credenciais padrão...');
     
-    // Fechar conexões anteriores para evitar problemas
     try {
-      await sql.close();
-    } catch (e) {
-      console.log('Nenhuma conexão anterior para fechar');
+      connection = await createConnection(getConnectionConfig());
+      
+      // Testar consulta simples
+      const results = await executeQuery(connection, 'SELECT 1 as testValue');
+      console.log('Consulta de teste executada com sucesso:', results);
+      
+      res.json({ 
+        status: 'success', 
+        message: 'Conexão com o banco de dados estabelecida com sucesso!',
+        testResult: results,
+        config: {
+          server: process.env.DB_SERVER,
+          user: process.env.DB_USER,
+          database: process.env.DB_DATABASE,
+          port: process.env.DB_PORT
+        }
+      });
+    } catch (dbError) {
+      console.error('Erro ao conectar ao banco de dados:', dbError);
+      res.status(500).json({ 
+        status: 'error', 
+        message: 'Erro ao conectar ao banco de dados', 
+        error: dbError.message,
+        stack: dbError.stack,
+        config: {
+          server: process.env.DB_SERVER,
+          user: process.env.DB_USER,
+          database: process.env.DB_DATABASE,
+          port: process.env.DB_PORT
+        }
+      });
     }
-    
-    // Criar nova pool de conexão
-    pool = await new sql.ConnectionPool(getDbConfig()).connect();
-    console.log('Conexão com o banco de dados estabelecida com sucesso!');
-    
-    // Testar consulta simples
-    const testResult = await pool.request().query('SELECT 1 as testValue');
-    console.log('Consulta de teste executada com sucesso:', testResult);
-    
-    res.json({ 
-      status: 'success', 
-      message: 'Conexão com o banco de dados estabelecida com sucesso!',
-      testResult: testResult.recordset,
-      config: {
-        server: process.env.DB_SERVER,
-        user: process.env.DB_USER,
-        database: process.env.DB_DATABASE,
-        port: process.env.DB_PORT
-      }
-    });
   } catch (error) {
-    console.error('Erro ao conectar ao banco de dados:', error);
+    console.error('Erro geral ao processar requisição:', error);
     res.status(500).json({ 
       status: 'error', 
-      message: 'Erro ao conectar ao banco de dados', 
+      message: 'Erro ao processar requisição', 
       error: error.message,
-      stack: error.stack,
-      config: {
-        server: process.env.DB_SERVER,
-        user: process.env.DB_USER,
-        database: process.env.DB_DATABASE,
-        port: process.env.DB_PORT
-      }
+      stack: error.stack
     });
   } finally {
     // Fechar conexão
-    if (pool) {
-      try {
-        await pool.close();
-        console.log('Conexão com o banco de dados fechada.');
-      } catch (err) {
-        console.error('Erro ao fechar conexão:', err);
-      }
+    if (connection) {
+      connection.close();
+      console.log('Conexão com o banco de dados fechada.');
     }
   }
 });
