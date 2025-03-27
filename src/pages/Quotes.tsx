@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Search, Filter, Calendar, ArrowUpDown, User } from 'lucide-react';
+import { FileText, Search, Filter, Calendar, ArrowUpDown, User, RefreshCw } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import Card from '@/components/ui-custom/Card';
@@ -28,15 +29,25 @@ const Quotes = () => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
   const [userFilter, setUserFilter] = useState<string>('all');
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { getSavedQuotes } = useQuote();
   
-  // Carregar orçamentos salvos
-  useEffect(() => {
+  // Função para carregar orçamentos
+  const loadQuotes = () => {
+    setIsLoading(true);
     try {
       const quotes = getSavedQuotes();
+      console.log('Orçamentos carregados (loadQuotes):', quotes);
       setSavedQuotes(quotes);
-      console.log('Orçamentos carregados:', quotes);
+      
+      if (quotes.length === 0) {
+        console.log('Nenhum orçamento salvo encontrado');
+      }
+      
+      // Verifica diretamente no localStorage para debug
+      const rawData = localStorage.getItem('savedQuotes');
+      console.log('Dados brutos do localStorage:', rawData);
     } catch (error) {
       console.error('Erro ao carregar orçamentos:', error);
       toast({
@@ -44,12 +55,20 @@ const Quotes = () => {
         description: "Não foi possível carregar os orçamentos salvos.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
-  }, [getSavedQuotes, toast]);
+  };
+  
+  // Carregar orçamentos salvos ao montar o componente
+  useEffect(() => {
+    loadQuotes();
+  }, []);
   
   // Combinar os orçamentos mockados com os salvos
   const allQuotes = [...savedQuotes, ...quotes];
   console.log('Total de orçamentos combinados:', allQuotes.length);
+  console.log('Orçamentos salvos:', savedQuotes);
   
   // Lista de usuários disponíveis para filtro
   const availableUsers = [
@@ -168,8 +187,17 @@ const Quotes = () => {
                   R$
                   <ArrowUpDown className="h-3 w-3 ml-1" />
                 </Button>
-                <Button variant="outline" size="icon">
-                  <Filter className="h-4 w-4" />
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={loadQuotes}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
             </div>
@@ -198,6 +226,23 @@ const Quotes = () => {
           {filteredQuotes.length === 0 ? (
             <div className="text-center py-12 border rounded-lg">
               <p className="text-muted-foreground">Nenhum orçamento encontrado</p>
+              {savedQuotes.length === 0 && (
+                <div className="mt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={loadQuotes}
+                    disabled={isLoading}
+                    className="mx-auto"
+                  >
+                    {isLoading ? (
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
+                    Atualizar
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
             filteredQuotes.map(quote => {

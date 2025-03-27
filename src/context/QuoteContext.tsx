@@ -344,6 +344,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   const saveQuote = (): boolean => {
     const quoteResult = calculateQuote();
     if (!quoteForm.client || !quoteResult || quoteForm.vehicles.length === 0) {
+      console.error('Erro ao salvar orçamento: dados incompletos');
       return false;
     }
 
@@ -382,12 +383,24 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
           extraKmRate: result.extraKmRate,
         };
       }),
+      operationSeverity: quoteForm.globalParams.operationSeverity,
+      hasTracking: quoteForm.globalParams.hasTracking,
+      trackingCost: quoteResult.vehicleResults[0].trackingCost,
     };
 
     // Atualizar o estado e o localStorage
     const updatedQuotes = [newSavedQuote, ...savedQuotes];
     setSavedQuotes(updatedQuotes);
-    localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
+    
+    // Salvar no localStorage com tratamento de erro
+    try {
+      localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
+      console.log('Orçamento salvo com sucesso:', newSavedQuote);
+      console.log('Total de orçamentos salvos:', updatedQuotes.length);
+    } catch (error) {
+      console.error('Erro ao salvar no localStorage:', error);
+      return false;
+    }
     
     return true;
   };
@@ -451,6 +464,18 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
 
   // Função para obter orçamentos salvos
   const getSavedQuotes = () => {
+    // Tentar recuperar diretamente do localStorage para garantir dados mais recentes
+    try {
+      const storedQuotes = localStorage.getItem(SAVED_QUOTES_KEY);
+      if (storedQuotes) {
+        const parsedQuotes = JSON.parse(storedQuotes);
+        return parsedQuotes;
+      }
+    } catch (error) {
+      console.error('Erro ao recuperar orçamentos do localStorage:', error);
+    }
+    
+    // Se não conseguir recuperar do localStorage, usar o estado
     return savedQuotes;
   };
 
