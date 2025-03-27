@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Info, Users, Car, Wrench, Calculator, Plus, Trash2, Settings, Mail } from 'lucide-react';
 import ClientForm from '@/components/quote/ClientForm';
@@ -29,7 +28,6 @@ const STEPS = [
   { id: 'result', name: 'Resultado', icon: <Calculator size={18} /> },
 ];
 
-// Componente de e-mail para envio de orçamentos
 const EmailDialog = ({ quoteId }: { quoteId: string }) => {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
@@ -132,6 +130,8 @@ const QuoteForm = () => {
   const [selectedVehicleTab, setSelectedVehicleTab] = useState<string | null | undefined>(undefined);
   const [loadingQuote, setLoadingQuote] = useState<boolean>(!!id);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempted, setLoadAttempted] = useState<boolean>(false);
+  const loadAttemptedRef = useRef(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { 
@@ -158,25 +158,28 @@ const QuoteForm = () => {
       isEditMode,
       client: quoteForm.client,
       vehicles: quoteForm.vehicles.length,
-      vehiclesDetalhes: quoteForm.vehicles
+      loadingQuote,
+      loadError,
+      loadAttempted,
+      id
     });
   };
 
   useEffect(() => {
-    if (id) {
-      console.log('🔄 Modo de edição detectado, carregando orçamento:', id);
+    if (id && !loadAttemptedRef.current) {
+      loadAttemptedRef.current = true;
+      setLoadAttempted(true);
       setLoadingQuote(true);
       setLoadError(null);
       
-      try {
-        // Adicionar timeout para garantir que a UI seja atualizada antes de carregar
-        setTimeout(() => {
-          console.log('⏳ Tentando carregar orçamento:', id);
+      console.log('🔄 Tentando carregar orçamento:', id);
+      
+      setTimeout(() => {
+        try {
           const success = loadQuoteForEditing(id);
           
           if (success) {
-            console.log('✅ Orçamento carregado com sucesso:', quoteForm);
-            // Quando em modo de edição, iniciar na etapa de veículos
+            console.log('✅ Orçamento carregado com sucesso');
             setCurrentStep('vehicle');
             
             toast({
@@ -194,23 +197,22 @@ const QuoteForm = () => {
             });
           }
           
-          // Liberar a interface após o carregamento, independentemente do resultado
           setLoadingQuote(false);
-        }, 1000);
-      } catch (error) {
-        console.error('❌ Erro ao processar orçamento:', error);
-        setLoadError("Ocorreu um erro ao tentar carregar o orçamento.");
-        
-        toast({
-          title: "Erro inesperado",
-          description: "Ocorreu um erro ao tentar carregar o orçamento.",
-          variant: "destructive"
-        });
-        
-        setLoadingQuote(false);
-      }
+        } catch (error) {
+          console.error('❌ Erro ao processar orçamento:', error);
+          setLoadError("Ocorreu um erro ao tentar carregar o orçamento.");
+          
+          toast({
+            title: "Erro inesperado",
+            description: "Ocorreu um erro ao tentar carregar o orçamento.",
+            variant: "destructive"
+          });
+          
+          setLoadingQuote(false);
+        }
+      }, 1000);
     }
-  }, [id, loadQuoteForEditing, navigate, toast]);
+  }, [id, loadQuoteForEditing, toast]);
 
   useEffect(() => {
     if (currentStep === 'params' && quoteForm.vehicles.length > 0) {
@@ -220,7 +222,7 @@ const QuoteForm = () => {
 
   const handleNextStep = () => {
     logState();
-    console.log(`👆 Botão CONTINUAR clicado: avançando de ${currentStep} para o próximo passo. Modo de edição: ${isEditMode}`);
+    console.log(`👆 Botão CONTINUAR clicado: avançando de ${currentStep} para o próximo passo.`);
     
     if (currentStep === 'client') {
       if (!quoteForm.client) {
@@ -651,7 +653,6 @@ const QuoteForm = () => {
             </div>
           </div>
           
-          {/* Botão para enviar por e-mail na etapa de resultado */}
           {isEditMode && currentEditingQuoteId && (
             <div className="border-t p-4 flex justify-end">
               <EmailDialog quoteId={currentEditingQuoteId} />
@@ -743,12 +744,9 @@ const QuoteForm = () => {
               Voltar
             </Button>
             <Button 
-              onClick={() => {
-                console.log("👆 Botão Continuar clicado");
-                handleNextStep();
-              }}
+              onClick={handleNextStep}
               type="button"
-              className="min-w-28 font-medium cursor-pointer"
+              className="min-w-28 font-medium"
             >
               {currentStep === 'result' 
                 ? (isEditMode ? "Atualizar Orçamento" : "Salvar Orçamento") 
