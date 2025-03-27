@@ -33,19 +33,65 @@ console.log('- Database Name:', process.env.DB_DATABASE ? process.env.DB_DATABAS
 console.log('- JWT Secret:', process.env.JWT_SECRET ? 'configurado' : 'não configurado');
 console.log('====================================================');
 
-// Iniciar o servidor API proxy
-console.log('Iniciando servidor API proxy...');
-const apiProcess = spawn('node', [path.join(__dirname, 'src/server/api-proxy.js')], {
-  stdio: 'inherit',
-  env: { ...process.env }
-});
+// Função para iniciar processos com retentativas
+function startProcessWithRetry(name, command, args, maxRetries = 3) {
+  console.log(`Iniciando ${name}...`);
+  
+  let retries = 0;
+  let process = null;
+  
+  function startProcess() {
+    process = spawn(command, args, {
+      stdio: 'inherit',
+      env: { ...process.env }
+    });
+    
+    process.on('error', (err) => {
+      console.error(`Erro ao iniciar ${name}:`, err);
+      retryProcess();
+    });
+    
+    process.on('close', (code) => {
+      if (code !== 0 && retries < maxRetries) {
+        console.log(`${name} encerrou com código ${code}, tentando reiniciar...`);
+        retryProcess();
+      } else if (code !== 0) {
+        console.error(`${name} encerrou com código ${code} após ${retries} tentativas.`);
+        process.exit(code);
+      }
+    });
+    
+    return process;
+  }
+  
+  function retryProcess() {
+    retries++;
+    console.log(`Tentativa ${retries} de ${maxRetries} para iniciar ${name}...`);
+    if (retries <= maxRetries) {
+      setTimeout(() => {
+        startProcess();
+      }, 2000); // Espera 2 segundos antes de tentar novamente
+    }
+  }
+  
+  return startProcess();
+}
 
-// Iniciar a aplicação Vite
+// Iniciar o servidor API proxy com retentativas
+console.log('Iniciando servidor API proxy...');
+const apiProcess = startProcessWithRetry(
+  'Servidor API',
+  'node', 
+  [path.join(__dirname, 'src/server/api-proxy.js')]
+);
+
+// Iniciar a aplicação Vite após o servidor API estar rodando
 console.log('Iniciando servidor Vite...');
-const viteProcess = spawn('npm', ['run', 'dev'], {
-  stdio: 'inherit',
-  env: { ...process.env }
-});
+const viteProcess = startProcessWithRetry(
+  'Servidor Vite',
+  'npm',
+  ['run', 'dev']
+);
 
 // Manipular o encerramento dos processos
 process.on('SIGINT', () => {
@@ -57,16 +103,24 @@ process.on('SIGINT', () => {
 
 // Lidar com saídas dos processos
 apiProcess.on('close', code => {
-  console.log(`API proxy process exited with code ${code}`);
-  viteProcess.kill();
-  process.exit(code);
+  if (code !== null) {
+    console.log(`API proxy process exited with code ${code}`);
+    viteProcess.kill();
+    process.exit(code);
+  }
 });
 
 viteProcess.on('close', code => {
-  console.log(`Vite process exited with code ${code}`);
-  apiProcess.kill();
-  process.exit(code);
+  if (code !== null) {
+    console.log(`Vite process exited with code ${code}`);
+    apiProcess.kill();
+    process.exit(code);
+  }
 });
 
 console.log('Ambiente de desenvolvimento iniciado. Pressione Ctrl+C para encerrar.');
+console.log('====================================================');
+console.log('🚀 Para testar a conexão com o banco de dados, acesse:');
+console.log('   http://localhost:8080/api/status');
+console.log('   http://localhost:8080/api/test-connection');
 console.log('====================================================');
