@@ -89,7 +89,7 @@ type QuoteContextType = {
     totalCost: number;
   } | null;
   savedQuotes: SavedQuote[];
-  saveQuote: () => void;
+  saveQuote: () => boolean;
   getSavedQuotes: () => SavedQuote[];
 };
 
@@ -262,10 +262,10 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Função para salvar um orçamento
-  const saveQuote = () => {
+  const saveQuote = (): boolean => {
     const quoteResult = calculateQuote();
     if (!quoteForm.client || !quoteResult || quoteForm.vehicles.length === 0) {
-      return;
+      return false;
     }
 
     // Criar um ID único baseado no timestamp
@@ -308,7 +308,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     setSavedQuotes(updatedQuotes);
     localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
     
-    return newSavedQuote;
+    return true;
   };
 
   // Função para obter orçamentos salvos

@@ -72,8 +72,8 @@ const QuoteForm = () => {
         setCurrentStep('result');
         break;
       case 'result':
-        const savedQuote = saveQuote();
-        if (savedQuote) {
+        const success = saveQuote();
+        if (success) {
           toast({
             title: "Orçamento salvo",
             description: "Seu orçamento foi salvo com sucesso."

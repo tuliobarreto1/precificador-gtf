@@ -10,6 +10,11 @@ import { Input } from '@/components/ui/input';
 import { quotes, getClientById, getVehicleById } from '@/lib/mock-data';
 import { SavedQuote } from '@/context/QuoteContext';
 
+// Type guard para determinar se um objeto é um SavedQuote
+const isSavedQuote = (quote: any): quote is SavedQuote => {
+  return 'clientName' in quote && 'vehicleBrand' in quote && 'vehicleModel' in quote;
+};
+
 const Quotes = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<'date' | 'value'>('date');
@@ -39,8 +44,18 @@ const Quotes = () => {
       
       const searchLower = searchTerm.toLowerCase();
       
-      // Para orçamentos mockados
-      if ('clientId' in quote && typeof quote.clientId === 'string') {
+      // Usar type guard para distinguir entre tipos de orçamentos
+      if (isSavedQuote(quote)) {
+        // Para orçamentos salvos
+        return (
+          quote.clientName.toLowerCase().includes(searchLower) ||
+          quote.vehicleBrand.toLowerCase().includes(searchLower) ||
+          quote.vehicleModel.toLowerCase().includes(searchLower) ||
+          `${quote.contractMonths} meses`.includes(searchLower) ||
+          `${quote.monthlyKm} km`.includes(searchLower)
+        );
+      } else {
+        // Para orçamentos mockados
         const client = getClientById(quote.clientId);
         const vehicle = getVehicleById(quote.vehicleId);
         
@@ -52,15 +67,6 @@ const Quotes = () => {
           `${quote.monthlyKm} km`.includes(searchLower)
         );
       }
-      
-      // Para orçamentos salvos
-      return (
-        quote.clientName.toLowerCase().includes(searchLower) ||
-        quote.vehicleBrand.toLowerCase().includes(searchLower) ||
-        quote.vehicleModel.toLowerCase().includes(searchLower) ||
-        `${quote.contractMonths} meses`.includes(searchLower) ||
-        `${quote.monthlyKm} km`.includes(searchLower)
-      );
     })
     .sort((a, b) => {
       if (sortField === 'date') {
@@ -147,7 +153,7 @@ const Quotes = () => {
             </div>
           ) : (
             filteredQuotes.map(quote => {
-              // Renderização para orçamentos salvos
+              // Renderização baseada no tipo de orçamento
               return (
                 <Link key={quote.id} to={`/orcamento/${quote.id}`}>
                   <Card className="hover:shadow-md transition-shadow">
@@ -160,13 +166,15 @@ const Quotes = () => {
                         <div>
                           <h3 className="font-medium">Orçamento #{quote.id}</h3>
                           <p className="text-sm text-muted-foreground">
-                            {'clientName' in quote ? quote.clientName : getClientById(quote.clientId)?.name} • {new Date(quote.createdAt).toLocaleDateString('pt-BR')}
+                            {isSavedQuote(quote) 
+                              ? quote.clientName 
+                              : getClientById(quote.clientId)?.name} • {new Date(quote.createdAt).toLocaleDateString('pt-BR')}
                           </p>
                           
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
                             <p className="text-sm">
                               <span className="text-muted-foreground">Veículo:</span>{' '}
-                              {'vehicleBrand' in quote 
+                              {isSavedQuote(quote)
                                 ? `${quote.vehicleBrand} ${quote.vehicleModel}`
                                 : `${getVehicleById(quote.vehicleId)?.brand} ${getVehicleById(quote.vehicleId)?.model}`
                               }
@@ -180,7 +188,7 @@ const Quotes = () => {
                               {quote.monthlyKm}/mês
                             </p>
                             
-                            {'vehicles' in quote && quote.vehicles.length > 1 && (
+                            {isSavedQuote(quote) && quote.vehicles.length > 1 && (
                               <p className="text-sm">
                                 <span className="text-muted-foreground">Veículos:</span>{' '}
                                 {quote.vehicles.length}
