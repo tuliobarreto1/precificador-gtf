@@ -73,4 +73,3 @@ app.get('/api/vehicles/:plate', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`API proxy rodando em http://localhost:${PORT}`);
 });
-

@@ -20,6 +20,7 @@ export default defineConfig({
     'process.env.VITE_DB_DATABASE': JSON.stringify(process.env.VITE_DB_DATABASE),
   },
   server: {
+    port: 8080,
     proxy: {
       // Configuração de proxy para desenvolvimento
       '/api': {
