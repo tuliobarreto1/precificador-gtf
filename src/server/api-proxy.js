@@ -1,13 +1,17 @@
-
 // Este arquivo é usado para configurar um proxy de API local durante o desenvolvimento
 // para contornar limitações de CORS e segurança em requisições diretas do navegador
 // para o SQL Server
 
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const dotenv = require('dotenv');
-const { Connection, Request, TYPES } = require('tedious');
+import express from 'express';
+import cors from 'cors';
+import sql from 'mssql';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import dotenv from 'dotenv';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Carregar variáveis de ambiente do arquivo .env
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
@@ -69,13 +73,10 @@ app.get('/api/vehicles/:plate', async (req, res) => {
       });
     }
     
-    console.log('Tentando conectar ao banco de dados...');
-    let connection;
-    
-    try {
-      connection = await createConnection(getConnectionConfig());
-      
-      const query = `
+    console.log('Executando consulta SQL...');
+    const result = await pool.request()
+      .input('param0', sql.VarChar, plate)
+      .query(`
         SELECT 
           v.CodigoMVA,
           v.Placa,
@@ -101,37 +102,18 @@ app.get('/api/vehicles/:plate', async (req, res) => {
         LEFT JOIN
           VeiculosStatus vs ON v.Status = vs.Status
         WHERE 
-          V.Placa = @plate
-      `;
-      
-      const params = [
-        { name: 'plate', type: TYPES.VarChar, value: plate }
-      ];
-      
-      console.log('Executando consulta SQL...');
-      const results = await executeQuery(connection, query, params);
-      console.log('Consulta SQL executada com sucesso.');
-      console.log(`Registros encontrados: ${results.length}`);
-      
-      if (results.length > 0) {
-        console.log('Veículo encontrado:', results[0]);
-        res.json(results[0]);
-      } else {
-        console.log(`Nenhum veículo encontrado com a placa ${plate}`);
-        res.status(404).json({ message: `Nenhum veículo encontrado com a placa ${plate}` });
-      }
-    } catch (dbError) {
-      console.error('Erro na operação do banco de dados:', dbError);
-      res.status(500).json({ 
-        message: 'Erro ao buscar veículo no banco de dados', 
-        error: dbError.message,
-        stack: dbError.stack
-      });
-    } finally {
-      if (connection) {
-        connection.close();
-        console.log('Conexão com o banco de dados fechada.');
-      }
+          v.Placa = @param0
+      `);
+    
+    console.log('Consulta SQL executada com sucesso.');
+    console.log(`Registros encontrados: ${result.recordset.length}`);
+    
+    if (result.recordset.length > 0) {
+      console.log('Veículo encontrado:', result.recordset[0]);
+      res.json(result.recordset[0]);
+    } else {
+      console.log(`Nenhum veículo encontrado com a placa ${plate}`);
+      res.status(404).json({ message: `Nenhum veículo encontrado com a placa ${plate}` });
     }
   } catch (error) {
     console.error('Erro na consulta SQL:', error);
@@ -222,7 +204,6 @@ app.get('/api/test-connection', async (req, res) => {
   }
 });
 
-// Iniciar o servidor
 app.listen(PORT, () => {
   console.log(`API proxy rodando em http://localhost:${PORT}`);
   console.log(`Variáveis de ambiente carregadas do arquivo: ${path.resolve(__dirname, '../../.env')}`);
