@@ -1,5 +1,6 @@
 
 import { toast } from '@/hooks/use-toast';
+import sql from 'mssql';
 
 // SQL Server connection configuration
 const SQL_CONFIG = {
@@ -25,36 +26,93 @@ export interface SqlVehicle {
   LetraGrupo: string;
 }
 
+// Function to execute SQL queries
+const runSqlServerQuery = async (query: string, params: any[] = []): Promise<sql.IResult<any>> => {
+  try {
+    console.log('Connecting to SQL Server:', SQL_CONFIG.server);
+    const pool = await sql.connect({
+      server: SQL_CONFIG.server,
+      port: SQL_CONFIG.port,
+      user: SQL_CONFIG.user,
+      password: SQL_CONFIG.password,
+      database: SQL_CONFIG.database,
+      options: SQL_CONFIG.options,
+    });
+
+    const request = pool.request();
+    
+    // Add parameters to the request
+    params.forEach((param, index) => {
+      request.input(`param${index}`, param);
+    });
+    
+    console.log('Executing query with params:', params);
+    const result = await request.query(query);
+    return result;
+  } catch (error) {
+    console.error('SQL Server query error:', error);
+    throw error;
+  }
+};
+
 export const searchVehicleByPlate = async (plate: string): Promise<SqlVehicle | null> => {
   try {
-    // In a real implementation, this would connect to SQL Server
-    // For now, we'll mock the API call
     console.log(`Searching for vehicle with plate: ${plate}`);
     
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    const query = `
+      SELECT 
+        v.CodigoMVA,
+        v.Placa,
+        v.CodigoModelo,
+        vm.Descricao AS DescricaoModelo,
+        vm.CodigoGrupoVeiculo,
+        vg.Letra AS LetraGrupo,
+        v.AnoFabricacaoModelo,
+        v.Cor,
+        v.TipoCombustivel,
+        v.NumeroPassageiros,
+        v.OdometroAtual,
+        v.Status,
+        vs.Descricao AS DescricaoStatus,
+        v.ValorCompra,
+        v.DataCompra
+      FROM 
+        Veiculos v
+      LEFT JOIN 
+        VeiculosModelos vm ON v.CodigoModelo = vm.CodigoModelo
+      LEFT JOIN
+        VeiculosGrupos vg ON vm.CodigoGrupoVeiculo = vg.CodigoGrupo
+      LEFT JOIN
+        VeiculosStatus vs ON v.Status = vs.Status
+      WHERE 
+        v.Placa = @param0
+    `;
+
+    const result = await runSqlServerQuery(query, [plate]);
     
-    // Check if plate exists in our mock data
-    if (plate.toUpperCase() === 'ABC1234') {
-      // Return mock data
+    if (result && result.recordset && result.recordset.length > 0) {
+      const veiculo = result.recordset[0];
+      console.log('Vehicle found:', veiculo);
+      
       return {
-        Placa: 'ABC1234',
-        DescricaoModelo: 'Toyota Corolla',
-        AnoFabricacaoModelo: '2021',
-        Cor: 'Prata',
-        TipoCombustivel: 'Flex',
-        OdometroAtual: 15000,
-        ValorCompra: 120000,
-        LetraGrupo: 'C'
+        Placa: veiculo.Placa,
+        DescricaoModelo: veiculo.DescricaoModelo,
+        AnoFabricacaoModelo: veiculo.AnoFabricacaoModelo,
+        Cor: veiculo.Cor,
+        TipoCombustivel: veiculo.TipoCombustivel,
+        OdometroAtual: veiculo.OdometroAtual,
+        ValorCompra: veiculo.ValorCompra,
+        LetraGrupo: veiculo.LetraGrupo
       };
     }
     
+    console.log('No vehicle found with plate:', plate);
     return null;
   } catch (error) {
     console.error('Error searching for vehicle:', error);
     toast({
       title: "Erro na busca",
-      description: "Não foi possível conectar ao banco de dados.",
+      description: "Não foi possível conectar ao banco de dados. " + (error instanceof Error ? error.message : ''),
       variant: "destructive"
     });
     return null;

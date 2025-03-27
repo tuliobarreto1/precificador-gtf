@@ -22,12 +22,14 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
   const [vehicleType, setVehicleType] = useState<VehicleType>('new');
   const [plateNumber, setPlateNumber] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [foundVehicle, setFoundVehicle] = useState<SqlVehicle | null>(null);
   const { toast } = useToast();
 
   const handleVehicleTypeChange = (value: string) => {
     setVehicleType(value as VehicleType);
     setFoundVehicle(null); // Clear found vehicle when changing type
+    setSearchError(null);
   };
 
   const handleSearchByPlate = async () => {
@@ -41,17 +43,23 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
     }
 
     setIsSearching(true);
+    setSearchError(null);
+    
     try {
       const vehicle = await searchVehicleByPlate(plateNumber);
       setFoundVehicle(vehicle);
       
       if (!vehicle) {
+        setSearchError(`Nenhum veículo encontrado com a placa ${plateNumber}`);
         toast({
           title: "Veículo não encontrado",
-          description: "Nenhum veículo encontrado com esta placa.",
+          description: `Nenhum veículo encontrado com a placa ${plateNumber}.`,
           variant: "destructive",
         });
       }
+    } catch (error) {
+      console.error("Error searching vehicle:", error);
+      setSearchError("Erro ao buscar veículo no banco de dados");
     } finally {
       setIsSearching(false);
     }
@@ -112,6 +120,11 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
               value={plateNumber}
               onChange={(e) => setPlateNumber(e.target.value)}
               className="flex-1"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleSearchByPlate();
+                }
+              }}
             />
             <Button 
               onClick={handleSearchByPlate} 
@@ -122,7 +135,20 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
             </Button>
           </div>
           
-          {foundVehicle && (
+          {isSearching && (
+            <div className="flex justify-center items-center py-6">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="ml-2">Buscando veículo...</p>
+            </div>
+          )}
+          
+          {searchError && !isSearching && !foundVehicle && (
+            <div className="bg-destructive/10 border border-destructive/20 text-destructive rounded-lg p-3 text-sm">
+              {searchError}
+            </div>
+          )}
+          
+          {foundVehicle && !isSearching && (
             <div className="border rounded-lg p-4 mt-4 bg-muted/20">
               <div className="flex justify-between items-start">
                 <div>
@@ -153,7 +179,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
           )}
           
           <p className="text-sm text-muted-foreground">
-            Dica: Para testar, use a placa ABC1234
+            Digite a placa no formato correto (ex: ABC1234)
           </p>
         </div>
       )}
