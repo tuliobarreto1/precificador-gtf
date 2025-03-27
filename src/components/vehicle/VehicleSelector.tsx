@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ArrowRight, Car, Search, Loader2 } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -28,7 +27,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
 
   const handleVehicleTypeChange = (value: string) => {
     setVehicleType(value as VehicleType);
-    setFoundVehicle(null); // Clear found vehicle when changing type
+    setFoundVehicle(null);
     setSearchError(null);
   };
 
@@ -59,7 +58,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
       }
     } catch (error) {
       console.error("Error searching vehicle:", error);
-      setSearchError("Erro ao buscar veículo no banco de dados");
+      setSearchError("Erro ao buscar veículo");
     } finally {
       setIsSearching(false);
     }
@@ -68,7 +67,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
   const handleSelectFoundVehicle = () => {
     if (!foundVehicle) return;
     
-    // Map the SQL vehicle to our app's vehicle model
     const foundVehicleGroup = vehicleGroups.find(g => g.id === foundVehicle.LetraGrupo) || vehicleGroups[0];
     
     const mappedVehicle: Vehicle = {
