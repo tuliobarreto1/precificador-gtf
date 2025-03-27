@@ -19,6 +19,12 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// Configurar o content-type para todas as respostas da API
+app.use('/api', (req, res, next) => {
+  res.setHeader('Content-Type', 'application/json');
+  next();
+});
+
 // Configurações do banco de dados padrão
 const getDbConfig = (customConfig = null) => {
   // Se receber configurações personalizadas, use-as
@@ -147,7 +153,7 @@ app.get('/api/vehicles/:plate', async (req, res) => {
 // Rota de verificação de conexão
 app.get('/api/status', (req, res) => {
   try {
-    res.json({ 
+    const status = { 
       status: 'online',
       timestamp: new Date().toISOString(),
       environment: {
@@ -156,7 +162,9 @@ app.get('/api/status', (req, res) => {
         database: process.env.DB_DATABASE ? 'configurado' : 'não configurado',
         port: process.env.DB_PORT || '1433'
       }
-    });
+    };
+    console.log('Enviando status:', status);
+    res.json(status);
   } catch (error) {
     console.error('Erro ao retornar status:', error);
     res.status(500).json({ 
@@ -170,6 +178,7 @@ app.get('/api/status', (req, res) => {
 // Rota para testar conexão com o banco de dados com credenciais personalizadas
 app.post('/api/test-connection-custom', async (req, res) => {
   let pool = null;
+  console.log('Recebida requisição para testar conexão personalizada');
   
   try {
     const { server, port, user, password, database } = req.body;
@@ -183,6 +192,7 @@ app.post('/api/test-connection-custom', async (req, res) => {
     console.log('- Senha fornecida:', password ? 'Sim' : 'Não');
     
     if (!server || !user || !password) {
+      console.log('Erro: Campos obrigatórios faltando');
       return res.status(400).json({
         status: 'error',
         message: 'Servidor, usuário e senha são obrigatórios'
@@ -208,48 +218,71 @@ app.post('/api/test-connection-custom', async (req, res) => {
     // Fechar conexões anteriores para evitar problemas
     try {
       await sql.close();
+      console.log('Conexões anteriores fechadas com sucesso');
     } catch (e) {
       console.log('Nenhuma conexão anterior para fechar');
     }
     
     // Criar nova pool de conexão
-    pool = await new sql.ConnectionPool(customConfig).connect();
-    console.log('Conexão com o banco de dados estabelecida com sucesso!');
-    
-    // Testar consulta simples
-    const testResult = await pool.request().query('SELECT 1 as testValue');
-    console.log('Consulta de teste executada com sucesso:', testResult);
-    
-    res.json({ 
-      status: 'success', 
-      message: 'Conexão com o banco de dados estabelecida com sucesso!',
-      testResult: testResult.recordset,
-      config: {
-        server: customConfig.server,
-        user: customConfig.user,
-        database: customConfig.database,
-        port: customConfig.port
+    try {
+      pool = await new sql.ConnectionPool(customConfig).connect();
+      console.log('Conexão com o banco de dados estabelecida com sucesso!');
+      
+      // Testar consulta simples
+      const testResult = await pool.request().query('SELECT 1 as testValue');
+      console.log('Consulta de teste executada com sucesso:', testResult);
+      
+      const responseData = { 
+        status: 'success', 
+        message: 'Conexão com o banco de dados estabelecida com sucesso!',
+        testResult: testResult.recordset,
+        config: {
+          server: customConfig.server,
+          user: customConfig.user,
+          database: customConfig.database,
+          port: customConfig.port
+        }
+      };
+      
+      console.log('Enviando resposta de sucesso:', responseData);
+      res.json(responseData);
+    } catch (dbError) {
+      console.error('Erro ao conectar ao banco de dados:', dbError);
+      
+      const errorData = { 
+        status: 'error', 
+        message: 'Erro ao conectar ao banco de dados', 
+        error: dbError.message,
+        stack: dbError.stack,
+        config: req.body
+      };
+      
+      console.log('Enviando resposta de erro:', errorData);
+      res.status(500).json(errorData);
+    } finally {
+      // Fechar conexão
+      if (pool) {
+        try {
+          await pool.close();
+          console.log('Conexão com o banco de dados fechada.');
+        } catch (err) {
+          console.error('Erro ao fechar conexão:', err);
+        }
       }
-    });
+    }
   } catch (error) {
-    console.error('Erro ao conectar ao banco de dados:', error);
-    res.status(500).json({ 
+    console.error('Erro geral ao processar requisição:', error);
+    
+    const criticalError = { 
       status: 'error', 
-      message: 'Erro ao conectar ao banco de dados', 
+      message: 'Erro ao processar requisição', 
       error: error.message,
       stack: error.stack,
       config: req.body
-    });
-  } finally {
-    // Fechar conexão
-    if (pool) {
-      try {
-        await pool.close();
-        console.log('Conexão com o banco de dados fechada.');
-      } catch (err) {
-        console.error('Erro ao fechar conexão:', err);
-      }
-    }
+    };
+    
+    console.log('Enviando resposta de erro crítico:', criticalError);
+    res.status(500).json(criticalError);
   }
 });
 
@@ -321,6 +354,12 @@ app.get('/api/test-connection', async (req, res) => {
       }
     }
   }
+});
+
+// Rota de diagnóstico para testar conexão básica
+app.get('/api/ping', (req, res) => {
+  console.log('Requisição ping recebida');
+  res.json({ status: 'ok', message: 'API funcionando', time: new Date().toISOString() });
 });
 
 // Iniciar o servidor

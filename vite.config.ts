@@ -21,6 +21,8 @@ export default defineConfig(({ mode }) => ({
       '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path
       }
     }
   }
