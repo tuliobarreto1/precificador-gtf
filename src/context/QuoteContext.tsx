@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Vehicle, Client, VehicleGroup, getVehicleGroupById } from '@/lib/mock-data';
 import { DepreciationParams, MaintenanceParams, calculateLeaseCost, calculateExtraKmRate } from '@/lib/calculation';
@@ -27,6 +28,17 @@ export type QuoteFormData = {
   };
 };
 
+// Tipo para registro de edição
+export type EditRecord = {
+  editedAt: string;
+  editedBy: {
+    id: string;
+    name: string;
+    role: 'user' | 'manager' | 'admin';
+  };
+  changes: string;
+};
+
 // Resultado do cálculo para um veículo
 export type VehicleQuoteResult = {
   vehicleId: string;
@@ -50,6 +62,12 @@ export type SavedQuote = {
   monthlyKm: number;
   totalCost: number;
   createdAt: string;
+  createdBy: {
+    id: string;
+    name: string;
+    role: 'user' | 'manager' | 'admin';
+  };
+  editHistory?: EditRecord[];
   vehicles: {
     vehicleId: string;
     vehicleBrand: string;
@@ -62,6 +80,20 @@ export type SavedQuote = {
     extraKmRate: number;
   }[];
 };
+
+// Mock do usuário atual
+export const currentUser = {
+  id: "usr1",
+  name: "João Silva",
+  role: "user" as 'user' | 'manager' | 'admin'
+};
+
+// Outros usuários de exemplo para simulação
+export const mockUsers = [
+  currentUser,
+  { id: "usr2", name: "Maria Oliveira", role: "manager" as 'user' | 'manager' | 'admin' },
+  { id: "usr3", name: "Carlos Santos", role: "admin" as 'user' | 'manager' | 'admin' }
+];
 
 // Context type
 type QuoteContextType = {
@@ -91,6 +123,11 @@ type QuoteContextType = {
   savedQuotes: SavedQuote[];
   saveQuote: () => boolean;
   getSavedQuotes: () => SavedQuote[];
+  deleteQuote: (quoteId: string) => boolean;
+  getCurrentUser: () => typeof currentUser;
+  canEditQuote: (quote: SavedQuote) => boolean;
+  canDeleteQuote: (quote: SavedQuote) => boolean;
+  updateQuote: (quoteId: string, updates: Partial<QuoteFormData>, changeDescription: string) => boolean;
 };
 
 // Create context
@@ -227,6 +264,25 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     setQuoteForm(initialQuoteForm);
   };
 
+  // Função para obter o usuário atual
+  const getCurrentUser = () => {
+    return currentUser;
+  };
+
+  // Verificar se um usuário pode editar um orçamento
+  const canEditQuote = (quote: SavedQuote) => {
+    const user = getCurrentUser();
+    // Pode editar se for o criador ou um gerente/admin
+    return quote.createdBy.id === user.id || user.role === 'manager' || user.role === 'admin';
+  };
+
+  // Verificar se um usuário pode excluir um orçamento
+  const canDeleteQuote = (quote: SavedQuote) => {
+    const user = getCurrentUser();
+    // Pode excluir se for o criador ou um gerente/admin
+    return quote.createdBy.id === user.id || user.role === 'manager' || user.role === 'admin';
+  };
+
   // Calculate quote
   const calculateQuote = () => {
     const { vehicles, globalParams, useGlobalParams } = quoteForm;
@@ -292,6 +348,8 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       monthlyKm: quoteForm.globalParams.monthlyKm,
       totalCost: quoteResult.totalCost,
       createdAt: new Date().toISOString(),
+      createdBy: getCurrentUser(),
+      editHistory: [],
       vehicles: quoteResult.vehicleResults.map((result, index) => {
         const vehicle = quoteForm.vehicles.find(v => v.vehicle.id === result.vehicleId);
         if (!vehicle) {
@@ -320,6 +378,63 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     return true;
   };
 
+  // Função para atualizar um orçamento existente
+  const updateQuote = (quoteId: string, updates: Partial<QuoteFormData>, changeDescription: string): boolean => {
+    // Encontrar o orçamento a ser atualizado
+    const quoteToUpdate = savedQuotes.find(q => q.id === quoteId);
+    if (!quoteToUpdate) return false;
+    
+    // Verificar permissão
+    if (!canEditQuote(quoteToUpdate)) return false;
+    
+    // Recalcular os custos, se necessário
+    // Simplificado para este exemplo - em uma implementação real, precisaria recriar 
+    // a lógica de cálculo com base nas atualizações
+    
+    // Registrar a edição no histórico
+    const editRecord: EditRecord = {
+      editedAt: new Date().toISOString(),
+      editedBy: getCurrentUser(),
+      changes: changeDescription
+    };
+    
+    // Atualizar o orçamento
+    const updatedQuotes = savedQuotes.map(quote => {
+      if (quote.id === quoteId) {
+        return {
+          ...quote,
+          // Aqui adicionaríamos as atualizações específicas baseadas no objeto updates,
+          // mas mantendo simples para o exemplo
+          editHistory: [...(quote.editHistory || []), editRecord]
+        };
+      }
+      return quote;
+    });
+    
+    // Salvar as alterações
+    setSavedQuotes(updatedQuotes);
+    localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
+    
+    return true;
+  };
+
+  // Função para excluir um orçamento
+  const deleteQuote = (quoteId: string): boolean => {
+    // Encontrar o orçamento a ser excluído
+    const quoteToDelete = savedQuotes.find(q => q.id === quoteId);
+    if (!quoteToDelete) return false;
+    
+    // Verificar permissão
+    if (!canDeleteQuote(quoteToDelete)) return false;
+    
+    // Remover o orçamento
+    const updatedQuotes = savedQuotes.filter(quote => quote.id !== quoteId);
+    setSavedQuotes(updatedQuotes);
+    localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
+    
+    return true;
+  };
+
   // Função para obter orçamentos salvos
   const getSavedQuotes = () => {
     return savedQuotes;
@@ -342,6 +457,11 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       savedQuotes,
       saveQuote,
       getSavedQuotes,
+      deleteQuote,
+      getCurrentUser,
+      canEditQuote,
+      canDeleteQuote,
+      updateQuote,
     }}>
       {children}
     </QuoteContext.Provider>

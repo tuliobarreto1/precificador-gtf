@@ -1,20 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Download, Send, Edit, Trash, Car } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Download, Send, Edit, Trash, Car, Clock, FileEdit } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { 
   Table,
   TableBody,
@@ -25,7 +18,8 @@ import {
 } from "@/components/ui/table";
 import { quotes, getClientById, getVehicleById, getVehicleGroupById } from '@/lib/mock-data';
 import { calculateExtraKmRate, getGlobalParams } from '@/lib/calculation';
-import { SavedQuote } from '@/context/QuoteContext';
+import { SavedQuote, useQuote, EditRecord } from '@/context/QuoteContext';
+import { useToast } from '@/hooks/use-toast';
 
 // Função para verificar se é um orçamento salvo
 const isSavedQuote = (quote: any): quote is SavedQuote => {
@@ -35,18 +29,13 @@ const isSavedQuote = (quote: any): quote is SavedQuote => {
 const QuoteDetail = () => {
   const { id } = useParams<{ id: string }>();
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const { savedQuotes, deleteQuote, canEditQuote, canDeleteQuote, getCurrentUser } = useQuote();
+  const { toast } = useToast();
+  const navigate = useNavigate();
   
   // Buscar orçamentos salvos do localStorage
   const getSavedQuotes = (): SavedQuote[] => {
-    const storedQuotes = localStorage.getItem('savedQuotes');
-    if (storedQuotes) {
-      try {
-        return JSON.parse(storedQuotes);
-      } catch (error) {
-        console.error('Erro ao carregar orçamentos salvos:', error);
-      }
-    }
-    return [];
+    return savedQuotes;
   };
   
   // Buscar orçamento por ID (tanto mockados quanto salvos)
@@ -169,6 +158,36 @@ const QuoteDetail = () => {
   const handleVehicleChange = (vehicleId: string) => {
     setSelectedVehicleId(vehicleId);
   };
+
+  // Função para lidar com a exclusão
+  const handleDelete = () => {
+    if (isSaved) {
+      if (deleteQuote(quote.id)) {
+        toast({
+          title: "Orçamento excluído",
+          description: "Orçamento excluído com sucesso.",
+          variant: "default",
+        });
+        navigate('/orcamentos');
+      } else {
+        toast({
+          title: "Erro ao excluir",
+          description: "Você não tem permissão para excluir este orçamento.",
+          variant: "destructive",
+        });
+      }
+    } else {
+      toast({
+        title: "Operação inválida",
+        description: "Não é possível excluir orçamentos de demonstração.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Verificar permissões para edição e exclusão
+  const canEdit = isSaved ? canEditQuote(quote as SavedQuote) : false;
+  const canDelete = isSaved ? canDeleteQuote(quote as SavedQuote) : false;
   
   return (
     <MainLayout>
@@ -185,6 +204,11 @@ const QuoteDetail = () => {
               subtitle={`Criado em ${createdDate}`}
               className="mb-0"
             />
+            {isSaved && (quote as SavedQuote).createdBy && (
+              <Badge variant="outline" className="ml-2">
+                Criado por: {(quote as SavedQuote).createdBy.name}
+              </Badge>
+            )}
           </div>
           
           <div className="flex flex-wrap gap-2">
@@ -196,14 +220,22 @@ const QuoteDetail = () => {
               <Send className="h-4 w-4" />
               Enviar por Email
             </Button>
-            <Button variant="outline" className="flex items-center gap-2">
-              <Edit className="h-4 w-4" />
-              Editar
-            </Button>
-            <Button variant="destructive" className="flex items-center gap-2">
-              <Trash className="h-4 w-4" />
-              Excluir
-            </Button>
+            {canEdit && (
+              <Button variant="outline" className="flex items-center gap-2">
+                <Edit className="h-4 w-4" />
+                Editar
+              </Button>
+            )}
+            {canDelete && (
+              <Button 
+                variant="destructive" 
+                className="flex items-center gap-2"
+                onClick={handleDelete}
+              >
+                <Trash className="h-4 w-4" />
+                Excluir
+              </Button>
+            )}
           </div>
         </div>
         
@@ -465,6 +497,40 @@ const QuoteDetail = () => {
               </div>
             </div>
           </Card>
+          
+          {/* Histórico de Edições - Apenas para orçamentos salvos com histórico */}
+          {isSaved && (quote as SavedQuote).editHistory && (quote as SavedQuote).editHistory!.length > 0 && (
+            <Card className="lg:col-span-3">
+              <CardHeader title="Histórico de Edições" icon={<Clock className="h-5 w-5" />} />
+              <div className="p-4">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Usuário</TableHead>
+                      <TableHead>Cargo</TableHead>
+                      <TableHead>Alterações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(quote as SavedQuote).editHistory!.map((edit: EditRecord, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{new Date(edit.editedAt).toLocaleString('pt-BR')}</TableCell>
+                        <TableCell>{edit.editedBy.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {edit.editedBy.role === 'admin' ? 'Administrador' : 
+                             edit.editedBy.role === 'manager' ? 'Gerente' : 'Usuário'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{edit.changes}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </Card>
+          )}
         </div>
       </div>
     </MainLayout>

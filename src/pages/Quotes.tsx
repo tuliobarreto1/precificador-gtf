@@ -1,14 +1,21 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Search, Filter, Calendar, ArrowUpDown } from 'lucide-react';
+import { FileText, Search, Filter, Calendar, ArrowUpDown, User } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import Card from '@/components/ui-custom/Card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { quotes, getClientById, getVehicleById } from '@/lib/mock-data';
-import { SavedQuote } from '@/context/QuoteContext';
+import { SavedQuote, mockUsers } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
 
 // Type guard para determinar se um objeto é um SavedQuote
@@ -21,6 +28,7 @@ const Quotes = () => {
   const [sortField, setSortField] = useState<'date' | 'value'>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
+  const [userFilter, setUserFilter] = useState<string>('all');
   const { toast } = useToast();
   
   // Carregar orçamentos salvos do localStorage
@@ -48,9 +56,22 @@ const Quotes = () => {
   const allQuotes = [...savedQuotes, ...quotes];
   console.log('Total de orçamentos combinados:', allQuotes.length);
   
+  // Lista de usuários disponíveis para filtro
+  const availableUsers = [
+    { id: 'all', name: 'Todos os usuários' },
+    ...mockUsers
+  ];
+  
   // Filter and sort quotes
   const filteredQuotes = allQuotes
     .filter(quote => {
+      // Filtrar por usuário
+      if (userFilter !== 'all' && isSavedQuote(quote)) {
+        if (!quote.createdBy || quote.createdBy.id !== userFilter) {
+          return false;
+        }
+      }
+      
       if (!searchTerm) return true;
       
       const searchLower = searchTerm.toLowerCase();
@@ -63,7 +84,8 @@ const Quotes = () => {
           quote.vehicleBrand.toLowerCase().includes(searchLower) ||
           quote.vehicleModel.toLowerCase().includes(searchLower) ||
           `${quote.contractMonths} meses`.includes(searchLower) ||
-          `${quote.monthlyKm} km`.includes(searchLower)
+          `${quote.monthlyKm} km`.includes(searchLower) ||
+          (quote.createdBy && quote.createdBy.name.toLowerCase().includes(searchLower))
         );
       } else {
         // Para orçamentos mockados
@@ -120,39 +142,59 @@ const Quotes = () => {
         </div>
         
         <Card className="mb-6">
-          <div className="flex flex-col md:flex-row md:items-center gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Buscar orçamentos..." 
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
+          <div className="p-4 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Buscar orçamentos..." 
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => toggleSort('date')}
+                  className="flex items-center gap-1"
+                >
+                  <Calendar className="h-4 w-4" />
+                  Data
+                  <ArrowUpDown className="h-3 w-3 ml-1" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => toggleSort('value')}
+                  className="flex items-center gap-1"
+                >
+                  R$
+                  <ArrowUpDown className="h-3 w-3 ml-1" />
+                </Button>
+                <Button variant="outline" size="icon">
+                  <Filter className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => toggleSort('date')}
-                className="flex items-center gap-1"
+            
+            <div className="flex flex-col md:flex-row items-center gap-4">
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <User className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Filtrar por usuário:</span>
+              </div>
+              <select
+                value={userFilter}
+                onChange={(e) => setUserFilter(e.target.value)}
+                className="h-9 min-w-[200px] rounded-md border border-input bg-background px-3 py-1 text-sm"
               >
-                <Calendar className="h-4 w-4" />
-                Data
-                <ArrowUpDown className="h-3 w-3 ml-1" />
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => toggleSort('value')}
-                className="flex items-center gap-1"
-              >
-                R$
-                <ArrowUpDown className="h-3 w-3 ml-1" />
-              </Button>
-              <Button variant="outline" size="icon">
-                <Filter className="h-4 w-4" />
-              </Button>
+                {availableUsers.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </Card>
@@ -168,7 +210,7 @@ const Quotes = () => {
               return (
                 <Link key={quote.id} to={`/orcamento/${quote.id}`}>
                   <Card className="hover:shadow-md transition-shadow">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4">
                       <div className="flex items-start gap-4">
                         <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center">
                           <FileText size={20} />
@@ -181,6 +223,20 @@ const Quotes = () => {
                               ? quote.clientName 
                               : getClientById(quote.clientId)?.name} • {new Date(quote.createdAt).toLocaleDateString('pt-BR')}
                           </p>
+                          
+                          {/* Exibir o criador se for um orçamento salvo */}
+                          {isSavedQuote(quote) && quote.createdBy && (
+                            <p className="text-sm text-muted-foreground mt-1 flex items-center">
+                              <User className="h-3 w-3 mr-1" />
+                              <span>Criado por: </span>
+                              <span className="font-medium ml-1">{quote.createdBy.name}</span>
+                              {quote.createdBy.role !== 'user' && (
+                                <span className="ml-1 px-1.5 py-0.5 bg-muted/50 rounded-full text-xs">
+                                  {quote.createdBy.role === 'manager' ? 'Gerente' : 'Admin'}
+                                </span>
+                              )}
+                            </p>
+                          )}
                           
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
                             <p className="text-sm">
