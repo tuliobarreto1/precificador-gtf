@@ -8,6 +8,13 @@ import Card, { CardHeader } from '@/components/ui-custom/Card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   Table,
   TableBody,
@@ -27,7 +34,7 @@ const isSavedQuote = (quote: any): quote is SavedQuote => {
 
 const QuoteDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const [expandedVehicle, setExpandedVehicle] = useState<string | null>(null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   
   // Buscar orçamentos salvos do localStorage
   const getSavedQuotes = (): SavedQuote[] => {
@@ -75,7 +82,11 @@ const QuoteDetail = () => {
   const isSaved = isSavedQuote(quote);
   
   // Obter dados relacionados
-  let client, vehicle, vehicleGroup;
+  let client, vehicleGroup;
+  
+  // Preparar os dados dos veículos
+  let vehicles = [];
+  let selectedVehicle = null;
   
   if (isSaved) {
     // Para orçamentos salvos, usar os dados do próprio objeto
@@ -86,87 +97,70 @@ const QuoteDetail = () => {
       email: ''
     };
     
-    // Para o veículo, usamos o primeiro da lista (se existir vários)
-    const firstVehicle = quote.vehicles[0];
-    if (firstVehicle) {
-      vehicle = {
-        id: firstVehicle.vehicleId,
-        brand: firstVehicle.vehicleBrand,
-        model: firstVehicle.vehicleModel,
-        plateNumber: firstVehicle.plateNumber,
-        year: '', // Pode não estar disponível
-        value: 0, // Valor não disponível diretamente, mas podemos calculá-lo
-        groupId: firstVehicle.groupId
-      };
-      
-      // Obter o grupo do veículo
-      vehicleGroup = getVehicleGroupById(firstVehicle.groupId);
+    // Para orçamentos salvos, listar todos os veículos disponíveis
+    vehicles = quote.vehicles;
+    
+    // Se não houver um veículo selecionado ou o selecionado não existir na lista,
+    // usar o primeiro veículo como padrão
+    if (!selectedVehicleId || !vehicles.find(v => v.vehicleId === selectedVehicleId)) {
+      selectedVehicle = vehicles[0];
+      setSelectedVehicleId(selectedVehicle.vehicleId);
+    } else {
+      selectedVehicle = vehicles.find(v => v.vehicleId === selectedVehicleId) || vehicles[0];
     }
+    
+    // Obter o grupo do veículo
+    vehicleGroup = getVehicleGroupById(selectedVehicle.groupId);
   } else {
     // Para orçamentos mockados, buscar dados relacionados
     client = getClientById(quote.clientId);
-    vehicle = getVehicleById(quote.vehicleId);
-    vehicleGroup = vehicle ? getVehicleGroupById(vehicle.groupId) : undefined;
+    const vehicle = getVehicleById(quote.vehicleId);
+    
+    if (vehicle) {
+      vehicles = [
+        {
+          vehicleId: vehicle.id,
+          vehicleBrand: vehicle.brand,
+          vehicleModel: vehicle.model,
+          plateNumber: vehicle.plateNumber || '',
+          groupId: vehicle.groupId,
+          totalCost: quote.totalCost,
+          depreciationCost: quote.depreciationCost,
+          maintenanceCost: quote.maintenanceCost,
+          extraKmRate: calculateExtraKmRate(vehicle.value)
+        }
+      ];
+      selectedVehicle = vehicles[0];
+      vehicleGroup = getVehicleGroupById(vehicle.groupId);
+    }
   }
   
   // Obter parâmetros globais
   const globalParams = getGlobalParams();
   
   // Calcular dados adicionais
-  let extraKmRate = 0;
-  if (isSaved) {
-    // Usar o valor armazenado no orçamento salvo
-    const firstVehicle = quote.vehicles[0];
-    if (firstVehicle) {
-      extraKmRate = firstVehicle.extraKmRate;
-    }
-  } else if (vehicle) {
-    // Calcular para orçamentos mockados
-    extraKmRate = calculateExtraKmRate(vehicle.value);
-  }
+  const extraKmRate = selectedVehicle ? selectedVehicle.extraKmRate : 0;
   
   const createdDate = new Date(quote.createdAt).toLocaleDateString('pt-BR');
   const totalKm = quote.monthlyKm * quote.contractMonths;
   
-  // Calcular custos específicos com base no tipo de orçamento
-  let depreciationCost = 0;
-  let maintenanceCost = 0;
-  let trackingCost = 0;
-  
-  if (isSaved) {
-    // Para orçamentos salvos, acessar do primeiro veículo
-    const firstVehicle = quote.vehicles[0];
-    if (firstVehicle) {
-      depreciationCost = firstVehicle.depreciationCost;
-      maintenanceCost = firstVehicle.maintenanceCost;
-    }
-    // Orçamentos salvos podem não ter trackingCost especificado
-    trackingCost = 0;
-  } else {
-    // Para orçamentos mockados, usar diretamente do objeto
-    depreciationCost = quote.depreciationCost;
-    maintenanceCost = quote.maintenanceCost;
-    trackingCost = quote.trackingCost || 0;
-  }
+  // Calcular custos específicos com base no veículo selecionado
+  const depreciationCost = selectedVehicle ? selectedVehicle.depreciationCost : 0;
+  const maintenanceCost = selectedVehicle ? selectedVehicle.maintenanceCost : 0;
+  const trackingCost = isSaved ? 0 : (quote.trackingCost || 0);
+  const vehicleTotalCost = selectedVehicle ? selectedVehicle.totalCost : 0;
   
   // Cálculo do custo por km
-  const costPerKm = isSaved 
-    ? (totalKm > 0 ? quote.totalCost / totalKm : 0) 
-    : (quote.costPerKm || 0);
+  const costPerKm = totalKm > 0 ? (selectedVehicle ? selectedVehicle.totalCost / totalKm : 0) : 0;
 
   // Cálculo das porcentagens dos componentes de custo
-  const totalCost = quote.totalCost;
-  const depreciationPercentage = totalCost > 0 ? ((depreciationCost / totalCost) * 100).toFixed(1) : "0";
-  const maintenancePercentage = totalCost > 0 ? ((maintenanceCost / totalCost) * 100).toFixed(1) : "0";
-  const trackingPercentage = totalCost > 0 ? ((trackingCost / totalCost) * 100).toFixed(1) : "0";
+  const depreciationPercentage = vehicleTotalCost > 0 ? ((depreciationCost / vehicleTotalCost) * 100).toFixed(1) : "0";
+  const maintenancePercentage = vehicleTotalCost > 0 ? ((maintenanceCost / vehicleTotalCost) * 100).toFixed(1) : "0";
+  const trackingPercentage = vehicleTotalCost > 0 ? ((trackingCost / vehicleTotalCost) * 100).toFixed(1) : "0";
   
-  // Função para alternar a expansão de detalhes de veículo
-  const toggleVehicleExpansion = (vehicleId: string) => {
-    if (expandedVehicle === vehicleId) {
-      setExpandedVehicle(null);
-    } else {
-      setExpandedVehicle(vehicleId);
-    }
+  // Função para lidar com a mudança de veículo selecionado
+  const handleVehicleChange = (vehicleId: string) => {
+    setSelectedVehicleId(vehicleId);
   };
   
   return (
@@ -242,36 +236,59 @@ const QuoteDetail = () => {
               </div>
               
               <div>
-                <h3 className="font-semibold mb-2">Veículo Primário</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Modelo</span>
-                    <span className="font-medium">{vehicle?.brand} {vehicle?.model}</span>
-                  </div>
-                  {vehicle?.year && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Ano</span>
-                      <span>{vehicle.year}</span>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold">Veículo</h3>
+                  
+                  {/* Seletor de veículos para orçamentos com múltiplos veículos */}
+                  {vehicles.length > 1 && (
+                    <div className="w-48">
+                      <Select 
+                        value={selectedVehicleId || ''} 
+                        onValueChange={handleVehicleChange}
+                      >
+                        <SelectTrigger className="h-8">
+                          <SelectValue placeholder="Selecionar veículo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {vehicles.map((v) => (
+                            <SelectItem key={v.vehicleId} value={v.vehicleId}>
+                              {v.vehicleBrand} {v.vehicleModel}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
-                  {vehicleGroup && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Grupo</span>
-                      <Badge variant="outline">{vehicleGroup.name}</Badge>
-                    </div>
-                  )}
-                  {isSaved ? (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Veículos</span>
-                      <span>{quote.vehicles.length}</span>
-                    </div>
-                  ) : vehicle?.value ? (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Valor</span>
-                      <span>R$ {vehicle.value.toLocaleString('pt-BR')}</span>
-                    </div>
-                  ) : null}
                 </div>
+                
+                {selectedVehicle && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Modelo</span>
+                      <span className="font-medium">
+                        {selectedVehicle.vehicleBrand} {selectedVehicle.vehicleModel}
+                      </span>
+                    </div>
+                    {selectedVehicle.plateNumber && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Placa</span>
+                        <span>{selectedVehicle.plateNumber}</span>
+                      </div>
+                    )}
+                    {vehicleGroup && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Grupo</span>
+                        <Badge variant="outline">{vehicleGroup.name}</Badge>
+                      </div>
+                    )}
+                    {vehicles.length > 1 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Total de Veículos</span>
+                        <span>{vehicles.length}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </Card>
@@ -281,12 +298,33 @@ const QuoteDetail = () => {
             <CardHeader title="Valor Total" />
             <div className="p-4 space-y-4">
               <div className="text-center">
-                <p className="text-3xl font-bold text-primary">
-                  R$ {quote.totalCost.toLocaleString('pt-BR')}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  por mês
-                </p>
+                {vehicles.length > 1 ? (
+                  <>
+                    <p className="text-3xl font-bold text-primary">
+                      R$ {quote.totalCost.toLocaleString('pt-BR')}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      total por mês (todos os veículos)
+                    </p>
+                    <div className="mt-2 p-2 bg-white rounded-md">
+                      <p className="text-xl font-semibold text-primary">
+                        R$ {vehicleTotalCost.toLocaleString('pt-BR')}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedVehicle ? `${selectedVehicle.vehicleBrand} ${selectedVehicle.vehicleModel}` : 'Veículo selecionado'}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-3xl font-bold text-primary">
+                      R$ {vehicleTotalCost.toLocaleString('pt-BR')}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      por mês
+                    </p>
+                  </>
+                )}
               </div>
               
               <Separator />
@@ -353,7 +391,7 @@ const QuoteDetail = () => {
                     </div>
                   </div>
                   
-                  {!isSaved && (
+                  {!isSaved && trackingCost > 0 && (
                     <div className="p-4 border rounded-md bg-muted/10">
                       <div className="flex flex-col">
                         <span className="text-muted-foreground text-sm">Rastreamento</span>
@@ -405,119 +443,6 @@ const QuoteDetail = () => {
               </div>
             </div>
           </Card>
-          
-          {/* Lista de Veículos Detalhados - Novo componente para múltiplos veículos */}
-          {isSaved && quote.vehicles.length > 1 && (
-            <Card className="lg:col-span-3">
-              <CardHeader title="Detalhamento por Veículos" />
-              <div className="p-4">
-                <div className="space-y-4">
-                  {quote.vehicles.map((vehicleItem) => {
-                    const vehicleGroup = getVehicleGroupById(vehicleItem.groupId);
-                    const isExpanded = expandedVehicle === vehicleItem.vehicleId;
-                    
-                    return (
-                      <div key={vehicleItem.vehicleId} className="border rounded-md overflow-hidden">
-                        <div 
-                          className="p-4 flex items-center justify-between cursor-pointer hover:bg-muted/10"
-                          onClick={() => toggleVehicleExpansion(vehicleItem.vehicleId)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                              <Car className="text-primary h-5 w-5" />
-                            </div>
-                            <div>
-                              <h3 className="font-medium">{vehicleItem.vehicleBrand} {vehicleItem.vehicleModel}</h3>
-                              <p className="text-sm text-muted-foreground">
-                                {vehicleItem.plateNumber || 'Sem placa'} • Grupo {vehicleItem.groupId}
-                              </p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              <p className="font-medium">R$ {vehicleItem.totalCost.toLocaleString('pt-BR')}</p>
-                              <p className="text-xs text-muted-foreground">por mês</p>
-                            </div>
-                            {isExpanded ? (
-                              <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                            ) : (
-                              <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                            )}
-                          </div>
-                        </div>
-                        
-                        {isExpanded && (
-                          <div className="px-4 pb-4 border-t pt-4">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                              <div className="p-3 border rounded-md bg-muted/5">
-                                <span className="text-muted-foreground text-sm">Depreciação</span>
-                                <p className="text-lg font-medium mt-1">
-                                  R$ {vehicleItem.depreciationCost.toLocaleString('pt-BR')}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {vehicleItem.totalCost > 0 
-                                    ? ((vehicleItem.depreciationCost / vehicleItem.totalCost) * 100).toFixed(1)
-                                    : "0"}% do custo total
-                                </p>
-                              </div>
-                              
-                              <div className="p-3 border rounded-md bg-muted/5">
-                                <span className="text-muted-foreground text-sm">Manutenção</span>
-                                <p className="text-lg font-medium mt-1">
-                                  R$ {vehicleItem.maintenanceCost.toLocaleString('pt-BR')}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {vehicleItem.totalCost > 0 
-                                    ? ((vehicleItem.maintenanceCost / vehicleItem.totalCost) * 100).toFixed(1)
-                                    : "0"}% do custo total
-                                </p>
-                              </div>
-                              
-                              <div className="p-3 border rounded-md bg-muted/5">
-                                <span className="text-muted-foreground text-sm">KM Excedente</span>
-                                <p className="text-lg font-medium mt-1">
-                                  R$ {vehicleItem.extraKmRate.toFixed(2)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">Por km adicional</p>
-                              </div>
-                            </div>
-                            
-                            {vehicleGroup && (
-                              <div className="mt-4">
-                                <h4 className="text-sm font-medium mb-2">Parâmetros do Grupo {vehicleGroup.name}</h4>
-                                <Table>
-                                  <TableHeader>
-                                    <TableRow>
-                                      <TableHead>Parâmetro</TableHead>
-                                      <TableHead>Intervalo (km)</TableHead>
-                                      <TableHead>Custo (R$)</TableHead>
-                                    </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                    <TableRow>
-                                      <TableCell>Revisão</TableCell>
-                                      <TableCell>{vehicleGroup.revisionKm.toLocaleString('pt-BR')}</TableCell>
-                                      <TableCell>{vehicleGroup.revisionCost.toLocaleString('pt-BR')}</TableCell>
-                                    </TableRow>
-                                    <TableRow>
-                                      <TableCell>Troca de Pneus</TableCell>
-                                      <TableCell>{vehicleGroup.tireKm.toLocaleString('pt-BR')}</TableCell>
-                                      <TableCell>{vehicleGroup.tireCost.toLocaleString('pt-BR')}</TableCell>
-                                    </TableRow>
-                                  </TableBody>
-                                </Table>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </Card>
-          )}
           
           {/* Informações Adicionais */}
           <Card className="lg:col-span-3">
