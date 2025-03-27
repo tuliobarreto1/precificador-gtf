@@ -119,11 +119,31 @@ const QuoteDetail = () => {
   const createdDate = new Date(quote.createdAt).toLocaleDateString('pt-BR');
   const totalKm = quote.monthlyKm * quote.contractMonths;
   
-  // Calcular custos específicos (para orçamentos salvos, alguns podem não estar disponíveis)
-  const depreciationCost = isSaved && quote.vehicles[0] ? quote.vehicles[0].depreciationCost : (quote.depreciationCost || 0);
-  const maintenanceCost = isSaved && quote.vehicles[0] ? quote.vehicles[0].maintenanceCost : (quote.maintenanceCost || 0);
-  const trackingCost = isSaved ? 0 : (quote.trackingCost || 0); // Pode não estar disponível para orçamentos salvos
-  const costPerKm = isSaved ? (totalKm > 0 ? quote.totalCost / totalKm : 0) : (quote.costPerKm || 0);
+  // Calcular custos específicos com base no tipo de orçamento
+  let depreciationCost = 0;
+  let maintenanceCost = 0;
+  let trackingCost = 0;
+  
+  if (isSaved) {
+    // Para orçamentos salvos, acessar do primeiro veículo
+    const firstVehicle = quote.vehicles[0];
+    if (firstVehicle) {
+      depreciationCost = firstVehicle.depreciationCost;
+      maintenanceCost = firstVehicle.maintenanceCost;
+    }
+    // Orçamentos salvos podem não ter trackingCost especificado
+    trackingCost = 0;
+  } else {
+    // Para orçamentos mockados, usar diretamente do objeto
+    depreciationCost = quote.depreciationCost;
+    maintenanceCost = quote.maintenanceCost;
+    trackingCost = quote.trackingCost || 0;
+  }
+  
+  // Cálculo do custo por km
+  const costPerKm = isSaved 
+    ? (totalKm > 0 ? quote.totalCost / totalKm : 0) 
+    : (quote.costPerKm || 0);
 
   // Cálculo das porcentagens dos componentes de custo
   const totalCost = quote.totalCost;
