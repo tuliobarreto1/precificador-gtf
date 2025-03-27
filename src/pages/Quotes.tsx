@@ -7,52 +7,42 @@ import PageTitle from '@/components/ui-custom/PageTitle';
 import Card from '@/components/ui-custom/Card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { quotes, getClientById, getVehicleById } from '@/lib/mock-data';
-import { SavedQuote, useQuote, mockUsers } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
-
-// Type guard para determinar se um objeto é um SavedQuote
-const isSavedQuote = (quote: any): quote is SavedQuote => {
-  return 'clientName' in quote && 'vehicleBrand' in quote && 'vehicleModel' in quote;
-};
+import { useAuth } from '@/context/AuthContext';
+import { getQuotes, Quote } from '@/lib/api';
 
 const Quotes = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<'date' | 'value'>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
   const [userFilter, setUserFilter] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { getSavedQuotes, availableUsers, getCurrentUser } = useQuote();
+  const { user } = useAuth();
   
   // Função para carregar orçamentos
-  const loadQuotes = () => {
+  const loadQuotes = async () => {
     setIsLoading(true);
     try {
-      const quotes = getSavedQuotes();
-      console.log('Orçamentos carregados (loadQuotes):', quotes);
-      setSavedQuotes(quotes);
+      const { success, quotes, error } = await getQuotes();
       
-      if (quotes.length === 0) {
-        console.log('Nenhum orçamento salvo encontrado');
+      if (success && quotes) {
+        console.log('Orçamentos carregados:', quotes);
+        setQuotes(quotes);
+      } else {
+        console.error('Erro ao carregar orçamentos:', error);
+        toast({
+          title: "Erro ao carregar orçamentos",
+          description: "Não foi possível carregar os orçamentos.",
+          variant: "destructive",
+        });
       }
-      
-      // Verifica diretamente no localStorage para debug
-      const rawData = localStorage.getItem('savedQuotes');
-      console.log('Dados brutos do localStorage:', rawData);
     } catch (error) {
       console.error('Erro ao carregar orçamentos:', error);
       toast({
         title: "Erro ao carregar orçamentos",
-        description: "Não foi possível carregar os orçamentos salvos.",
+        description: "Não foi possível carregar os orçamentos.",
         variant: "destructive",
       });
     } finally {
@@ -60,73 +50,53 @@ const Quotes = () => {
     }
   };
   
-  // Carregar orçamentos salvos ao montar o componente
+  // Carregar orçamentos ao montar o componente
   useEffect(() => {
-    loadQuotes();
-  }, []);
+    if (user) {
+      loadQuotes();
+    }
+  }, [user]);
   
-  // Combinar os orçamentos mockados com os salvos
-  const allQuotes = [...savedQuotes, ...quotes];
-  console.log('Total de orçamentos combinados:', allQuotes.length);
-  console.log('Orçamentos salvos:', savedQuotes);
-  console.log('Usuário atual:', getCurrentUser());
-  
-  // Lista de usuários disponíveis para filtro
-  const filterUsers = [
-    { id: 'all', name: 'Todos os usuários' },
-    ...availableUsers
-  ];
-  
-  // Filter and sort quotes
-  const filteredQuotes = allQuotes
-    .filter(quote => {
-      // Filtrar por usuário
-      if (userFilter !== 'all' && isSavedQuote(quote)) {
-        if (!quote.createdBy || quote.createdBy.id.toString() !== userFilter) {
-          return false;
-        }
-      }
-      
-      if (!searchTerm) return true;
-      
-      const searchLower = searchTerm.toLowerCase();
-      
-      // Usar type guard para distinguir entre tipos de orçamentos
-      if (isSavedQuote(quote)) {
-        // Para orçamentos salvos
-        return (
-          quote.clientName.toLowerCase().includes(searchLower) ||
-          quote.vehicleBrand.toLowerCase().includes(searchLower) ||
-          quote.vehicleModel.toLowerCase().includes(searchLower) ||
-          `${quote.contractMonths} meses`.includes(searchLower) ||
-          `${quote.monthlyKm} km`.includes(searchLower) ||
-          (quote.createdBy && quote.createdBy.name.toLowerCase().includes(searchLower))
-        );
-      } else {
-        // Para orçamentos mockados
-        const client = getClientById(quote.clientId);
-        const vehicle = getVehicleById(quote.vehicleId);
-        
-        return (
-          (client?.name.toLowerCase().includes(searchLower) || false) ||
-          (vehicle?.model.toLowerCase().includes(searchLower) || false) ||
-          (vehicle?.brand.toLowerCase().includes(searchLower) || false) ||
-          `${quote.contractMonths} meses`.includes(searchLower) ||
-          `${quote.monthlyKm} km`.includes(searchLower)
-        );
-      }
-    })
-    .sort((a, b) => {
-      if (sortField === 'date') {
-        return sortDirection === 'desc'
-          ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          : new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      } else {
-        return sortDirection === 'desc'
-          ? b.totalCost - a.totalCost
-          : a.totalCost - b.totalCost;
-      }
-    });
+  // Filtrar e ordenar orçamentos
+  const filteredQuotes = quotes.filter(quote => {
+    // Filtrar por usuário
+    if (userFilter !== 'all' && quote.created_by !== userFilter) {
+      return false;
+    }
+    
+    if (!searchTerm) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    
+    // Filtrar por vários campos
+    return (
+      // Cliente
+      (quote.client?.name && quote.client.name.toLowerCase().includes(searchLower)) ||
+      // Título do orçamento
+      quote.title.toLowerCase().includes(searchLower) ||
+      // Itens (veículos)
+      (quote.items && quote.items.some(item => 
+        item.vehicle && 
+        (
+          (item.vehicle.brand && item.vehicle.brand.toLowerCase().includes(searchLower)) ||
+          (item.vehicle.model && item.vehicle.model.toLowerCase().includes(searchLower))
+        )
+      )) ||
+      // Outros campos
+      `${quote.contract_months} meses`.includes(searchLower) ||
+      `${quote.monthly_km} km`.includes(searchLower)
+    );
+  }).sort((a, b) => {
+    if (sortField === 'date') {
+      return sortDirection === 'desc'
+        ? new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        : new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    } else {
+      return sortDirection === 'desc'
+        ? b.total_value - a.total_value
+        : a.total_value - b.total_value;
+    }
+  });
   
   // Toggle sort
   const toggleSort = (field: 'date' | 'value') => {
@@ -204,52 +174,36 @@ const Quotes = () => {
                 </Button>
               </div>
             </div>
-            
-            <div className="flex flex-col md:flex-row items-center gap-4">
-              <div className="flex items-center gap-2 w-full md:w-auto">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Filtrar por usuário:</span>
-              </div>
-              <select
-                value={userFilter}
-                onChange={(e) => setUserFilter(e.target.value)}
-                className="h-9 min-w-[200px] rounded-md border border-input bg-background px-3 py-1 text-sm"
-              >
-                {filterUsers.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
         </Card>
         
         <div className="space-y-4">
-          {filteredQuotes.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-12 border rounded-lg">
+              <RefreshCw className="h-8 w-8 mx-auto animate-spin text-primary" />
+              <p className="mt-4 text-muted-foreground">Carregando orçamentos...</p>
+            </div>
+          ) : filteredQuotes.length === 0 ? (
             <div className="text-center py-12 border rounded-lg">
               <p className="text-muted-foreground">Nenhum orçamento encontrado</p>
-              {savedQuotes.length === 0 && (
-                <div className="mt-4">
-                  <Button 
-                    variant="outline" 
-                    onClick={loadQuotes}
-                    disabled={isLoading}
-                    className="mx-auto"
-                  >
-                    {isLoading ? (
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                    )}
-                    Atualizar
-                  </Button>
-                </div>
-              )}
+              <div className="mt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={loadQuotes}
+                  className="mx-auto"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Atualizar
+                </Button>
+              </div>
             </div>
           ) : (
             filteredQuotes.map(quote => {
-              // Renderização baseada no tipo de orçamento
+              // Obter o primeiro veículo do orçamento para exibição
+              const firstVehicle = quote.items && quote.items.length > 0 && quote.items[0].vehicle
+                ? quote.items[0].vehicle
+                : null;
+              
               return (
                 <Link key={quote.id} to={`/orcamento/${quote.id}`}>
                   <Card className="hover:shadow-md transition-shadow">
@@ -260,47 +214,30 @@ const Quotes = () => {
                         </div>
                         
                         <div>
-                          <h3 className="font-medium">Orçamento #{quote.id}</h3>
+                          <h3 className="font-medium">{quote.title || `Orçamento #${quote.id.substring(0, 8)}`}</h3>
                           <p className="text-sm text-muted-foreground">
-                            {isSavedQuote(quote) 
-                              ? quote.clientName 
-                              : getClientById(quote.clientId)?.name} • {new Date(quote.createdAt).toLocaleDateString('pt-BR')}
+                            {quote.client?.name || 'Cliente não especificado'} • {new Date(quote.created_at).toLocaleDateString('pt-BR')}
                           </p>
                           
-                          {/* Exibir o criador se for um orçamento salvo */}
-                          {isSavedQuote(quote) && quote.createdBy && (
-                            <p className="text-sm text-muted-foreground mt-1 flex items-center">
-                              <User className="h-3 w-3 mr-1" />
-                              <span>Criado por: </span>
-                              <span className="font-medium ml-1">{quote.createdBy.name}</span>
-                              {quote.createdBy.role !== 'user' && (
-                                <span className="ml-1 px-1.5 py-0.5 bg-muted/50 rounded-full text-xs">
-                                  {quote.createdBy.role === 'manager' ? 'Gerente' : 'Admin'}
-                                </span>
-                              )}
-                            </p>
-                          )}
-                          
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
-                            <p className="text-sm">
-                              <span className="text-muted-foreground">Veículo:</span>{' '}
-                              {isSavedQuote(quote)
-                                ? `${quote.vehicleBrand} ${quote.vehicleModel}`
-                                : `${getVehicleById(quote.vehicleId)?.brand} ${getVehicleById(quote.vehicleId)?.model}`
-                              }
-                            </p>
+                            {firstVehicle && (
+                              <p className="text-sm">
+                                <span className="text-muted-foreground">Veículo:</span>{' '}
+                                {`${firstVehicle.brand} ${firstVehicle.model}`}
+                              </p>
+                            )}
                             <p className="text-sm">
                               <span className="text-muted-foreground">Prazo:</span>{' '}
-                              {quote.contractMonths} meses
+                              {quote.contract_months} meses
                             </p>
                             <p className="text-sm">
                               <span className="text-muted-foreground">Km:</span>{' '}
-                              {quote.monthlyKm}/mês
+                              {quote.monthly_km}/mês
                             </p>
                             
-                            {isSavedQuote(quote) && quote.vehicles && quote.vehicles.length > 1 && (
+                            {quote.items && quote.items.length > 1 && (
                               <p className="text-sm bg-primary/10 px-2 py-0.5 rounded-full text-primary font-medium">
-                                {quote.vehicles.length} veículos
+                                {quote.items.length} veículos
                               </p>
                             )}
                           </div>
@@ -309,7 +246,7 @@ const Quotes = () => {
                       
                       <div className="md:text-right">
                         <p className="text-lg font-semibold">
-                          R$ {quote.totalCost.toLocaleString('pt-BR')}
+                          R$ {quote.total_value.toLocaleString('pt-BR')}
                         </p>
                         <p className="text-sm text-muted-foreground">por mês</p>
                       </div>

@@ -9,7 +9,262 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      clients: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string
+          created_by: string | null
+          document: string | null
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          state: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          document?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          state?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          document?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          state?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id: string
+          name: string
+          role?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      quote_items: {
+        Row: {
+          contract_months: number | null
+          created_at: string
+          has_tracking: boolean | null
+          id: string
+          monthly_km: number | null
+          monthly_value: number
+          operation_severity: number | null
+          quote_id: string | null
+          updated_at: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          contract_months?: number | null
+          created_at?: string
+          has_tracking?: boolean | null
+          id?: string
+          monthly_km?: number | null
+          monthly_value?: number
+          operation_severity?: number | null
+          quote_id?: string | null
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          contract_months?: number | null
+          created_at?: string
+          has_tracking?: boolean | null
+          id?: string
+          monthly_km?: number | null
+          monthly_value?: number
+          operation_severity?: number | null
+          quote_id?: string | null
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_items_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_items_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotes: {
+        Row: {
+          client_id: string | null
+          contract_months: number
+          created_at: string
+          created_by: string | null
+          has_tracking: boolean
+          id: string
+          monthly_km: number
+          operation_severity: number
+          status: string
+          title: string
+          total_value: number
+          updated_at: string
+        }
+        Insert: {
+          client_id?: string | null
+          contract_months?: number
+          created_at?: string
+          created_by?: string | null
+          has_tracking?: boolean
+          id?: string
+          monthly_km?: number
+          operation_severity?: number
+          status?: string
+          title: string
+          total_value?: number
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string | null
+          contract_months?: number
+          created_at?: string
+          created_by?: string | null
+          has_tracking?: boolean
+          id?: string
+          monthly_km?: number
+          operation_severity?: number
+          status?: string
+          title?: string
+          total_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_groups: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      vehicles: {
+        Row: {
+          brand: string
+          color: string | null
+          created_at: string
+          created_by: string | null
+          group_id: string | null
+          id: string
+          is_used: boolean
+          model: string
+          odometer: number | null
+          plate_number: string | null
+          updated_at: string
+          value: number
+          year: number
+        }
+        Insert: {
+          brand: string
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          group_id?: string | null
+          id?: string
+          is_used?: boolean
+          model: string
+          odometer?: number | null
+          plate_number?: string | null
+          updated_at?: string
+          value: number
+          year: number
+        }
+        Update: {
+          brand?: string
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          group_id?: string | null
+          id?: string
+          is_used?: boolean
+          model?: string
+          odometer?: number | null
+          plate_number?: string | null
+          updated_at?: string
+          value?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

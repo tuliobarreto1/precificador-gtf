@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useEffect } from "react";
-import { useQuote } from "./context/QuoteContext";
+import { useAuth } from "./context/AuthContext";
 import Index from "./pages/Index";
 import NewQuote from "./pages/NewQuote";
 import Quotes from "./pages/Quotes";
@@ -15,20 +15,22 @@ import Parameters from "./pages/Parameters";
 import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
-import { QuoteProvider } from "./context/QuoteContext";
+import { AuthProvider } from "./context/AuthContext";
 
 // Create a client
 const queryClient = new QueryClient();
 
 // Componente para proteger rotas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { getCurrentUser } = useQuote();
+  const { user, isLoading } = useAuth();
   const location = useLocation();
 
-  // Verificar se o usuário está autenticado
-  const user = getCurrentUser();
+  // Se estiver carregando, não faz nada ainda
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
+  }
   
-  // Se não há usuário no localStorage, redirecionar para login
+  // Se não há usuário autenticado, redirecionar para login
   if (!user) {
     // Redirecionar para a página de login, salvando o caminho atual para redirecionamento após login
     return <Navigate to="/login" state={{ from: location }} replace />;
@@ -43,7 +45,7 @@ function App() {
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <QuoteProvider>
+        <AuthProvider>
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={<Login />} />
@@ -62,7 +64,7 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
-        </QuoteProvider>
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
