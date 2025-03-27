@@ -145,7 +145,6 @@ type QuoteContextType = {
   availableUsers: User[];
   authenticateUser: (userId: number, password?: string) => boolean;
   mockUsers: User[];
-  // Nova função para carregar um orçamento existente
   loadQuoteForEditing: (quoteId: string) => boolean;
   isEditMode: boolean;
   currentEditingQuoteId: string | null;
@@ -630,6 +629,36 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     return true;
   };
 
+  // Implementação da função deleteQuote que estava faltando
+  const deleteQuote = (quoteId: string): boolean => {
+    // Verificar se o orçamento existe
+    const quoteToDelete = savedQuotes.find(q => q.id === quoteId);
+    if (!quoteToDelete) {
+      console.error('Orçamento não encontrado:', quoteId);
+      return false;
+    }
+    
+    // Verificar permissão
+    if (!canDeleteQuote(quoteToDelete)) {
+      console.error('Permissão de exclusão negada para o usuário:', getCurrentUser());
+      return false;
+    }
+    
+    // Remover o orçamento
+    const updatedQuotes = savedQuotes.filter(q => q.id !== quoteId);
+    setSavedQuotes(updatedQuotes);
+    
+    // Atualizar o localStorage
+    try {
+      localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
+      console.log('Orçamento excluído com sucesso:', quoteId);
+      return true;
+    } catch (error) {
+      console.error('Erro ao atualizar localStorage após exclusão:', error);
+      return false;
+    }
+  };
+
   // Função para carregar um orçamento para edição
   const loadQuoteForEditing = (quoteId: string): boolean => {
     try {
@@ -662,7 +691,6 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
           document: '',
           type: 'PJ',
           email: '',
-          phone: '',
           address: ''
         };
         setClient(tempClient);
