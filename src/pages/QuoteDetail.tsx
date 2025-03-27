@@ -29,7 +29,6 @@ import { quotes, getClientById, getVehicleById, getVehicleGroupById } from '@/li
 import { calculateExtraKmRate, getGlobalParams } from '@/lib/calculation';
 import { SavedQuote, useQuote, EditRecord } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
-import UserSelector from '@/components/ui-custom/UserSelector';
 
 const isSavedQuote = (quote: any): quote is SavedQuote => {
   return 'clientName' in quote && 'vehicleBrand' in quote && 'vehicleModel' in quote;
@@ -251,8 +250,6 @@ const QuoteDetail = () => {
           </div>
           
           <div className="flex items-center gap-4">
-            <UserSelector />
-            
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" className="flex items-center gap-2">
                 <Download className="h-4 w-4" />
