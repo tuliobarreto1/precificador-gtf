@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, Send, Edit, Trash, Car, Clock, FileEdit } from 'lucide-react';
@@ -15,6 +16,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { quotes, getClientById, getVehicleById, getVehicleGroupById } from '@/lib/mock-data';
 import { calculateExtraKmRate, getGlobalParams } from '@/lib/calculation';
 import { SavedQuote, useQuote, EditRecord } from '@/context/QuoteContext';
@@ -33,6 +44,7 @@ const QuoteDetail = () => {
   const [vehicleGroup, setVehicleGroup] = useState<any>(null);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
   const { savedQuotes, deleteQuote, canEditQuote, canDeleteQuote, getCurrentUser } = useQuote();
   const { toast } = useToast();
@@ -136,8 +148,24 @@ const QuoteDetail = () => {
     setSelectedVehicleId(vehicleId);
   };
 
-  const handleDelete = () => {
-    if (isSaved) {
+  const handleEditClick = () => {
+    if (quote && quote.id) {
+      navigate(`/editar-orcamento/${quote.id}`);
+    } else {
+      toast({
+        title: "Erro ao editar",
+        description: "Não foi possível editar este orçamento.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openDeleteDialog = () => {
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (isSaved && quote?.id) {
       if (deleteQuote(quote.id)) {
         toast({
           title: "Orçamento excluído",
@@ -159,6 +187,7 @@ const QuoteDetail = () => {
         variant: "destructive",
       });
     }
+    setIsDeleteDialogOpen(false);
   };
 
   let canEdit = false;
@@ -203,11 +232,11 @@ const QuoteDetail = () => {
               </Button>
             </Link>
             <PageTitle
-              title={`Orçamento #${quote.id}`}
+              title={`Orçamento #${quote?.id || ''}`}
               subtitle={`Criado em ${createdDate}`}
               className="mb-0"
             />
-            {isSaved && quote.createdBy && (
+            {isSaved && quote?.createdBy && (
               <Badge variant="outline" className="ml-2">
                 Criado por: {quote.createdBy.name}
               </Badge>
@@ -224,7 +253,11 @@ const QuoteDetail = () => {
               Enviar por Email
             </Button>
             {canEdit && (
-              <Button variant="outline" className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2"
+                onClick={handleEditClick}
+              >
                 <Edit className="h-4 w-4" />
                 Editar
               </Button>
@@ -233,7 +266,7 @@ const QuoteDetail = () => {
               <Button 
                 variant="destructive" 
                 className="flex items-center gap-2"
-                onClick={handleDelete}
+                onClick={openDeleteDialog}
               >
                 <Trash className="h-4 w-4" />
                 Excluir
@@ -533,6 +566,21 @@ const QuoteDetail = () => {
           )}
         </div>
       </div>
+      
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este orçamento? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm}>Confirmar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 };
