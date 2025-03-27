@@ -45,7 +45,7 @@ const Parameters = () => {
   const [editMode, setEditMode] = useState(false);
   const [currentGroupId, setCurrentGroupId] = useState('');
   const [currentTab, setCurrentTab] = useState<string>('vehicle-groups');
-  const toast = useToast();
+  const { toast } = useToast();
   const globalParams = getGlobalParams();
 
   // Form for vehicle groups
@@ -109,7 +109,10 @@ const Parameters = () => {
 
   const handleDeleteGroup = (groupId: string) => {
     setGroups(groups.filter(group => group.id !== groupId));
-    toast.success('Grupo de veículo excluído com sucesso');
+    toast({
+      title: "Sucesso",
+      description: "Grupo de veículo excluído com sucesso",
+    });
   };
 
   // Form submission for vehicle groups
@@ -126,7 +129,10 @@ const Parameters = () => {
           tireCost: values.tireCost,
         } : group
       ));
-      toast.success('Grupo de veículo atualizado com sucesso');
+      toast({
+        title: "Sucesso",
+        description: "Grupo de veículo atualizado com sucesso",
+      });
     } else {
       // Check if the ID is already in use
       if (groups.some(group => group.id === values.id)) {
@@ -150,7 +156,10 @@ const Parameters = () => {
       };
       
       setGroups([...groups, newGroup]);
-      toast.success('Grupo de veículo adicionado com sucesso');
+      toast({
+        title: "Sucesso",
+        description: "Grupo de veículo adicionado com sucesso",
+      });
     }
     setIsDialogOpen(false);
   };
@@ -166,7 +175,10 @@ const Parameters = () => {
       },
       extraKmPercentage: values.extraKmPercentage,
     });
-    toast.success('Parâmetros globais atualizados com sucesso');
+    toast({
+      title: "Sucesso",
+      description: "Parâmetros globais atualizados com sucesso",
+    });
   };
 
   return (
