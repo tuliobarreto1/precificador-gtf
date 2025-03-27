@@ -14,6 +14,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from 'react-router-dom';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Lock } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 type TopBarProps = {
   isSidebarOpen: boolean;
@@ -21,9 +27,14 @@ type TopBarProps = {
 };
 
 const TopBar = ({ isSidebarOpen, toggleSidebar }: TopBarProps) => {
-  const { getCurrentUser, setCurrentUser, availableUsers, authenticateUser } = useQuote();
+  const { getCurrentUser, availableUsers, authenticateUser } = useQuote();
   const currentUser = getCurrentUser();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<{id: number, name: string} | null>(null);
+  const [password, setPassword] = useState('');
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
   
   const handleLogout = () => {
     // Redirecionar para a página de login
@@ -60,6 +71,40 @@ const TopBar = ({ isSidebarOpen, toggleSidebar }: TopBarProps) => {
           </Badge>
         );
     }
+  };
+
+  const handleUserSelection = (user: {id: number, name: string}) => {
+    // Apenas configurar o usuário selecionado e abrir o diálogo de senha
+    setSelectedUser(user);
+    setPassword('');
+    setIsPasswordDialogOpen(true);
+  };
+
+  const handleAuthenticate = () => {
+    if (!selectedUser) return;
+    
+    setIsAuthenticating(true);
+    
+    // Simulação de verificação de senha (em um sistema real, isso seria validado no backend)
+    setTimeout(() => {
+      const authenticated = authenticateUser(selectedUser.id, password);
+      
+      if (authenticated) {
+        toast({
+          title: "Autenticação bem-sucedida",
+          description: `Bem-vindo(a), ${selectedUser.name}!`,
+        });
+        setIsPasswordDialogOpen(false);
+      } else {
+        toast({
+          title: "Erro de autenticação",
+          description: "Senha incorreta. Tente novamente.",
+          variant: "destructive",
+        });
+      }
+      
+      setIsAuthenticating(false);
+    }, 1000);
   };
 
   return (
@@ -112,7 +157,7 @@ const TopBar = ({ isSidebarOpen, toggleSidebar }: TopBarProps) => {
               {availableUsers.map((user) => (
                 <DropdownMenuItem 
                   key={user.id}
-                  onClick={() => setCurrentUser(user)}
+                  onClick={() => user.id !== currentUser.id && handleUserSelection(user)}
                   className={`flex items-center justify-between cursor-pointer ${
                     currentUser.id === user.id ? 'bg-muted' : ''
                   }`}
@@ -137,6 +182,46 @@ const TopBar = ({ isSidebarOpen, toggleSidebar }: TopBarProps) => {
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Modal para inserir a senha */}
+      <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Autenticação necessária</DialogTitle>
+            <DialogDescription>
+              Digite a senha para entrar como {selectedUser?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="password">Senha</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="********"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAuthenticate();
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPasswordDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleAuthenticate} disabled={isAuthenticating}>
+              {isAuthenticating ? "Autenticando..." : "Entrar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </header>
   );
 };

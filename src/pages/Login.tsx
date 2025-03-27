@@ -22,31 +22,47 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulação de login
-    setTimeout(() => {
-      const user = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.status === 'active');
-      
-      if (user) {
-        // Em um sistema real, verificaríamos a senha aqui
-        const authenticated = authenticateUser(user.id);
-        
-        if (authenticated) {
-          toast({
-            title: "Login realizado com sucesso",
-            description: `Bem-vindo(a), ${user.name}!`,
-          });
-          navigate('/');
-        } else {
-          toast({
-            title: "Erro de autenticação",
-            description: "Não foi possível autenticar o usuário.",
-            variant: "destructive",
-          });
-        }
-      } else {
+    // Verificação básica
+    if (!email.trim() || !password.trim()) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Por favor, preencha o email e senha.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    // Encontrar o usuário pelo email
+    const user = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.status === 'active');
+    
+    if (!user) {
+      // Usuário não encontrado ou inativo
+      setTimeout(() => {
         toast({
           title: "Credenciais inválidas",
           description: "Email ou senha incorretos ou usuário inativo.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+      }, 1000);
+      return;
+    }
+    
+    // Tentar autenticar com senha
+    setTimeout(() => {
+      const authenticated = authenticateUser(user.id, password);
+      
+      if (authenticated) {
+        toast({
+          title: "Login realizado com sucesso",
+          description: `Bem-vindo(a), ${user.name}!`,
+        });
+        navigate('/');
+      } else {
+        toast({
+          title: "Erro de autenticação",
+          description: "Senha incorreta. Tente novamente.",
           variant: "destructive",
         });
       }
@@ -116,7 +132,7 @@ const Login = () => {
             <p><strong>Admin:</strong> admin@carleasemaster.com.br</p>
             <p><strong>Gerente:</strong> gerente@carleasemaster.com.br</p>
             <p><strong>Usuário:</strong> teste@carleasemaster.com.br</p>
-            <p className="mt-2 italic text-muted-foreground">Senha: qualquer valor</p>
+            <p className="mt-2 italic text-muted-foreground">Senha: qualquer valor não vazio</p>
           </div>
         </div>
       </Card>

@@ -143,7 +143,7 @@ type QuoteContextType = {
   canDeleteQuote: (quote: SavedQuote) => boolean;
   updateQuote: (quoteId: string, updates: Partial<QuoteFormData>, changeDescription: string) => boolean;
   availableUsers: User[];
-  authenticateUser: (userId: number) => boolean;
+  authenticateUser: (userId: number, password?: string) => boolean;
   mockUsers: User[];
 };
 
@@ -212,12 +212,38 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   // Function to authenticate a user by ID
-  const authenticateUser = (userId: number): boolean => {
+  const authenticateUser = (userId: number, password?: string): boolean => {
     const foundUser = mockUsers.find(u => u.id === userId && u.status === 'active');
+    
     if (foundUser) {
-      setCurrentUser(foundUser);
-      return true;
+      // Se a senha foi fornecida, verificar
+      if (password !== undefined) {
+        // Em um sistema real, isso seria uma verificação criptográfica adequada
+        // Para fins de simulação, vamos aceitar qualquer senha não vazia para o usuário correspondente
+        if (password.trim() === '') {
+          console.log('Autenticação falhou: senha vazia');
+          return false;
+        }
+        
+        // Atualizar data de último login
+        const updatedUser = {
+          ...foundUser,
+          lastLogin: new Date().toISOString().replace('T', ' ').substring(0, 16)
+        };
+        
+        setCurrentUser(updatedUser);
+        console.log(`Usuário ${updatedUser.name} autenticado com senha`);
+        return true;
+      } else {
+        // Para compatibilidade com o código existente, permitir autenticação sem senha
+        // (isso será usado apenas em fluxos internos do sistema)
+        setCurrentUser(foundUser);
+        console.log(`Usuário ${foundUser.name} autenticado sem senha (fluxo interno)`);
+        return true;
+      }
     }
+    
+    console.log('Autenticação falhou: usuário não encontrado ou inativo');
     return false;
   };
 
