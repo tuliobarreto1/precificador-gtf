@@ -142,9 +142,18 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
         return prev; // Não fazer nada se o veículo já estiver na lista
       }
       
+      // Criar um novo veículo com parâmetros globais como base
+      const newVehicleItem: QuoteVehicleItem = {
+        vehicle,
+        vehicleGroup,
+        params: !prev.useGlobalParams ? { ...prev.globalParams } : undefined
+      };
+
+      console.log('Adicionando veículo:', newVehicleItem);
+      
       return {
         ...prev,
-        vehicles: [...prev.vehicles, { vehicle, vehicleGroup }],
+        vehicles: [...prev.vehicles, newVehicleItem],
       };
     });
   };

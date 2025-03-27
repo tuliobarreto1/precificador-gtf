@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+{/* Preserve the original imports and types */}
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Info, Users, Car, Wrench, Calculator, Plus, Trash2, Settings } from 'lucide-react';
+import NewClientForm from '@/components/client/NewClientForm';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
@@ -13,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import VehicleSelector from '@/components/vehicle/VehicleSelector';
 import VehicleCard from '@/components/ui-custom/VehicleCard';
-import { clients } from '@/lib/mock-data';
+import { getClients } from '@/lib/mock-data';
 import { useQuote, QuoteProvider } from '@/context/QuoteContext';
 
 const STEPS = [
@@ -25,7 +27,7 @@ const STEPS = [
 
 const QuoteForm = () => {
   const [currentStep, setCurrentStep] = useState('client');
-  const [selectedVehicleTab, setSelectedVehicleTab] = useState<string | null>(null);
+  const [selectedVehicleTab, setSelectedVehicleTab] = useState<string | null | undefined>(undefined);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { 
@@ -42,6 +44,13 @@ const QuoteForm = () => {
     calculateQuote,
     saveQuote
   } = useQuote();
+
+  // Effect to handle tab selection when vehicles change
+  useEffect(() => {
+    if (currentStep === 'params' && quoteForm.vehicles.length > 0) {
+      setSelectedVehicleTab(quoteForm.vehicles[0].vehicle.id);
+    }
+  }, [currentStep, quoteForm.vehicles]);
 
   const goToNextStep = () => {
     switch (currentStep) {
@@ -63,10 +72,8 @@ const QuoteForm = () => {
           });
           return;
         }
+        setSelectedVehicleTab(quoteForm.vehicles[0].vehicle.id);
         setCurrentStep('params');
-        if (quoteForm.vehicles.length > 0 && !quoteForm.useGlobalParams) {
-          setSelectedVehicleTab(quoteForm.vehicles[0].vehicle.id);
-        }
         break;
       case 'params':
         setCurrentStep('result');
@@ -104,40 +111,71 @@ const QuoteForm = () => {
     }
   };
 
+  const [isNewClient, setIsNewClient] = useState(false);
+  const [clientListKey, setClientListKey] = useState(0);
+
   const renderClientStep = () => (
     <div className="space-y-6 animate-fadeIn">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {clients.map((client) => (
-          <div
-            key={client.id}
-            className={`p-4 rounded-lg border cursor-pointer transition-all ${
-              quoteForm.client?.id === client.id
-                ? 'border-primary/70 ring-1 ring-primary/30 shadow-sm'
-                : 'border-border hover:border-primary/30'
-            }`}
-            onClick={() => setClient(client)}
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="font-medium">{client.name}</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {client.type === 'PJ' ? 'CNPJ' : 'CPF'}: {client.document}
-                </p>
-              </div>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${
-                client.type === 'PJ' 
-                  ? 'bg-blue-100 text-blue-800' 
-                  : 'bg-green-100 text-green-800'
-              }`}>
-                {client.type === 'PJ' ? 'Pessoa Jurídica' : 'Pessoa Física'}
-              </span>
-            </div>
-            {client.email && (
-              <p className="text-sm mt-2">{client.email}</p>
-            )}
-          </div>
-        ))}
+      <div className="flex items-center space-x-2 mb-4">
+        <Button
+          type="button"
+          variant={!isNewClient ? "default" : "outline"}
+          onClick={() => setIsNewClient(false)}
+        >
+          Selecionar Cliente
+        </Button>
+        <Button
+          type="button"
+          variant={isNewClient ? "default" : "outline"}
+          onClick={() => setIsNewClient(true)}
+        >
+          Novo Cliente
+        </Button>
       </div>
+
+      {isNewClient ? (
+        <NewClientForm
+          onSave={(client) => {
+            setClient(client);
+            setIsNewClient(false);
+            setClientListKey(prev => prev + 1);
+          }}
+          onCancel={() => setIsNewClient(false)}
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {React.useMemo(() => getClients(), [clientListKey]).map((client) => (
+            <div
+              key={client.id}
+              className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                quoteForm.client?.id === client.id
+                  ? 'border-primary/70 ring-1 ring-primary/30 shadow-sm'
+                  : 'border-border hover:border-primary/30'
+              }`}
+              onClick={() => setClient(client)}
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-medium">{client.name}</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {client.type === 'PJ' ? 'CNPJ' : 'CPF'}: {client.document}
+                  </p>
+                </div>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                  client.type === 'PJ' 
+                    ? 'bg-blue-100 text-blue-800' 
+                    : 'bg-green-100 text-green-800'
+                }`}>
+                  {client.type === 'PJ' ? 'Pessoa Jurídica' : 'Pessoa Física'}
+                </span>
+              </div>
+              {client.email && (
+                <p className="text-sm mt-2">{client.email}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 
@@ -332,7 +370,6 @@ const QuoteForm = () => {
       ) : (
         <div className="space-y-4">
           <h3 className="text-base font-medium">Parâmetros por Veículo</h3>
-          
           {quoteForm.vehicles.length > 0 && (
             <Tabs 
               value={selectedVehicleTab || quoteForm.vehicles[0].vehicle.id}

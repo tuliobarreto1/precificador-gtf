@@ -48,7 +48,9 @@ export type Quote = {
   costPerKm: number;
 };
 
-export const clients: Client[] = [
+// Carregar clientes do localStorage ou usar dados iniciais
+const STORED_CLIENTS_KEY = 'lovClients';
+const initialClients = [
   {
     id: '1',
     name: 'João da Silva',
@@ -257,8 +259,31 @@ export const getVehicleGroupById = (id: string) => {
 };
 
 // Helper functions to access related data - added to fix the import errors
+// Carregar clientes
+let clientsData = JSON.parse(localStorage.getItem(STORED_CLIENTS_KEY) || 'null') || initialClients;
+
+// Função para obter lista atualizada de clientes
+export const getClients = () => clientsData;
+
+// Função para salvar clientes no localStorage
+const saveClientsToStorage = () => {
+  localStorage.setItem(STORED_CLIENTS_KEY, JSON.stringify(clientsData));
+};
+
+// Funções helper para manipulação de clientes
 export const getClientById = (id: string) => {
-  return clients.find(client => client.id === id);
+  return clientsData.find(client => client.id === id);
+};
+
+export const addClient = (client: Client) => {
+  clientsData = [client, ...clientsData];
+  saveClientsToStorage();
+  return client;
+};
+
+// Função helper para buscar cliente por documento
+export const getClientByDocument = (document: string) => {
+  return clientsData.find(client => client.document === document);
 };
 
 export const getVehicleById = (id: string) => {

@@ -431,13 +431,20 @@ DB_DATABASE=seu-banco-de-dados`}
 
       {vehicleType === 'new' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {vehicles.filter(v => !v.isUsed).map((vehicle) => {
+          {vehicles
+            .filter(vehicle => vehicleType === 'new' ? !vehicle.isUsed : vehicle.isUsed)
+            .map((vehicle) => {
             const group = getVehicleGroupById(vehicle.groupId);
-            if (!group) return null;
+            if (!group) {
+              console.error(`Grupo não encontrado para o veículo ${vehicle.id} (groupId: ${vehicle.groupId})`);
+              return null;
+            }
+            console.log('Renderizando veículo:', { vehicle, group });
             
             const isSelected = isVehicleSelected(vehicle.id);
             
-            return (
+            // Garantir que o veículo e grupo existem antes de renderizar
+            const card = (
               <VehicleCard
                 key={vehicle.id}
                 vehicle={vehicle}
@@ -470,6 +477,7 @@ DB_DATABASE=seu-banco-de-dados`}
                 )}
               </VehicleCard>
             );
+            return card;
           })}
         </div>
       )}
