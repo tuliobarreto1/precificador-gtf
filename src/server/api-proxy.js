@@ -19,9 +19,31 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// Middleware para logging de requisições
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
+// Verificar se as configurações do banco de dados estão disponíveis
+const checkDbConfig = () => {
+  const requiredVars = ['DB_SERVER', 'DB_USER', 'DB_PASSWORD'];
+  const missingVars = requiredVars.filter(varName => !process.env[varName]);
+  
+  if (missingVars.length > 0) {
+    console.error(`Configurações de banco de dados incompletas. Faltando: ${missingVars.join(', ')}`);
+    return false;
+  }
+  return true;
+};
+
 // Configurar o content-type para todas as respostas da API
 app.use('/api', (req, res, next) => {
   res.setHeader('Content-Type', 'application/json');
+  // Desabilitar cache para evitar problemas de resposta
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   next();
 });
 
@@ -78,6 +100,18 @@ app.get('/api/vehicles/:plate', async (req, res) => {
   try {
     const { plate } = req.params;
     console.log(`Buscando veículo com placa: ${plate}`);
+    
+    if (!checkDbConfig()) {
+      return res.status(500).json({ 
+        message: 'Configurações do banco de dados incompletas ou inválidas', 
+        environment: {
+          server: process.env.DB_SERVER,
+          user: process.env.DB_USER,
+          database: process.env.DB_DATABASE,
+          port: process.env.DB_PORT
+        }
+      });
+    }
     
     console.log('Tentando conectar ao banco de dados...');
     let pool;
@@ -153,6 +187,7 @@ app.get('/api/vehicles/:plate', async (req, res) => {
 // Rota de verificação de conexão
 app.get('/api/status', (req, res) => {
   try {
+    console.log('Recebida requisição de status da API');
     const status = { 
       status: 'online',
       timestamp: new Date().toISOString(),
@@ -292,6 +327,20 @@ app.get('/api/test-connection', async (req, res) => {
   
   try {
     console.log('Testando conexão com o banco de dados...');
+    
+    if (!checkDbConfig()) {
+      return res.status(500).json({ 
+        status: 'error',
+        message: 'Configurações do banco de dados incompletas ou inválidas', 
+        environment: {
+          server: process.env.DB_SERVER,
+          user: process.env.DB_USER,
+          database: process.env.DB_DATABASE,
+          port: process.env.DB_PORT
+        }
+      });
+    }
+    
     console.log('Configuração utilizada:', {
       server: process.env.DB_SERVER,
       user: process.env.DB_USER,
@@ -359,6 +408,7 @@ app.get('/api/test-connection', async (req, res) => {
 // Rota de diagnóstico para testar conexão básica
 app.get('/api/ping', (req, res) => {
   console.log('Requisição ping recebida');
+  // Certifique-se de enviar apenas JSON
   res.json({ status: 'ok', message: 'API funcionando', time: new Date().toISOString() });
 });
 

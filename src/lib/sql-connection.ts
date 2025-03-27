@@ -41,10 +41,13 @@ export async function getVehicleByPlate(plate: string): Promise<SqlVehicle | nul
     
     try {
       const response = await fetch(`/api/vehicles/${cleanPlate}`, {
+        method: 'GET',
         signal: controller.signal,
         headers: {
           'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
+          'X-Requested-With': 'XMLHttpRequest',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         }
       });
       clearTimeout(timeoutId);
@@ -63,7 +66,13 @@ export async function getVehicleByPlate(plate: string): Promise<SqlVehicle | nul
         }
         
         // Tentar obter o texto da resposta para diagnóstico
-        const errorText = await response.text();
+        let errorText;
+        try {
+          errorText = await response.text();
+        } catch (textError) {
+          errorText = 'Não foi possível ler o texto da resposta';
+        }
+        
         console.error('Resposta de erro:', errorText);
         
         // Verificar se o texto é JSON ou HTML
@@ -85,13 +94,24 @@ export async function getVehicleByPlate(plate: string): Promise<SqlVehicle | nul
       }
       
       // Tentar obter o texto da resposta para diagnóstico
-      const responseText = await response.text();
+      let responseText;
+      try {
+        responseText = await response.text();
+      } catch (textError) {
+        throw new Error(`Erro ao ler resposta do servidor: ${textError.message}`);
+      }
+      
       console.log('Resposta texto recebida:', responseText.substring(0, 200));
       
       // Verificar se o texto é JSON ou HTML
       if (responseText.trim().startsWith('<')) {
         console.error('A resposta parece ser HTML, não JSON:', responseText.substring(0, 200));
         throw new Error('Resposta inesperada do servidor. Recebeu HTML em vez de JSON.');
+      }
+      
+      if (!responseText.trim()) {
+        console.error('Resposta vazia recebida do servidor');
+        throw new Error('Resposta vazia recebida do servidor');
       }
       
       try {
@@ -125,15 +145,31 @@ export async function testApiConnection(): Promise<{ status: string; environment
     try {
       console.log('Tentando o endpoint /api/ping básico...');
       const pingResponse = await fetch('/api/ping', { 
+        method: 'GET',
         headers: {
           'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
+          'X-Requested-With': 'XMLHttpRequest',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         }
       });
       
       if (pingResponse.ok) {
-        const pingData = await pingResponse.json();
-        console.log('Ping da API bem-sucedido:', pingData);
+        let pingText = await pingResponse.text();
+        console.log('Texto da resposta ping:', pingText);
+        
+        // Verificar se a resposta é HTML
+        if (pingText.trim().startsWith('<')) {
+          console.error('Resposta ping é HTML, não JSON:', pingText.substring(0, 200));
+          // Não lançar erro aqui, apenas registrar
+        } else if (pingText) {
+          try {
+            const pingData = JSON.parse(pingText);
+            console.log('Ping da API bem-sucedido:', pingData);
+          } catch (e) {
+            console.warn('Ping retornou texto não-JSON:', pingText);
+          }
+        }
       } else {
         console.warn('Ping da API falhou com status:', pingResponse.status);
       }
@@ -148,11 +184,13 @@ export async function testApiConnection(): Promise<{ status: string; environment
     
     try {
       const response = await fetch('/api/status', { 
+        method: 'GET',
         signal: controller.signal,
         headers: {
           'Accept': 'application/json',
           'X-Requested-With': 'XMLHttpRequest',
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         }
       });
       clearTimeout(timeoutId);
@@ -162,7 +200,13 @@ export async function testApiConnection(): Promise<{ status: string; environment
       if (!response.ok) {
         console.error(`Status da API retornou ${response.status}`);
         // Tentar obter o texto da resposta para diagnóstico
-        const errorText = await response.text();
+        let errorText;
+        try {
+          errorText = await response.text();
+        } catch (textError) {
+          errorText = 'Não foi possível ler o texto da resposta';
+        }
+        
         console.error('Texto da resposta de erro:', errorText.substring(0, 200));
         
         return { 
@@ -176,7 +220,19 @@ export async function testApiConnection(): Promise<{ status: string; environment
       }
       
       // Tentar obter o texto da resposta para diagnóstico
-      const responseText = await response.text();
+      let responseText;
+      try {
+        responseText = await response.text();
+      } catch (textError) {
+        return { 
+          status: 'error', 
+          environment: { 
+            error: `Erro ao ler resposta: ${textError.message}`,
+            timestamp: new Date().toISOString()
+          } 
+        };
+      }
+      
       console.log('Resposta texto do status:', responseText.substring(0, 200));
       
       // Verificar se o texto é JSON ou HTML
@@ -187,6 +243,17 @@ export async function testApiConnection(): Promise<{ status: string; environment
           environment: { 
             error: 'Recebeu HTML em vez de JSON',
             responseText: responseText.substring(0, 200),
+            timestamp: new Date().toISOString()
+          } 
+        };
+      }
+      
+      if (!responseText.trim()) {
+        console.error('Resposta vazia recebida do servidor');
+        return { 
+          status: 'error', 
+          environment: { 
+            error: 'Resposta vazia recebida do servidor',
             timestamp: new Date().toISOString()
           } 
         };
@@ -248,7 +315,9 @@ export async function testCustomDatabaseConnection(credentials: DbCredentials): 
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
+          'X-Requested-With': 'XMLHttpRequest',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         },
         body: JSON.stringify(credentials),
         signal: controller.signal
@@ -258,13 +327,24 @@ export async function testCustomDatabaseConnection(credentials: DbCredentials): 
       console.log(`Resposta do teste de conexão recebida. Status: ${response.status}`);
       
       // Tentar obter o texto da resposta para diagnóstico
-      const responseText = await response.text();
+      let responseText;
+      try {
+        responseText = await response.text();
+      } catch (textError) {
+        throw new Error(`Erro ao ler resposta do servidor: ${textError.message}`);
+      }
+      
       console.log('Resposta texto do teste de conexão:', responseText.substring(0, 200));
       
       // Verificar se o texto é JSON ou HTML
       if (responseText.trim().startsWith('<')) {
         console.error('A resposta parece ser HTML, não JSON:', responseText.substring(0, 200));
         throw new Error('Resposta inesperada do servidor. Recebeu HTML em vez de JSON.');
+      }
+      
+      if (!responseText.trim()) {
+        console.error('Resposta vazia recebida do servidor');
+        throw new Error('Resposta vazia recebida do servidor');
       }
       
       try {
