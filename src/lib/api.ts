@@ -1,4 +1,3 @@
-
 // Mock data for clients
 export interface Client {
   id: string;
@@ -109,8 +108,15 @@ export async function getQuotes(): Promise<{ success: boolean; quotes: any[]; er
   }
 }
 
+// Interface para os retornos das funções de autenticação
+interface AuthResponse {
+  success: boolean;
+  user?: any;
+  error?: any;
+}
+
 // Função de login para autenticação
-export async function signIn(email: string, password: string): Promise<{ success: boolean; error?: any }> {
+export async function signIn(email: string, password: string): Promise<AuthResponse> {
   try {
     const { supabase } = await import('@/integrations/supabase/client');
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -131,7 +137,7 @@ export async function signIn(email: string, password: string): Promise<{ success
 }
 
 // Função de registro para autenticação
-export async function signUp(email: string, password: string, name: string): Promise<{ success: boolean; error?: any }> {
+export async function signUp(email: string, password: string, name: string): Promise<AuthResponse> {
   try {
     const { supabase } = await import('@/integrations/supabase/client');
     const { data, error } = await supabase.auth.signUp({
