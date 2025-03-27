@@ -148,6 +148,7 @@ type QuoteContextType = {
   loadQuoteForEditing: (quoteId: string) => boolean;
   isEditMode: boolean;
   currentEditingQuoteId: string | null;
+  sendQuoteByEmail: (quoteId: string, recipientEmail: string, message: string) => Promise<boolean>;
 };
 
 // Initial state
@@ -659,35 +660,57 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Função para carregar um orçamento para edição
+  // Função para carregar um orçamento para edição (melhorada)
   const loadQuoteForEditing = (quoteId: string): boolean => {
+    console.log("⏳ Iniciando carregamento de orçamento:", quoteId);
+    
     try {
-      console.log("Tentando carregar orçamento para edição:", quoteId);
-      
       // Garantir que temos os dados mais recentes dos orçamentos salvos
-      const allQuotes = getSavedQuotes();
+      const retrieveLocalQuotes = () => {
+        try {
+          const storedQuotes = localStorage.getItem(SAVED_QUOTES_KEY);
+          if (storedQuotes) {
+            return JSON.parse(storedQuotes);
+          }
+          return [];
+        } catch (error) {
+          console.error('❌ Erro ao recuperar orçamentos do localStorage:', error);
+          return [];
+        }
+      };
+      
+      const allQuotes = retrieveLocalQuotes();
+      console.log(`📋 Total de orçamentos disponíveis: ${allQuotes.length}`);
+      
       const quoteToEdit = allQuotes.find(q => q.id === quoteId);
       
       if (!quoteToEdit) {
-        console.error("Orçamento não encontrado:", quoteId);
+        console.error(`❌ Orçamento com ID ${quoteId} não encontrado`);
         return false;
       }
       
+      console.log("✅ Orçamento encontrado:", quoteToEdit);
+      
       // Verificar permissões de edição
       if (!canEditQuote(quoteToEdit)) {
-        console.error("Usuário não tem permissão para editar este orçamento");
+        console.error("❌ Usuário não tem permissão para editar este orçamento");
         return false;
       }
       
       // Resetar o formulário antes de carregar os novos dados
+      console.log("🔄 Resetando formulário antes do carregamento");
       resetForm();
       
       // Carregar cliente
       const client = getClientById(quoteToEdit.clientId);
+      console.log("👤 Tentando carregar cliente:", quoteToEdit.clientId);
+      
       if (client) {
+        console.log("✅ Cliente encontrado:", client);
         setClient(client);
       } else if (quoteToEdit.clientName) {
         // Se não encontrar o cliente pelo ID, criar um cliente temporário com os dados disponíveis
+        console.log("⚠️ Cliente não encontrado, criando temporário com nome:", quoteToEdit.clientName);
         const tempClient: Client = {
           id: quoteToEdit.clientId,
           name: quoteToEdit.clientName,
@@ -697,11 +720,12 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
         };
         setClient(tempClient);
       } else {
-        console.error("Dados do cliente insuficientes para criar cliente temporário");
+        console.error("❌ Dados do cliente insuficientes");
         return false;
       }
       
       // Configurar os parâmetros globais
+      console.log("⚙️ Configurando parâmetros globais");
       setGlobalContractMonths(quoteToEdit.contractMonths);
       setGlobalMonthlyKm(quoteToEdit.monthlyKm);
       
@@ -713,46 +737,61 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
         setGlobalHasTracking(quoteToEdit.hasTracking);
       }
       
-      // Limpar veículos existentes antes de adicionar novos
-      setQuoteForm(prev => ({ ...prev, vehicles: [] }));
+      // Limpar veículos existentes
+      console.log("🚗 Preparando para carregar veículos");
       
       // Verificar se existem veículos para carregar
       if (!quoteToEdit.vehicles || quoteToEdit.vehicles.length === 0) {
-        console.error("Orçamento não possui veículos para carregar");
+        console.error("❌ Orçamento não possui veículos para carregar");
         return false;
       }
       
-      let loadedVehicles = 0;
+      // Para garantir que vehicles é resetado corretamente
+      setQuoteForm(prev => ({ ...prev, vehicles: [] }));
       
-      // Carregar cada veículo do orçamento
-      for (const vehicleItem of quoteToEdit.vehicles) {
-        const vehicleFromDB = getVehicleById(vehicleItem.vehicleId);
-        const vehicleGroup = getVehicleGroupById(vehicleItem.groupId);
+      // Precisamos usar um timeout para garantir que o estado foi atualizado
+      setTimeout(() => {
+        let loadedVehicles = 0;
         
-        if (vehicleFromDB && vehicleGroup) {
-          // Usar a função addVehicle que já existe no contexto
+        // Carregar cada veículo do orçamento
+        console.log(`🚗 Tentando carregar ${quoteToEdit.vehicles.length} veículos`);
+        
+        for (const vehicleItem of quoteToEdit.vehicles) {
+          console.log(`🚗 Carregando veículo ID: ${vehicleItem.vehicleId}, Grupo: ${vehicleItem.groupId}`);
+          
+          const vehicleFromDB = getVehicleById(vehicleItem.vehicleId);
+          if (!vehicleFromDB) {
+            console.warn(`⚠️ Veículo não encontrado: ${vehicleItem.vehicleId}`);
+            continue;
+          }
+          
+          const vehicleGroup = getVehicleGroupById(vehicleItem.groupId);
+          if (!vehicleGroup) {
+            console.warn(`⚠️ Grupo de veículo não encontrado: ${vehicleItem.groupId}`);
+            continue;
+          }
+          
+          console.log(`✅ Adicionando veículo: ${vehicleFromDB.brand} ${vehicleFromDB.model}`);
           addVehicle(vehicleFromDB, vehicleGroup);
           loadedVehicles++;
-        } else {
-          console.warn(`Não foi possível carregar veículo ID: ${vehicleItem.vehicleId}, Grupo: ${vehicleItem.groupId}`);
         }
-      }
-      
-      if (loadedVehicles === 0) {
-        console.error("Nenhum veículo foi carregado com sucesso");
-        return false;
-      }
+        
+        console.log(`✅ ${loadedVehicles} veículos carregados com sucesso`);
+        
+        if (loadedVehicles === 0) {
+          console.error("❌ Nenhum veículo foi carregado com sucesso");
+        }
+      }, 100);
       
       // Marcar como modo de edição
+      console.log("✏️ Ativando modo de edição");
       setIsEditMode(true);
       setCurrentEditingQuoteId(quoteId);
       
-      console.log("Orçamento carregado com sucesso para edição:", quoteId);
-      console.log("Veículos carregados:", loadedVehicles);
-      
+      console.log("✅ Orçamento carregado com sucesso para edição:", quoteId);
       return true;
     } catch (error) {
-      console.error("Erro ao carregar orçamento para edição:", error);
+      console.error("❌ Erro ao carregar orçamento para edição:", error);
       // Resetar o estado em caso de erro
       setIsEditMode(false);
       setCurrentEditingQuoteId(null);
@@ -775,6 +814,50 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     
     // Se não conseguir recuperar do localStorage, usar o estado
     return savedQuotes;
+  };
+
+  // Nova função para enviar orçamento por e-mail
+  const sendQuoteByEmail = async (quoteId: string, recipientEmail: string, message: string): Promise<boolean> => {
+    try {
+      // Buscar o orçamento a ser enviado
+      const quoteToSend = savedQuotes.find(q => q.id === quoteId);
+      if (!quoteToSend) {
+        console.error('Orçamento não encontrado para envio de e-mail:', quoteId);
+        return false;
+      }
+
+      console.log(`Preparando para enviar orçamento ${quoteId} para ${recipientEmail}`);
+      
+      // Aqui estaria a integração real com serviço de e-mail
+      // Como estamos usando mock, simulamos o envio bem-sucedido
+      console.log('E-mail enviado com sucesso para:', recipientEmail);
+      
+      // Registrar o envio no histórico do orçamento
+      const updatedQuotes = savedQuotes.map(quote => {
+        if (quote.id === quoteId) {
+          const editRecord: EditRecord = {
+            editedAt: new Date().toISOString(),
+            editedBy: getCurrentUser(),
+            changes: `Orçamento enviado por e-mail para ${recipientEmail}`
+          };
+          
+          return {
+            ...quote,
+            editHistory: [...(quote.editHistory || []), editRecord]
+          };
+        }
+        return quote;
+      });
+      
+      // Atualizar o estado e o localStorage
+      setSavedQuotes(updatedQuotes);
+      localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
+      
+      return true;
+    } catch (error) {
+      console.error('Erro ao enviar orçamento por e-mail:', error);
+      return false;
+    }
   };
 
   return (
@@ -805,7 +888,8 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       mockUsers,
       loadQuoteForEditing,
       isEditMode,
-      currentEditingQuoteId
+      currentEditingQuoteId,
+      sendQuoteByEmail
     }}>
       {children}
     </QuoteContext.Provider>

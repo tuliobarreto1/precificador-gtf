@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Info, Users, Car, Wrench, Calculator, Plus, Trash2, Settings } from 'lucide-react';
+import { Info, Users, Car, Wrench, Calculator, Plus, Trash2, Settings, Mail } from 'lucide-react';
 import ClientForm from '@/components/quote/ClientForm';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
@@ -11,6 +12,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from '@/hooks/use-toast';
 import VehicleSelector from '@/components/vehicle/VehicleSelector';
 import VehicleCard from '@/components/ui-custom/VehicleCard';
@@ -25,11 +29,109 @@ const STEPS = [
   { id: 'result', name: 'Resultado', icon: <Calculator size={18} /> },
 ];
 
+// Componente de e-mail para envio de orçamentos
+const EmailDialog = ({ quoteId }: { quoteId: string }) => {
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const { toast } = useToast();
+  const { sendQuoteByEmail } = useQuote();
+
+  const handleSendEmail = async () => {
+    if (!email) {
+      toast({
+        title: "E-mail obrigatório",
+        description: "Digite o e-mail do destinatário",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setSending(true);
+    const success = await sendQuoteByEmail(quoteId, email, message);
+    
+    if (success) {
+      toast({
+        title: "E-mail enviado",
+        description: "Orçamento enviado com sucesso"
+      });
+      setDialogOpen(false);
+      setEmail('');
+      setMessage('');
+    } else {
+      toast({
+        title: "Erro ao enviar",
+        description: "Não foi possível enviar o orçamento por e-mail",
+        variant: "destructive"
+      });
+    }
+    setSending(false);
+  };
+
+  return (
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="flex items-center gap-2">
+          <Mail size={16} />
+          <span>Enviar por E-mail</span>
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Enviar Orçamento por E-mail</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="email" className="text-right">
+              E-mail
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="cliente@empresa.com.br"
+              className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="message" className="text-right">
+              Mensagem
+            </Label>
+            <Textarea
+              id="message"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Segue em anexo o orçamento conforme solicitado."
+              className="col-span-3"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => setDialogOpen(false)}
+            disabled={sending}
+          >
+            Cancelar
+          </Button>
+          <Button type="button" onClick={handleSendEmail} disabled={sending}>
+            {sending ? 'Enviando...' : 'Enviar'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const QuoteForm = () => {
   const { id } = useParams<{ id: string }>();
   const [currentStep, setCurrentStep] = useState('client');
   const [selectedVehicleTab, setSelectedVehicleTab] = useState<string | null | undefined>(undefined);
   const [loadingQuote, setLoadingQuote] = useState<boolean>(!!id);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { 
@@ -46,7 +148,8 @@ const QuoteForm = () => {
     calculateQuote,
     saveQuote,
     loadQuoteForEditing,
-    isEditMode
+    isEditMode,
+    currentEditingQuoteId
   } = useQuote();
 
   const logState = () => {
@@ -61,16 +164,18 @@ const QuoteForm = () => {
 
   useEffect(() => {
     if (id) {
-      console.log('Modo de edição detectado, carregando orçamento:', id);
+      console.log('🔄 Modo de edição detectado, carregando orçamento:', id);
       setLoadingQuote(true);
+      setLoadError(null);
       
       try {
         // Adicionar timeout para garantir que a UI seja atualizada antes de carregar
         setTimeout(() => {
+          console.log('⏳ Tentando carregar orçamento:', id);
           const success = loadQuoteForEditing(id);
           
           if (success) {
-            console.log('Orçamento carregado com sucesso:', quoteForm);
+            console.log('✅ Orçamento carregado com sucesso:', quoteForm);
             // Quando em modo de edição, iniciar na etapa de veículos
             setCurrentStep('vehicle');
             
@@ -79,35 +184,28 @@ const QuoteForm = () => {
               description: "Os dados do orçamento foram carregados para edição."
             });
           } else {
-            console.error('Falha ao carregar orçamento:', id);
+            console.error('❌ Falha ao carregar orçamento:', id);
+            setLoadError("Não foi possível carregar o orçamento para edição.");
             
             toast({
               title: "Erro ao carregar",
               description: "Não foi possível carregar o orçamento para edição.",
               variant: "destructive"
             });
-            
-            // Redirecionar após uma pequena pausa para mostrar o toast
-            setTimeout(() => {
-              navigate('/orcamentos');
-            }, 1500);
           }
           
           // Liberar a interface após o carregamento, independentemente do resultado
           setLoadingQuote(false);
-        }, 500);
+        }, 1000);
       } catch (error) {
-        console.error('Erro ao processar orçamento:', error);
+        console.error('❌ Erro ao processar orçamento:', error);
+        setLoadError("Ocorreu um erro ao tentar carregar o orçamento.");
         
         toast({
           title: "Erro inesperado",
           description: "Ocorreu um erro ao tentar carregar o orçamento.",
           variant: "destructive"
         });
-        
-        setTimeout(() => {
-          navigate('/orcamentos');
-        }, 1500);
         
         setLoadingQuote(false);
       }
@@ -122,7 +220,7 @@ const QuoteForm = () => {
 
   const handleNextStep = () => {
     logState();
-    console.log(`Tentando avançar de ${currentStep} para o próximo passo. Modo de edição: ${isEditMode}`);
+    console.log(`👆 Botão CONTINUAR clicado: avançando de ${currentStep} para o próximo passo. Modo de edição: ${isEditMode}`);
     
     if (currentStep === 'client') {
       if (!quoteForm.client) {
@@ -132,7 +230,7 @@ const QuoteForm = () => {
         });
         return;
       }
-      console.log("Avançando para etapa de veículo");
+      console.log("✅ Avançando para etapa de veículo");
       setCurrentStep('vehicle');
       return;
     }
@@ -145,7 +243,7 @@ const QuoteForm = () => {
         });
         return;
       }
-      console.log("Avançando para etapa de parâmetros");
+      console.log("✅ Avançando para etapa de parâmetros");
       setCurrentStep('params');
       
       if (quoteForm.vehicles.length > 0) {
@@ -155,13 +253,13 @@ const QuoteForm = () => {
     }
     
     if (currentStep === 'params') {
-      console.log("Avançando para etapa de resultado");
+      console.log("✅ Avançando para etapa de resultado");
       setCurrentStep('result');
       return;
     }
     
     if (currentStep === 'result') {
-      console.log("Finalizando orçamento");
+      console.log("✅ Finalizando orçamento");
       const success = saveQuote();
       if (success) {
         toast({
@@ -538,7 +636,7 @@ const QuoteForm = () => {
         </Card>
         
         <Card className="bg-primary/5 border-primary/20">
-          <div className="flex flex-col md:flex-row justify-between items-center">
+          <div className="flex flex-col md:flex-row justify-between items-center p-6">
             <div>
               <h3 className="text-2xl font-semibold">Valor Total Mensal</h3>
               <p className="text-muted-foreground">Todos os impostos inclusos</p>
@@ -552,6 +650,13 @@ const QuoteForm = () => {
               </p>
             </div>
           </div>
+          
+          {/* Botão para enviar por e-mail na etapa de resultado */}
+          {isEditMode && currentEditingQuoteId && (
+            <div className="border-t p-4 flex justify-end">
+              <EmailDialog quoteId={currentEditingQuoteId} />
+            </div>
+          )}
         </Card>
       </div>
     );
@@ -579,6 +684,20 @@ const QuoteForm = () => {
           <div className="text-center">
             <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
             <p className="text-muted-foreground">Carregando orçamento...</p>
+          </div>
+        </div>
+      ) : loadError ? (
+        <div className="bg-destructive/80 text-white p-6 rounded-lg">
+          <h3 className="text-xl font-bold mb-2">Erro ao carregar</h3>
+          <p>{loadError}</p>
+          <div className="mt-4">
+            <Button 
+              variant="outline" 
+              className="bg-white/10 hover:bg-white/20 text-white"
+              onClick={() => navigate('/orcamentos')}
+            >
+              Voltar para a lista de orçamentos
+            </Button>
           </div>
         </div>
       ) : (
@@ -625,11 +744,10 @@ const QuoteForm = () => {
             </Button>
             <Button 
               onClick={() => {
-                console.log("Botão Continuar clicado");
+                console.log("👆 Botão Continuar clicado");
                 handleNextStep();
               }}
               type="button"
-              disabled={loadingQuote}
               className="min-w-28 font-medium cursor-pointer"
             >
               {currentStep === 'result' 
