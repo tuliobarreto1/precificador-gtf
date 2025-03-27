@@ -663,6 +663,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   const loadQuoteForEditing = (quoteId: string): boolean => {
     try {
       console.log("Tentando carregar orçamento para edição:", quoteId);
+      
       // Garantir que temos os dados mais recentes dos orçamentos salvos
       const allQuotes = getSavedQuotes();
       const quoteToEdit = allQuotes.find(q => q.id === quoteId);
@@ -712,8 +713,8 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
         setGlobalHasTracking(quoteToEdit.hasTracking);
       }
       
-      // Carregar veículos
-      let loadedVehicles = 0;
+      // Limpar veículos existentes antes de adicionar novos
+      setQuoteForm(prev => ({ ...prev, vehicles: [] }));
       
       // Verificar se existem veículos para carregar
       if (!quoteToEdit.vehicles || quoteToEdit.vehicles.length === 0) {
@@ -721,8 +722,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
       
-      // Limpar veículos existentes
-      quoteForm.vehicles = [];
+      let loadedVehicles = 0;
       
       // Carregar cada veículo do orçamento
       for (const vehicleItem of quoteToEdit.vehicles) {
@@ -730,6 +730,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
         const vehicleGroup = getVehicleGroupById(vehicleItem.groupId);
         
         if (vehicleFromDB && vehicleGroup) {
+          // Usar a função addVehicle que já existe no contexto
           addVehicle(vehicleFromDB, vehicleGroup);
           loadedVehicles++;
         } else {
@@ -748,7 +749,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       
       console.log("Orçamento carregado com sucesso para edição:", quoteId);
       console.log("Veículos carregados:", loadedVehicles);
-      console.log("Estado do formulário após carregamento:", quoteForm);
+      
       return true;
     } catch (error) {
       console.error("Erro ao carregar orçamento para edição:", error);

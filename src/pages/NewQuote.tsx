@@ -65,29 +65,37 @@ const QuoteForm = () => {
       setLoadingQuote(true);
       
       try {
-        const success = loadQuoteForEditing(id);
-        
-        if (success) {
-          console.log('Orçamento carregado com sucesso:', quoteForm);
-          setCurrentStep('vehicle');
+        // Adicionar timeout para garantir que a UI seja atualizada antes de carregar
+        setTimeout(() => {
+          const success = loadQuoteForEditing(id);
           
-          toast({
-            title: "Orçamento carregado",
-            description: "Os dados do orçamento foram carregados para edição."
-          });
-        } else {
-          console.error('Falha ao carregar orçamento:', id);
+          if (success) {
+            console.log('Orçamento carregado com sucesso:', quoteForm);
+            // Quando em modo de edição, iniciar na etapa de veículos
+            setCurrentStep('vehicle');
+            
+            toast({
+              title: "Orçamento carregado",
+              description: "Os dados do orçamento foram carregados para edição."
+            });
+          } else {
+            console.error('Falha ao carregar orçamento:', id);
+            
+            toast({
+              title: "Erro ao carregar",
+              description: "Não foi possível carregar o orçamento para edição.",
+              variant: "destructive"
+            });
+            
+            // Redirecionar após uma pequena pausa para mostrar o toast
+            setTimeout(() => {
+              navigate('/orcamentos');
+            }, 1500);
+          }
           
-          toast({
-            title: "Erro ao carregar",
-            description: "Não foi possível carregar o orçamento para edição.",
-            variant: "destructive"
-          });
-          
-          setTimeout(() => {
-            navigate('/orcamentos');
-          }, 1500);
-        }
+          // Liberar a interface após o carregamento, independentemente do resultado
+          setLoadingQuote(false);
+        }, 500);
       } catch (error) {
         console.error('Erro ao processar orçamento:', error);
         
@@ -100,7 +108,7 @@ const QuoteForm = () => {
         setTimeout(() => {
           navigate('/orcamentos');
         }, 1500);
-      } finally {
+        
         setLoadingQuote(false);
       }
     }
@@ -616,10 +624,13 @@ const QuoteForm = () => {
               Voltar
             </Button>
             <Button 
-              onClick={handleNextStep}
+              onClick={() => {
+                console.log("Botão Continuar clicado");
+                handleNextStep();
+              }}
               type="button"
               disabled={loadingQuote}
-              className="min-w-28 font-medium"
+              className="min-w-28 font-medium cursor-pointer"
             >
               {currentStep === 'result' 
                 ? (isEditMode ? "Atualizar Orçamento" : "Salvar Orçamento") 
