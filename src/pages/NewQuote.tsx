@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Info, Users, Car, Wrench, Calculator, Plus, Trash2, Settings } from 'lucide-react';
@@ -15,8 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import VehicleSelector from '@/components/vehicle/VehicleSelector';
 import VehicleCard from '@/components/ui-custom/VehicleCard';
 import { clients } from '@/lib/mock-data';
-import { useQuote, QuoteProvider, CustomClient } from '@/context/QuoteContext';
-import ClientForm from '@/components/quote/ClientForm';
+import { useQuote, QuoteProvider } from '@/context/QuoteContext';
 
 const STEPS = [
   { id: 'client', name: 'Cliente', icon: <Users size={18} /> },
@@ -55,15 +53,6 @@ const QuoteForm = () => {
           });
           return;
         }
-        
-        if (!quoteForm.quoteResponsible) {
-          toast({
-            title: "Informe o responsável",
-            description: "É necessário informar o responsável pela proposta."
-          });
-          return;
-        }
-        
         setCurrentStep('vehicle');
         break;
       case 'vehicle':
@@ -117,7 +106,38 @@ const QuoteForm = () => {
 
   const renderClientStep = () => (
     <div className="space-y-6 animate-fadeIn">
-      <ClientForm onClientSelect={setClient} existingClients={clients} />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {clients.map((client) => (
+          <div
+            key={client.id}
+            className={`p-4 rounded-lg border cursor-pointer transition-all ${
+              quoteForm.client?.id === client.id
+                ? 'border-primary/70 ring-1 ring-primary/30 shadow-sm'
+                : 'border-border hover:border-primary/30'
+            }`}
+            onClick={() => setClient(client)}
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="font-medium">{client.name}</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {client.type === 'PJ' ? 'CNPJ' : 'CPF'}: {client.document}
+                </p>
+              </div>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                client.type === 'PJ' 
+                  ? 'bg-blue-100 text-blue-800' 
+                  : 'bg-green-100 text-green-800'
+              }`}>
+                {client.type === 'PJ' ? 'Pessoa Jurídica' : 'Pessoa Física'}
+              </span>
+            </div>
+            {client.email && (
+              <p className="text-sm mt-2">{client.email}</p>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 

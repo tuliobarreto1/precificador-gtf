@@ -1,351 +1,406 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Calendar, Car, Users, MapPin, Wallet } from 'lucide-react';
+
+import React from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { ArrowLeft, Download, Send, Edit, Trash } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
-import Card from '@/components/ui-custom/Card';
+import Card, { CardHeader } from '@/components/ui-custom/Card';
 import { Button } from '@/components/ui/button';
-import { getQuoteById, Quote } from '@/lib/mock-data';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { quotes, getClientById, getVehicleById, getVehicleGroupById } from '@/lib/mock-data';
+import { calculateExtraKmRate, getGlobalParams } from '@/lib/calculation';
 import { SavedQuote } from '@/context/QuoteContext';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
-// Type guard para diferenciar entre Quote (mock) e SavedQuote (localStorage)
-function isSavedQuote(quote: SavedQuote | Quote): quote is SavedQuote {
-  return 'vehicles' in quote;
-}
+// Função para verificar se é um orçamento salvo
+const isSavedQuote = (quote: any): quote is SavedQuote => {
+  return 'clientName' in quote && 'vehicleBrand' in quote && 'vehicleModel' in quote;
+};
 
 const QuoteDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const [quote, setQuote] = useState<SavedQuote | Quote | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!id) return;
-
-    // Primeiro, tentar carregar da localStorage (SavedQuote)
-    try {
-      const savedQuotes = localStorage.getItem('savedQuotes');
-      if (savedQuotes) {
-        const quotes: SavedQuote[] = JSON.parse(savedQuotes);
-        const savedQuote = quotes.find(q => q.id === id);
-        
-        if (savedQuote) {
-          setQuote(savedQuote);
-          setLoading(false);
-          return;
-        }
+  
+  // Buscar orçamentos salvos do localStorage
+  const getSavedQuotes = (): SavedQuote[] => {
+    const storedQuotes = localStorage.getItem('savedQuotes');
+    if (storedQuotes) {
+      try {
+        return JSON.parse(storedQuotes);
+      } catch (error) {
+        console.error('Erro ao carregar orçamentos salvos:', error);
       }
-    } catch (error) {
-      console.error('Erro ao carregar cotação do localStorage:', error);
     }
-
-    // Se não encontrar no localStorage, carregar dos mocks
-    const mockQuote = getQuoteById(id);
-    if (mockQuote) {
-      setQuote(mockQuote);
-    } else {
-      console.error(`Cotação não encontrada: ${id}`);
-    }
+    return [];
+  };
+  
+  // Buscar orçamento por ID (tanto mockados quanto salvos)
+  const findQuoteById = (quoteId: string) => {
+    // Primeiro buscar nos orçamentos mockados
+    const mockQuote = quotes.find(q => q.id === quoteId);
+    if (mockQuote) return mockQuote;
     
-    setLoading(false);
-  }, [id]);
-
-  if (loading) {
-    return (
-      <MainLayout>
-        <div className="py-8">
-          <div className="flex justify-center items-center h-96">
-            <div className="animate-pulse text-lg">Carregando...</div>
-          </div>
-        </div>
-      </MainLayout>
-    );
-  }
-
+    // Se não encontrar, buscar nos salvos
+    const savedQuotes = getSavedQuotes();
+    return savedQuotes.find(q => q.id === quoteId);
+  };
+  
+  // Encontrar o orçamento pelo ID
+  const quote = id ? findQuoteById(id) : null;
+  
+  // Se orçamento não encontrado, exibir mensagem de erro
   if (!quote) {
     return (
       <MainLayout>
-        <div className="py-8">
-          <Card>
-            <div className="text-center p-8">
-              <h2 className="text-2xl font-bold mb-4">Cotação não encontrada</h2>
-              <p className="mb-6">A cotação que você está procurando não existe ou foi removida.</p>
-              <Button asChild>
-                <Link to="/orcamentos">Ver todas as cotações</Link>
-              </Button>
-            </div>
-          </Card>
+        <div className="py-8 text-center">
+          <h2 className="text-2xl font-bold">Orçamento não encontrado</h2>
+          <p className="mt-2 text-muted-foreground">O orçamento que você está procurando não existe.</p>
+          <Link to="/orcamentos">
+            <Button className="mt-6">Voltar para Orçamentos</Button>
+          </Link>
         </div>
       </MainLayout>
     );
   }
-
-  // Formatar data
-  let formattedDate = '';
-  try {
-    if (isSavedQuote(quote)) {
-      const date = new Date(quote.createdAt);
-      formattedDate = format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
-    } else {
-      const date = new Date(quote.createdAt);
-      formattedDate = format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+  
+  // Definir variáveis com base no tipo de orçamento
+  const isSaved = isSavedQuote(quote);
+  
+  // Obter dados relacionados
+  let client, vehicle, vehicleGroup;
+  
+  if (isSaved) {
+    // Para orçamentos salvos, usar os dados do próprio objeto
+    client = {
+      name: quote.clientName,
+      document: '', // Podemos não ter essa informação no SavedQuote
+      type: 'PJ', // Valor padrão, pode não ser preciso
+      email: ''
+    };
+    
+    // Para o veículo, usamos o primeiro da lista (se existir vários)
+    const firstVehicle = quote.vehicles[0];
+    if (firstVehicle) {
+      vehicle = {
+        id: firstVehicle.vehicleId,
+        brand: firstVehicle.vehicleBrand,
+        model: firstVehicle.vehicleModel,
+        plateNumber: firstVehicle.plateNumber,
+        year: '', // Pode não estar disponível
+        value: 0, // Valor não disponível diretamente, mas podemos calculá-lo
+        groupId: firstVehicle.groupId
+      };
+      
+      // Obter o grupo do veículo
+      vehicleGroup = getVehicleGroupById(firstVehicle.groupId);
     }
-  } catch (error) {
-    console.error('Erro ao formatar data:', error);
-    formattedDate = 'Data não disponível';
+  } else {
+    // Para orçamentos mockados, buscar dados relacionados
+    client = getClientById(quote.clientId);
+    vehicle = getVehicleById(quote.vehicleId);
+    vehicleGroup = vehicle ? getVehicleGroupById(vehicle.groupId) : undefined;
   }
+  
+  // Obter parâmetros globais
+  const globalParams = getGlobalParams();
+  
+  // Calcular dados adicionais
+  let extraKmRate = 0;
+  if (isSaved) {
+    // Usar o valor armazenado no orçamento salvo
+    const firstVehicle = quote.vehicles[0];
+    if (firstVehicle) {
+      extraKmRate = firstVehicle.extraKmRate;
+    }
+  } else if (vehicle) {
+    // Calcular para orçamentos mockados
+    extraKmRate = calculateExtraKmRate(vehicle.value);
+  }
+  
+  const createdDate = new Date(quote.createdAt).toLocaleDateString('pt-BR');
+  const totalKm = quote.monthlyKm * quote.contractMonths;
+  
+  // Calcular custos específicos com base no tipo de orçamento
+  let depreciationCost = 0;
+  let maintenanceCost = 0;
+  let trackingCost = 0;
+  
+  if (isSaved) {
+    // Para orçamentos salvos, acessar do primeiro veículo
+    const firstVehicle = quote.vehicles[0];
+    if (firstVehicle) {
+      depreciationCost = firstVehicle.depreciationCost;
+      maintenanceCost = firstVehicle.maintenanceCost;
+    }
+    // Orçamentos salvos podem não ter trackingCost especificado
+    trackingCost = 0;
+  } else {
+    // Para orçamentos mockados, usar diretamente do objeto
+    depreciationCost = quote.depreciationCost;
+    maintenanceCost = quote.maintenanceCost;
+    trackingCost = quote.trackingCost || 0;
+  }
+  
+  // Cálculo do custo por km
+  const costPerKm = isSaved 
+    ? (totalKm > 0 ? quote.totalCost / totalKm : 0) 
+    : (quote.costPerKm || 0);
 
-  // Preço formatado
-  const totalPrice = isSavedQuote(quote) 
-    ? quote.totalCost 
-    : quote.totalCost;
-
+  // Cálculo das porcentagens dos componentes de custo
+  const totalCost = quote.totalCost;
+  const depreciationPercentage = totalCost > 0 ? ((depreciationCost / totalCost) * 100).toFixed(1) : "0";
+  const maintenancePercentage = totalCost > 0 ? ((maintenanceCost / totalCost) * 100).toFixed(1) : "0";
+  const trackingPercentage = totalCost > 0 ? ((trackingCost / totalCost) * 100).toFixed(1) : "0";
+  
   return (
     <MainLayout>
       <div className="py-8">
-        <div className="mb-6">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="mb-4"
-            onClick={() => navigate('/orcamentos')}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar para Orçamentos
-          </Button>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+          <div className="flex items-center space-x-4 mb-4 md:mb-0">
+            <Link to="/orcamentos">
+              <Button variant="outline" size="icon">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+            <PageTitle
+              title={`Orçamento #${quote.id}`}
+              subtitle={`Criado em ${createdDate}`}
+              className="mb-0"
+            />
+          </div>
           
-          <PageTitle 
-            title={`Orçamento #${quote.id}`} 
-            subtitle={`Criado em ${formattedDate}`} 
-          />
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" className="flex items-center gap-2">
+              <Download className="h-4 w-4" />
+              Exportar PDF
+            </Button>
+            <Button variant="outline" className="flex items-center gap-2">
+              <Send className="h-4 w-4" />
+              Enviar por Email
+            </Button>
+            <Button variant="outline" className="flex items-center gap-2">
+              <Edit className="h-4 w-4" />
+              Editar
+            </Button>
+            <Button variant="destructive" className="flex items-center gap-2">
+              <Trash className="h-4 w-4" />
+              Excluir
+            </Button>
+          </div>
         </div>
-
+        
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <Card>
-              <div className="p-6">
-                <h2 className="text-xl font-semibold mb-4">Dados do Cliente</h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Nome/Razão Social</p>
-                    <p className="font-medium">
-                      {isSavedQuote(quote) ? quote.clientName : quote.clientName}
-                    </p>
+          {/* Cliente e Veículo */}
+          <Card className="lg:col-span-2">
+            <CardHeader title="Informações Básicas" />
+            <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="font-semibold mb-2">Cliente</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Nome</span>
+                    <span className="font-medium">{client?.name}</span>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Documento</p>
-                    <p className="font-medium">
-                      {isSavedQuote(quote) ? quote.clientDocument || 'Não informado' : 'Não disponível'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Email</p>
-                    <p className="font-medium">
-                      {isSavedQuote(quote) && quote.clientEmail 
-                        ? quote.clientEmail 
-                        : 'Não informado'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Telefone</p>
-                    <p className="font-medium">
-                      {isSavedQuote(quote) && quote.clientPhone 
-                        ? quote.clientPhone 
-                        : 'Não informado'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Pessoa de Contato</p>
-                    <p className="font-medium">
-                      {isSavedQuote(quote) && quote.clientContactPerson 
-                        ? quote.clientContactPerson 
-                        : 'Não informado'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Responsável pela Proposta</p>
-                    <p className="font-medium">
-                      {isSavedQuote(quote) && quote.quoteResponsible
-                        ? quote.quoteResponsible
-                        : 'Não informado'}
-                    </p>
-                  </div>
+                  {client?.document && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Documento</span>
+                      <span>{client.document}</span>
+                    </div>
+                  )}
+                  {!isSaved && client?.type && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Tipo</span>
+                      <Badge variant="outline">
+                        {client.type === 'PJ' ? 'Pessoa Jurídica' : 'Pessoa Física'}
+                      </Badge>
+                    </div>
+                  )}
+                  {client?.email && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Email</span>
+                      <span>{client.email}</span>
+                    </div>
+                  )}
                 </div>
               </div>
-            </Card>
-            
-            <Card>
-              <div className="p-6">
-                <h2 className="text-xl font-semibold mb-4">Detalhes do Orçamento</h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="bg-muted/30 p-4 rounded-md">
-                    <div className="flex items-center mb-2">
-                      <Calendar className="h-5 w-5 mr-2 text-primary" />
-                      <h3 className="font-medium">Prazo</h3>
+              
+              <div>
+                <h3 className="font-semibold mb-2">Veículo</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Modelo</span>
+                    <span className="font-medium">{vehicle?.brand} {vehicle?.model}</span>
+                  </div>
+                  {vehicle?.year && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Ano</span>
+                      <span>{vehicle.year}</span>
                     </div>
-                    <p className="text-lg font-semibold">
-                      {isSavedQuote(quote) ? quote.contractMonths : quote.contractMonths} meses
-                    </p>
+                  )}
+                  {vehicleGroup && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Grupo</span>
+                      <Badge variant="outline">{vehicleGroup.name}</Badge>
+                    </div>
+                  )}
+                  {isSaved ? (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Veículos</span>
+                      <span>{quote.vehicles.length}</span>
+                    </div>
+                  ) : vehicle?.value ? (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Valor</span>
+                      <span>R$ {vehicle.value.toLocaleString('pt-BR')}</span>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </Card>
+          
+          {/* Resumo */}
+          <Card className="bg-primary/5 border-primary/20">
+            <CardHeader title="Valor Total" />
+            <div className="p-4 space-y-4">
+              <div className="text-center">
+                <p className="text-3xl font-bold text-primary">
+                  R$ {quote.totalCost.toLocaleString('pt-BR')}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  por mês
+                </p>
+              </div>
+              
+              <Separator />
+              
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Prazo</span>
+                  <span className="font-medium">{quote.contractMonths} meses</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Km Mensal</span>
+                  <span className="font-medium">{quote.monthlyKm.toLocaleString('pt-BR')} km</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Km Total</span>
+                  <span className="font-medium">{totalKm.toLocaleString('pt-BR')} km</span>
+                </div>
+                {!isSaved && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Nível de Operação</span>
+                      <span className="font-medium">{quote.operationSeverity}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Rastreamento</span>
+                      <span className="font-medium">{quote.hasTracking ? 'Sim' : 'Não'}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+              
+              <div className="pt-4 mt-4 border-t">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Valor do KM Excedente</span>
+                  <span className="font-semibold">R$ {extraKmRate.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          </Card>
+          
+          {/* Detalhamento */}
+          <Card className="lg:col-span-3">
+            <CardHeader title="Detalhamento dos Custos" />
+            <div className="p-4">
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="p-4 border rounded-md bg-muted/10">
+                    <div className="flex flex-col">
+                      <span className="text-muted-foreground text-sm">Depreciação</span>
+                      <span className="text-xl font-bold mt-1">R$ {depreciationCost.toLocaleString('pt-BR')}</span>
+                      <span className="text-xs text-muted-foreground mt-1">
+                        {depreciationPercentage}% do valor total
+                      </span>
+                    </div>
                   </div>
                   
-                  <div className="bg-muted/30 p-4 rounded-md">
-                    <div className="flex items-center mb-2">
-                      <MapPin className="h-5 w-5 mr-2 text-primary" />
-                      <h3 className="font-medium">Quilometragem</h3>
+                  <div className="p-4 border rounded-md bg-muted/10">
+                    <div className="flex flex-col">
+                      <span className="text-muted-foreground text-sm">Manutenção</span>
+                      <span className="text-xl font-bold mt-1">R$ {maintenanceCost.toLocaleString('pt-BR')}</span>
+                      <span className="text-xs text-muted-foreground mt-1">
+                        {maintenancePercentage}% do valor total
+                      </span>
                     </div>
-                    <p className="text-lg font-semibold">
-                      {isSavedQuote(quote) 
-                        ? `${quote.monthlyKm.toLocaleString('pt-BR')} km/mês`
-                        : `${quote.monthlyKm.toLocaleString('pt-BR')} km/mês`}
-                    </p>
                   </div>
                   
-                  <div className="bg-muted/30 p-4 rounded-md">
-                    <div className="flex items-center mb-2">
-                      <Wallet className="h-5 w-5 mr-2 text-primary" />
-                      <h3 className="font-medium">Valor Mensal</h3>
+                  {!isSaved && (
+                    <div className="p-4 border rounded-md bg-muted/10">
+                      <div className="flex flex-col">
+                        <span className="text-muted-foreground text-sm">Rastreamento</span>
+                        <span className="text-xl font-bold mt-1">R$ {trackingCost.toLocaleString('pt-BR')}</span>
+                        <span className="text-xs text-muted-foreground mt-1">
+                          {trackingPercentage}% do valor total
+                        </span>
+                      </div>
                     </div>
-                    <p className="text-lg font-semibold">
-                      R$ {totalPrice.toLocaleString('pt-BR')}
-                    </p>
+                  )}
+                  
+                  <div className="p-4 border rounded-md bg-muted/10">
+                    <div className="flex flex-col">
+                      <span className="text-muted-foreground text-sm">Custo por KM</span>
+                      <span className="text-xl font-bold mt-1">R$ {costPerKm.toFixed(2)}</span>
+                      <span className="text-xs text-muted-foreground mt-1">
+                        Baseado na quilometragem contratada
+                      </span>
+                    </div>
                   </div>
                 </div>
                 
-                <h3 className="font-semibold mb-3">Veículos Incluídos</h3>
-                
-                {isSavedQuote(quote) ? (
-                  <div className="space-y-3">
-                    {quote.vehicles.map((vehicle, index) => (
-                      <div key={index} className="border rounded-md p-4">
-                        <div className="flex justify-between">
-                          <div>
-                            <h4 className="font-medium">{vehicle.vehicleBrand} {vehicle.vehicleModel}</h4>
-                            <p className="text-sm text-muted-foreground">
-                              {vehicle.plateNumber ? `Placa: ${vehicle.plateNumber} • ` : ''}
-                              Grupo: {vehicle.groupId}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium">R$ {vehicle.totalCost.toLocaleString('pt-BR')}</p>
-                            <p className="text-xs text-muted-foreground">Valor mensal</p>
-                          </div>
-                        </div>
-                        
-                        <div className="mt-3 pt-3 border-t grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
-                          <div>
-                            <p className="text-muted-foreground">Depreciação:</p>
-                            <p className="font-medium">R$ {vehicle.depreciationCost.toLocaleString('pt-BR')}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Manutenção:</p>
-                            <p className="font-medium">R$ {vehicle.maintenanceCost.toLocaleString('pt-BR')}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Km excedente:</p>
-                            <p className="font-medium">R$ {vehicle.extraKmRate.toFixed(2)}</p>
-                          </div>
-                        </div>
+                {vehicleGroup && (
+                  <div className="mt-8">
+                    <h3 className="font-medium mb-4">Parâmetros de Manutenção</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="p-4 border rounded-md">
+                        <span className="text-muted-foreground text-sm">Intervalo de Revisão</span>
+                        <p className="font-medium">{vehicleGroup.revisionKm.toLocaleString('pt-BR')} km</p>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="border rounded-md p-4">
-                    <div className="flex justify-between">
-                      <div>
-                        <h4 className="font-medium">{quote.vehicleBrand} {quote.vehicleModel}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          Grupo: {quote.vehicleGroup}
-                        </p>
+                      
+                      <div className="p-4 border rounded-md">
+                        <span className="text-muted-foreground text-sm">Custo por Revisão</span>
+                        <p className="font-medium">R$ {vehicleGroup.revisionCost.toLocaleString('pt-BR')}</p>
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium">R$ {quote.totalCost.toLocaleString('pt-BR')}</p>
-                        <p className="text-xs text-muted-foreground">Valor mensal</p>
+                      
+                      <div className="p-4 border rounded-md">
+                        <span className="text-muted-foreground text-sm">Intervalo de Troca de Pneus</span>
+                        <p className="font-medium">{vehicleGroup.tireKm.toLocaleString('pt-BR')} km</p>
                       </div>
-                    </div>
-                    
-                    <div className="mt-3 pt-3 border-t grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Depreciação:</p>
-                        <p className="font-medium">R$ {quote.depreciationCost.toLocaleString('pt-BR')}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Manutenção:</p>
-                        <p className="font-medium">R$ {quote.maintenanceCost.toLocaleString('pt-BR')}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Km excedente:</p>
-                        <p className="font-medium">R$ {quote.extraKmRate.toFixed(2)}/km</p>
+                      
+                      <div className="p-4 border rounded-md">
+                        <span className="text-muted-foreground text-sm">Custo de Troca de Pneus</span>
+                        <p className="font-medium">R$ {vehicleGroup.tireCost.toLocaleString('pt-BR')}</p>
                       </div>
                     </div>
                   </div>
                 )}
               </div>
-            </Card>
-          </div>
+            </div>
+          </Card>
           
-          <div className="space-y-6">
-            <Card>
-              <div className="p-6">
-                <h2 className="text-xl font-semibold mb-4">Resumo</h2>
-                
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center pb-2 border-b">
-                    <p className="text-muted-foreground">Veículos</p>
-                    <p className="font-medium">
-                      {isSavedQuote(quote) ? quote.vehicles.length : 1}
-                    </p>
-                  </div>
-                  
-                  <div className="flex justify-between items-center pb-2 border-b">
-                    <p className="text-muted-foreground">Prazo</p>
-                    <p className="font-medium">
-                      {isSavedQuote(quote) ? quote.contractMonths : quote.contractMonths} meses
-                    </p>
-                  </div>
-                  
-                  <div className="flex justify-between items-center pb-2 border-b">
-                    <p className="text-muted-foreground">Quilometragem Total</p>
-                    <p className="font-medium">
-                      {isSavedQuote(quote) 
-                        ? `${(quote.monthlyKm * quote.contractMonths).toLocaleString('pt-BR')} km`
-                        : `${(quote.monthlyKm * quote.contractMonths).toLocaleString('pt-BR')} km`}
-                    </p>
-                  </div>
-                  
-                  <div className="pt-4">
-                    <p className="text-muted-foreground text-sm mb-1">Valor Total Mensal</p>
-                    <p className="text-2xl font-bold text-primary">
-                      R$ {totalPrice.toLocaleString('pt-BR')}
-                    </p>
-                  </div>
+          {/* Informações Adicionais */}
+          <Card className="lg:col-span-3">
+            <CardHeader title="Informações Adicionais" />
+            <div className="p-4">
+              <div className="flex justify-between items-center p-3 bg-muted/30 rounded-md">
+                <div>
+                  <span className="font-medium">Valor do KM Excedente</span>
+                  <p className="text-xs text-muted-foreground">Cobrado caso ultrapasse a franquia mensal</p>
                 </div>
+                <span className="font-semibold">R$ {extraKmRate.toFixed(2)}</span>
               </div>
-            </Card>
-            
-            <Card>
-              <div className="p-6">
-                <h2 className="text-xl font-semibold mb-4">Ações</h2>
-                
-                <div className="space-y-3">
-                  <Button className="w-full">
-                    Aprovar Orçamento
-                  </Button>
-                  
-                  <Button variant="outline" className="w-full">
-                    Gerar PDF
-                  </Button>
-                  
-                  <Button variant="outline" className="w-full">
-                    Enviar por E-mail
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          </div>
+            </div>
+          </Card>
         </div>
       </div>
     </MainLayout>

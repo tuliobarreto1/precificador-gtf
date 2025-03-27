@@ -2,18 +2,6 @@ import React, { createContext, useContext, useState, ReactNode, useEffect } from
 import { Vehicle, Client, VehicleGroup, getVehicleGroupById } from '@/lib/mock-data';
 import { DepreciationParams, MaintenanceParams, calculateLeaseCost, calculateExtraKmRate } from '@/lib/calculation';
 
-// Novo tipo para informações de cliente personalizado
-export type CustomClient = {
-  id: string;
-  name: string;
-  document: string;
-  type: 'PF' | 'PJ';
-  email?: string;
-  phone?: string;
-  contactPerson?: string;
-  isCustom: true;
-};
-
 // Item de veículo na cotação
 export type QuoteVehicleItem = {
   vehicle: Vehicle;
@@ -28,8 +16,7 @@ export type QuoteVehicleItem = {
 
 // Quote form state
 export type QuoteFormData = {
-  client: (Client | CustomClient) | null;
-  quoteResponsible: string;
+  client: Client | null;
   vehicles: QuoteVehicleItem[];
   useGlobalParams: boolean;
   globalParams: {
@@ -56,11 +43,6 @@ export type SavedQuote = {
   id: string;
   clientId: string;
   clientName: string;
-  clientDocument?: string;
-  clientEmail?: string;
-  clientPhone?: string;
-  clientContactPerson?: string;
-  quoteResponsible: string;
   vehicleId: string;
   vehicleBrand: string;
   vehicleModel: string;
@@ -84,16 +66,7 @@ export type SavedQuote = {
 // Context type
 type QuoteContextType = {
   quoteForm: QuoteFormData;
-  setClient: (client: (Client | CustomClient) | null) => void;
-  setQuoteResponsible: (responsible: string) => void;
-  createCustomClient: (clientData: {
-    name: string;
-    document: string;
-    type: 'PF' | 'PJ';
-    email?: string;
-    phone?: string;
-    contactPerson?: string;
-  }) => void;
+  setClient: (client: Client | null) => void;
   addVehicle: (vehicle: Vehicle, vehicleGroup: VehicleGroup) => void;
   removeVehicle: (vehicleId: string) => void;
   setGlobalContractMonths: (months: number) => void;
@@ -126,7 +99,6 @@ const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
 // Initial state
 const initialQuoteForm: QuoteFormData = {
   client: null,
-  quoteResponsible: '',
   vehicles: [],
   useGlobalParams: true,
   globalParams: {
@@ -159,30 +131,8 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   // Update functions
-  const setClient = (client: (Client | CustomClient) | null) => {
+  const setClient = (client: Client | null) => {
     setQuoteForm(prev => ({ ...prev, client }));
-  };
-
-  const setQuoteResponsible = (responsible: string) => {
-    setQuoteForm(prev => ({ ...prev, quoteResponsible: responsible }));
-  };
-
-  const createCustomClient = (clientData: {
-    name: string;
-    document: string;
-    type: 'PF' | 'PJ';
-    email?: string;
-    phone?: string;
-    contactPerson?: string;
-  }) => {
-    const customClient: CustomClient = {
-      id: `custom-${Date.now()}`,
-      isCustom: true,
-      ...clientData
-    };
-    
-    setQuoteForm(prev => ({ ...prev, client: customClient }));
-    return customClient;
   };
 
   const addVehicle = (vehicle: Vehicle, vehicleGroup: VehicleGroup) => {
@@ -326,8 +276,6 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       id: newId,
       clientId: quoteForm.client.id,
       clientName: quoteForm.client.name,
-      clientDocument: quoteForm.client.document,
-      quoteResponsible: quoteForm.quoteResponsible,
       vehicleId: quoteForm.vehicles[0].vehicle.id, // Para compatibilidade com o formato atual
       vehicleBrand: quoteForm.vehicles[0].vehicle.brand,
       vehicleModel: quoteForm.vehicles[0].vehicle.model,
@@ -355,13 +303,6 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       }),
     };
 
-    // Adicionar informações personalizadas se for cliente personalizado
-    if ('isCustom' in quoteForm.client && quoteForm.client.isCustom) {
-      newSavedQuote.clientEmail = quoteForm.client.email;
-      newSavedQuote.clientPhone = quoteForm.client.phone;
-      newSavedQuote.clientContactPerson = quoteForm.client.contactPerson;
-    }
-
     // Atualizar o estado e o localStorage
     const updatedQuotes = [newSavedQuote, ...savedQuotes];
     setSavedQuotes(updatedQuotes);
@@ -379,8 +320,6 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     <QuoteContext.Provider value={{
       quoteForm,
       setClient,
-      setQuoteResponsible,
-      createCustomClient,
       addVehicle,
       removeVehicle,
       setGlobalContractMonths,
