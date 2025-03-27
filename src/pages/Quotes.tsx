@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FileText, Search, Filter, Calendar, ArrowUpDown, User, RefreshCw } from 'lucide-react';
@@ -82,7 +83,7 @@ const Quotes = () => {
     .filter(quote => {
       // Filtrar por usuário
       if (userFilter !== 'all' && isSavedQuote(quote)) {
-        if (!quote.createdBy || quote.createdBy.id !== userFilter) {
+        if (!quote.createdBy || quote.createdBy.id.toString() !== userFilter) {
           return false;
         }
       }
