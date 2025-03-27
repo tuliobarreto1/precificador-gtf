@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Info, Users, Car, Wrench, Calculator, Plus, Trash2 } from 'lucide-react';
+import { Info, Users, Car, Wrench, Calculator, Plus, Trash2, Settings } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
@@ -10,8 +9,10 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import VehicleSelector from '@/components/vehicle/VehicleSelector';
+import VehicleCard from '@/components/ui-custom/VehicleCard';
 import { clients } from '@/lib/mock-data';
 import { useQuote, QuoteProvider } from '@/context/QuoteContext';
 
@@ -24,6 +25,7 @@ const STEPS = [
 
 const QuoteForm = () => {
   const [currentStep, setCurrentStep] = useState('client');
+  const [selectedVehicleTab, setSelectedVehicleTab] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { 
@@ -36,6 +38,7 @@ const QuoteForm = () => {
     setGlobalOperationSeverity, 
     setGlobalHasTracking, 
     setUseGlobalParams,
+    setVehicleParams,
     calculateQuote 
   } = useQuote();
 
@@ -60,6 +63,9 @@ const QuoteForm = () => {
           return;
         }
         setCurrentStep('params');
+        if (quoteForm.vehicles.length > 0 && !quoteForm.useGlobalParams) {
+          setSelectedVehicleTab(quoteForm.vehicles[0].vehicle.id);
+        }
         break;
       case 'params':
         setCurrentStep('result');
@@ -133,6 +139,91 @@ const QuoteForm = () => {
     />
   );
 
+  const renderVehicleParams = (vehicleId: string) => {
+    const vehicleItem = quoteForm.vehicles.find(v => v.vehicle.id === vehicleId);
+    if (!vehicleItem) return null;
+    
+    const params = vehicleItem.params || quoteForm.globalParams;
+    
+    return (
+      <div className="space-y-6 p-4 border rounded-lg bg-background">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-medium">{vehicleItem.vehicle.brand} {vehicleItem.vehicle.model}</h3>
+          {vehicleItem.vehicle.plateNumber && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+              {vehicleItem.vehicle.plateNumber}
+            </span>
+          )}
+        </div>
+        
+        <div className="space-y-4">
+          <Label className="text-sm">Prazo do Contrato</Label>
+          <div className="space-y-3">
+            <Slider
+              value={[params.contractMonths]}
+              min={6}
+              max={24}
+              step={1}
+              onValueChange={(value) => setVehicleParams(vehicleId, { contractMonths: value[0] })}
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>6 meses</span>
+              <span>{params.contractMonths} meses</span>
+              <span>24 meses</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="space-y-4">
+          <Label className="text-sm">Quilometragem Mensal</Label>
+          <div className="space-y-3">
+            <Slider
+              value={[params.monthlyKm]}
+              min={1000}
+              max={5000}
+              step={100}
+              onValueChange={(value) => setVehicleParams(vehicleId, { monthlyKm: value[0] })}
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>1.000 km</span>
+              <span>{params.monthlyKm.toLocaleString('pt-BR')} km</span>
+              <span>5.000 km</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="space-y-4">
+          <Label className="text-sm">Severidade de Operação</Label>
+          <RadioGroup 
+            value={params.operationSeverity.toString()} 
+            onValueChange={(value) => setVehicleParams(vehicleId, { operationSeverity: parseInt(value) as 1|2|3|4|5|6 })}
+            className="grid grid-cols-3 gap-2"
+          >
+            {[1, 2, 3, 4, 5, 6].map((level) => (
+              <div key={level} className="flex items-center space-x-2">
+                <RadioGroupItem value={level.toString()} id={`severity-${vehicleId}-${level}`} />
+                <Label htmlFor={`severity-${vehicleId}-${level}`} className="text-xs cursor-pointer">
+                  Nível {level}
+                </Label>
+              </div>
+            ))}
+          </RadioGroup>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Switch 
+            id={`tracking-${vehicleId}`} 
+            checked={params.hasTracking}
+            onCheckedChange={(checked) => setVehicleParams(vehicleId, { hasTracking: checked })}
+          />
+          <Label htmlFor={`tracking-${vehicleId}`} className="cursor-pointer text-sm">
+            Incluir rastreamento
+          </Label>
+        </div>
+      </div>
+    );
+  };
+
   const renderParamsStep = () => (
     <div className="space-y-8 animate-fadeIn">
       <div className="bg-primary/5 border p-4 rounded-lg mb-6">
@@ -159,72 +250,111 @@ const QuoteForm = () => {
         )}
       </div>
 
-      <div className="space-y-4">
-        <Label className="text-base">Prazo do Contrato</Label>
-        <div className="space-y-3">
-          <Slider
-            value={[quoteForm.globalParams.contractMonths]}
-            min={6}
-            max={24}
-            step={1}
-            onValueChange={(value) => setGlobalContractMonths(value[0])}
-          />
-          <div className="flex justify-between text-sm text-muted-foreground">
-            <span>6 meses</span>
-            <span>{quoteForm.globalParams.contractMonths} meses</span>
-            <span>24 meses</span>
-          </div>
-        </div>
-      </div>
-      
-      <div className="space-y-4">
-        <Label className="text-base">Quilometragem Mensal</Label>
-        <div className="space-y-3">
-          <Slider
-            value={[quoteForm.globalParams.monthlyKm]}
-            min={1000}
-            max={5000}
-            step={100}
-            onValueChange={(value) => setGlobalMonthlyKm(value[0])}
-          />
-          <div className="flex justify-between text-sm text-muted-foreground">
-            <span>1.000 km</span>
-            <span>{quoteForm.globalParams.monthlyKm.toLocaleString('pt-BR')} km</span>
-            <span>5.000 km</span>
-          </div>
-        </div>
-      </div>
-      
-      <div className="space-y-4">
-        <Label className="text-base">Severidade de Operação</Label>
-        <RadioGroup 
-          value={quoteForm.globalParams.operationSeverity.toString()} 
-          onValueChange={(value) => setGlobalOperationSeverity(parseInt(value) as 1|2|3|4|5|6)}
-          className="grid grid-cols-2 md:grid-cols-3 gap-3"
-        >
-          {[1, 2, 3, 4, 5, 6].map((level) => (
-            <div key={level} className="flex items-center space-x-2">
-              <RadioGroupItem value={level.toString()} id={`severity-${level}`} />
-              <Label htmlFor={`severity-${level}`} className="cursor-pointer">
-                Nível {level}
-              </Label>
+      {quoteForm.useGlobalParams ? (
+        <div className="space-y-4">
+          <div className="space-y-4">
+            <Label className="text-base">Prazo do Contrato</Label>
+            <div className="space-y-3">
+              <Slider
+                value={[quoteForm.globalParams.contractMonths]}
+                min={6}
+                max={24}
+                step={1}
+                onValueChange={(value) => setGlobalContractMonths(value[0])}
+              />
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>6 meses</span>
+                <span>{quoteForm.globalParams.contractMonths} meses</span>
+                <span>24 meses</span>
+              </div>
             </div>
-          ))}
-        </RadioGroup>
-        <p className="text-sm text-muted-foreground flex items-center space-x-1">
-          <Info size={14} className="inline-block mr-1" />
-          <span>Quanto maior o nível, mais severo é o uso do veículo.</span>
-        </p>
-      </div>
-      
-      <div className="flex items-center space-x-2">
-        <Switch 
-          id="tracking" 
-          checked={quoteForm.globalParams.hasTracking}
-          onCheckedChange={setGlobalHasTracking}
-        />
-        <Label htmlFor="tracking" className="cursor-pointer">Incluir rastreamento</Label>
-      </div>
+          </div>
+          
+          <div className="space-y-4">
+            <Label className="text-base">Quilometragem Mensal</Label>
+            <div className="space-y-3">
+              <Slider
+                value={[quoteForm.globalParams.monthlyKm]}
+                min={1000}
+                max={5000}
+                step={100}
+                onValueChange={(value) => setGlobalMonthlyKm(value[0])}
+              />
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>1.000 km</span>
+                <span>{quoteForm.globalParams.monthlyKm.toLocaleString('pt-BR')} km</span>
+                <span>5.000 km</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            <Label className="text-base">Severidade de Operação</Label>
+            <RadioGroup 
+              value={quoteForm.globalParams.operationSeverity.toString()} 
+              onValueChange={(value) => setGlobalOperationSeverity(parseInt(value) as 1|2|3|4|5|6)}
+              className="grid grid-cols-2 md:grid-cols-3 gap-3"
+            >
+              {[1, 2, 3, 4, 5, 6].map((level) => (
+                <div key={level} className="flex items-center space-x-2">
+                  <RadioGroupItem value={level.toString()} id={`severity-${level}`} />
+                  <Label htmlFor={`severity-${level}`} className="cursor-pointer">
+                    Nível {level}
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+            <p className="text-sm text-muted-foreground flex items-center space-x-1">
+              <Info size={14} className="inline-block mr-1" />
+              <span>Quanto maior o nível, mais severo é o uso do veículo.</span>
+            </p>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Switch 
+              id="tracking" 
+              checked={quoteForm.globalParams.hasTracking}
+              onCheckedChange={setGlobalHasTracking}
+            />
+            <Label htmlFor="tracking" className="cursor-pointer">Incluir rastreamento</Label>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <h3 className="text-base font-medium">Parâmetros por Veículo</h3>
+          
+          {quoteForm.vehicles.length > 0 && (
+            <Tabs 
+              value={selectedVehicleTab || quoteForm.vehicles[0].vehicle.id}
+              onValueChange={setSelectedVehicleTab}
+            >
+              <TabsList className="mb-4 flex overflow-x-auto pb-1">
+                {quoteForm.vehicles.map(item => (
+                  <TabsTrigger 
+                    key={item.vehicle.id} 
+                    value={item.vehicle.id}
+                    className="whitespace-nowrap"
+                  >
+                    <Car className="h-4 w-4 mr-1" />
+                    {item.vehicle.brand} {item.vehicle.model} 
+                    {item.vehicle.plateNumber && ` (${item.vehicle.plateNumber})`}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              
+              {quoteForm.vehicles.map(item => (
+                <TabsContent 
+                  key={item.vehicle.id} 
+                  value={item.vehicle.id}
+                  className="mt-4"
+                >
+                  {renderVehicleParams(item.vehicle.id)}
+                </TabsContent>
+              ))}
+            </Tabs>
+          )}
+        </div>
+      )}
     </div>
   );
 
@@ -266,6 +396,10 @@ const QuoteForm = () => {
                   const vehicleItem = quoteForm.vehicles.find(v => v.vehicle.id === result.vehicleId);
                   if (!vehicleItem) return null;
                   
+                  const params = quoteForm.useGlobalParams 
+                    ? quoteForm.globalParams 
+                    : (vehicleItem.params || quoteForm.globalParams);
+                  
                   return (
                     <div key={vehicleItem.vehicle.id} className="border rounded-lg p-4 bg-muted/20">
                       <div className="flex justify-between items-start">
@@ -296,6 +430,27 @@ const QuoteForm = () => {
                           <p className="font-medium">R$ {result.extraKmRate.toFixed(2)}</p>
                         </div>
                       </div>
+                      
+                      {!quoteForm.useGlobalParams && (
+                        <div className="mt-3 pt-3 border-t grid grid-cols-1 md:grid-cols-4 gap-2 text-xs">
+                          <div>
+                            <p className="text-muted-foreground">Prazo:</p>
+                            <p>{params.contractMonths} meses</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Quilometragem:</p>
+                            <p>{params.monthlyKm.toLocaleString('pt-BR')} km/mês</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Severidade:</p>
+                            <p>Nível {params.operationSeverity}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Rastreamento:</p>
+                            <p>{params.hasTracking ? 'Sim' : 'Não'}</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

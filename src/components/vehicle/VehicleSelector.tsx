@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, Car, Search, Loader2, AlertTriangle, Database, RefreshCw, Plus, Check, X } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -208,7 +207,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     
     onSelectVehicle(mappedVehicle, foundVehicleGroup);
     
-    // Limpar o veículo encontrado e a busca após adicionar
     setFoundVehicle(null);
     setPlateNumber('');
     toast({
@@ -454,7 +452,7 @@ DB_DATABASE=seu-banco-de-dados`}
               >
                 {isSelected ? (
                   <div className="absolute top-2 right-2">
-                    <Badge variant="success" className="flex items-center gap-1">
+                    <Badge variant="secondary" className="flex items-center gap-1">
                       <Check className="h-3 w-3" /> Selecionado
                     </Badge>
                   </div>

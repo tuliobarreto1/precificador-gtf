@@ -1,8 +1,9 @@
 
 import React from 'react';
-import { Car } from 'lucide-react';
+import { Car, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Vehicle, VehicleGroup } from '@/lib/mock-data';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 
 type VehicleCardProps = {
   vehicle: Vehicle;
@@ -44,10 +45,16 @@ const VehicleCard = ({
                 Usado
               </span>
             )}
+            {vehicle.plateNumber && (
+              <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                {vehicle.plateNumber}
+              </span>
+            )}
           </div>
           
           <p className="text-sm text-muted-foreground mt-1">
             {vehicle.year} • Grupo {vehicleGroup.id}
+            {vehicle.odometer && ` • ${vehicle.odometer.toLocaleString('pt-BR')} km`}
           </p>
         </div>
         
