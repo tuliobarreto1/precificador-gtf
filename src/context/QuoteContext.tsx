@@ -161,6 +161,9 @@ const initialQuoteForm: QuoteFormData = {
   },
 };
 
+// AQUI ESTAVA O ERRO: Precisamos criar o contexto antes de usá-lo
+const QuoteContext = createContext<QuoteContextType>({} as QuoteContextType);
+
 // Provider component
 export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   const [quoteForm, setQuoteForm] = useState<QuoteFormData>(initialQuoteForm);
