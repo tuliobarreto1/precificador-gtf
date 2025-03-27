@@ -19,23 +19,42 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Configurações do banco de dados
-const config = {
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  server: process.env.DB_SERVER,
-  database: process.env.DB_DATABASE,
-  port: parseInt(process.env.DB_PORT || '1433', 10),
-  options: {
-    encrypt: true,
-    trustServerCertificate: true
+// Configurações do banco de dados padrão
+const getDbConfig = (customConfig = null) => {
+  // Se receber configurações personalizadas, use-as
+  if (customConfig) {
+    console.log('Usando configurações de conexão personalizadas');
+    return {
+      user: customConfig.user,
+      password: customConfig.password,
+      server: customConfig.server || process.env.DB_SERVER,
+      database: customConfig.database || process.env.DB_DATABASE,
+      port: parseInt(customConfig.port || process.env.DB_PORT || '1433', 10),
+      options: {
+        encrypt: true,
+        trustServerCertificate: true
+      }
+    };
   }
+  
+  // Caso contrário, use as configurações do .env
+  return {
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    server: process.env.DB_SERVER,
+    database: process.env.DB_DATABASE,
+    port: parseInt(process.env.DB_PORT || '1433', 10),
+    options: {
+      encrypt: true,
+      trustServerCertificate: true
+    }
+  };
 };
 
 // Logs detalhados para depuração
 console.log('========= CONFIGURAÇÃO DO SERVIDOR =========');
 console.log('Ambiente:', process.env.NODE_ENV);
-console.log('Configuração SQL:');
+console.log('Configuração SQL padrão:');
 console.log('- Servidor:', process.env.DB_SERVER);
 console.log('- Porta:', process.env.DB_PORT);
 console.log('- Usuário:', process.env.DB_USER);
@@ -53,7 +72,7 @@ app.get('/api/vehicles/:plate', async (req, res) => {
     console.log('Tentando conectar ao banco de dados...');
     let pool;
     try {
-      pool = await sql.connect(config);
+      pool = await sql.connect(getDbConfig());
       console.log('Conexão com o banco de dados estabelecida com sucesso.');
     } catch (connError) {
       console.error('Erro ao conectar ao banco de dados:', connError);
@@ -61,10 +80,10 @@ app.get('/api/vehicles/:plate', async (req, res) => {
         message: 'Erro ao conectar ao banco de dados', 
         error: connError.message,
         config: {
-          server: config.server,
-          user: config.user,
-          database: config.database,
-          port: config.port
+          server: process.env.DB_SERVER,
+          user: process.env.DB_USER,
+          database: process.env.DB_DATABASE,
+          port: process.env.DB_PORT
         }
       });
     }
@@ -144,19 +163,104 @@ app.get('/api/status', (req, res) => {
   }
 });
 
+// Rota para testar conexão com o banco de dados com credenciais personalizadas
+app.post('/api/test-connection-custom', async (req, res) => {
+  try {
+    const { server, port, user, password, database } = req.body;
+    
+    console.log('Testando conexão com credenciais personalizadas...');
+    console.log('Dados recebidos:');
+    console.log('- Servidor:', server);
+    console.log('- Porta:', port);
+    console.log('- Usuário:', user);
+    console.log('- Banco de dados:', database);
+    console.log('- Senha fornecida:', password ? 'Sim' : 'Não');
+    
+    if (!server || !user || !password) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Servidor, usuário e senha são obrigatórios'
+      });
+    }
+    
+    const customConfig = {
+      server,
+      port: port || '1433',
+      user,
+      password,
+      database: database || 'Locavia'
+    };
+    
+    console.log('Tentando conectar com as credenciais fornecidas...');
+    
+    try {
+      await sql.connect(getDbConfig(customConfig));
+      console.log('Conexão com o banco de dados estabelecida com sucesso!');
+      
+      // Testar consulta simples
+      const testResult = await sql.query`SELECT 1 as testValue`;
+      console.log('Consulta de teste executada com sucesso:', testResult);
+      
+      res.json({ 
+        status: 'success', 
+        message: 'Conexão com o banco de dados estabelecida com sucesso!',
+        testResult: testResult.recordset,
+        config: {
+          server: customConfig.server,
+          user: customConfig.user,
+          database: customConfig.database,
+          port: customConfig.port
+        }
+      });
+      
+      await sql.close();
+    } catch (error) {
+      console.error('Erro ao conectar ao banco de dados:', error);
+      res.status(500).json({ 
+        status: 'error', 
+        message: 'Erro ao conectar ao banco de dados', 
+        error: error.message,
+        stack: error.stack,
+        config: {
+          server: customConfig.server,
+          user: customConfig.user,
+          database: customConfig.database,
+          port: customConfig.port
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Erro ao processar requisição:', error);
+    res.status(500).json({ 
+      status: 'error', 
+      message: 'Erro ao processar requisição', 
+      error: error.message
+    });
+  } finally {
+    try {
+      await sql.close();
+    } catch (err) {
+      console.error('Erro ao fechar conexão:', err);
+    }
+  }
+});
+
 // Rota para testar conexão com o banco de dados
 app.get('/api/test-connection', async (req, res) => {
   try {
     console.log('Testando conexão com o banco de dados...');
     console.log('Configuração utilizada:', {
-      server: config.server,
-      user: config.user,
-      database: config.database,
-      port: config.port,
-      options: config.options
+      server: process.env.DB_SERVER,
+      user: process.env.DB_USER,
+      database: process.env.DB_DATABASE,
+      port: process.env.DB_PORT,
+      options: {
+        encrypt: true,
+        trustServerCertificate: true
+      }
     });
     
-    await sql.connect(config);
+    await sql.connect(getDbConfig());
     console.log('Conexão com o banco de dados estabelecida com sucesso!');
     
     // Testar consulta simples
@@ -168,10 +272,10 @@ app.get('/api/test-connection', async (req, res) => {
       message: 'Conexão com o banco de dados estabelecida com sucesso!',
       testResult: testResult.recordset,
       config: {
-        server: config.server,
-        user: config.user,
-        database: config.database,
-        port: config.port
+        server: process.env.DB_SERVER,
+        user: process.env.DB_USER,
+        database: process.env.DB_DATABASE,
+        port: process.env.DB_PORT
       }
     });
     
@@ -184,10 +288,10 @@ app.get('/api/test-connection', async (req, res) => {
       error: error.message,
       stack: error.stack,
       config: {
-        server: config.server,
-        user: config.user,
-        database: config.database,
-        port: config.port
+        server: process.env.DB_SERVER,
+        user: process.env.DB_USER,
+        database: process.env.DB_DATABASE,
+        port: process.env.DB_PORT
       }
     });
   }

@@ -12,6 +12,14 @@ export interface SqlVehicle {
   LetraGrupo: string;
 }
 
+export interface DbCredentials {
+  server: string;
+  port?: string;
+  user: string;
+  password: string;
+  database?: string;
+}
+
 /**
  * Busca um veículo pelo número da placa
  * @param plate Número da placa do veículo
@@ -135,5 +143,34 @@ export async function testApiConnection(): Promise<{ status: string; environment
         timestamp: new Date().toISOString()
       } 
     };
+  }
+}
+
+// Função para testar conexão com o banco de dados usando credenciais personalizadas
+export async function testCustomDatabaseConnection(credentials: DbCredentials): Promise<any> {
+  try {
+    console.log('Testando conexão com credenciais personalizadas...');
+    const response = await fetch('/api/test-connection-custom', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(credentials)
+    });
+    
+    console.log(`Resposta do teste de conexão recebida. Status: ${response.status}`);
+    
+    let data;
+    try {
+      data = await response.json();
+    } catch (e) {
+      const textResponse = await response.text();
+      throw new Error(`Erro ao analisar resposta JSON: ${textResponse.substring(0, 200)}...`);
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Erro ao testar conexão:', error);
+    throw error;
   }
 }
