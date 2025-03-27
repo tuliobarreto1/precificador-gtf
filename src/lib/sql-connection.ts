@@ -19,11 +19,16 @@ export interface SqlVehicle {
  */
 export async function getVehicleByPlate(plate: string): Promise<SqlVehicle | null> {
   try {
+    console.log(`Iniciando busca de veículo com placa: ${plate}`);
+    
     // Limpar a placa antes de enviar (remover espaços, hífens, etc.)
     const cleanPlate = plate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    console.log(`Placa formatada: ${cleanPlate}`);
     
     // Faz a requisição para a API proxy local
+    console.log(`Enviando requisição para: /api/vehicles/${cleanPlate}`);
     const response = await fetch(`/api/vehicles/${cleanPlate}`);
+    console.log(`Resposta recebida. Status: ${response.status}`);
     
     // Se a resposta não for ok (status 200-299), retorne null
     if (!response.ok) {
@@ -38,9 +43,25 @@ export async function getVehicleByPlate(plate: string): Promise<SqlVehicle | nul
     }
     
     // Retorna os dados do veículo
-    return await response.json();
+    const data = await response.json();
+    console.log('Dados do veículo recebidos:', data);
+    return data;
   } catch (error) {
     console.error('Erro ao buscar veículo:', error);
+    throw error;
+  }
+}
+
+// Adicionar uma função para testar a conexão com o servidor
+export async function testApiConnection(): Promise<{ status: string; environment: any }> {
+  try {
+    const response = await fetch('/api/status');
+    if (!response.ok) {
+      throw new Error(`Status da API retornou ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Erro ao testar conexão com a API:', error);
     throw error;
   }
 }

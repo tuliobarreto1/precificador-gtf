@@ -1,12 +1,12 @@
 
-import React, { useState } from 'react';
-import { ArrowRight, Car, Search, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowRight, Car, Search, Loader2, AlertTriangle } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { getVehicleByPlate, SqlVehicle } from '@/lib/sql-connection';
+import { getVehicleByPlate, SqlVehicle, testApiConnection } from '@/lib/sql-connection';
 import { vehicles, vehicleGroups, getVehicleGroupById } from '@/lib/mock-data';
 import VehicleCard from '@/components/ui-custom/VehicleCard';
 import { Vehicle, VehicleGroup } from '@/lib/mock-data';
@@ -24,7 +24,28 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [foundVehicle, setFoundVehicle] = useState<SqlVehicle | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<{ status: string; environment: any } | null>(null);
+  const [testingConnection, setTestingConnection] = useState(false);
   const { toast } = useToast();
+
+  // Testar a conexão com a API ao montar o componente
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        setTestingConnection(true);
+        const status = await testApiConnection();
+        setConnectionStatus(status);
+        console.log('Status da conexão:', status);
+      } catch (error) {
+        console.error('Falha ao verificar conexão:', error);
+        setConnectionStatus({ status: 'offline', environment: {} });
+      } finally {
+        setTestingConnection(false);
+      }
+    };
+    
+    checkConnection();
+  }, []);
 
   const handleVehicleTypeChange = (value: string) => {
     setVehicleType(value as VehicleType);
@@ -47,8 +68,10 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
     setFoundVehicle(null);
     
     try {
-      // Usar a função correta getVehicleByPlate ao invés de searchVehicleByPlate
+      console.log(`Iniciando busca de veículo com placa: ${plateNumber}`);
       const vehicle = await getVehicleByPlate(plateNumber);
+      console.log('Resultado da busca:', vehicle);
+      
       setFoundVehicle(vehicle);
       
       if (!vehicle) {
@@ -66,7 +89,12 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
       }
     } catch (error) {
       console.error("Erro ao buscar veículo:", error);
-      setSearchError("Erro ao buscar veículo");
+      setSearchError(error instanceof Error ? error.message : "Erro ao buscar veículo");
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao buscar veículo",
+        variant: "destructive",
+      });
     } finally {
       setIsSearching(false);
     }
@@ -95,6 +123,18 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
 
   return (
     <div className="space-y-6 animate-fadeIn">
+      {/* Status da conexão */}
+      {connectionStatus && connectionStatus.status !== 'online' && (
+        <div className="bg-amber-100 border border-amber-300 text-amber-800 rounded-lg p-3 flex items-center space-x-2">
+          <AlertTriangle size={18} />
+          <div>
+            <p className="font-medium">Atenção: Problemas de conexão com o servidor</p>
+            <p className="text-sm">A conexão com o servidor de banco de dados pode estar indisponível.</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Selector de tipo de veículo */}
       <div className="bg-muted/30 p-4 rounded-lg">
         <RadioGroup 
           value={vehicleType} 
@@ -190,6 +230,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
         </div>
       )}
 
+      {/* Veículos novos */}
       {vehicleType === 'new' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {vehicles.filter(v => !v.isUsed).map((vehicle) => {

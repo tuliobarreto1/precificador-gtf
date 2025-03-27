@@ -1,6 +1,13 @@
 
 const { spawn } = require('child_process');
 const path = require('path');
+const dotenv = require('dotenv');
+
+// Carregar variáveis de ambiente
+dotenv.config();
+
+console.log('Iniciando ambiente de desenvolvimento...');
+console.log('Variáveis de ambiente carregadas:', Object.keys(process.env).filter(key => key.startsWith('VITE_')).join(', '));
 
 // Iniciar o servidor API proxy
 const apiProcess = spawn('node', [path.join(__dirname, 'src/server/api-proxy.js')], {
@@ -16,6 +23,7 @@ const viteProcess = spawn('npm', ['run', 'dev'], {
 
 // Manipular o encerramento dos processos
 process.on('SIGINT', () => {
+  console.log('Encerrando processos...');
   apiProcess.kill();
   viteProcess.kill();
   process.exit();
@@ -33,3 +41,5 @@ viteProcess.on('close', code => {
   apiProcess.kill();
   process.exit(code);
 });
+
+console.log('Ambiente de desenvolvimento iniciado. Pressione Ctrl+C para encerrar.');
