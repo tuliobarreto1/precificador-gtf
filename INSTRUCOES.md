@@ -34,7 +34,7 @@ node start-dev.js
 ```
 
 Este comando iniciará:
-- Um servidor proxy local na porta 3001 para lidar com as consultas SQL
+- Um servidor proxy local na porta 3002 para lidar com as consultas SQL
 - O servidor de desenvolvimento Vite para a aplicação frontend
 
 ## Notas de Implementação

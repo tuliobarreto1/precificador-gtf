@@ -253,7 +253,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
                         <p className="font-medium">Arquivo .env:</p>
                         <p>O arquivo está localizado na raiz do projeto e pode ser configurado com as seguintes variáveis:</p>
                         <pre className="bg-muted p-2 rounded-md text-xs overflow-auto whitespace-pre-wrap">
-                          {`PORT=3001
+                          {`PORT=3002
 NODE_ENV=development
 DB_SERVER=seu-servidor
 DB_PORT=1433
