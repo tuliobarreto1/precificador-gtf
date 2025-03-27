@@ -283,7 +283,7 @@ const QuoteForm = () => {
             <div className="flex justify-between items-center p-3 bg-muted/30 rounded-md">
               <div>
                 <span>Valor do Quilômetro Excedente</span>
-                <p className="text-xs text-muted-foreground">Cobrado ao final do contrato</p>
+                <p className="text-xs text-muted-foreground">Cobrado caso ultrapasse a franquia mensal</p>
               </div>
               <span className="font-medium">R$ {extraKmRate.toFixed(2)}</span>
             </div>

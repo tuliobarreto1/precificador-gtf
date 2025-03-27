@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { Vehicle, Client, VehicleGroup } from '@/lib/mock-data';
-import { DepreciationParams, MaintenanceParams, calculateLeaseCost } from '@/lib/calculation';
+import { DepreciationParams, MaintenanceParams, calculateLeaseCost, calculateExtraKmRate } from '@/lib/calculation';
 
 // Quote form state
 export type QuoteFormData = {
@@ -103,8 +103,8 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     
     const result = calculateLeaseCost(depreciationParams, maintenanceParams);
     
-    // Calculate extra km rate (usually a percentage of the vehicle value)
-    const extraKmRate = vehicle.value * 0.0001; // Default calculation if not configured
+    // Calculate extra km rate using the utility function
+    const extraKmRate = calculateExtraKmRate(vehicle.value);
     
     return {
       ...result,

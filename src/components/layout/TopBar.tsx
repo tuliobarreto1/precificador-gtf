@@ -26,7 +26,7 @@ const TopBar = ({ isSidebarOpen, toggleSidebar }: TopBarProps) => {
               "text-primary font-medium text-xl transition-all",
               isSidebarOpen ? "opacity-100" : "md:opacity-0"
             )}>
-              Car Lease Master
+              Precificador GTF
             </div>
           </div>
         </div>

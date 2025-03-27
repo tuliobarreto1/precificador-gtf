@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { quotes, getClientById, getVehicleById, getVehicleGroupById } from '@/lib/mock-data';
-import { calculateExtraKmRate } from '@/lib/calculation';
+import { calculateExtraKmRate, getGlobalParams } from '@/lib/calculation';
 
 const QuoteDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -36,6 +36,9 @@ const QuoteDetail = () => {
   const client = getClientById(quote.clientId);
   const vehicle = getVehicleById(quote.vehicleId);
   const vehicleGroup = vehicle ? getVehicleGroupById(vehicle.groupId) : undefined;
+  
+  // Get global parameters
+  const globalParams = getGlobalParams();
   
   // Calculate additional data
   const extraKmRate = vehicle ? calculateExtraKmRate(vehicle.value) : 0;
@@ -175,7 +178,7 @@ const QuoteDetail = () => {
               <div className="pt-4 mt-4 border-t">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium">Valor do KM Excedente</span>
-                  <span className="font-semibold">R$ {extraKmRate.toFixed(5)}</span>
+                  <span className="font-semibold">R$ {extraKmRate.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -256,6 +259,20 @@ const QuoteDetail = () => {
                     )}
                   </div>
                 </div>
+              </div>
+            </div>
+          </Card>
+          
+          {/* Informações Adicionais */}
+          <Card className="lg:col-span-3">
+            <CardHeader title="Informações Adicionais" />
+            <div className="p-4">
+              <div className="flex justify-between items-center p-3 bg-muted/30 rounded-md">
+                <div>
+                  <span className="font-medium">Valor do KM Excedente</span>
+                  <p className="text-xs text-muted-foreground">Cobrado caso ultrapasse a franquia mensal</p>
+                </div>
+                <span className="font-semibold">R$ {extraKmRate.toFixed(2)}</span>
               </div>
             </div>
           </Card>

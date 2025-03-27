@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { FileText, List, Settings, PieChart, TrendingUp, Clock, Calendar } from 'lucide-react';
@@ -24,7 +23,7 @@ const Index = () => {
     <MainLayout>
       <div className="pt-8">
         <PageTitle 
-          title="Bem-vindo ao Car Lease Master" 
+          title="Bem-vindo ao Precificador GTF" 
           subtitle="Gerencie seus orçamentos de locação de veículos" 
         />
         
