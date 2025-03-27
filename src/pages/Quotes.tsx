@@ -9,13 +9,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-import { getQuotes, Quote } from '@/lib/api';
+import { getQuotesFromSupabase } from '@/integrations/supabase/client';
 
 const Quotes = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<'date' | 'value'>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [quotes, setQuotes] = useState<any[]>([]);
   const [userFilter, setUserFilter] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -25,10 +25,10 @@ const Quotes = () => {
   const loadQuotes = async () => {
     setIsLoading(true);
     try {
-      const { success, quotes, error } = await getQuotes();
+      const { success, quotes, error } = await getQuotesFromSupabase();
       
       if (success && quotes) {
-        console.log('Orçamentos carregados:', quotes);
+        console.log('Orçamentos carregados do Supabase:', quotes);
         setQuotes(quotes);
       } else {
         console.error('Erro ao carregar orçamentos:', error);
@@ -52,10 +52,9 @@ const Quotes = () => {
   
   // Carregar orçamentos ao montar o componente
   useEffect(() => {
-    if (user) {
-      loadQuotes();
-    }
-  }, [user]);
+    console.log("Componente Quotes montado, carregando orçamentos");
+    loadQuotes();
+  }, []);
   
   // Filtrar e ordenar orçamentos
   const filteredQuotes = quotes.filter(quote => {
@@ -246,7 +245,7 @@ const Quotes = () => {
                       
                       <div className="md:text-right">
                         <p className="text-lg font-semibold">
-                          R$ {quote.total_value.toLocaleString('pt-BR')}
+                          R$ {Number(quote.total_value).toLocaleString('pt-BR')}
                         </p>
                         <p className="text-sm text-muted-foreground">por mês</p>
                       </div>

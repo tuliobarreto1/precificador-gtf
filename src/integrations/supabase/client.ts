@@ -120,3 +120,67 @@ export async function saveQuoteToSupabase(quote: any) {
     return { success: false, error };
   }
 }
+
+// Função para buscar orçamentos no Supabase
+export async function getQuotesFromSupabase() {
+  try {
+    console.log('Buscando orçamentos no Supabase...');
+    
+    // Buscar orçamentos com relacionamentos
+    const { data, error } = await supabase
+      .from('quotes')
+      .select(`
+        *,
+        client:client_id(*),
+        items:quote_items(
+          *,
+          vehicle:vehicle_id(*)
+        )
+      `)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Erro ao buscar orçamentos no Supabase:', error);
+      return { success: false, error, quotes: [] };
+    }
+    
+    console.log('Orçamentos encontrados no Supabase:', data);
+    return { success: true, quotes: data };
+    
+  } catch (error) {
+    console.error('Erro inesperado ao buscar orçamentos:', error);
+    return { success: false, error, quotes: [] };
+  }
+}
+
+// Função para buscar um único orçamento pelo ID
+export async function getQuoteByIdFromSupabase(quoteId: string) {
+  try {
+    console.log(`Buscando orçamento com ID ${quoteId} no Supabase...`);
+    
+    const { data, error } = await supabase
+      .from('quotes')
+      .select(`
+        *,
+        client:client_id(*),
+        items:quote_items(
+          *,
+          vehicle:vehicle_id(*)
+        )
+      `)
+      .eq('id', quoteId)
+      .single();
+    
+    if (error) {
+      console.error(`Erro ao buscar orçamento com ID ${quoteId}:`, error);
+      return { success: false, error };
+    }
+    
+    console.log('Orçamento encontrado:', data);
+    return { success: true, quote: data };
+    
+  } catch (error) {
+    console.error('Erro inesperado ao buscar orçamento por ID:', error);
+    return { success: false, error };
+  }
+}
