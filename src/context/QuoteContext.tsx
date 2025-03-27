@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Vehicle, Client, VehicleGroup, getVehicleGroupById } from '@/lib/mock-data';
+import { Vehicle, Client, VehicleGroup, getVehicleGroupById, getClientById, getVehicleById } from '@/lib/mock-data';
 import { DepreciationParams, MaintenanceParams, calculateLeaseCost, calculateExtraKmRate } from '@/lib/calculation';
 
 // Item de veículo na cotação
@@ -145,6 +145,10 @@ type QuoteContextType = {
   availableUsers: User[];
   authenticateUser: (userId: number, password?: string) => boolean;
   mockUsers: User[];
+  // Nova função para carregar um orçamento existente
+  loadQuoteForEditing: (quoteId: string) => boolean;
+  isEditMode: boolean;
+  currentEditingQuoteId: string | null;
 };
 
 // Initial state
@@ -168,6 +172,8 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   const [quoteForm, setQuoteForm] = useState<QuoteFormData>(initialQuoteForm);
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
   const [user, setUser] = useState<User>(defaultUser);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [currentEditingQuoteId, setCurrentEditingQuoteId] = useState<string | null>(null);
 
   // Carregar cotações salvas e usuário atual do localStorage na inicialização
   useEffect(() => {
@@ -256,7 +262,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     setQuoteForm(prev => {
       // Verificar se o veículo já existe na lista
       if (prev.vehicles.some(item => item.vehicle.id === vehicle.id)) {
-        return prev; // Não fazer nada se o veículo j�� estiver na lista
+        return prev; // Não fazer nada se o veículo j estiver na lista
       }
       
       // Criar um novo veículo com parâmetros globais como base
@@ -454,6 +460,39 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       return false;
     }
 
+    // Verificar se estamos em modo de edição
+    if (isEditMode && currentEditingQuoteId) {
+      // Encontrar o orçamento original
+      const originalQuote = savedQuotes.find(q => q.id === currentEditingQuoteId);
+      if (!originalQuote) {
+        console.error('Orçamento original não encontrado:', currentEditingQuoteId);
+        return false;
+      }
+
+      // Criar descrição das alterações
+      const changeDescription = `Orçamento editado em ${new Date().toLocaleString('pt-BR')}`;
+      
+      // Criar objeto de atualizações
+      const updates: Partial<QuoteFormData> = {
+        client: quoteForm.client,
+        vehicles: quoteForm.vehicles,
+        globalParams: quoteForm.globalParams,
+        useGlobalParams: quoteForm.useGlobalParams
+      };
+      
+      // Atualizar o orçamento
+      const updated = updateQuote(currentEditingQuoteId, updates, changeDescription);
+      
+      // Resetar o modo de edição
+      if (updated) {
+        setIsEditMode(false);
+        setCurrentEditingQuoteId(null);
+      }
+      
+      return updated;
+    }
+
+    // Caso contrário, continuar com a criação de um novo orçamento
     // Criar um ID único baseado no timestamp
     const newId = Date.now().toString();
     
@@ -532,14 +571,51 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       editedBy: getCurrentUser(),
       changes: changeDescription
     };
+
+    // Calcular os novos valores do orçamento
+    const quoteResult = calculateQuote();
+    if (!quoteResult) {
+      console.error('Erro ao calcular o orçamento atualizado');
+      return false;
+    }
     
     // Atualizar o orçamento
     const updatedQuotes = savedQuotes.map(quote => {
       if (quote.id === quoteId) {
         return {
           ...quote,
-          // Aqui adicionaríamos as atualizações específicas baseadas no objeto updates,
-          // mas mantendo simples para o exemplo
+          clientId: updates.client?.id || quote.clientId,
+          clientName: updates.client?.name || quote.clientName,
+          contractMonths: updates.globalParams?.contractMonths || quote.contractMonths,
+          monthlyKm: updates.globalParams?.monthlyKm || quote.monthlyKm,
+          totalCost: quoteResult.totalCost,
+          operationSeverity: updates.globalParams?.operationSeverity || quote.operationSeverity,
+          hasTracking: updates.globalParams?.hasTracking !== undefined ? updates.globalParams.hasTracking : quote.hasTracking,
+          vehicles: quoteResult.vehicleResults.map(result => {
+            const vehicle = updates.vehicles?.find(v => v.vehicle.id === result.vehicleId)?.vehicle;
+            const vehicleGroup = updates.vehicles?.find(v => v.vehicle.id === result.vehicleId)?.vehicleGroup;
+            
+            if (!vehicle) {
+              // Se não encontrou o veículo nas atualizações, manter o veículo original
+              const originalVehicle = quote.vehicles.find(v => v.vehicleId === result.vehicleId);
+              if (originalVehicle) return originalVehicle;
+              
+              // Se não encontrou nem nas atualizações nem no original, algo está errado
+              throw new Error(`Veículo não encontrado: ${result.vehicleId}`);
+            }
+            
+            return {
+              vehicleId: vehicle.id,
+              vehicleBrand: vehicle.brand,
+              vehicleModel: vehicle.model,
+              plateNumber: vehicle.plateNumber,
+              groupId: vehicleGroup?.id || quote.vehicles[0].groupId,
+              totalCost: result.totalCost,
+              depreciationCost: result.depreciationCost,
+              maintenanceCost: result.maintenanceCost,
+              extraKmRate: result.extraKmRate,
+            };
+          }),
           editHistory: [...(quote.editHistory || []), editRecord]
         };
       }
@@ -554,29 +630,76 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     return true;
   };
 
-  // Função para excluir um orçamento
-  const deleteQuote = (quoteId: string): boolean => {
-    // Encontrar o orçamento a ser excluído
-    const quoteToDelete = savedQuotes.find(q => q.id === quoteId);
-    if (!quoteToDelete) {
-      console.error('Orçamento não encontrado para exclusão:', quoteId);
+  // Função para carregar um orçamento para edição
+  const loadQuoteForEditing = (quoteId: string): boolean => {
+    try {
+      console.log("Tentando carregar orçamento para edição:", quoteId);
+      const quoteToEdit = savedQuotes.find(q => q.id === quoteId);
+      
+      if (!quoteToEdit) {
+        console.error("Orçamento não encontrado:", quoteId);
+        return false;
+      }
+      
+      // Verificar permissões de edição
+      if (!canEditQuote(quoteToEdit)) {
+        console.error("Usuário não tem permissão para editar este orçamento");
+        return false;
+      }
+      
+      // Resetar o formulário antes de carregar os novos dados
+      resetForm();
+      
+      // Carregar cliente
+      const client = getClientById(quoteToEdit.clientId);
+      if (client) {
+        setClient(client);
+      } else if (quoteToEdit.clientName) {
+        // Se não encontrar o cliente pelo ID, criar um cliente temporário com os dados disponíveis
+        const tempClient: Client = {
+          id: quoteToEdit.clientId,
+          name: quoteToEdit.clientName,
+          document: '',
+          type: 'PJ',
+          email: '',
+          phone: '',
+          address: ''
+        };
+        setClient(tempClient);
+      }
+      
+      // Configurar os parâmetros globais
+      setGlobalContractMonths(quoteToEdit.contractMonths);
+      setGlobalMonthlyKm(quoteToEdit.monthlyKm);
+      
+      if (quoteToEdit.operationSeverity) {
+        setGlobalOperationSeverity(quoteToEdit.operationSeverity);
+      }
+      
+      if (quoteToEdit.hasTracking !== undefined) {
+        setGlobalHasTracking(quoteToEdit.hasTracking);
+      }
+      
+      // Carregar veículos
+      quoteToEdit.vehicles.forEach(vehicleItem => {
+        const vehicleFromDB = getVehicleById(vehicleItem.vehicleId);
+        const vehicleGroup = getVehicleGroupById(vehicleItem.groupId);
+        
+        if (vehicleFromDB && vehicleGroup) {
+          addVehicle(vehicleFromDB, vehicleGroup);
+        }
+      });
+      
+      // Marcar como modo de edição
+      setIsEditMode(true);
+      setCurrentEditingQuoteId(quoteId);
+      
+      console.log("Orçamento carregado com sucesso para edição:", quoteId);
+      return true;
+    } catch (error) {
+      console.error("Erro ao carregar orçamento para edição:", error);
       return false;
     }
-    
-    // Verificar permissão
-    if (!canDeleteQuote(quoteToDelete)) {
-      console.error('Permissão de exclusão negada para o usuário:', getCurrentUser());
-      return false;
-    }
-    
-    console.log('Excluindo orçamento:', quoteId);
-    
-    // Remover o orçamento
-    const updatedQuotes = savedQuotes.filter(quote => quote.id !== quoteId);
-    setSavedQuotes(updatedQuotes);
-    localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
-    
-    return true;
   };
 
   // Função para obter orçamentos salvos
@@ -622,6 +745,9 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       availableUsers,
       authenticateUser,
       mockUsers,
+      loadQuoteForEditing,
+      isEditMode,
+      currentEditingQuoteId
     }}>
       {children}
     </QuoteContext.Provider>

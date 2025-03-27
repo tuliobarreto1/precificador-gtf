@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Info, Users, Car, Wrench, Calculator, Plus, Trash2, Settings } from 'lucide-react';
 import ClientForm from '@/components/quote/ClientForm';
 import MainLayout from '@/components/layout/MainLayout';
@@ -26,6 +26,7 @@ const STEPS = [
 ];
 
 const QuoteForm = () => {
+  const { id } = useParams<{ id: string }>();
   const [currentStep, setCurrentStep] = useState('client');
   const [selectedVehicleTab, setSelectedVehicleTab] = useState<string | null | undefined>(undefined);
   const navigate = useNavigate();
@@ -42,8 +43,32 @@ const QuoteForm = () => {
     setUseGlobalParams,
     setVehicleParams,
     calculateQuote,
-    saveQuote
+    saveQuote,
+    loadQuoteForEditing,
+    isEditMode
   } = useQuote();
+
+  useEffect(() => {
+    if (id) {
+      console.log('Modo de edição detectado, carregando orçamento:', id);
+      const success = loadQuoteForEditing(id);
+      
+      if (success) {
+        setCurrentStep('vehicle');
+        toast({
+          title: "Orçamento carregado",
+          description: "Os dados do orçamento foram carregados para edição."
+        });
+      } else {
+        toast({
+          title: "Erro ao carregar",
+          description: "Não foi possível carregar o orçamento para edição.",
+          variant: "destructive"
+        });
+        navigate('/orcamentos');
+      }
+    }
+  }, [id, loadQuoteForEditing, navigate, toast]);
 
   useEffect(() => {
     if (currentStep === 'params' && quoteForm.vehicles.length > 0) {
@@ -83,8 +108,10 @@ const QuoteForm = () => {
         const success = saveQuote();
         if (success) {
           toast({
-            title: "Orçamento salvo",
-            description: "Seu orçamento foi salvo com sucesso."
+            title: isEditMode ? "Orçamento atualizado" : "Orçamento salvo",
+            description: isEditMode 
+              ? "Seu orçamento foi atualizado com sucesso." 
+              : "Seu orçamento foi salvo com sucesso."
           });
           navigate('/orcamentos');
         } else {
@@ -531,7 +558,7 @@ const QuoteForm = () => {
           Voltar
         </Button>
         <Button onClick={goToNextStep}>
-          {currentStep === 'result' ? 'Salvar Orçamento' : 'Continuar'}
+          {currentStep === 'result' ? (isEditMode ? 'Atualizar Orçamento' : 'Salvar Orçamento') : 'Continuar'}
         </Button>
       </div>
     </div>
@@ -539,12 +566,17 @@ const QuoteForm = () => {
 };
 
 const NewQuote = () => {
+  const { id } = useParams<{ id: string }>();
+  
   return (
     <MainLayout>
       <div className="py-8">
         <PageTitle 
-          title="Novo Orçamento" 
-          subtitle="Preencha os dados para gerar um novo orçamento de locação" 
+          title={id ? "Editar Orçamento" : "Novo Orçamento"} 
+          subtitle={id 
+            ? "Atualize os dados do orçamento existente" 
+            : "Preencha os dados para gerar um novo orçamento de locação"
+          } 
         />
         
         <Card>
