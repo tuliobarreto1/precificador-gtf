@@ -25,6 +25,7 @@ export default function ClientForm({ onClientSelect, existingClients = [] }: Cli
     contact: '',
     responsible: '',
   });
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
 
   const documentType = formData.document.replace(/\D/g, '').length === 11 ? 'PF' : 'PJ';
   const { toast } = useToast();
@@ -127,6 +128,9 @@ export default function ClientForm({ onClientSelect, existingClients = [] }: Cli
         isCustom: true
       };
       onClientSelect(customClient);
+      
+      // Atualizar o cliente selecionado
+      setSelectedClientId(savedClient.id);
     }
     
     toast({
@@ -137,7 +141,17 @@ export default function ClientForm({ onClientSelect, existingClients = [] }: Cli
 
   const handleSelectClient = (client: Client) => {
     if (onClientSelect) {
+      // Chamamos a função de callback com o cliente selecionado
       onClientSelect(client);
+      
+      // Atualizamos o estado para destacar o cliente selecionado
+      setSelectedClientId(client.id);
+      
+      // Notificar o usuário
+      toast({
+        title: "Cliente selecionado",
+        description: `Cliente ${client.name} selecionado com sucesso!`,
+      });
     }
   };
 
@@ -150,7 +164,9 @@ export default function ClientForm({ onClientSelect, existingClients = [] }: Cli
             {existingClients.map((client) => (
               <div
                 key={client.id}
-                className="p-4 rounded-lg border cursor-pointer transition-all hover:border-primary/30"
+                className={`p-4 rounded-lg border cursor-pointer transition-all hover:border-primary/30 ${
+                  selectedClientId === client.id ? 'border-primary bg-primary/5' : ''
+                }`}
                 onClick={() => handleSelectClient(client)}
               >
                 <div className="flex items-start justify-between">
