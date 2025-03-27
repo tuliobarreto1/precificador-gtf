@@ -23,5 +23,18 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
       }
     }
+  },
+  // Adicionar configuração para evitar problemas com o Rollup nativo
+  optimizeDeps: {
+    esbuildOptions: {
+      target: 'es2020'
+    }
+  },
+  build: {
+    target: 'es2020',
+    rollupOptions: {
+      // Forçar o uso do Rollup JavaScript em vez da versão nativa
+      context: 'globalThis'
+    }
   }
 }))
