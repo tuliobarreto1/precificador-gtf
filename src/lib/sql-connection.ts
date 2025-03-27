@@ -33,43 +33,61 @@ export async function getVehicleByPlate(plate: string): Promise<SqlVehicle | nul
     const cleanPlate = plate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     console.log(`Placa formatada: ${cleanPlate}`);
     
-    // Faz a requisição para a API proxy local
+    // Faz a requisição para a API proxy local com timeout
     console.log(`Enviando requisição para: /api/vehicles/${cleanPlate}`);
-    const response = await fetch(`/api/vehicles/${cleanPlate}`);
-    console.log(`Resposta recebida. Status: ${response.status}`);
     
-    // Se a resposta não for ok (status 200-299), retorne null
-    if (!response.ok) {
-      if (response.status === 404) {
-        console.log(`Veículo com placa ${cleanPlate} não encontrado`);
-        return null;
-      }
-      
-      let errorData;
-      try {
-        errorData = await response.json();
-      } catch (e) {
-        // Tentar obter o texto da resposta se não conseguir analisar o JSON
-        const errorText = await response.text();
-        console.error('Resposta de erro não é JSON válido:', errorText);
-        throw new Error(`Erro ao buscar veículo. Status: ${response.status}. Resposta: ${errorText}`);
-      }
-      
-      console.error('Erro ao buscar veículo:', errorData);
-      throw new Error(errorData.message || `Erro ao buscar veículo. Status: ${response.status}`);
-    }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 segundos de timeout
     
-    // Retorna os dados do veículo
     try {
-      const data = await response.json();
-      console.log('Dados do veículo recebidos:', data);
-      return data;
-    } catch (e) {
-      console.error('Erro ao analisar resposta JSON:', e);
-      // Tentar obter o texto da resposta para diagnóstico
-      const responseText = await response.text();
-      console.error('Texto da resposta:', responseText);
-      throw new Error(`Erro ao analisar resposta do servidor: ${responseText.substring(0, 200)}...`);
+      const response = await fetch(`/api/vehicles/${cleanPlate}`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      
+      console.log(`Resposta recebida. Status: ${response.status}`);
+      
+      // Se a resposta não for ok (status 200-299), retorne null
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.log(`Veículo com placa ${cleanPlate} não encontrado`);
+          return null;
+        }
+        
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          // Tentar obter o texto da resposta se não conseguir analisar o JSON
+          const errorText = await response.text();
+          console.error('Resposta de erro não é JSON válido:', errorText);
+          throw new Error(`Erro ao buscar veículo. Status: ${response.status}. Resposta: ${errorText}`);
+        }
+        
+        console.error('Erro ao buscar veículo:', errorData);
+        throw new Error(errorData.message || `Erro ao buscar veículo. Status: ${response.status}`);
+      }
+      
+      // Clonar a resposta para poder lê-la múltiplas vezes
+      const responseClone = response.clone();
+      
+      // Tenta analisar como JSON
+      try {
+        const data = await response.json();
+        console.log('Dados do veículo recebidos:', data);
+        return data;
+      } catch (e) {
+        console.error('Erro ao analisar resposta JSON:', e);
+        // Tentar obter o texto da resposta para diagnóstico
+        const responseText = await responseClone.text();
+        console.error('Texto da resposta:', responseText);
+        throw new Error(`Erro ao analisar resposta do servidor: ${responseText.substring(0, 200)}...`);
+      }
+    } catch (fetchError) {
+      if (fetchError.name === 'AbortError') {
+        throw new Error('Timeout ao conectar com o servidor. A operação demorou muito para responder.');
+      }
+      throw fetchError;
     }
   } catch (error) {
     console.error('Erro ao buscar veículo:', error);
@@ -103,6 +121,9 @@ export async function testApiConnection(): Promise<{ status: string; environment
         };
       }
       
+      // Clonar a resposta para poder lê-la múltiplas vezes
+      const responseClone = response.clone();
+      
       try {
         const data = await response.json();
         console.log('Dados de status da API:', data);
@@ -110,7 +131,7 @@ export async function testApiConnection(): Promise<{ status: string; environment
       } catch (e) {
         console.error('Erro ao analisar resposta JSON do status:', e);
         // Tentar obter o texto da resposta para diagnóstico
-        const responseText = await response.text();
+        const responseText = await responseClone.text();
         return { 
           status: 'error', 
           environment: { 
@@ -150,25 +171,40 @@ export async function testApiConnection(): Promise<{ status: string; environment
 export async function testCustomDatabaseConnection(credentials: DbCredentials): Promise<any> {
   try {
     console.log('Testando conexão com credenciais personalizadas...');
-    const response = await fetch('/api/test-connection-custom', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(credentials)
-    });
     
-    console.log(`Resposta do teste de conexão recebida. Status: ${response.status}`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 segundos de timeout
     
-    let data;
     try {
-      data = await response.json();
-    } catch (e) {
-      const textResponse = await response.text();
-      throw new Error(`Erro ao analisar resposta JSON: ${textResponse.substring(0, 200)}...`);
+      const response = await fetch('/api/test-connection-custom', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(credentials),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      
+      console.log(`Resposta do teste de conexão recebida. Status: ${response.status}`);
+      
+      // Clonar a resposta para poder lê-la múltiplas vezes
+      const responseClone = response.clone();
+      
+      try {
+        const data = await response.json();
+        return data;
+      } catch (e) {
+        const textResponse = await responseClone.text();
+        throw new Error(`Erro ao analisar resposta JSON: ${textResponse.substring(0, 200)}...`);
+      }
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        throw new Error('Timeout ao conectar com o servidor. A operação demorou muito para responder.');
+      }
+      throw fetchError;
     }
-    
-    return data;
   } catch (error) {
     console.error('Erro ao testar conexão:', error);
     throw error;
