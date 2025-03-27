@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { searchVehicleByPlate, SqlVehicle } from '@/lib/sql-connection';
+import { getVehicleByPlate, SqlVehicle } from '@/lib/sql-connection';
 import { vehicles, vehicleGroups, getVehicleGroupById } from '@/lib/mock-data';
 import VehicleCard from '@/components/ui-custom/VehicleCard';
 import { Vehicle, VehicleGroup } from '@/lib/mock-data';
@@ -47,8 +47,8 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
     setFoundVehicle(null);
     
     try {
-      // Usar a função de busca real do SQL
-      const vehicle = await searchVehicleByPlate(plateNumber);
+      // Usar a função correta getVehicleByPlate ao invés de searchVehicleByPlate
+      const vehicle = await getVehicleByPlate(plateNumber);
       setFoundVehicle(vehicle);
       
       if (!vehicle) {

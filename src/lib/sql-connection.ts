@@ -1,7 +1,7 @@
 
 // Este arquivo é usado para fazer requisições à API que interage com o SQL Server
 
-interface VehicleData {
+export interface SqlVehicle {
   Placa: string;
   DescricaoModelo: string;
   AnoFabricacaoModelo: string;
@@ -17,7 +17,7 @@ interface VehicleData {
  * @param plate Número da placa do veículo
  * @returns Dados do veículo ou null se não encontrado
  */
-export async function getVehicleByPlate(plate: string): Promise<VehicleData | null> {
+export async function getVehicleByPlate(plate: string): Promise<SqlVehicle | null> {
   try {
     // Limpar a placa antes de enviar (remover espaços, hífens, etc.)
     const cleanPlate = plate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
