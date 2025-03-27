@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Car, Search, Loader2, AlertTriangle } from 'lucide-react';
+import { ArrowRight, Car, Search, Loader2, AlertTriangle, Database } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { getVehicleByPlate, SqlVehicle, testApiConnection } from '@/lib/sql-conn
 import { vehicles, vehicleGroups, getVehicleGroupById } from '@/lib/mock-data';
 import VehicleCard from '@/components/ui-custom/VehicleCard';
 import { Vehicle, VehicleGroup } from '@/lib/mock-data';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 type VehicleSelectorProps = {
   onSelectVehicle: (vehicle: Vehicle, vehicleGroup: VehicleGroup) => void;
@@ -26,6 +27,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
   const [foundVehicle, setFoundVehicle] = useState<SqlVehicle | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<{ status: string; environment: any } | null>(null);
   const [testingConnection, setTestingConnection] = useState(false);
+  const [detailedError, setDetailedError] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Testar a conexão com a API ao montar o componente
@@ -39,6 +41,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
       } catch (error) {
         console.error('Falha ao verificar conexão:', error);
         setConnectionStatus({ status: 'offline', environment: {} });
+        setDetailedError(error instanceof Error ? error.message : 'Erro desconhecido ao verificar conexão');
       } finally {
         setTestingConnection(false);
       }
@@ -51,6 +54,41 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
     setVehicleType(value as VehicleType);
     setFoundVehicle(null);
     setSearchError(null);
+  };
+
+  const testDatabaseConnection = async () => {
+    try {
+      setTestingConnection(true);
+      
+      const response = await fetch('/api/test-connection');
+      const data = await response.json();
+      
+      if (response.ok) {
+        toast({
+          title: "Conexão bem-sucedida",
+          description: "A conexão com o banco de dados foi estabelecida com sucesso.",
+        });
+        console.log('Teste de conexão bem-sucedido:', data);
+      } else {
+        toast({
+          title: "Falha na conexão",
+          description: data.message || "Não foi possível conectar ao banco de dados.",
+          variant: "destructive",
+        });
+        console.error('Teste de conexão falhou:', data);
+        setDetailedError(JSON.stringify(data, null, 2));
+      }
+    } catch (error) {
+      console.error("Erro ao testar conexão:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao tentar testar a conexão com o banco de dados.",
+        variant: "destructive",
+      });
+      setDetailedError(error instanceof Error ? error.message : 'Erro desconhecido ao testar conexão');
+    } finally {
+      setTestingConnection(false);
+    }
   };
 
   const handleSearchByPlate = async () => {
@@ -66,6 +104,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
     setIsSearching(true);
     setSearchError(null);
     setFoundVehicle(null);
+    setDetailedError(null);
     
     try {
       console.log(`Iniciando busca de veículo com placa: ${plateNumber}`);
@@ -89,10 +128,12 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
       }
     } catch (error) {
       console.error("Erro ao buscar veículo:", error);
-      setSearchError(error instanceof Error ? error.message : "Erro ao buscar veículo");
+      const errorMessage = error instanceof Error ? error.message : "Erro ao buscar veículo";
+      setSearchError(errorMessage);
+      setDetailedError(JSON.stringify(error, null, 2));
       toast({
         title: "Erro",
-        description: error instanceof Error ? error.message : "Erro ao buscar veículo",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -125,12 +166,30 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
     <div className="space-y-6 animate-fadeIn">
       {/* Status da conexão */}
       {connectionStatus && connectionStatus.status !== 'online' && (
-        <div className="bg-amber-100 border border-amber-300 text-amber-800 rounded-lg p-3 flex items-center space-x-2">
-          <AlertTriangle size={18} />
-          <div>
-            <p className="font-medium">Atenção: Problemas de conexão com o servidor</p>
-            <p className="text-sm">A conexão com o servidor de banco de dados pode estar indisponível.</p>
-          </div>
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Atenção: Problemas de conexão com o servidor</AlertTitle>
+          <AlertDescription>
+            A conexão com o servidor de banco de dados pode estar indisponível.
+            <Button 
+              onClick={testDatabaseConnection} 
+              variant="outline" 
+              size="sm" 
+              className="mt-2"
+              disabled={testingConnection}
+            >
+              {testingConnection ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+              Testar Conexão
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {/* Exibir mensagem de erro detalhada se existir */}
+      {detailedError && (
+        <div className="bg-destructive/10 border border-destructive text-destructive p-3 rounded-md text-sm mb-4 overflow-auto max-h-48">
+          <p className="font-semibold">Detalhes do erro:</p>
+          <pre className="whitespace-pre-wrap mt-1">{detailedError}</pre>
         </div>
       )}
       

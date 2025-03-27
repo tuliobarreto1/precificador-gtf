@@ -7,7 +7,10 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 console.log('Iniciando ambiente de desenvolvimento...');
-console.log('Variáveis de ambiente carregadas:', Object.keys(process.env).filter(key => key.startsWith('VITE_')).join(', '));
+console.log('Variáveis de ambiente carregadas:');
+console.log('- Database:', process.env.DB_SERVER ? 'configurado' : 'não configurado');
+console.log('- User:', process.env.DB_USER ? 'configurado' : 'não configurado');
+console.log('- Database Name:', process.env.DB_DATABASE ? 'configurado' : 'não configurado');
 
 // Iniciar o servidor API proxy
 const apiProcess = spawn('node', [path.join(__dirname, 'src/server/api-proxy.js')], {

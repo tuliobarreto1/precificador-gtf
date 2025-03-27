@@ -13,14 +13,14 @@ const dotenv = require('dotenv');
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // Configurações do banco de dados
 const config = {
-  user: process.env.VITE_DB_USER,
-  password: process.env.VITE_DB_PASSWORD,
-  server: process.env.VITE_DB_SERVER,
-  database: process.env.VITE_DB_DATABASE,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  server: process.env.DB_SERVER,
+  database: process.env.DB_DATABASE,
   options: {
     encrypt: true,
     trustServerCertificate: true
@@ -33,9 +33,9 @@ app.use(express.json());
 
 // Adicionar logs para depuração
 console.log('Configuração SQL:', {
-  user: process.env.VITE_DB_USER,
-  server: process.env.VITE_DB_SERVER,
-  database: process.env.VITE_DB_DATABASE,
+  user: process.env.DB_USER,
+  server: process.env.DB_SERVER,
+  database: process.env.DB_DATABASE,
   // Não exibir a senha por motivos de segurança
 });
 
@@ -98,16 +98,46 @@ app.get('/api/status', (req, res) => {
   res.json({ 
     status: 'online',
     environment: {
-      server: process.env.VITE_DB_SERVER ? 'configurado' : 'não configurado',
-      user: process.env.VITE_DB_USER ? 'configurado' : 'não configurado',
-      database: process.env.VITE_DB_DATABASE ? 'configurado' : 'não configurado'
+      server: process.env.DB_SERVER ? 'configurado' : 'não configurado',
+      user: process.env.DB_USER ? 'configurado' : 'não configurado',
+      database: process.env.DB_DATABASE ? 'configurado' : 'não configurado'
     }
   });
+});
+
+// Adicionar rota para testar conexão com o banco de dados
+app.get('/api/test-connection', async (req, res) => {
+  try {
+    console.log('Testando conexão com o banco de dados...');
+    await sql.connect(config);
+    console.log('Conexão com o banco de dados estabelecida com sucesso!');
+    res.json({ 
+      status: 'success', 
+      message: 'Conexão com o banco de dados estabelecida com sucesso!',
+      config: {
+        server: process.env.DB_SERVER,
+        user: process.env.DB_USER,
+        database: process.env.DB_DATABASE
+      }
+    });
+    await sql.close();
+  } catch (error) {
+    console.error('Erro ao conectar ao banco de dados:', error);
+    res.status(500).json({ 
+      status: 'error', 
+      message: 'Erro ao conectar ao banco de dados', 
+      error: error.message,
+      config: {
+        server: process.env.DB_SERVER,
+        user: process.env.DB_USER,
+        database: process.env.DB_DATABASE
+      }
+    });
+  }
 });
 
 // Iniciar o servidor
 app.listen(PORT, () => {
   console.log(`API proxy rodando em http://localhost:${PORT}`);
-  console.log(`Variáveis de ambiente carregadas: ${Object.keys(process.env).filter(key => key.startsWith('VITE_')).join(', ')}`);
+  console.log(`Variáveis de ambiente: DB_SERVER=${process.env.DB_SERVER}, DB_USER=${process.env.DB_USER}, DB_DATABASE=${process.env.DB_DATABASE}`);
 });
-
