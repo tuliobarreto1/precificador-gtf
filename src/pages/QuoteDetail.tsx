@@ -52,6 +52,86 @@ const QuoteDetail = () => {
   // Encontrar o orçamento pelo ID
   const quote = id ? findQuoteById(id) : null;
   
+  // Variáveis que dependem do quote
+  const [isSaved, setIsSaved] = useState(false);
+  const [client, setClient] = useState<any>(null);
+  const [vehicleGroup, setVehicleGroup] = useState<any>(null);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
+  
+  // Atualizar estado com base no orçamento
+  useEffect(() => {
+    if (!quote) return;
+    
+    // Definir se é um orçamento salvo
+    const quoteIsSaved = isSavedQuote(quote);
+    setIsSaved(quoteIsSaved);
+    
+    let clientData, vehicleGroupData, vehiclesData;
+    
+    if (quoteIsSaved) {
+      // Para orçamentos salvos, usar os dados do próprio objeto
+      clientData = {
+        name: quote.clientName,
+        document: '', // Podemos não ter essa informação no SavedQuote
+        type: 'PJ', // Valor padrão, pode não ser preciso
+        email: ''
+      };
+      
+      // Para orçamentos salvos, listar todos os veículos disponíveis
+      vehiclesData = quote.vehicles;
+      
+      if (vehiclesData.length > 0) {
+        // Obter o grupo do veículo do primeiro veículo
+        vehicleGroupData = getVehicleGroupById(vehiclesData[0].groupId);
+      }
+    } else {
+      // Para orçamentos mockados, buscar dados relacionados
+      clientData = getClientById(quote.clientId);
+      const vehicle = getVehicleById(quote.vehicleId);
+      
+      if (vehicle) {
+        vehiclesData = [
+          {
+            vehicleId: vehicle.id,
+            vehicleBrand: vehicle.brand,
+            vehicleModel: vehicle.model,
+            plateNumber: vehicle.plateNumber || '',
+            groupId: vehicle.groupId,
+            totalCost: quote.totalCost,
+            depreciationCost: quote.depreciationCost,
+            maintenanceCost: quote.maintenanceCost,
+            extraKmRate: calculateExtraKmRate(vehicle.value)
+          }
+        ];
+        vehicleGroupData = getVehicleGroupById(vehicle.groupId);
+      }
+    }
+    
+    setClient(clientData);
+    setVehicleGroup(vehicleGroupData);
+    setVehicles(vehiclesData || []);
+    
+    // Selecionar o primeiro veículo por padrão se não houver selecionado
+    if (vehiclesData && vehiclesData.length > 0) {
+      if (!selectedVehicleId) {
+        setSelectedVehicleId(vehiclesData[0].vehicleId);
+        setSelectedVehicle(vehiclesData[0]);
+      } else {
+        const selected = vehiclesData.find(v => v.vehicleId === selectedVehicleId);
+        setSelectedVehicle(selected || vehiclesData[0]);
+      }
+    }
+  }, [quote, selectedVehicleId]);
+  
+  // Atualizar veículo selecionado quando a ID selecionada mudar
+  useEffect(() => {
+    if (vehicles.length > 0 && selectedVehicleId) {
+      const selected = vehicles.find(v => v.vehicleId === selectedVehicleId);
+      setSelectedVehicle(selected || vehicles[0]);
+    }
+  }, [selectedVehicleId, vehicles]);
+  
   // Se orçamento não encontrado, exibir mensagem de erro
   if (!quote) {
     return (
@@ -66,93 +146,6 @@ const QuoteDetail = () => {
       </MainLayout>
     );
   }
-  
-  // Definir variáveis com base no tipo de orçamento
-  const isSaved = isSavedQuote(quote);
-  
-  // Obter dados relacionados
-  let client, vehicleGroup;
-  
-  // Preparar os dados dos veículos
-  let vehicles = [];
-  let selectedVehicle = null;
-  
-  if (isSaved) {
-    // Para orçamentos salvos, usar os dados do próprio objeto
-    client = {
-      name: quote.clientName,
-      document: '', // Podemos não ter essa informação no SavedQuote
-      type: 'PJ', // Valor padrão, pode não ser preciso
-      email: ''
-    };
-    
-    // Para orçamentos salvos, listar todos os veículos disponíveis
-    vehicles = quote.vehicles;
-    
-    // Se não houver um veículo selecionado ou o selecionado não existir na lista,
-    // usar o primeiro veículo como padrão
-    if (!selectedVehicleId || !vehicles.find(v => v.vehicleId === selectedVehicleId)) {
-      selectedVehicle = vehicles[0];
-      // Definir o vehicleId corretamente no efeito
-    } else {
-      selectedVehicle = vehicles.find(v => v.vehicleId === selectedVehicleId) || vehicles[0];
-    }
-    
-    // Obter o grupo do veículo
-    vehicleGroup = getVehicleGroupById(selectedVehicle.groupId);
-  } else {
-    // Para orçamentos mockados, buscar dados relacionados
-    client = getClientById(quote.clientId);
-    const vehicle = getVehicleById(quote.vehicleId);
-    
-    if (vehicle) {
-      vehicles = [
-        {
-          vehicleId: vehicle.id,
-          vehicleBrand: vehicle.brand,
-          vehicleModel: vehicle.model,
-          plateNumber: vehicle.plateNumber || '',
-          groupId: vehicle.groupId,
-          totalCost: quote.totalCost,
-          depreciationCost: quote.depreciationCost,
-          maintenanceCost: quote.maintenanceCost,
-          extraKmRate: calculateExtraKmRate(vehicle.value)
-        }
-      ];
-      selectedVehicle = vehicles[0];
-      vehicleGroup = getVehicleGroupById(vehicle.groupId);
-    }
-  }
-  
-  // Configurar o veículo selecionado quando o componente montar ou quando os veículos forem carregados
-  useEffect(() => {
-    if (vehicles.length > 0 && !selectedVehicleId) {
-      setSelectedVehicleId(vehicles[0].vehicleId);
-    }
-  }, [vehicles, selectedVehicleId]);
-  
-  // Obter parâmetros globais
-  const globalParams = getGlobalParams();
-  
-  // Calcular dados adicionais
-  const extraKmRate = selectedVehicle ? selectedVehicle.extraKmRate : 0;
-  
-  const createdDate = new Date(quote.createdAt).toLocaleDateString('pt-BR');
-  const totalKm = quote.monthlyKm * quote.contractMonths;
-  
-  // Calcular custos específicos com base no veículo selecionado
-  const depreciationCost = selectedVehicle ? selectedVehicle.depreciationCost : 0;
-  const maintenanceCost = selectedVehicle ? selectedVehicle.maintenanceCost : 0;
-  const trackingCost = isSaved ? 0 : (quote.trackingCost || 0);
-  const vehicleTotalCost = selectedVehicle ? selectedVehicle.totalCost : 0;
-  
-  // Cálculo do custo por km
-  const costPerKm = totalKm > 0 ? (selectedVehicle ? selectedVehicle.totalCost / totalKm : 0) : 0;
-
-  // Cálculo das porcentagens dos componentes de custo
-  const depreciationPercentage = vehicleTotalCost > 0 ? ((depreciationCost / vehicleTotalCost) * 100).toFixed(1) : "0";
-  const maintenancePercentage = vehicleTotalCost > 0 ? ((maintenanceCost / vehicleTotalCost) * 100).toFixed(1) : "0";
-  const trackingPercentage = vehicleTotalCost > 0 ? ((trackingCost / vehicleTotalCost) * 100).toFixed(1) : "0";
   
   // Função para lidar com a mudança de veículo selecionado
   const handleVehicleChange = (vehicleId: string) => {
@@ -188,6 +181,28 @@ const QuoteDetail = () => {
   // Verificar permissões para edição e exclusão
   const canEdit = isSaved ? canEditQuote(quote as SavedQuote) : false;
   const canDelete = isSaved ? canDeleteQuote(quote as SavedQuote) : false;
+  
+  // Obter parâmetros globais
+  const globalParams = getGlobalParams();
+  
+  // Calcular dados adicionais
+  const extraKmRate = selectedVehicle ? selectedVehicle.extraKmRate : 0;
+  const createdDate = new Date(quote.createdAt).toLocaleDateString('pt-BR');
+  const totalKm = quote.monthlyKm * quote.contractMonths;
+  
+  // Calcular custos específicos com base no veículo selecionado
+  const depreciationCost = selectedVehicle ? selectedVehicle.depreciationCost : 0;
+  const maintenanceCost = selectedVehicle ? selectedVehicle.maintenanceCost : 0;
+  const trackingCost = isSaved ? 0 : (quote.trackingCost || 0);
+  const vehicleTotalCost = selectedVehicle ? selectedVehicle.totalCost : 0;
+  
+  // Cálculo do custo por km
+  const costPerKm = totalKm > 0 ? (selectedVehicle ? selectedVehicle.totalCost / totalKm : 0) : 0;
+
+  // Cálculo das porcentagens dos componentes de custo
+  const depreciationPercentage = vehicleTotalCost > 0 ? ((depreciationCost / vehicleTotalCost) * 100).toFixed(1) : "0";
+  const maintenancePercentage = vehicleTotalCost > 0 ? ((maintenanceCost / vehicleTotalCost) * 100).toFixed(1) : "0";
+  const trackingPercentage = vehicleTotalCost > 0 ? ((trackingCost / vehicleTotalCost) * 100).toFixed(1) : "0";
   
   return (
     <MainLayout>
@@ -501,7 +516,10 @@ const QuoteDetail = () => {
           {/* Histórico de Edições - Apenas para orçamentos salvos com histórico */}
           {isSaved && (quote as SavedQuote).editHistory && (quote as SavedQuote).editHistory!.length > 0 && (
             <Card className="lg:col-span-3">
-              <CardHeader title="Histórico de Edições" icon={<Clock className="h-5 w-5" />} />
+              <CardHeader 
+                title="Histórico de Edições" 
+                icon={<Clock className="h-5 w-5" />} 
+              />
               <div className="p-4">
                 <Table>
                   <TableHeader>
