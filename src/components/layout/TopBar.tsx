@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { MenuIcon, X, BellIcon, UserIcon, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useQuote } from '@/context/QuoteContext';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   DropdownMenu,
@@ -20,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 
 type TopBarProps = {
   isSidebarOpen: boolean;
@@ -27,8 +27,7 @@ type TopBarProps = {
 };
 
 const TopBar = ({ isSidebarOpen, toggleSidebar }: TopBarProps) => {
-  const { getCurrentUser, availableUsers, authenticateUser } = useQuote();
-  const currentUser = getCurrentUser();
+  const { profile, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
@@ -36,8 +35,23 @@ const TopBar = ({ isSidebarOpen, toggleSidebar }: TopBarProps) => {
   const [password, setPassword] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   
-  const handleLogout = () => {
-    // Redirecionar para a página de login
+  // Usuários disponíveis para demonstração - em uma implementação real, isso viria do backend
+  const availableUsers = [
+    { id: 1, name: "Admin Demo", email: "admin@exemplo.com", role: "admin" },
+    { id: 2, name: "Gerente Demo", email: "gerente@exemplo.com", role: "manager" },
+    { id: 3, name: "Usuário Demo", email: "usuario@exemplo.com", role: "user" }
+  ];
+  
+  // Dados do usuário atual - agora vindo do AuthContext
+  const currentUser = {
+    id: 1, // temporário, será substituído pelo ID real do usuário
+    name: profile?.name || "Usuário",
+    email: profile?.email || "usuario@exemplo.com",
+    role: profile?.role || "user"
+  };
+  
+  const handleLogout = async () => {
+    await signOut();
     navigate('/login');
   };
   
@@ -87,8 +101,9 @@ const TopBar = ({ isSidebarOpen, toggleSidebar }: TopBarProps) => {
     
     // Simulação de verificação de senha (em um sistema real, isso seria validado no backend)
     setTimeout(() => {
-      const authenticated = authenticateUser(selectedUser.id, password);
-      
+      // Em uma implementação real, isso seria feito via Supabase
+      const authenticated = true; // Simulando autenticação bem-sucedida
+
       if (authenticated) {
         toast({
           title: "Autenticação bem-sucedida",

@@ -469,19 +469,51 @@ export async function getQuotes() {
         clients(id, name),
         items:quote_items(
           *,
-          vehicle:vehicles(id, brand, model)
+          vehicle:vehicles(id, brand, model, year, value, is_used, created_at, updated_at)
         )
       `)
       .order('created_at', { ascending: false });
       
     if (error) throw error;
-    return { success: true, quotes: data };
+    
+    // Transformar os dados para garantir a compatibilidade com o tipo Quote
+    const formattedQuotes: Quote[] = data.map((quote: any) => ({
+      id: quote.id,
+      title: quote.title,
+      client_id: quote.client_id,
+      created_by: quote.created_by,
+      contract_months: quote.contract_months,
+      monthly_km: quote.monthly_km,
+      operation_severity: quote.operation_severity,
+      has_tracking: quote.has_tracking,
+      total_value: quote.total_value,
+      status: quote.status,
+      created_at: quote.created_at,
+      updated_at: quote.updated_at,
+      client: quote.clients,
+      items: quote.items.map((item: any) => ({
+        id: item.id,
+        quote_id: item.quote_id,
+        vehicle_id: item.vehicle_id,
+        contract_months: item.contract_months,
+        monthly_km: item.monthly_km,
+        operation_severity: item.operation_severity,
+        has_tracking: item.has_tracking,
+        monthly_value: item.monthly_value,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+        vehicle: item.vehicle
+      })),
+    }));
+    
+    return { success: true, quotes: formattedQuotes };
   } catch (error) {
     console.error('Erro ao obter orçamentos:', error);
     return { success: false, error };
   }
 }
 
+// Resto das funções para orçamentos
 export async function getQuoteById(id: string) {
   try {
     const { data, error } = await supabase
