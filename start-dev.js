@@ -8,6 +8,12 @@ const fs = require('fs');
 const envPath = path.resolve(__dirname, '.env');
 if (fs.existsSync(envPath)) {
   console.log(`Arquivo .env encontrado em: ${envPath}`);
+  
+  // Exibir o conteúdo do arquivo para debug (sem a senha)
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  const safeContent = envContent.replace(/DB_PASSWORD=.*/g, 'DB_PASSWORD=***HIDDEN***');
+  console.log('Conteúdo do arquivo .env (senha oculta):');
+  console.log(safeContent);
 } else {
   console.error(`ERRO: Arquivo .env não encontrado em: ${envPath}`);
   console.error('Por favor, crie o arquivo .env na raiz do projeto com as credenciais de banco de dados.');

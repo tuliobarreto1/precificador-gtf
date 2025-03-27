@@ -41,6 +41,7 @@ console.log('- Porta:', process.env.DB_PORT);
 console.log('- Usuário:', process.env.DB_USER);
 console.log('- Banco de dados:', process.env.DB_DATABASE);
 console.log('- Senha configurada:', process.env.DB_PASSWORD ? 'Sim' : 'Não');
+console.log('- Comprimento da senha:', process.env.DB_PASSWORD ? process.env.DB_PASSWORD.length : 0);
 console.log('=========================================');
 
 // Endpoint para buscar veículo por placa
