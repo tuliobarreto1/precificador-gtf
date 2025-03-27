@@ -574,7 +574,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     // Calcular os novos valores do orçamento
     const quoteResult = calculateQuote();
     if (!quoteResult) {
-      console.error('Erro ao calcular o orçamento atualizado');
+      console.error('Erro ao calcular o or��amento atualizado');
       return false;
     }
     
@@ -690,8 +690,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
           name: quoteToEdit.clientName,
           document: '',
           type: 'PJ',
-          email: '',
-          address: ''
+          email: ''
         };
         setClient(tempClient);
       }
