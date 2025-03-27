@@ -29,6 +29,7 @@ const QuoteForm = () => {
   const { id } = useParams<{ id: string }>();
   const [currentStep, setCurrentStep] = useState('client');
   const [selectedVehicleTab, setSelectedVehicleTab] = useState<string | null | undefined>(undefined);
+  const [loadingQuote, setLoadingQuote] = useState<boolean>(!!id);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { 
@@ -51,21 +52,46 @@ const QuoteForm = () => {
   useEffect(() => {
     if (id) {
       console.log('Modo de edição detectado, carregando orçamento:', id);
-      const success = loadQuoteForEditing(id);
+      setLoadingQuote(true);
       
-      if (success) {
-        setCurrentStep('vehicle');
+      try {
+        const success = loadQuoteForEditing(id);
+        
+        if (success) {
+          console.log('Orçamento carregado com sucesso:', quoteForm);
+          setCurrentStep('vehicle');
+          
+          toast({
+            title: "Orçamento carregado",
+            description: "Os dados do orçamento foram carregados para edição."
+          });
+        } else {
+          console.error('Falha ao carregar orçamento:', id);
+          
+          toast({
+            title: "Erro ao carregar",
+            description: "Não foi possível carregar o orçamento para edição.",
+            variant: "destructive"
+          });
+          
+          setTimeout(() => {
+            navigate('/orcamentos');
+          }, 1500);
+        }
+      } catch (error) {
+        console.error('Erro ao processar orçamento:', error);
+        
         toast({
-          title: "Orçamento carregado",
-          description: "Os dados do orçamento foram carregados para edição."
-        });
-      } else {
-        toast({
-          title: "Erro ao carregar",
-          description: "Não foi possível carregar o orçamento para edição.",
+          title: "Erro inesperado",
+          description: "Ocorreu um erro ao tentar carregar o orçamento.",
           variant: "destructive"
         });
-        navigate('/orcamentos');
+        
+        setTimeout(() => {
+          navigate('/orcamentos');
+        }, 1500);
+      } finally {
+        setLoadingQuote(false);
       }
     }
   }, [id, loadQuoteForEditing, navigate, toast]);
@@ -517,50 +543,61 @@ const QuoteForm = () => {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between bg-muted/30 p-1 rounded-lg">
-        {STEPS.map((step, index) => (
-          <React.Fragment key={step.id}>
-            {index > 0 && (
-              <div className="h-[2px] flex-1 bg-border" />
-            )}
-            <div 
-              className={`flex items-center space-x-2 rounded-md px-3 py-2 ${
-                currentStep === step.id 
-                  ? 'bg-primary text-primary-foreground' 
-                  : 'text-muted-foreground'
-              }`}
+      {loadingQuote ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Carregando orçamento...</p>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between bg-muted/30 p-1 rounded-lg">
+            {STEPS.map((step, index) => (
+              <React.Fragment key={step.id}>
+                {index > 0 && (
+                  <div className="h-[2px] flex-1 bg-border" />
+                )}
+                <div 
+                  className={`flex items-center space-x-2 rounded-md px-3 py-2 ${
+                    currentStep === step.id 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'text-muted-foreground'
+                  }`}
+                >
+                  <div className="w-5 h-5 flex items-center justify-center">
+                    {step.icon}
+                  </div>
+                  <span className="hidden md:inline">{step.name}</span>
+                  
+                  {step.id === 'vehicle' && quoteForm.vehicles.length > 0 && (
+                    <span className="text-xs bg-secondary rounded-full px-1.5 py-0.5 min-w-5 flex items-center justify-center">
+                      {quoteForm.vehicles.length}
+                    </span>
+                  )}
+                </div>
+              </React.Fragment>
+            ))}
+          </div>
+          
+          <div className="min-h-[400px]">
+            {renderStepContent()}
+          </div>
+          
+          <div className="flex justify-between pt-6 border-t">
+            <Button
+              variant="outline"
+              onClick={goToPreviousStep}
+              disabled={currentStep === 'client'}
             >
-              <div className="w-5 h-5 flex items-center justify-center">
-                {step.icon}
-              </div>
-              <span className="hidden md:inline">{step.name}</span>
-              
-              {step.id === 'vehicle' && quoteForm.vehicles.length > 0 && (
-                <span className="text-xs bg-secondary rounded-full px-1.5 py-0.5 min-w-5 flex items-center justify-center">
-                  {quoteForm.vehicles.length}
-                </span>
-              )}
-            </div>
-          </React.Fragment>
-        ))}
-      </div>
-      
-      <div className="min-h-[400px]">
-        {renderStepContent()}
-      </div>
-      
-      <div className="flex justify-between pt-6 border-t">
-        <Button
-          variant="outline"
-          onClick={goToPreviousStep}
-          disabled={currentStep === 'client'}
-        >
-          Voltar
-        </Button>
-        <Button onClick={goToNextStep}>
-          {currentStep === 'result' ? (isEditMode ? 'Atualizar Orçamento' : 'Salvar Orçamento') : 'Continuar'}
-        </Button>
-      </div>
+              Voltar
+            </Button>
+            <Button onClick={goToNextStep}>
+              {currentStep === 'result' ? (isEditMode ? 'Atualizar Orçamento' : 'Salvar Orçamento') : 'Continuar'}
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 };

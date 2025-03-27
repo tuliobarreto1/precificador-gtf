@@ -663,7 +663,9 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   const loadQuoteForEditing = (quoteId: string): boolean => {
     try {
       console.log("Tentando carregar orçamento para edição:", quoteId);
-      const quoteToEdit = savedQuotes.find(q => q.id === quoteId);
+      // Garantir que temos os dados mais recentes dos orçamentos salvos
+      const allQuotes = getSavedQuotes();
+      const quoteToEdit = allQuotes.find(q => q.id === quoteId);
       
       if (!quoteToEdit) {
         console.error("Orçamento não encontrado:", quoteId);
@@ -693,6 +695,9 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
           email: ''
         };
         setClient(tempClient);
+      } else {
+        console.error("Dados do cliente insuficientes para criar cliente temporário");
+        return false;
       }
       
       // Configurar os parâmetros globais
@@ -708,23 +713,48 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       }
       
       // Carregar veículos
-      quoteToEdit.vehicles.forEach(vehicleItem => {
+      let loadedVehicles = 0;
+      
+      // Verificar se existem veículos para carregar
+      if (!quoteToEdit.vehicles || quoteToEdit.vehicles.length === 0) {
+        console.error("Orçamento não possui veículos para carregar");
+        return false;
+      }
+      
+      // Limpar veículos existentes
+      quoteForm.vehicles = [];
+      
+      // Carregar cada veículo do orçamento
+      for (const vehicleItem of quoteToEdit.vehicles) {
         const vehicleFromDB = getVehicleById(vehicleItem.vehicleId);
         const vehicleGroup = getVehicleGroupById(vehicleItem.groupId);
         
         if (vehicleFromDB && vehicleGroup) {
           addVehicle(vehicleFromDB, vehicleGroup);
+          loadedVehicles++;
+        } else {
+          console.warn(`Não foi possível carregar veículo ID: ${vehicleItem.vehicleId}, Grupo: ${vehicleItem.groupId}`);
         }
-      });
+      }
+      
+      if (loadedVehicles === 0) {
+        console.error("Nenhum veículo foi carregado com sucesso");
+        return false;
+      }
       
       // Marcar como modo de edição
       setIsEditMode(true);
       setCurrentEditingQuoteId(quoteId);
       
       console.log("Orçamento carregado com sucesso para edição:", quoteId);
+      console.log("Veículos carregados:", loadedVehicles);
+      console.log("Estado do formulário após carregamento:", quoteForm);
       return true;
     } catch (error) {
       console.error("Erro ao carregar orçamento para edição:", error);
+      // Resetar o estado em caso de erro
+      setIsEditMode(false);
+      setCurrentEditingQuoteId(null);
       return false;
     }
   };
