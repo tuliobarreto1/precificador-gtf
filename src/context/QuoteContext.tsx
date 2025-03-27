@@ -32,7 +32,7 @@ export type QuoteFormData = {
 export type EditRecord = {
   editedAt: string;
   editedBy: {
-    id: string;
+    id: number;
     name: string;
     role: 'user' | 'manager' | 'admin';
   };
@@ -44,10 +44,12 @@ export type UserRole = 'user' | 'manager' | 'admin';
 
 // Tipo de usuário
 export type User = {
-  id: string;
+  id: number;
   name: string;
+  email: string;
   role: UserRole;
-  email?: string;
+  status: 'active' | 'inactive';
+  lastLogin: string;
 };
 
 // Resultado do cálculo para um veículo
@@ -91,20 +93,17 @@ export type SavedQuote = {
   trackingCost?: number;
 };
 
-// Mock do usuário atual
-export const currentUser: User = {
-  id: "usr1",
-  name: "João Silva",
-  role: "admin", // Definindo como admin para garantir acesso total
-  email: "joao.silva@exemplo.com"
-};
-
-// Outros usuários de exemplo para simulação
+// Usuários do sistema (alinhados com a página de Usuários)
 export const mockUsers: User[] = [
-  currentUser,
-  { id: "usr2", name: "Maria Oliveira", role: "manager", email: "maria.oliveira@exemplo.com" },
-  { id: "usr3", name: "Carlos Santos", role: "user", email: "carlos.santos@exemplo.com" }
+  { id: 1, name: 'Admin Principal', email: 'admin@carleasemaster.com.br', role: 'admin', status: 'active', lastLogin: '2023-10-15 14:30' },
+  { id: 2, name: 'Gerente de Vendas', email: 'gerente@carleasemaster.com.br', role: 'manager', status: 'active', lastLogin: '2023-10-14 09:15' },
+  { id: 3, name: 'Usuário Teste', email: 'teste@carleasemaster.com.br', role: 'user', status: 'active', lastLogin: '2023-10-10 16:45' },
+  { id: 4, name: 'Consultor 1', email: 'consultor1@carleasemaster.com.br', role: 'user', status: 'active', lastLogin: '2023-10-09 11:20' },
+  { id: 5, name: 'Usuário Inativo', email: 'inativo@carleasemaster.com.br', role: 'user', status: 'inactive', lastLogin: '2023-09-25 10:30' }
 ];
+
+// Definir usuário padrão (primeiro usuário ativo admin)
+export const defaultUser = mockUsers.find(user => user.status === 'active' && user.role === 'admin') || mockUsers[0];
 
 // Chave para armazenar o usuário atual no localStorage
 const CURRENT_USER_KEY = 'currentUser';
@@ -145,7 +144,7 @@ type QuoteContextType = {
   canDeleteQuote: (quote: SavedQuote) => boolean;
   updateQuote: (quoteId: string, updates: Partial<QuoteFormData>, changeDescription: string) => boolean;
   availableUsers: User[];
-  authenticateUser: (userId: string) => boolean;
+  authenticateUser: (userId: number) => boolean;
 };
 
 // Initial state
@@ -168,7 +167,7 @@ const QuoteContext = createContext<QuoteContextType>({} as QuoteContextType);
 export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   const [quoteForm, setQuoteForm] = useState<QuoteFormData>(initialQuoteForm);
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
-  const [user, setUser] = useState<User>(currentUser);
+  const [user, setUser] = useState<User>(defaultUser);
 
   // Carregar cotações salvas e usuário atual do localStorage na inicialização
   useEffect(() => {
@@ -177,15 +176,26 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       const storedUser = localStorage.getItem(CURRENT_USER_KEY);
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        console.log('Usuário carregado do localStorage:', parsedUser);
+        // Validar se o usuário ainda existe na lista de usuários
+        const validUser = mockUsers.find(u => u.id === parsedUser.id);
+        if (validUser) {
+          setUser(validUser);
+          console.log('Usuário carregado do localStorage:', validUser);
+        } else {
+          // Se o usuário não existir mais, usar o usuário padrão
+          localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(defaultUser));
+          setUser(defaultUser);
+          console.log('Usuário não encontrado, usando padrão:', defaultUser);
+        }
       } else {
         // Se não houver usuário salvo, salvar o usuário padrão
-        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
-        console.log('Usuário padrão definido:', currentUser);
+        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(defaultUser));
+        console.log('Usuário padrão definido:', defaultUser);
       }
     } catch (error) {
       console.error('Erro ao carregar usuário do localStorage:', error);
+      // Em caso de erro, definir o usuário padrão
+      setUser(defaultUser);
     }
 
     // Carregar cotações
@@ -202,8 +212,8 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   // Function to authenticate a user by ID
-  const authenticateUser = (userId: string): boolean => {
-    const foundUser = mockUsers.find(u => u.id === userId);
+  const authenticateUser = (userId: number): boolean => {
+    const foundUser = mockUsers.find(u => u.id === userId && u.status === 'active');
     if (foundUser) {
       setCurrentUser(foundUser);
       return true;
@@ -320,8 +330,8 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     console.log('Usuário atual alterado para:', newUser);
   };
 
-  // Lista de usuários disponíveis
-  const availableUsers = mockUsers;
+  // Lista de usuários disponíveis (somente usuários ativos)
+  const availableUsers = mockUsers.filter(user => user.status === 'active');
 
   // Verificar se um usuário pode editar um orçamento
   const canEditQuote = (quote: SavedQuote): boolean => {
