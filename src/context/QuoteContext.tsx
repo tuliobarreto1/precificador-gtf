@@ -30,6 +30,7 @@ type QuoteContextType = {
     trackingCost: number;
     totalCost: number;
     costPerKm: number;
+    extraKmRate: number;
   } | null;
 };
 
@@ -100,7 +101,15 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       hasTracking,
     };
     
-    return calculateLeaseCost(depreciationParams, maintenanceParams);
+    const result = calculateLeaseCost(depreciationParams, maintenanceParams);
+    
+    // Calculate extra km rate (usually a percentage of the vehicle value)
+    const extraKmRate = vehicle.value * 0.0001; // Default calculation if not configured
+    
+    return {
+      ...result,
+      extraKmRate
+    };
   };
 
   return (

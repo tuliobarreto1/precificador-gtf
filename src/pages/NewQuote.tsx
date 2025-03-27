@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Info, Users, Car, Wrench, Calculator } from 'lucide-react';
@@ -17,7 +16,6 @@ import VehicleCard from '@/components/ui-custom/VehicleCard';
 import { clients, vehicles, vehicleGroups, getVehicleGroupById } from '@/lib/mock-data';
 import { useQuote, QuoteProvider } from '@/context/QuoteContext';
 
-// Define the steps in the quote process
 const STEPS = [
   { id: 'client', name: 'Cliente', icon: <Users size={18} /> },
   { id: 'vehicle', name: 'Veículo', icon: <Car size={18} /> },
@@ -25,7 +23,6 @@ const STEPS = [
   { id: 'result', name: 'Resultado', icon: <Calculator size={18} /> },
 ];
 
-// The quote form component
 const QuoteForm = () => {
   const [currentStep, setCurrentStep] = useState('client');
   const navigate = useNavigate();
@@ -41,7 +38,6 @@ const QuoteForm = () => {
     calculateQuote 
   } = useQuote();
 
-  // Handle going to next step
   const goToNextStep = () => {
     switch (currentStep) {
       case 'client':
@@ -62,14 +58,12 @@ const QuoteForm = () => {
         setCurrentStep('result');
         break;
       case 'result':
-        // Save quote logic would go here
         toast({ title: "Orçamento salvo", description: "Seu orçamento foi salvo com sucesso." });
         navigate('/orcamentos');
         break;
     }
   };
 
-  // Handle going to previous step
   const goToPreviousStep = () => {
     switch (currentStep) {
       case 'vehicle':
@@ -84,7 +78,6 @@ const QuoteForm = () => {
     }
   };
 
-  // Render the client selection step
   const renderClientStep = () => (
     <div className="space-y-6 animate-fadeIn">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -122,7 +115,6 @@ const QuoteForm = () => {
     </div>
   );
 
-  // Render the vehicle selection step
   const renderVehicleStep = () => (
     <div className="space-y-6 animate-fadeIn">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -144,7 +136,6 @@ const QuoteForm = () => {
     </div>
   );
 
-  // Render the parameters step
   const renderParamsStep = () => (
     <div className="space-y-8 animate-fadeIn">
       <div className="space-y-4">
@@ -216,12 +207,11 @@ const QuoteForm = () => {
     </div>
   );
 
-  // Render the result step
   const renderResultStep = () => {
     const result = calculateQuote();
     if (!result) return <div>Não foi possível calcular o orçamento.</div>;
     
-    const { depreciationCost, maintenanceCost, trackingCost, totalCost, costPerKm } = result;
+    const { depreciationCost, maintenanceCost, trackingCost, totalCost, costPerKm, extraKmRate } = result;
     
     return (
       <div className="space-y-8 animate-fadeIn">
@@ -286,11 +276,23 @@ const QuoteForm = () => {
             </div>
           </div>
         </Card>
+        
+        <Card>
+          <CardHeader title="Informações Adicionais" />
+          <div className="p-4">
+            <div className="flex justify-between items-center p-3 bg-muted/30 rounded-md">
+              <div>
+                <span>Valor do Quilômetro Excedente</span>
+                <p className="text-xs text-muted-foreground">Cobrado ao final do contrato</p>
+              </div>
+              <span className="font-medium">R$ {extraKmRate.toFixed(2)}</span>
+            </div>
+          </div>
+        </Card>
       </div>
     );
   };
 
-  // Render the content based on current step
   const renderStepContent = () => {
     switch (currentStep) {
       case 'client':
@@ -308,7 +310,6 @@ const QuoteForm = () => {
 
   return (
     <div className="space-y-8">
-      {/* Step indicator */}
       <div className="flex items-center justify-between bg-muted/30 p-1 rounded-lg">
         {STEPS.map((step, index) => (
           <React.Fragment key={step.id}>
@@ -331,12 +332,10 @@ const QuoteForm = () => {
         ))}
       </div>
       
-      {/* Step content */}
       <div className="min-h-[400px]">
         {renderStepContent()}
       </div>
       
-      {/* Navigation buttons */}
       <div className="flex justify-between pt-6 border-t">
         <Button
           variant="outline"
@@ -353,7 +352,6 @@ const QuoteForm = () => {
   );
 };
 
-// The main page component wrapped with the QuoteProvider
 const NewQuote = () => {
   return (
     <MainLayout>

@@ -1,63 +1,54 @@
 
 import React, { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
-} from '@/components/ui/dialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Input } from '@/components/ui/input';
-import { 
-  Form, 
-  FormControl, 
-  FormField, 
-  FormItem, 
-  FormLabel, 
-  FormMessage 
-} from '@/components/ui/form';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { toast } from 'sonner';
-import { Car, Wrench, Edit, Trash2, Plus, Save } from 'lucide-react';
 import { vehicleGroups, VehicleGroup } from '@/lib/mock-data';
+import { getGlobalParams, updateGlobalParams, GlobalParams } from '@/lib/calculation';
 
-// Form schema for vehicle group
+// Form schema for vehicle groups
 const vehicleGroupSchema = z.object({
-  id: z.string().min(1, { message: 'ID é obrigatório' }),
-  name: z.string().min(2, { message: 'Nome é obrigatório' }),
+  id: z.string().min(1, { message: 'ID do grupo é obrigatório' }),
+  name: z.string().min(1, { message: 'Nome do grupo é obrigatório' }),
   description: z.string().optional(),
-  revisionKm: z.number().min(1000, { message: 'Intervalo mínimo é 1.000 km' }),
-  revisionCost: z.number().min(100, { message: 'Custo mínimo é R$ 100' }),
-  tireKm: z.number().min(10000, { message: 'Intervalo mínimo é 10.000 km' }),
-  tireCost: z.number().min(500, { message: 'Custo mínimo é R$ 500' }),
+  revisionKm: z.number().min(1, { message: 'Intervalo de revisão é obrigatório' }),
+  revisionCost: z.number().min(1, { message: 'Custo de revisão é obrigatório' }),
+  tireKm: z.number().min(1, { message: 'Intervalo de troca de pneus é obrigatório' }),
+  tireCost: z.number().min(1, { message: 'Custo de troca de pneus é obrigatório' }),
+});
+
+// Form schema for global params
+const globalParamsSchema = z.object({
+  trackingCost: z.number().min(0, { message: 'Valor de rastreamento deve ser positivo' }),
+  depreciationBase: z.number().min(0.001, { message: 'Taxa base de depreciação deve ser positiva' }),
+  depreciationMileageMultiplier: z.number().min(0, { message: 'Multiplicador de quilometragem deve ser positivo' }),
+  depreciationSeverityMultiplier: z.number().min(0, { message: 'Multiplicador de severidade deve ser positivo' }),
+  extraKmPercentage: z.number().min(0, { message: 'Percentual de km extra deve ser positivo' }),
 });
 
 type FormValues = z.infer<typeof vehicleGroupSchema>;
+type GlobalFormValues = z.infer<typeof globalParamsSchema>;
 
 const Parameters = () => {
-  const [activeTab, setActiveTab] = useState('vehicleGroups');
   const [groups, setGroups] = useState<VehicleGroup[]>(vehicleGroups);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [currentGroupId, setCurrentGroupId] = useState<string | null>(null);
+  const [currentGroupId, setCurrentGroupId] = useState('');
+  const [currentTab, setCurrentTab] = useState<string>('vehicle-groups');
+  const toast = useToast();
+  const globalParams = getGlobalParams();
 
-  // Form for vehicle group
+  // Form for vehicle groups
   const form = useForm<FormValues>({
     resolver: zodResolver(vehicleGroupSchema),
     defaultValues: {
@@ -71,8 +62,20 @@ const Parameters = () => {
     },
   });
 
+  // Form for global parameters
+  const globalForm = useForm<GlobalFormValues>({
+    resolver: zodResolver(globalParamsSchema),
+    defaultValues: {
+      trackingCost: globalParams.trackingCost,
+      depreciationBase: globalParams.depreciationRates.base,
+      depreciationMileageMultiplier: globalParams.depreciationRates.mileageMultiplier,
+      depreciationSeverityMultiplier: globalParams.depreciationRates.severityMultiplier,
+      extraKmPercentage: globalParams.extraKmPercentage,
+    },
+  });
+
+  // Handle opening the dialog for adding/editing
   const handleAddGroup = () => {
-    setEditMode(false);
     form.reset({
       id: '',
       name: '',
@@ -82,29 +85,34 @@ const Parameters = () => {
       tireKm: 40000,
       tireCost: 1200,
     });
+    setEditMode(false);
     setIsDialogOpen(true);
   };
 
-  const handleEditGroup = (group: VehicleGroup) => {
-    setEditMode(true);
-    setCurrentGroupId(group.id);
-    form.reset({
-      id: group.id,
-      name: group.name,
-      description: group.description,
-      revisionKm: group.revisionKm,
-      revisionCost: group.revisionCost,
-      tireKm: group.tireKm,
-      tireCost: group.tireCost,
-    });
-    setIsDialogOpen(true);
+  const handleEditGroup = (groupId: string) => {
+    const group = groups.find(g => g.id === groupId);
+    if (group) {
+      form.reset({
+        id: group.id,
+        name: group.name,
+        description: group.description,
+        revisionKm: group.revisionKm,
+        revisionCost: group.revisionCost,
+        tireKm: group.tireKm,
+        tireCost: group.tireCost,
+      });
+      setCurrentGroupId(groupId);
+      setEditMode(true);
+      setIsDialogOpen(true);
+    }
   };
 
-  const handleDeleteGroup = (id: string) => {
-    setGroups(groups.filter(group => group.id !== id));
-    toast.success('Grupo de veículo removido com sucesso');
+  const handleDeleteGroup = (groupId: string) => {
+    setGroups(groups.filter(group => group.id !== groupId));
+    toast.success('Grupo de veículo excluído com sucesso');
   };
 
+  // Form submission for vehicle groups
   const onSubmit = (values: FormValues) => {
     if (editMode) {
       setGroups(groups.map(group => 
@@ -120,11 +128,12 @@ const Parameters = () => {
       ));
       toast.success('Grupo de veículo atualizado com sucesso');
     } else {
-      // Check if the ID already exists
+      // Check if the ID is already in use
       if (groups.some(group => group.id === values.id)) {
-        form.setError('id', { 
-          type: 'manual', 
-          message: 'Este ID já está em uso' 
+        toast({
+          title: 'Erro ao adicionar grupo',
+          description: 'Este ID já está em uso. Por favor, escolha outro ID para o grupo.',
+          variant: 'destructive',
         });
         return;
       }
@@ -146,162 +155,228 @@ const Parameters = () => {
     setIsDialogOpen(false);
   };
 
+  // Form submission for global parameters
+  const onGlobalParamsSubmit = (values: GlobalFormValues) => {
+    updateGlobalParams({
+      trackingCost: values.trackingCost,
+      depreciationRates: {
+        base: values.depreciationBase,
+        mileageMultiplier: values.depreciationMileageMultiplier,
+        severityMultiplier: values.depreciationSeverityMultiplier,
+      },
+      extraKmPercentage: values.extraKmPercentage,
+    });
+    toast.success('Parâmetros globais atualizados com sucesso');
+  };
+
   return (
     <MainLayout>
-      <PageTitle 
-        title="Parâmetros" 
-        subtitle="Gerencie os parâmetros de cálculo por grupo de veículos"
-      />
-
-      <Tabs defaultValue="vehicleGroups" className="space-y-4" onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-2 md:w-[400px]">
-          <TabsTrigger value="vehicleGroups" className="flex items-center gap-2">
-            <Car size={16} />
-            <span>Grupos de Veículos</span>
-          </TabsTrigger>
-          <TabsTrigger value="maintenance" className="flex items-center gap-2">
-            <Wrench size={16} />
-            <span>Manutenção</span>
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="vehicleGroups">
-          <Card>
-            <CardHeader 
-              title="Grupos de Veículos" 
-              subtitle="Configure os parâmetros de cada grupo de veículos"
-              action={
-                <Button onClick={handleAddGroup}>
-                  <Plus size={16} className="mr-2" />
-                  Novo Grupo
-                </Button>
-              }
-            />
-            <div className="p-6 pt-0">
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[80px]">ID</TableHead>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Descrição</TableHead>
-                      <TableHead className="text-right">Revisão (km)</TableHead>
-                      <TableHead className="text-right">Custo Revisão</TableHead>
-                      <TableHead className="text-right">Pneus (km)</TableHead>
-                      <TableHead className="text-right">Custo Pneus</TableHead>
-                      <TableHead className="w-[100px] text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {groups.map((group) => (
-                      <TableRow key={group.id}>
-                        <TableCell className="font-medium">{group.id}</TableCell>
-                        <TableCell>{group.name}</TableCell>
-                        <TableCell>{group.description}</TableCell>
-                        <TableCell className="text-right">{group.revisionKm.toLocaleString()}</TableCell>
-                        <TableCell className="text-right">R$ {group.revisionCost.toLocaleString()}</TableCell>
-                        <TableCell className="text-right">{group.tireKm.toLocaleString()}</TableCell>
-                        <TableCell className="text-right">R$ {group.tireCost.toLocaleString()}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end space-x-2">
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => handleEditGroup(group)}
-                            >
-                              <Edit size={16} />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => handleDeleteGroup(group.id)}
-                            >
-                              <Trash2 size={16} />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+      <div className="py-8">
+        <PageTitle 
+          title="Parâmetros do Sistema" 
+          subtitle="Configure os grupos de veículos e parâmetros gerais de cálculo" 
+        />
+        
+        <Tabs defaultValue="vehicle-groups" value={currentTab} onValueChange={setCurrentTab} className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="vehicle-groups">Grupos de Veículos</TabsTrigger>
+            <TabsTrigger value="global-params">Parâmetros Globais</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="vehicle-groups" className="space-y-4">
+            <Card>
+              <CardHeader title="Grupos de Veículos" />
+              <div className="space-y-2">
+                {groups.map((group) => (
+                  <div key={group.id} className="flex justify-between items-center p-4 border rounded-md">
+                    <div>
+                      <h3 className="font-medium">{group.name} ({group.id})</h3>
+                      <p className="text-sm text-muted-foreground">{group.description}</p>
+                      <div className="mt-1 flex space-x-4 text-xs text-muted-foreground">
+                        <span>Revisão: {group.revisionKm.toLocaleString()} km (R$ {group.revisionCost})</span>
+                        <span>Pneus: {group.tireKm.toLocaleString()} km (R$ {group.tireCost})</span>
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button variant="outline" size="sm" onClick={() => handleEditGroup(group.id)}>Editar</Button>
+                      <Button variant="destructive" size="sm" onClick={() => handleDeleteGroup(group.id)}>Excluir</Button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="maintenance">
-          <Card>
-            <CardHeader 
-              title="Parâmetros de Manutenção" 
-              subtitle="Configure os parâmetros gerais de manutenção"
-            />
-            <div className="p-6 pt-0">
-              <p className="text-muted-foreground mb-4">
-                Os parâmetros de manutenção são definidos por grupo de veículo na aba "Grupos de Veículos".
-              </p>
-              
-              <div className="border rounded-md p-4 bg-muted/30">
-                <h3 className="font-medium mb-2">Como funciona o cálculo de manutenção?</h3>
-                <p className="text-sm text-muted-foreground mb-2">
-                  O sistema calcula o custo de manutenção com base nos parâmetros definidos para cada grupo de veículo:
-                </p>
-                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-2">
-                  <li>Intervalo de revisão (km) - define quando uma revisão é necessária</li>
-                  <li>Custo da revisão (R$) - define quanto custa cada revisão</li>
-                  <li>Intervalo de troca de pneus (km) - define quando os pneus precisam ser trocados</li>
-                  <li>Custo da troca de pneus (R$) - define quanto custa cada troca de pneus</li>
-                </ul>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Para cada contrato, o sistema calcula quantas revisões e trocas de pneus serão necessárias 
-                  com base na quilometragem mensal e duração do contrato.
-                </p>
+              <div className="flex justify-end p-4">
+                <Button onClick={handleAddGroup}>Adicionar Grupo</Button>
               </div>
-            </div>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="global-params" className="space-y-4">
+            <Card>
+              <CardHeader title="Parâmetros Globais de Cálculo" />
+              <div className="p-4">
+                <Form {...globalForm}>
+                  <form onSubmit={globalForm.handleSubmit(onGlobalParamsSubmit)} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FormField
+                        control={globalForm.control}
+                        name="trackingCost"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Custo Mensal de Rastreamento (R$)</FormLabel>
+                            <FormControl>
+                              <Input type="number" step="0.01" min="0" {...field} 
+                                onChange={e => field.onChange(Number(e.target.value))} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={globalForm.control}
+                        name="extraKmPercentage"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Percentual do Valor do Veículo para KM Extra (%)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                step="0.0001" 
+                                min="0" 
+                                {...field} 
+                                onChange={e => field.onChange(Number(e.target.value))}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                            <p className="text-xs text-muted-foreground">
+                              Ex: 0.01 = 1% do valor do veículo será cobrado por quilômetro excedente
+                            </p>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <div className="border-t pt-6">
+                      <h3 className="font-medium mb-4">Taxas de Depreciação</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <FormField
+                          control={globalForm.control}
+                          name="depreciationBase"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Taxa Base</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  step="0.001" 
+                                  min="0.001" 
+                                  {...field} 
+                                  onChange={e => field.onChange(Number(e.target.value))}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                              <p className="text-xs text-muted-foreground">
+                                Taxa base de depreciação mensal
+                              </p>
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={globalForm.control}
+                          name="depreciationMileageMultiplier"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Multiplicador de Quilometragem</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  step="0.01" 
+                                  min="0" 
+                                  {...field} 
+                                  onChange={e => field.onChange(Number(e.target.value))}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                              <p className="text-xs text-muted-foreground">
+                                Impacto da quilometragem na depreciação
+                              </p>
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={globalForm.control}
+                          name="depreciationSeverityMultiplier"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Multiplicador de Severidade</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  step="0.01" 
+                                  min="0" 
+                                  {...field} 
+                                  onChange={e => field.onChange(Number(e.target.value))}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                              <p className="text-xs text-muted-foreground">
+                                Impacto da severidade de uso na depreciação
+                              </p>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-end">
+                      <Button type="submit">Salvar Parâmetros</Button>
+                    </div>
+                  </form>
+                </Form>
+              </div>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+      
+      {/* Dialog for adding/editing vehicle groups */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {editMode ? 'Editar Grupo de Veículo' : 'Novo Grupo de Veículo'}
-            </DialogTitle>
-            <DialogDescription>
-              Configure os parâmetros do grupo de veículo para cálculos de manutenção.
-            </DialogDescription>
+            <DialogTitle>{editMode ? 'Editar Grupo de Veículo' : 'Adicionar Grupo de Veículo'}</DialogTitle>
           </DialogHeader>
           
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ID do Grupo</FormLabel>
-                      <FormControl>
-                        <Input {...field} disabled={editMode} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome do Grupo</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>ID do Grupo</FormLabel>
+                    <FormControl>
+                      <Input {...field} disabled={editMode} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome do Grupo</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
               <FormField
                 control={form.control}
@@ -317,7 +392,7 @@ const Parameters = () => {
                 )}
               />
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="revisionKm"
@@ -327,25 +402,29 @@ const Parameters = () => {
                       <FormControl>
                         <Input 
                           type="number" 
+                          min="1" 
                           {...field} 
-                          onChange={e => field.onChange(Number(e.target.value))}
+                          onChange={(e) => field.onChange(Number(e.target.value))}
                         />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+                
                 <FormField
                   control={form.control}
                   name="revisionCost"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Custo da Revisão (R$)</FormLabel>
+                      <FormLabel>Custo de Revisão (R$)</FormLabel>
                       <FormControl>
                         <Input 
                           type="number" 
+                          min="1" 
+                          step="0.01" 
                           {...field} 
-                          onChange={e => field.onChange(Number(e.target.value))}
+                          onChange={(e) => field.onChange(Number(e.target.value))}
                         />
                       </FormControl>
                       <FormMessage />
@@ -354,35 +433,39 @@ const Parameters = () => {
                 />
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="tireKm"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Intervalo Troca de Pneus (km)</FormLabel>
+                      <FormLabel>Intervalo de Troca de Pneus (km)</FormLabel>
                       <FormControl>
                         <Input 
                           type="number" 
+                          min="1" 
                           {...field} 
-                          onChange={e => field.onChange(Number(e.target.value))}
+                          onChange={(e) => field.onChange(Number(e.target.value))}
                         />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+                
                 <FormField
                   control={form.control}
                   name="tireCost"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Custo da Troca de Pneus (R$)</FormLabel>
+                      <FormLabel>Custo de Troca de Pneus (R$)</FormLabel>
                       <FormControl>
                         <Input 
                           type="number" 
+                          min="1" 
+                          step="0.01" 
                           {...field} 
-                          onChange={e => field.onChange(Number(e.target.value))}
+                          onChange={(e) => field.onChange(Number(e.target.value))}
                         />
                       </FormControl>
                       <FormMessage />
@@ -392,9 +475,11 @@ const Parameters = () => {
               </div>
               
               <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  Cancelar
+                </Button>
                 <Button type="submit">
-                  <Save size={16} className="mr-2" />
-                  {editMode ? 'Atualizar' : 'Salvar'}
+                  {editMode ? 'Salvar Alterações' : 'Adicionar Grupo'}
                 </Button>
               </DialogFooter>
             </form>

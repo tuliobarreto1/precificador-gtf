@@ -16,18 +16,50 @@ export type MaintenanceParams = {
   hasTracking: boolean;
 };
 
+// Global parameters that can be configured
+export type GlobalParams = {
+  trackingCost: number;
+  depreciationRates: {
+    base: number;
+    mileageMultiplier: number;
+    severityMultiplier: number;
+  };
+  extraKmPercentage: number;
+};
+
+// Default global parameters
+let globalParams: GlobalParams = {
+  trackingCost: 50,
+  depreciationRates: {
+    base: 0.01,
+    mileageMultiplier: 0.2,
+    severityMultiplier: 0.05
+  },
+  extraKmPercentage: 0.01 // 1% of vehicle value per km
+};
+
+// Function to update global parameters
+export const updateGlobalParams = (params: Partial<GlobalParams>) => {
+  globalParams = { ...globalParams, ...params };
+};
+
+// Function to get global parameters
+export const getGlobalParams = (): GlobalParams => {
+  return { ...globalParams };
+};
+
 // Base depreciation calculation
 export const calculateDepreciation = (params: DepreciationParams): number => {
   const { vehicleValue, contractMonths, monthlyKm, operationSeverity } = params;
   
-  // Base depreciation rate (example formula)
-  let baseRate = 0.01 * (25 - contractMonths) / 12;
+  // Base depreciation rate using global params
+  let baseRate = globalParams.depreciationRates.base * (25 - contractMonths) / 12;
   
   // Adjust for mileage (higher mileage = higher depreciation)
-  const mileageMultiplier = 1 + ((monthlyKm - 1000) / 5000) * 0.2;
+  const mileageMultiplier = 1 + ((monthlyKm - 1000) / 5000) * globalParams.depreciationRates.mileageMultiplier;
   
   // Adjust for severity (higher severity = higher depreciation)
-  const severityMultiplier = 1 + (operationSeverity - 1) * 0.05;
+  const severityMultiplier = 1 + (operationSeverity - 1) * globalParams.depreciationRates.severityMultiplier;
   
   // Calculate monthly depreciation
   const monthlyDepreciation = vehicleValue * baseRate * mileageMultiplier * severityMultiplier;
@@ -59,10 +91,15 @@ export const calculateMaintenance = (params: MaintenanceParams): number => {
   const totalMaintenanceCost = (costs.revisionCost * revisions) + (costs.tireCost * tireChanges);
   const monthlyMaintenanceCost = totalMaintenanceCost / contractMonths;
   
-  // Add tracking cost if selected
-  const trackingCost = hasTracking ? 50 : 0;
+  // Add tracking cost if selected (using global param)
+  const trackingCost = hasTracking ? globalParams.trackingCost : 0;
   
   return monthlyMaintenanceCost + trackingCost;
+};
+
+// Calculate extra km rate
+export const calculateExtraKmRate = (vehicleValue: number): number => {
+  return vehicleValue * globalParams.extraKmPercentage;
 };
 
 // Calculate total monthly lease cost
@@ -78,7 +115,7 @@ export const calculateLeaseCost = (
 } => {
   const depreciationCost = calculateDepreciation(depreciationParams);
   const maintenanceCost = calculateMaintenance(maintenanceParams);
-  const trackingCost = maintenanceParams.hasTracking ? 50 : 0;
+  const trackingCost = maintenanceParams.hasTracking ? globalParams.trackingCost : 0;
   
   const totalCost = depreciationCost + maintenanceCost;
   const costPerKm = totalCost / maintenanceParams.monthlyKm;
