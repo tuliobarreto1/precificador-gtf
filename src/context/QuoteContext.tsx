@@ -61,7 +61,7 @@ export type SavedQuote = {
   monthlyKm: number;
   totalCost: number;
   createdAt: string;
-  createdBy: {
+  createdBy?: {
     id: string;
     name: string;
     role: 'user' | 'manager' | 'admin';
@@ -274,15 +274,27 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   // Verificar se um usuário pode editar um orçamento
   const canEditQuote = (quote: SavedQuote) => {
     const user = getCurrentUser();
-    // Verificamos se o objeto createdBy existe antes de acessar a propriedade id
-    return quote.createdBy && quote.createdBy.id === user.id || user.role === 'manager' || user.role === 'admin';
+    
+    // Se não houver informações sobre quem criou, permitir edição para todos (para fins de demo)
+    if (!quote.createdBy) {
+      return true;
+    }
+    
+    // Caso contrário, verificar se o usuário atual é o criador ou tem permissões elevadas
+    return quote.createdBy.id === user.id || user.role === 'manager' || user.role === 'admin';
   };
 
   // Verificar se um usuário pode excluir um orçamento
   const canDeleteQuote = (quote: SavedQuote) => {
     const user = getCurrentUser();
-    // Verificamos se o objeto createdBy existe antes de acessar a propriedade id
-    return quote.createdBy && quote.createdBy.id === user.id || user.role === 'manager' || user.role === 'admin';
+    
+    // Se não houver informações sobre quem criou, permitir exclusão para todos (para fins de demo)
+    if (!quote.createdBy) {
+      return true;
+    }
+    
+    // Caso contrário, verificar se o usuário atual é o criador ou tem permissões elevadas
+    return quote.createdBy.id === user.id || user.role === 'manager' || user.role === 'admin';
   };
 
   // Calculate quote

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, Send, Edit, Trash, Car, Clock, FileEdit } from 'lucide-react';
@@ -21,7 +20,6 @@ import { calculateExtraKmRate, getGlobalParams } from '@/lib/calculation';
 import { SavedQuote, useQuote, EditRecord } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
 
-// Função para verificar se é um orçamento salvo
 const isSavedQuote = (quote: any): quote is SavedQuote => {
   return 'clientName' in quote && 'vehicleBrand' in quote && 'vehicleModel' in quote;
 };
@@ -40,52 +38,43 @@ const QuoteDetail = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   
-  // Buscar orçamento inicialmente
   useEffect(() => {
     if (!id) return;
     
-    // Buscar nos orçamentos mockados
     const mockQuote = quotes.find(q => q.id === id);
     if (mockQuote) {
       setQuote(mockQuote);
       return;
     }
     
-    // Se não encontrar, buscar nos salvos
     const savedQuote = savedQuotes.find(q => q.id === id);
     if (savedQuote) {
       setQuote(savedQuote);
     }
   }, [id, savedQuotes]);
   
-  // Processar o orçamento encontrado
   useEffect(() => {
     if (!quote) return;
     
-    // Definir se é um orçamento salvo
     const quoteIsSaved = isSavedQuote(quote);
     setIsSaved(quoteIsSaved);
     
     let clientData, vehicleGroupData, vehiclesData;
     
     if (quoteIsSaved) {
-      // Para orçamentos salvos, usar os dados do próprio objeto
       clientData = {
         name: quote.clientName,
-        document: '', // Podemos não ter essa informação no SavedQuote
-        type: 'PJ', // Valor padrão, pode não ser preciso
+        document: '',
+        type: 'PJ',
         email: ''
       };
       
-      // Para orçamentos salvos, listar todos os veículos disponíveis
       vehiclesData = quote.vehicles;
       
       if (vehiclesData.length > 0) {
-        // Obter o grupo do veículo do primeiro veículo
         vehicleGroupData = getVehicleGroupById(vehiclesData[0].groupId);
       }
     } else {
-      // Para orçamentos mockados, buscar dados relacionados
       clientData = getClientById(quote.clientId);
       const vehicle = getVehicleById(quote.vehicleId);
       
@@ -111,7 +100,6 @@ const QuoteDetail = () => {
     setVehicleGroup(vehicleGroupData);
     setVehicles(vehiclesData || []);
     
-    // Selecionar o primeiro veículo por padrão se não houver selecionado
     if (vehiclesData && vehiclesData.length > 0) {
       if (!selectedVehicleId) {
         setSelectedVehicleId(vehiclesData[0].vehicleId);
@@ -123,7 +111,6 @@ const QuoteDetail = () => {
     }
   }, [quote, selectedVehicleId]);
   
-  // Atualizar veículo selecionado quando a ID selecionada mudar
   useEffect(() => {
     if (vehicles.length > 0 && selectedVehicleId) {
       const selected = vehicles.find(v => v.vehicleId === selectedVehicleId);
@@ -131,7 +118,6 @@ const QuoteDetail = () => {
     }
   }, [selectedVehicleId, vehicles]);
   
-  // Se orçamento não encontrado, exibir mensagem de erro
   if (!quote) {
     return (
       <MainLayout>
@@ -146,12 +132,10 @@ const QuoteDetail = () => {
     );
   }
   
-  // Função para lidar com a mudança de veículo selecionado
   const handleVehicleChange = (vehicleId: string) => {
     setSelectedVehicleId(vehicleId);
   };
 
-  // Função para lidar com a exclusão
   const handleDelete = () => {
     if (isSaved) {
       if (deleteQuote(quote.id)) {
@@ -177,28 +161,33 @@ const QuoteDetail = () => {
     }
   };
 
-  // Verificar permissões para edição e exclusão - com verificações adicionais de segurança
-  const canEdit = isSaved && quote ? canEditQuote(quote as SavedQuote) : false;
-  const canDelete = isSaved && quote ? canDeleteQuote(quote as SavedQuote) : false;
+  let canEdit = false;
+  let canDelete = false;
   
-  // Obter parâmetros globais
+  if (quote && isSaved) {
+    try {
+      canEdit = canEditQuote(quote as SavedQuote);
+      canDelete = canDeleteQuote(quote as SavedQuote);
+    } catch (error) {
+      console.error("Erro ao verificar permissões:", error);
+      canEdit = false;
+      canDelete = false;
+    }
+  }
+  
   const globalParams = getGlobalParams();
   
-  // Calcular dados adicionais
   const extraKmRate = selectedVehicle ? selectedVehicle.extraKmRate : 0;
   const createdDate = new Date(quote.createdAt).toLocaleDateString('pt-BR');
   const totalKm = quote.monthlyKm * quote.contractMonths;
   
-  // Calcular custos específicos com base no veículo selecionado
   const depreciationCost = selectedVehicle ? selectedVehicle.depreciationCost : 0;
   const maintenanceCost = selectedVehicle ? selectedVehicle.maintenanceCost : 0;
   const trackingCost = !isSaved && quote.trackingCost ? quote.trackingCost : 0;
   const vehicleTotalCost = selectedVehicle ? selectedVehicle.totalCost : 0;
   
-  // Cálculo do custo por km
   const costPerKm = totalKm > 0 ? (selectedVehicle ? selectedVehicle.totalCost / totalKm : 0) : 0;
 
-  // Cálculo das porcentagens dos componentes de custo
   const depreciationPercentage = vehicleTotalCost > 0 ? ((depreciationCost / vehicleTotalCost) * 100).toFixed(1) : "0";
   const maintenancePercentage = vehicleTotalCost > 0 ? ((maintenanceCost / vehicleTotalCost) * 100).toFixed(1) : "0";
   const trackingPercentage = vehicleTotalCost > 0 ? ((trackingCost / vehicleTotalCost) * 100).toFixed(1) : "0";
@@ -254,7 +243,6 @@ const QuoteDetail = () => {
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Cliente e Veículo */}
           <Card className="lg:col-span-2">
             <CardHeader title="Informações Básicas" />
             <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -292,7 +280,6 @@ const QuoteDetail = () => {
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-semibold">Veículo</h3>
                   
-                  {/* Seletor de veículos para orçamentos com múltiplos veículos */}
                   {vehicles.length > 1 && (
                     <div className="w-48">
                       {selectedVehicleId && (
@@ -347,7 +334,6 @@ const QuoteDetail = () => {
             </div>
           </Card>
           
-          {/* Resumo */}
           <Card className="bg-primary/5 border-primary/20">
             <CardHeader title="Valor Total" />
             <div className="p-4 space-y-4">
@@ -419,7 +405,6 @@ const QuoteDetail = () => {
             </div>
           </Card>
           
-          {/* Detalhamento */}
           <Card className="lg:col-span-3">
             <CardHeader title="Detalhamento dos Custos" />
             <div className="p-4">
@@ -498,7 +483,6 @@ const QuoteDetail = () => {
             </div>
           </Card>
           
-          {/* Informações Adicionais */}
           <Card className="lg:col-span-3">
             <CardHeader title="Informações Adicionais" />
             <div className="p-4">
@@ -512,7 +496,6 @@ const QuoteDetail = () => {
             </div>
           </Card>
           
-          {/* Histórico de Edições - Apenas para orçamentos salvos com histórico */}
           {isSaved && quote.editHistory && quote.editHistory.length > 0 && (
             <Card className="lg:col-span-3">
               <CardHeader 
