@@ -15,29 +15,33 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Middleware
+app.use(cors());
+app.use(express.json());
+
 // Configurações do banco de dados
 const config = {
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   server: process.env.DB_SERVER,
   database: process.env.DB_DATABASE,
+  port: parseInt(process.env.DB_PORT || '1433', 10),
   options: {
     encrypt: true,
     trustServerCertificate: true
   }
 };
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Adicionar logs para depuração
-console.log('Configuração SQL:', {
-  user: process.env.DB_USER,
-  server: process.env.DB_SERVER,
-  database: process.env.DB_DATABASE,
-  // Não exibir a senha por motivos de segurança
-});
+// Logs detalhados para depuração
+console.log('========= CONFIGURAÇÃO DO SERVIDOR =========');
+console.log('Ambiente:', process.env.NODE_ENV);
+console.log('Configuração SQL:');
+console.log('- Servidor:', process.env.DB_SERVER);
+console.log('- Porta:', process.env.DB_PORT);
+console.log('- Usuário:', process.env.DB_USER);
+console.log('- Banco de dados:', process.env.DB_DATABASE);
+console.log('- Senha configurada:', process.env.DB_PASSWORD ? 'Sim' : 'Não');
+console.log('=========================================');
 
 // Endpoint para buscar veículo por placa
 app.get('/api/vehicles/:plate', async (req, res) => {
@@ -45,30 +49,52 @@ app.get('/api/vehicles/:plate', async (req, res) => {
     const { plate } = req.params;
     console.log(`Buscando veículo com placa: ${plate}`);
     
-    await sql.connect(config);
-    console.log('Conexão com o banco de dados estabelecida.');
+    console.log('Tentando conectar ao banco de dados...');
+    let pool;
+    try {
+      pool = await sql.connect(config);
+      console.log('Conexão com o banco de dados estabelecida com sucesso.');
+    } catch (connError) {
+      console.error('Erro ao conectar ao banco de dados:', connError);
+      return res.status(500).json({ 
+        message: 'Erro ao conectar ao banco de dados', 
+        error: connError.message,
+        config: {
+          server: config.server,
+          user: config.user,
+          database: config.database,
+          port: config.port
+        }
+      });
+    }
     
-    const result = await sql.query`
-      SELECT 
-        V.Placa, 
-        M.Descricao AS DescricaoModelo, 
-        V.AnoFabricacaoModelo, 
-        V.Cor, 
-        TC.Descricao AS TipoCombustivel, 
-        V.OdometroAtual, 
-        V.ValorCompra, 
-        GVP.LetraGrupo
-      FROM 
-        TBVeiculos V
-      INNER JOIN 
-        TBModelos M ON V.CodModelo = M.Codigo
-      INNER JOIN 
-        TBTiposCombustivel TC ON V.CodTipoCombustivel = TC.Codigo
-      LEFT JOIN 
-        TBGruposVeiculosParametros GVP ON M.CodGrupoVeiculo = GVP.CodGrupoVeiculo
-      WHERE 
-        V.Placa = ${plate}
-    `;
+    console.log('Executando consulta SQL...');
+    const result = await pool.request()
+      .input('plate', sql.VarChar, plate)
+      .query(`
+        SELECT 
+          V.Placa, 
+          M.Descricao AS DescricaoModelo, 
+          V.AnoFabricacaoModelo, 
+          V.Cor, 
+          TC.Descricao AS TipoCombustivel, 
+          V.OdometroAtual, 
+          V.ValorCompra, 
+          GVP.LetraGrupo
+        FROM 
+          TBVeiculos V
+        INNER JOIN 
+          TBModelos M ON V.CodModelo = M.Codigo
+        INNER JOIN 
+          TBTiposCombustivel TC ON V.CodTipoCombustivel = TC.Codigo
+        LEFT JOIN 
+          TBGruposVeiculosParametros GVP ON M.CodGrupoVeiculo = GVP.CodGrupoVeiculo
+        WHERE 
+          V.Placa = @plate
+      `);
+    
+    console.log('Consulta SQL executada com sucesso.');
+    console.log(`Registros encontrados: ${result.recordset.length}`);
     
     if (result.recordset.length > 0) {
       console.log('Veículo encontrado:', result.recordset[0]);
@@ -81,7 +107,8 @@ app.get('/api/vehicles/:plate', async (req, res) => {
     console.error('Erro na consulta SQL:', error);
     res.status(500).json({ 
       message: 'Erro ao buscar veículo', 
-      error: error.message 
+      error: error.message,
+      stack: error.stack
     });
   } finally {
     try {
@@ -93,33 +120,60 @@ app.get('/api/vehicles/:plate', async (req, res) => {
   }
 });
 
-// Adicionar uma rota de verificação de conexão
+// Rota de verificação de conexão
 app.get('/api/status', (req, res) => {
-  res.json({ 
-    status: 'online',
-    environment: {
-      server: process.env.DB_SERVER ? 'configurado' : 'não configurado',
-      user: process.env.DB_USER ? 'configurado' : 'não configurado',
-      database: process.env.DB_DATABASE ? 'configurado' : 'não configurado'
-    }
-  });
+  try {
+    res.json({ 
+      status: 'online',
+      timestamp: new Date().toISOString(),
+      environment: {
+        server: process.env.DB_SERVER ? 'configurado' : 'não configurado',
+        user: process.env.DB_USER ? 'configurado' : 'não configurado',
+        database: process.env.DB_DATABASE ? 'configurado' : 'não configurado',
+        port: process.env.DB_PORT || '1433'
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao retornar status:', error);
+    res.status(500).json({ 
+      status: 'error', 
+      message: 'Erro ao retornar status', 
+      error: error.message 
+    });
+  }
 });
 
-// Adicionar rota para testar conexão com o banco de dados
+// Rota para testar conexão com o banco de dados
 app.get('/api/test-connection', async (req, res) => {
   try {
     console.log('Testando conexão com o banco de dados...');
+    console.log('Configuração utilizada:', {
+      server: config.server,
+      user: config.user,
+      database: config.database,
+      port: config.port,
+      options: config.options
+    });
+    
     await sql.connect(config);
     console.log('Conexão com o banco de dados estabelecida com sucesso!');
+    
+    // Testar consulta simples
+    const testResult = await sql.query`SELECT 1 as testValue`;
+    console.log('Consulta de teste executada com sucesso:', testResult);
+    
     res.json({ 
       status: 'success', 
       message: 'Conexão com o banco de dados estabelecida com sucesso!',
+      testResult: testResult.recordset,
       config: {
-        server: process.env.DB_SERVER,
-        user: process.env.DB_USER,
-        database: process.env.DB_DATABASE
+        server: config.server,
+        user: config.user,
+        database: config.database,
+        port: config.port
       }
     });
+    
     await sql.close();
   } catch (error) {
     console.error('Erro ao conectar ao banco de dados:', error);
@@ -127,10 +181,12 @@ app.get('/api/test-connection', async (req, res) => {
       status: 'error', 
       message: 'Erro ao conectar ao banco de dados', 
       error: error.message,
+      stack: error.stack,
       config: {
-        server: process.env.DB_SERVER,
-        user: process.env.DB_USER,
-        database: process.env.DB_DATABASE
+        server: config.server,
+        user: config.user,
+        database: config.database,
+        port: config.port
       }
     });
   }
@@ -139,5 +195,5 @@ app.get('/api/test-connection', async (req, res) => {
 // Iniciar o servidor
 app.listen(PORT, () => {
   console.log(`API proxy rodando em http://localhost:${PORT}`);
-  console.log(`Variáveis de ambiente: DB_SERVER=${process.env.DB_SERVER}, DB_USER=${process.env.DB_USER}, DB_DATABASE=${process.env.DB_DATABASE}`);
+  console.log(`Variáveis de ambiente carregadas do arquivo: ${path.resolve(__dirname, '../../.env')}`);
 });

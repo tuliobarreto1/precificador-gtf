@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Car, Search, Loader2, AlertTriangle, Database } from 'lucide-react';
+import { ArrowRight, Car, Search, Loader2, AlertTriangle, Database, RefreshCw } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -11,6 +10,17 @@ import { vehicles, vehicleGroups, getVehicleGroupById } from '@/lib/mock-data';
 import VehicleCard from '@/components/ui-custom/VehicleCard';
 import { Vehicle, VehicleGroup } from '@/lib/mock-data';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type VehicleSelectorProps = {
   onSelectVehicle: (vehicle: Vehicle, vehicleGroup: VehicleGroup) => void;
@@ -28,9 +38,10 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
   const [connectionStatus, setConnectionStatus] = useState<{ status: string; environment: any } | null>(null);
   const [testingConnection, setTestingConnection] = useState(false);
   const [detailedError, setDetailedError] = useState<string | null>(null);
+  const [showDiagnosticInfo, setShowDiagnosticInfo] = useState(false);
+  const [diagnosticInfo, setDiagnosticInfo] = useState<any>(null);
   const { toast } = useToast();
 
-  // Testar a conexão com a API ao montar o componente
   useEffect(() => {
     const checkConnection = async () => {
       try {
@@ -59,9 +70,26 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
   const testDatabaseConnection = async () => {
     try {
       setTestingConnection(true);
+      setDetailedError(null);
       
       const response = await fetch('/api/test-connection');
-      const data = await response.json();
+      let data;
+      
+      try {
+        data = await response.json();
+        setDiagnosticInfo(data);
+      } catch (jsonError) {
+        const textResponse = await response.text();
+        setDetailedError(`Erro ao analisar resposta JSON: ${textResponse}`);
+        setDiagnosticInfo({ error: "Falha ao analisar resposta", textResponse });
+        
+        toast({
+          title: "Erro na resposta",
+          description: "A resposta do servidor não está no formato esperado.",
+          variant: "destructive",
+        });
+        return;
+      }
       
       if (response.ok) {
         toast({
@@ -69,6 +97,10 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
           description: "A conexão com o banco de dados foi estabelecida com sucesso.",
         });
         console.log('Teste de conexão bem-sucedido:', data);
+        setConnectionStatus({ 
+          status: 'online', 
+          environment: data.config || {} 
+        });
       } else {
         toast({
           title: "Falha na conexão",
@@ -130,7 +162,13 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
       console.error("Erro ao buscar veículo:", error);
       const errorMessage = error instanceof Error ? error.message : "Erro ao buscar veículo";
       setSearchError(errorMessage);
-      setDetailedError(JSON.stringify(error, null, 2));
+      
+      if (error instanceof Error && error.message.includes('Unexpected end of JSON')) {
+        setDetailedError("Erro na resposta do servidor: formato JSON inválido. Verifique os logs do servidor para mais detalhes.");
+      } else {
+        setDetailedError(JSON.stringify(error, null, 2));
+      }
+      
       toast({
         title: "Erro",
         description: errorMessage,
@@ -164,28 +202,82 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Status da conexão */}
       {connectionStatus && connectionStatus.status !== 'online' && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Atenção: Problemas de conexão com o servidor</AlertTitle>
           <AlertDescription>
-            A conexão com o servidor de banco de dados pode estar indisponível.
-            <Button 
-              onClick={testDatabaseConnection} 
-              variant="outline" 
-              size="sm" 
-              className="mt-2"
-              disabled={testingConnection}
-            >
-              {testingConnection ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
-              Testar Conexão
-            </Button>
+            <p>A conexão com o servidor de banco de dados pode estar indisponível.</p>
+            <div className="flex gap-2 mt-2">
+              <Button 
+                onClick={testDatabaseConnection} 
+                variant="outline" 
+                size="sm"
+                disabled={testingConnection}
+              >
+                {testingConnection ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+                Testar Conexão
+              </Button>
+              
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Informações de Diagnóstico
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="max-w-xl max-h-[80vh] overflow-auto">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Informações de Diagnóstico</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      <div className="mt-2 space-y-2 text-left">
+                        <p className="font-medium">Arquivo .env:</p>
+                        <p>O arquivo está localizado na raiz do projeto e pode ser configurado com as seguintes variáveis:</p>
+                        <pre className="bg-muted p-2 rounded-md text-xs overflow-auto whitespace-pre-wrap">
+                          {`PORT=3001
+NODE_ENV=development
+DB_SERVER=seu-servidor
+DB_PORT=1433
+DB_USER=seu-usuario
+DB_PASSWORD=sua-senha
+DB_DATABASE=seu-banco-de-dados`}
+                        </pre>
+                        
+                        <p className="font-medium mt-4">Para iniciar o projeto:</p>
+                        <p>Use o comando <code className="bg-muted p-1 rounded">node start-dev.js</code> na raiz do projeto.</p>
+                        
+                        <p className="font-medium mt-4">Conexão com o Banco de Dados:</p>
+                        {connectionStatus && (
+                          <pre className="bg-muted p-2 rounded-md text-xs overflow-auto">
+                            {JSON.stringify(connectionStatus, null, 2)}
+                          </pre>
+                        )}
+                        
+                        {diagnosticInfo && (
+                          <>
+                            <p className="font-medium mt-4">Últimas informações de diagnóstico:</p>
+                            <pre className="bg-muted p-2 rounded-md text-xs overflow-auto">
+                              {JSON.stringify(diagnosticInfo, null, 2)}
+                            </pre>
+                          </>
+                        )}
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Fechar</AlertDialogCancel>
+                    <AlertDialogAction onClick={testDatabaseConnection}>
+                      {testingConnection ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+                      Testar Conexão
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </AlertDescription>
         </Alert>
       )}
       
-      {/* Exibir mensagem de erro detalhada se existir */}
       {detailedError && (
         <div className="bg-destructive/10 border border-destructive text-destructive p-3 rounded-md text-sm mb-4 overflow-auto max-h-48">
           <p className="font-semibold">Detalhes do erro:</p>
@@ -193,7 +285,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
         </div>
       )}
       
-      {/* Selector de tipo de veículo */}
       <div className="bg-muted/30 p-4 rounded-lg">
         <RadioGroup 
           value={vehicleType} 
@@ -289,7 +380,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
         </div>
       )}
 
-      {/* Veículos novos */}
       {vehicleType === 'new' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {vehicles.filter(v => !v.isUsed).map((vehicle) => {
