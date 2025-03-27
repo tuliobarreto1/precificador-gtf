@@ -30,6 +30,7 @@ function App() {
               <Route path="/orcamento/novo" element={<NewQuote />} />
               <Route path="/orcamentos" element={<Quotes />} />
               <Route path="/orcamento/:id" element={<QuoteDetail />} />
+              <Route path="/editar-orcamento/:id" element={<NewQuote />} />
               <Route path="/configuracoes" element={<Settings />} />
               <Route path="/parametros" element={<Parameters />} />
               <Route path="/usuarios" element={<Users />} />

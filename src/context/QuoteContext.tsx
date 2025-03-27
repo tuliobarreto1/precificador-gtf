@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Vehicle, Client, VehicleGroup, getVehicleGroupById } from '@/lib/mock-data';
 import { DepreciationParams, MaintenanceParams, calculateLeaseCost, calculateExtraKmRate } from '@/lib/calculation';
@@ -38,6 +39,17 @@ export type EditRecord = {
   changes: string;
 };
 
+// Tipos de usuário
+export type UserRole = 'user' | 'manager' | 'admin';
+
+// Tipo de usuário
+export type User = {
+  id: string;
+  name: string;
+  role: UserRole;
+  email?: string;
+};
+
 // Resultado do cálculo para um veículo
 export type VehicleQuoteResult = {
   vehicleId: string;
@@ -61,11 +73,7 @@ export type SavedQuote = {
   monthlyKm: number;
   totalCost: number;
   createdAt: string;
-  createdBy?: {
-    id: string;
-    name: string;
-    role: 'user' | 'manager' | 'admin';
-  };
+  createdBy?: User;
   editHistory?: EditRecord[];
   vehicles: {
     vehicleId: string;
@@ -84,18 +92,23 @@ export type SavedQuote = {
 };
 
 // Mock do usuário atual
-export const currentUser = {
+export const currentUser: User = {
   id: "usr1",
   name: "João Silva",
-  role: "user" as 'user' | 'manager' | 'admin'
+  role: "admin", // Definindo como admin para garantir acesso total
+  email: "joao.silva@exemplo.com"
 };
 
 // Outros usuários de exemplo para simulação
-export const mockUsers = [
+export const mockUsers: User[] = [
   currentUser,
-  { id: "usr2", name: "Maria Oliveira", role: "manager" as 'user' | 'manager' | 'admin' },
-  { id: "usr3", name: "Carlos Santos", role: "admin" as 'user' | 'manager' | 'admin' }
+  { id: "usr2", name: "Maria Oliveira", role: "manager", email: "maria.oliveira@exemplo.com" },
+  { id: "usr3", name: "Carlos Santos", role: "user", email: "carlos.santos@exemplo.com" }
 ];
+
+// Chave para armazenar o usuário atual no localStorage
+const CURRENT_USER_KEY = 'currentUser';
+const SAVED_QUOTES_KEY = 'savedQuotes';
 
 // Context type
 type QuoteContextType = {
@@ -126,14 +139,14 @@ type QuoteContextType = {
   saveQuote: () => boolean;
   getSavedQuotes: () => SavedQuote[];
   deleteQuote: (quoteId: string) => boolean;
-  getCurrentUser: () => typeof currentUser;
+  getCurrentUser: () => User;
+  setCurrentUser: (user: User) => void;
   canEditQuote: (quote: SavedQuote) => boolean;
   canDeleteQuote: (quote: SavedQuote) => boolean;
   updateQuote: (quoteId: string, updates: Partial<QuoteFormData>, changeDescription: string) => boolean;
+  availableUsers: User[];
+  authenticateUser: (userId: string) => boolean;
 };
-
-// Create context
-const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
 
 // Initial state
 const initialQuoteForm: QuoteFormData = {
@@ -148,26 +161,52 @@ const initialQuoteForm: QuoteFormData = {
   },
 };
 
-// Local Storage key
-const SAVED_QUOTES_KEY = 'savedQuotes';
-
 // Provider component
 export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   const [quoteForm, setQuoteForm] = useState<QuoteFormData>(initialQuoteForm);
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
+  const [user, setUser] = useState<User>(currentUser);
 
-  // Carregar cotações salvas do localStorage na inicialização
+  // Carregar cotações salvas e usuário atual do localStorage na inicialização
   useEffect(() => {
-    const storedQuotes = localStorage.getItem(SAVED_QUOTES_KEY);
-    if (storedQuotes) {
-      try {
+    // Carregar usuário
+    try {
+      const storedUser = localStorage.getItem(CURRENT_USER_KEY);
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        console.log('Usuário carregado do localStorage:', parsedUser);
+      } else {
+        // Se não houver usuário salvo, salvar o usuário padrão
+        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
+        console.log('Usuário padrão definido:', currentUser);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar usuário do localStorage:', error);
+    }
+
+    // Carregar cotações
+    try {
+      const storedQuotes = localStorage.getItem(SAVED_QUOTES_KEY);
+      if (storedQuotes) {
         const parsedQuotes = JSON.parse(storedQuotes);
         setSavedQuotes(parsedQuotes);
-      } catch (error) {
-        console.error('Erro ao carregar cotações salvas:', error);
+        console.log('Cotações carregadas do localStorage:', parsedQuotes);
       }
+    } catch (error) {
+      console.error('Erro ao carregar cotações salvas:', error);
     }
   }, []);
+
+  // Function to authenticate a user by ID
+  const authenticateUser = (userId: string): boolean => {
+    const foundUser = mockUsers.find(u => u.id === userId);
+    if (foundUser) {
+      setCurrentUser(foundUser);
+      return true;
+    }
+    return false;
+  };
 
   // Update functions
   const setClient = (client: Client | null) => {
@@ -267,13 +306,30 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Função para obter o usuário atual
-  const getCurrentUser = () => {
-    return currentUser;
+  const getCurrentUser = (): User => {
+    return user;
   };
 
+  // Função para definir o usuário atual
+  const setCurrentUser = (newUser: User) => {
+    setUser(newUser);
+    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(newUser));
+    console.log('Usuário atual alterado para:', newUser);
+  };
+
+  // Lista de usuários disponíveis
+  const availableUsers = mockUsers;
+
   // Verificar se um usuário pode editar um orçamento
-  const canEditQuote = (quote: SavedQuote) => {
-    const user = getCurrentUser();
+  const canEditQuote = (quote: SavedQuote): boolean => {
+    const currentUser = getCurrentUser();
+    console.log('Verificando permissão de edição:', {
+      usuario: currentUser,
+      criador: quote.createdBy,
+      permissao: (quote.createdBy?.id === currentUser.id || 
+                currentUser.role === 'manager' || 
+                currentUser.role === 'admin')
+    });
     
     // Se não houver informações sobre quem criou, permitir edição para todos (para fins de demo)
     if (!quote.createdBy) {
@@ -281,12 +337,21 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     }
     
     // Caso contrário, verificar se o usuário atual é o criador ou tem permissões elevadas
-    return quote.createdBy.id === user.id || user.role === 'manager' || user.role === 'admin';
+    return quote.createdBy.id === currentUser.id || 
+           currentUser.role === 'manager' || 
+           currentUser.role === 'admin';
   };
 
   // Verificar se um usuário pode excluir um orçamento
-  const canDeleteQuote = (quote: SavedQuote) => {
-    const user = getCurrentUser();
+  const canDeleteQuote = (quote: SavedQuote): boolean => {
+    const currentUser = getCurrentUser();
+    console.log('Verificando permissão de exclusão:', {
+      usuario: currentUser,
+      criador: quote.createdBy,
+      permissao: (quote.createdBy?.id === currentUser.id || 
+                currentUser.role === 'manager' || 
+                currentUser.role === 'admin')
+    });
     
     // Se não houver informações sobre quem criou, permitir exclusão para todos (para fins de demo)
     if (!quote.createdBy) {
@@ -294,7 +359,9 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     }
     
     // Caso contrário, verificar se o usuário atual é o criador ou tem permissões elevadas
-    return quote.createdBy.id === user.id || user.role === 'manager' || user.role === 'admin';
+    return quote.createdBy.id === currentUser.id || 
+           currentUser.role === 'manager' || 
+           currentUser.role === 'admin';
   };
 
   // Calculate quote
@@ -351,6 +418,9 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     // Criar um ID único baseado no timestamp
     const newId = Date.now().toString();
     
+    // Obter o usuário atual
+    const userInfo = getCurrentUser();
+    
     // Criar o objeto de orçamento salvo
     const newSavedQuote: SavedQuote = {
       id: newId,
@@ -363,7 +433,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       monthlyKm: quoteForm.globalParams.monthlyKm,
       totalCost: quoteResult.totalCost,
       createdAt: new Date().toISOString(),
-      createdBy: getCurrentUser(),
+      createdBy: userInfo, // Usar o usuário atual
       editHistory: [],
       vehicles: quoteResult.vehicleResults.map((result, index) => {
         const vehicle = quoteForm.vehicles.find(v => v.vehicle.id === result.vehicleId);
@@ -412,11 +482,10 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     if (!quoteToUpdate) return false;
     
     // Verificar permissão
-    if (!canEditQuote(quoteToUpdate)) return false;
-    
-    // Recalcular os custos, se necessário
-    // Simplificado para este exemplo - em uma implementação real, precisaria recriar 
-    // a lógica de cálculo com base nas atualizações
+    if (!canEditQuote(quoteToUpdate)) {
+      console.error('Permissão de edição negada para o usuário:', getCurrentUser());
+      return false;
+    }
     
     // Registrar a edição no histórico
     const editRecord: EditRecord = {
@@ -441,6 +510,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     // Salvar as alterações
     setSavedQuotes(updatedQuotes);
     localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
+    console.log('Orçamento atualizado com sucesso:', quoteId);
     
     return true;
   };
@@ -449,10 +519,18 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   const deleteQuote = (quoteId: string): boolean => {
     // Encontrar o orçamento a ser excluído
     const quoteToDelete = savedQuotes.find(q => q.id === quoteId);
-    if (!quoteToDelete) return false;
+    if (!quoteToDelete) {
+      console.error('Orçamento não encontrado para exclusão:', quoteId);
+      return false;
+    }
     
     // Verificar permissão
-    if (!canDeleteQuote(quoteToDelete)) return false;
+    if (!canDeleteQuote(quoteToDelete)) {
+      console.error('Permissão de exclusão negada para o usuário:', getCurrentUser());
+      return false;
+    }
+    
+    console.log('Excluindo orçamento:', quoteId);
     
     // Remover o orçamento
     const updatedQuotes = savedQuotes.filter(quote => quote.id !== quoteId);
@@ -498,9 +576,12 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       getSavedQuotes,
       deleteQuote,
       getCurrentUser,
+      setCurrentUser,
       canEditQuote,
       canDeleteQuote,
       updateQuote,
+      availableUsers,
+      authenticateUser,
     }}>
       {children}
     </QuoteContext.Provider>

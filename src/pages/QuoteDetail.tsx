@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, Send, Edit, Trash, Car, Clock, FileEdit } from 'lucide-react';
@@ -30,6 +29,7 @@ import { quotes, getClientById, getVehicleById, getVehicleGroupById } from '@/li
 import { calculateExtraKmRate, getGlobalParams } from '@/lib/calculation';
 import { SavedQuote, useQuote, EditRecord } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
+import UserSelector from '@/components/ui-custom/UserSelector';
 
 const isSavedQuote = (quote: any): quote is SavedQuote => {
   return 'clientName' in quote && 'vehicleBrand' in quote && 'vehicleModel' in quote;
@@ -53,14 +53,12 @@ const QuoteDetail = () => {
   useEffect(() => {
     if (!id) return;
     
-    // Primeiro procura nos orçamentos locais
     const mockQuote = quotes.find(q => q.id === id);
     if (mockQuote) {
       setQuote(mockQuote);
       return;
     }
     
-    // Se não encontrou, procura nos orçamentos salvos
     const savedQuote = savedQuotes.find(q => q.id === id);
     if (savedQuote) {
       console.log('Orçamento encontrado:', savedQuote);
@@ -203,6 +201,9 @@ const QuoteDetail = () => {
     try {
       canEdit = canEditQuote(quote as SavedQuote);
       canDelete = canDeleteQuote(quote as SavedQuote);
+      console.log('Permissões verificadas:', { canEdit, canDelete });
+      console.log('Usuário atual:', getCurrentUser());
+      console.log('Criador do orçamento:', (quote as SavedQuote).createdBy);
     } catch (error) {
       console.error("Erro ao verificar permissões:", error);
       canEdit = false;
@@ -249,35 +250,39 @@ const QuoteDetail = () => {
             )}
           </div>
           
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="flex items-center gap-2">
-              <Download className="h-4 w-4" />
-              Exportar PDF
-            </Button>
-            <Button variant="outline" className="flex items-center gap-2">
-              <Send className="h-4 w-4" />
-              Enviar por Email
-            </Button>
-            {canEdit && (
-              <Button 
-                variant="outline" 
-                className="flex items-center gap-2"
-                onClick={handleEditClick}
-              >
-                <Edit className="h-4 w-4" />
-                Editar
+          <div className="flex items-center gap-4">
+            <UserSelector />
+            
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" className="flex items-center gap-2">
+                <Download className="h-4 w-4" />
+                Exportar PDF
               </Button>
-            )}
-            {canDelete && (
-              <Button 
-                variant="destructive" 
-                className="flex items-center gap-2"
-                onClick={openDeleteDialog}
-              >
-                <Trash className="h-4 w-4" />
-                Excluir
+              <Button variant="outline" className="flex items-center gap-2">
+                <Send className="h-4 w-4" />
+                Enviar por Email
               </Button>
-            )}
+              {canEdit && (
+                <Button 
+                  variant="outline" 
+                  className="flex items-center gap-2"
+                  onClick={handleEditClick}
+                >
+                  <Edit className="h-4 w-4" />
+                  Editar
+                </Button>
+              )}
+              {canDelete && (
+                <Button 
+                  variant="destructive" 
+                  className="flex items-center gap-2"
+                  onClick={openDeleteDialog}
+                >
+                  <Trash className="h-4 w-4" />
+                  Excluir
+                </Button>
+              )}
+            </div>
           </div>
         </div>
         

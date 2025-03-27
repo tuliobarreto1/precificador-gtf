@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FileText, Search, Filter, Calendar, ArrowUpDown, User, RefreshCw } from 'lucide-react';
@@ -17,6 +16,7 @@ import {
 import { quotes, getClientById, getVehicleById } from '@/lib/mock-data';
 import { SavedQuote, useQuote, mockUsers } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
+import UserSelector from '@/components/ui-custom/UserSelector';
 
 // Type guard para determinar se um objeto é um SavedQuote
 const isSavedQuote = (quote: any): quote is SavedQuote => {
@@ -31,7 +31,7 @@ const Quotes = () => {
   const [userFilter, setUserFilter] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { getSavedQuotes } = useQuote();
+  const { getSavedQuotes, availableUsers, getCurrentUser } = useQuote();
   
   // Função para carregar orçamentos
   const loadQuotes = () => {
@@ -69,11 +69,12 @@ const Quotes = () => {
   const allQuotes = [...savedQuotes, ...quotes];
   console.log('Total de orçamentos combinados:', allQuotes.length);
   console.log('Orçamentos salvos:', savedQuotes);
+  console.log('Usuário atual:', getCurrentUser());
   
   // Lista de usuários disponíveis para filtro
-  const availableUsers = [
+  const filterUsers = [
     { id: 'all', name: 'Todos os usuários' },
-    ...mockUsers
+    ...availableUsers
   ];
   
   // Filter and sort quotes
@@ -147,12 +148,16 @@ const Quotes = () => {
             className="mb-4 sm:mb-0"
           />
           
-          <Link to="/orcamento/novo">
-            <Button className="w-full sm:w-auto">
-              <FileText className="mr-2 h-4 w-4" />
-              Novo Orçamento
-            </Button>
-          </Link>
+          <div className="flex items-center gap-4">
+            <UserSelector />
+            
+            <Link to="/orcamento/novo">
+              <Button className="w-full sm:w-auto">
+                <FileText className="mr-2 h-4 w-4" />
+                Novo Orçamento
+              </Button>
+            </Link>
+          </div>
         </div>
         
         <Card className="mb-6">
@@ -212,7 +217,7 @@ const Quotes = () => {
                 onChange={(e) => setUserFilter(e.target.value)}
                 className="h-9 min-w-[200px] rounded-md border border-input bg-background px-3 py-1 text-sm"
               >
-                {availableUsers.map((user) => (
+                {filterUsers.map((user) => (
                   <option key={user.id} value={user.id}>
                     {user.name}
                   </option>
