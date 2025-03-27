@@ -112,56 +112,65 @@ const QuoteForm = () => {
     }
   }, [currentStep, quoteForm.vehicles]);
 
-  const goToNextStep = () => {
+  const handleNextStep = () => {
     logState();
+    console.log(`Tentando avançar de ${currentStep} para o próximo passo. Modo de edição: ${isEditMode}`);
     
-    console.log("Avançando para próximo passo. Estado atual:", currentStep, "Cliente selecionado:", quoteForm.client);
+    if (currentStep === 'client') {
+      if (!quoteForm.client) {
+        toast({
+          title: "Selecione um cliente",
+          description: "É necessário selecionar um cliente para continuar."
+        });
+        return;
+      }
+      console.log("Avançando para etapa de veículo");
+      setCurrentStep('vehicle');
+      return;
+    }
     
-    switch (currentStep) {
-      case 'client':
-        if (!quoteForm.client) {
-          toast({
-            title: "Selecione um cliente",
-            description: "É necessário selecionar um cliente para continuar."
-          });
-          return;
-        }
-        setCurrentStep('vehicle');
-        break;
-      case 'vehicle':
-        if (quoteForm.vehicles.length === 0) {
-          toast({
-            title: "Selecione pelo menos um veículo",
-            description: "É necessário selecionar pelo menos um veículo para continuar."
-          });
-          return;
-        }
-        if (quoteForm.vehicles.length > 0) {
-          setSelectedVehicleTab(quoteForm.vehicles[0].vehicle.id);
-        }
-        setCurrentStep('params');
-        break;
-      case 'params':
-        setCurrentStep('result');
-        break;
-      case 'result':
-        const success = saveQuote();
-        if (success) {
-          toast({
-            title: isEditMode ? "Orçamento atualizado" : "Orçamento salvo",
-            description: isEditMode 
-              ? "Seu orçamento foi atualizado com sucesso." 
-              : "Seu orçamento foi salvo com sucesso."
-          });
-          navigate('/orcamentos');
-        } else {
-          toast({
-            title: "Erro ao salvar",
-            description: "Houve um problema ao salvar o orçamento.",
-            variant: "destructive"
-          });
-        }
-        break;
+    if (currentStep === 'vehicle') {
+      if (quoteForm.vehicles.length === 0) {
+        toast({
+          title: "Selecione pelo menos um veículo",
+          description: "É necessário selecionar pelo menos um veículo para continuar."
+        });
+        return;
+      }
+      console.log("Avançando para etapa de parâmetros");
+      setCurrentStep('params');
+      
+      if (quoteForm.vehicles.length > 0) {
+        setSelectedVehicleTab(quoteForm.vehicles[0].vehicle.id);
+      }
+      return;
+    }
+    
+    if (currentStep === 'params') {
+      console.log("Avançando para etapa de resultado");
+      setCurrentStep('result');
+      return;
+    }
+    
+    if (currentStep === 'result') {
+      console.log("Finalizando orçamento");
+      const success = saveQuote();
+      if (success) {
+        toast({
+          title: isEditMode ? "Orçamento atualizado" : "Orçamento salvo",
+          description: isEditMode 
+            ? "Seu orçamento foi atualizado com sucesso." 
+            : "Seu orçamento foi salvo com sucesso."
+        });
+        navigate('/orcamentos');
+      } else {
+        toast({
+          title: "Erro ao salvar",
+          description: "Houve um problema ao salvar o orçamento.",
+          variant: "destructive"
+        });
+      }
+      return;
     }
   };
 
@@ -595,10 +604,7 @@ const QuoteForm = () => {
           </div>
           
           <div className="min-h-[400px]">
-            {currentStep === 'client' && renderClientStep()}
-            {currentStep === 'vehicle' && renderVehicleStep()}
-            {currentStep === 'params' && renderParamsStep()}
-            {currentStep === 'result' && renderResultStep()}
+            {renderStepContent()}
           </div>
           
           <div className="flex justify-between pt-6 border-t">
@@ -610,11 +616,14 @@ const QuoteForm = () => {
               Voltar
             </Button>
             <Button 
-              onClick={goToNextStep}
+              onClick={handleNextStep}
               type="button"
-              className="min-w-20"
+              disabled={loadingQuote}
+              className="min-w-28 font-medium"
             >
-              {currentStep === 'result' ? (isEditMode ? "Atualizar Orçamento" : "Salvar Orçamento") : "Continuar"}
+              {currentStep === 'result' 
+                ? (isEditMode ? "Atualizar Orçamento" : "Salvar Orçamento") 
+                : "Continuar"}
             </Button>
           </div>
         </>
