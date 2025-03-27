@@ -7,6 +7,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NewQuote from "./pages/NewQuote";
 import Quotes from "./pages/Quotes";
+import Settings from "./pages/Settings";
+import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,6 +23,8 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/orcamento/novo" element={<NewQuote />} />
           <Route path="/orcamentos" element={<Quotes />} />
+          <Route path="/configuracoes" element={<Settings />} />
+          <Route path="/usuarios" element={<Users />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
