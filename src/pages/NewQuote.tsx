@@ -6,14 +6,12 @@ import PageTitle from '@/components/ui-custom/PageTitle';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import VehicleCard from '@/components/ui-custom/VehicleCard';
-import { clients, vehicles, vehicleGroups, getVehicleGroupById } from '@/lib/mock-data';
+import VehicleSelector from '@/components/vehicle/VehicleSelector';
+import { clients } from '@/lib/mock-data';
 import { useQuote, QuoteProvider } from '@/context/QuoteContext';
 
 const STEPS = [
@@ -42,14 +40,20 @@ const QuoteForm = () => {
     switch (currentStep) {
       case 'client':
         if (!quoteForm.client) {
-          toast({ title: "Selecione um cliente", description: "É necessário selecionar um cliente para continuar." });
+          toast({
+            title: "Selecione um cliente",
+            description: "É necessário selecionar um cliente para continuar."
+          });
           return;
         }
         setCurrentStep('vehicle');
         break;
       case 'vehicle':
         if (!quoteForm.vehicle) {
-          toast({ title: "Selecione um veículo", description: "É necessário selecionar um veículo para continuar." });
+          toast({
+            title: "Selecione um veículo",
+            description: "É necessário selecionar um veículo para continuar."
+          });
           return;
         }
         setCurrentStep('params');
@@ -58,7 +62,10 @@ const QuoteForm = () => {
         setCurrentStep('result');
         break;
       case 'result':
-        toast({ title: "Orçamento salvo", description: "Seu orçamento foi salvo com sucesso." });
+        toast({
+          title: "Orçamento salvo",
+          description: "Seu orçamento foi salvo com sucesso."
+        });
         navigate('/orcamentos');
         break;
     }
@@ -116,24 +123,10 @@ const QuoteForm = () => {
   );
 
   const renderVehicleStep = () => (
-    <div className="space-y-6 animate-fadeIn">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {vehicles.map((vehicle) => {
-          const group = getVehicleGroupById(vehicle.groupId);
-          if (!group) return null;
-          
-          return (
-            <VehicleCard
-              key={vehicle.id}
-              vehicle={vehicle}
-              vehicleGroup={group}
-              isSelected={quoteForm.vehicle?.id === vehicle.id}
-              onClick={() => setVehicle(vehicle, group)}
-            />
-          );
-        })}
-      </div>
-    </div>
+    <VehicleSelector 
+      onSelectVehicle={setVehicle} 
+      selectedVehicleId={quoteForm.vehicle?.id}
+    />
   );
 
   const renderParamsStep = () => (
