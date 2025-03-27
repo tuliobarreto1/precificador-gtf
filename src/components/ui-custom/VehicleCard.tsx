@@ -10,6 +10,7 @@ type VehicleCardProps = {
   isSelected?: boolean;
   onClick?: () => void;
   className?: string;
+  children?: React.ReactNode;
 };
 
 const VehicleCard = ({ 
@@ -17,13 +18,14 @@ const VehicleCard = ({
   vehicleGroup, 
   isSelected = false, 
   onClick, 
-  className 
+  className,
+  children
 }: VehicleCardProps) => {
   return (
     <div 
       onClick={onClick}
       className={cn(
-        "bg-white rounded-xl border p-4 transition-all duration-200",
+        "bg-white rounded-xl border p-4 transition-all duration-200 relative",
         "hover:shadow-md hover:border-primary/30 cursor-pointer",
         isSelected && "border-primary/70 ring-1 ring-primary/30 shadow-md",
         className
@@ -65,6 +67,8 @@ const VehicleCard = ({
           <p>A cada {vehicleGroup.tireKm.toLocaleString('pt-BR')} km</p>
         </div>
       </div>
+
+      {children}
     </div>
   );
 };

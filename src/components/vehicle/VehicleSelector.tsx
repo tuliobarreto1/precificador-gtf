@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Car, Search, Loader2, AlertTriangle, Database, RefreshCw } from 'lucide-react';
+import { ArrowRight, Car, Search, Loader2, AlertTriangle, Database, RefreshCw, Plus, Check, X } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -10,6 +11,7 @@ import { vehicles, vehicleGroups, getVehicleGroupById } from '@/lib/mock-data';
 import VehicleCard from '@/components/ui-custom/VehicleCard';
 import { Vehicle, VehicleGroup } from '@/lib/mock-data';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,12 +26,17 @@ import {
 
 type VehicleSelectorProps = {
   onSelectVehicle: (vehicle: Vehicle, vehicleGroup: VehicleGroup) => void;
-  selectedVehicleId?: string | null;
+  selectedVehicles: Vehicle[];
+  onRemoveVehicle?: (vehicleId: string) => void;
 };
 
 type VehicleType = 'new' | 'used';
 
-const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, selectedVehicleId }) => {
+const VehicleSelector: React.FC<VehicleSelectorProps> = ({ 
+  onSelectVehicle, 
+  selectedVehicles,
+  onRemoveVehicle 
+}) => {
   const [vehicleType, setVehicleType] = useState<VehicleType>('new');
   const [plateNumber, setPlateNumber] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -182,6 +189,8 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
   const handleSelectFoundVehicle = () => {
     if (!foundVehicle) return;
     
+    console.log('Selecionando veículo encontrado:', foundVehicle);
+    
     const foundVehicleGroup = vehicleGroups.find(g => g.id === foundVehicle.LetraGrupo) || vehicleGroups[0];
     
     const mappedVehicle: Vehicle = {
@@ -198,6 +207,18 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
     };
     
     onSelectVehicle(mappedVehicle, foundVehicleGroup);
+    
+    // Limpar o veículo encontrado e a busca após adicionar
+    setFoundVehicle(null);
+    setPlateNumber('');
+    toast({
+      title: "Veículo adicionado",
+      description: `${foundVehicle.DescricaoModelo} (${foundVehicle.Placa}) foi adicionado à cotação.`,
+    });
+  };
+
+  const isVehicleSelected = (vehicleId: string) => {
+    return selectedVehicles.some(v => v.id === vehicleId);
   };
 
   return (
@@ -306,6 +327,36 @@ DB_DATABASE=seu-banco-de-dados`}
         </RadioGroup>
       </div>
 
+      {selectedVehicles.length > 0 && (
+        <div className="border p-4 rounded-lg bg-primary/5">
+          <h3 className="text-base font-medium mb-3">Veículos Selecionados ({selectedVehicles.length})</h3>
+          <div className="flex flex-wrap gap-2">
+            {selectedVehicles.map(vehicle => (
+              <Badge 
+                key={vehicle.id} 
+                variant="secondary"
+                className="py-2 pl-3 pr-2 flex items-center gap-1"
+              >
+                <span>
+                  {vehicle.brand} {vehicle.model} 
+                  {vehicle.plateNumber && ` (${vehicle.plateNumber})`}
+                </span>
+                {onRemoveVehicle && (
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-5 w-5"
+                    onClick={() => onRemoveVehicle(vehicle.id)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
       {vehicleType === 'used' && (
         <div className="space-y-4 border p-4 rounded-lg">
           <h3 className="text-base font-medium">Buscar veículo usado por placa</h3>
@@ -367,7 +418,7 @@ DB_DATABASE=seu-banco-de-dados`}
                     className="mt-3"
                     size="sm"
                   >
-                    Selecionar <ArrowRight className="ml-1 h-4 w-4" />
+                    Adicionar <Plus className="ml-1 h-4 w-4" />
                   </Button>
                 </div>
               </div>
@@ -386,14 +437,40 @@ DB_DATABASE=seu-banco-de-dados`}
             const group = getVehicleGroupById(vehicle.groupId);
             if (!group) return null;
             
+            const isSelected = isVehicleSelected(vehicle.id);
+            
             return (
               <VehicleCard
                 key={vehicle.id}
                 vehicle={vehicle}
                 vehicleGroup={group}
-                isSelected={selectedVehicleId === vehicle.id}
-                onClick={() => onSelectVehicle(vehicle, group)}
-              />
+                isSelected={isSelected}
+                onClick={() => {
+                  if (!isSelected) {
+                    onSelectVehicle(vehicle, group);
+                  }
+                }}
+                className={isSelected ? 'cursor-default' : ''}
+              >
+                {isSelected ? (
+                  <div className="absolute top-2 right-2">
+                    <Badge variant="success" className="flex items-center gap-1">
+                      <Check className="h-3 w-3" /> Selecionado
+                    </Badge>
+                  </div>
+                ) : (
+                  <Button 
+                    size="sm" 
+                    className="absolute bottom-4 right-4"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectVehicle(vehicle, group);
+                    }}
+                  >
+                    Adicionar <Plus className="ml-1 h-4 w-4" />
+                  </Button>
+                )}
+              </VehicleCard>
             );
           })}
         </div>

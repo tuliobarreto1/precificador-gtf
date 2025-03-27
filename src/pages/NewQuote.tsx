@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Info, Users, Car, Wrench, Calculator } from 'lucide-react';
+import { Info, Users, Car, Wrench, Calculator, Plus, Trash2 } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
@@ -16,7 +17,7 @@ import { useQuote, QuoteProvider } from '@/context/QuoteContext';
 
 const STEPS = [
   { id: 'client', name: 'Cliente', icon: <Users size={18} /> },
-  { id: 'vehicle', name: 'Veículo', icon: <Car size={18} /> },
+  { id: 'vehicle', name: 'Veículos', icon: <Car size={18} /> },
   { id: 'params', name: 'Parâmetros', icon: <Wrench size={18} /> },
   { id: 'result', name: 'Resultado', icon: <Calculator size={18} /> },
 ];
@@ -28,11 +29,13 @@ const QuoteForm = () => {
   const { 
     quoteForm, 
     setClient, 
-    setVehicle, 
-    setContractMonths, 
-    setMonthlyKm, 
-    setOperationSeverity, 
-    setHasTracking, 
+    addVehicle, 
+    removeVehicle,
+    setGlobalContractMonths, 
+    setGlobalMonthlyKm, 
+    setGlobalOperationSeverity, 
+    setGlobalHasTracking, 
+    setUseGlobalParams,
     calculateQuote 
   } = useQuote();
 
@@ -49,10 +52,10 @@ const QuoteForm = () => {
         setCurrentStep('vehicle');
         break;
       case 'vehicle':
-        if (!quoteForm.vehicle) {
+        if (quoteForm.vehicles.length === 0) {
           toast({
-            title: "Selecione um veículo",
-            description: "É necessário selecionar um veículo para continuar."
+            title: "Selecione pelo menos um veículo",
+            description: "É necessário selecionar pelo menos um veículo para continuar."
           });
           return;
         }
@@ -124,26 +127,51 @@ const QuoteForm = () => {
 
   const renderVehicleStep = () => (
     <VehicleSelector 
-      onSelectVehicle={setVehicle} 
-      selectedVehicleId={quoteForm.vehicle?.id}
+      onSelectVehicle={addVehicle}
+      selectedVehicles={quoteForm.vehicles.map(item => item.vehicle)}
+      onRemoveVehicle={removeVehicle}
     />
   );
 
   const renderParamsStep = () => (
     <div className="space-y-8 animate-fadeIn">
+      <div className="bg-primary/5 border p-4 rounded-lg mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-medium">Parâmetros da Cotação</h3>
+          <div className="flex items-center space-x-2">
+            <Switch 
+              id="global-params"
+              checked={quoteForm.useGlobalParams}
+              onCheckedChange={setUseGlobalParams}
+            />
+            <Label htmlFor="global-params">Usar parâmetros globais</Label>
+          </div>
+        </div>
+        
+        {quoteForm.useGlobalParams ? (
+          <p className="text-sm text-muted-foreground">
+            Os mesmos parâmetros serão aplicados a todos os veículos desta cotação.
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Cada veículo terá seus próprios parâmetros configuráveis.
+          </p>
+        )}
+      </div>
+
       <div className="space-y-4">
         <Label className="text-base">Prazo do Contrato</Label>
         <div className="space-y-3">
           <Slider
-            value={[quoteForm.contractMonths]}
+            value={[quoteForm.globalParams.contractMonths]}
             min={6}
             max={24}
             step={1}
-            onValueChange={(value) => setContractMonths(value[0])}
+            onValueChange={(value) => setGlobalContractMonths(value[0])}
           />
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>6 meses</span>
-            <span>{quoteForm.contractMonths} meses</span>
+            <span>{quoteForm.globalParams.contractMonths} meses</span>
             <span>24 meses</span>
           </div>
         </div>
@@ -153,15 +181,15 @@ const QuoteForm = () => {
         <Label className="text-base">Quilometragem Mensal</Label>
         <div className="space-y-3">
           <Slider
-            value={[quoteForm.monthlyKm]}
+            value={[quoteForm.globalParams.monthlyKm]}
             min={1000}
             max={5000}
             step={100}
-            onValueChange={(value) => setMonthlyKm(value[0])}
+            onValueChange={(value) => setGlobalMonthlyKm(value[0])}
           />
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>1.000 km</span>
-            <span>{quoteForm.monthlyKm.toLocaleString('pt-BR')} km</span>
+            <span>{quoteForm.globalParams.monthlyKm.toLocaleString('pt-BR')} km</span>
             <span>5.000 km</span>
           </div>
         </div>
@@ -170,8 +198,8 @@ const QuoteForm = () => {
       <div className="space-y-4">
         <Label className="text-base">Severidade de Operação</Label>
         <RadioGroup 
-          value={quoteForm.operationSeverity.toString()} 
-          onValueChange={(value) => setOperationSeverity(parseInt(value) as 1|2|3|4|5|6)}
+          value={quoteForm.globalParams.operationSeverity.toString()} 
+          onValueChange={(value) => setGlobalOperationSeverity(parseInt(value) as 1|2|3|4|5|6)}
           className="grid grid-cols-2 md:grid-cols-3 gap-3"
         >
           {[1, 2, 3, 4, 5, 6].map((level) => (
@@ -184,7 +212,7 @@ const QuoteForm = () => {
           ))}
         </RadioGroup>
         <p className="text-sm text-muted-foreground flex items-center space-x-1">
-          <Info size={14} className="inline-block" />
+          <Info size={14} className="inline-block mr-1" />
           <span>Quanto maior o nível, mais severo é o uso do veículo.</span>
         </p>
       </div>
@@ -192,8 +220,8 @@ const QuoteForm = () => {
       <div className="flex items-center space-x-2">
         <Switch 
           id="tracking" 
-          checked={quoteForm.hasTracking}
-          onCheckedChange={setHasTracking}
+          checked={quoteForm.globalParams.hasTracking}
+          onCheckedChange={setGlobalHasTracking}
         />
         <Label htmlFor="tracking" className="cursor-pointer">Incluir rastreamento</Label>
       </div>
@@ -204,12 +232,12 @@ const QuoteForm = () => {
     const result = calculateQuote();
     if (!result) return <div>Não foi possível calcular o orçamento.</div>;
     
-    const { depreciationCost, maintenanceCost, trackingCost, totalCost, costPerKm, extraKmRate } = result;
+    const { vehicleResults, totalCost } = result;
     
     return (
       <div className="space-y-8 animate-fadeIn">
         <Card>
-          <CardHeader title="Resumo do Orçamento" />
+          <CardHeader title={`Resumo do Orçamento - ${quoteForm.vehicles.length} veículo(s)`} />
           
           <div className="space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -218,36 +246,59 @@ const QuoteForm = () => {
                 <p className="font-medium">{quoteForm.client?.name}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Veículo</p>
-                <p className="font-medium">{quoteForm.vehicle?.brand} {quoteForm.vehicle?.model}</p>
-              </div>
-              <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Prazo</p>
-                <p className="font-medium">{quoteForm.contractMonths} meses</p>
+                <p className="font-medium">{quoteForm.globalParams.contractMonths} meses</p>
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Quilometragem</p>
-                <p className="font-medium">{quoteForm.monthlyKm.toLocaleString('pt-BR')} km/mês</p>
+                <p className="font-medium">{quoteForm.globalParams.monthlyKm.toLocaleString('pt-BR')} km/mês</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Severidade</p>
+                <p className="font-medium">Nível {quoteForm.globalParams.operationSeverity}</p>
               </div>
             </div>
             
             <div className="border-t pt-6">
-              <h3 className="font-medium mb-4">Composição do Valor</h3>
+              <h3 className="font-medium mb-4">Veículos Cotados</h3>
               <div className="space-y-4">
-                <div className="flex justify-between items-center p-3 bg-muted/30 rounded-md">
-                  <span>Depreciação</span>
-                  <span className="font-medium">R$ {depreciationCost.toLocaleString('pt-BR')}</span>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-muted/30 rounded-md">
-                  <span>Manutenção</span>
-                  <span className="font-medium">R$ {maintenanceCost.toLocaleString('pt-BR')}</span>
-                </div>
-                {quoteForm.hasTracking && (
-                  <div className="flex justify-between items-center p-3 bg-muted/30 rounded-md">
-                    <span>Rastreamento</span>
-                    <span className="font-medium">R$ {trackingCost.toLocaleString('pt-BR')}</span>
-                  </div>
-                )}
+                {vehicleResults.map((result, index) => {
+                  const vehicleItem = quoteForm.vehicles.find(v => v.vehicle.id === result.vehicleId);
+                  if (!vehicleItem) return null;
+                  
+                  return (
+                    <div key={vehicleItem.vehicle.id} className="border rounded-lg p-4 bg-muted/20">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-medium">{vehicleItem.vehicle.brand} {vehicleItem.vehicle.model}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {vehicleItem.vehicle.plateNumber ? `Placa: ${vehicleItem.vehicle.plateNumber} • ` : ''}
+                            Grupo: {vehicleItem.vehicleGroup.id}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">R$ {result.totalCost.toLocaleString('pt-BR')}</p>
+                          <p className="text-xs text-muted-foreground">Valor mensal</p>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-3 pt-3 border-t grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <div className="text-sm">
+                          <p className="text-muted-foreground">Depreciação:</p>
+                          <p className="font-medium">R$ {result.depreciationCost.toLocaleString('pt-BR')}</p>
+                        </div>
+                        <div className="text-sm">
+                          <p className="text-muted-foreground">Manutenção:</p>
+                          <p className="font-medium">R$ {result.maintenanceCost.toLocaleString('pt-BR')}</p>
+                        </div>
+                        <div className="text-sm">
+                          <p className="text-muted-foreground">Km excedente:</p>
+                          <p className="font-medium">R$ {result.extraKmRate.toFixed(2)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -264,21 +315,8 @@ const QuoteForm = () => {
                 R$ {totalCost.toLocaleString('pt-BR')}
               </p>
               <p className="text-sm text-muted-foreground">
-                R$ {costPerKm.toFixed(2)} por km
+                {quoteForm.vehicles.length} veículo(s)
               </p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card>
-          <CardHeader title="Informações Adicionais" />
-          <div className="p-4">
-            <div className="flex justify-between items-center p-3 bg-muted/30 rounded-md">
-              <div>
-                <span>Valor do Quilômetro Excedente</span>
-                <p className="text-xs text-muted-foreground">Cobrado caso ultrapasse a franquia mensal</p>
-              </div>
-              <span className="font-medium">R$ {extraKmRate.toFixed(2)}</span>
             </div>
           </div>
         </Card>
@@ -320,6 +358,12 @@ const QuoteForm = () => {
                 {step.icon}
               </div>
               <span className="hidden md:inline">{step.name}</span>
+              
+              {step.id === 'vehicle' && quoteForm.vehicles.length > 0 && (
+                <span className="text-xs bg-secondary rounded-full px-1.5 py-0.5 min-w-5 flex items-center justify-center">
+                  {quoteForm.vehicles.length}
+                </span>
+              )}
             </div>
           </React.Fragment>
         ))}
