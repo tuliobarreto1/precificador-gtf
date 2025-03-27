@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Info, Users, Car, Wrench, Calculator, Plus, Trash2, Settings } from 'lucide-react';
@@ -50,6 +49,16 @@ const QuoteForm = () => {
     isEditMode
   } = useQuote();
 
+  const logState = () => {
+    console.log("Estado atual do formulário:", {
+      currentStep,
+      isEditMode,
+      client: quoteForm.client,
+      vehicles: quoteForm.vehicles.length,
+      vehiclesDetalhes: quoteForm.vehicles
+    });
+  };
+
   useEffect(() => {
     if (id) {
       console.log('Modo de edição detectado, carregando orçamento:', id);
@@ -60,7 +69,6 @@ const QuoteForm = () => {
         
         if (success) {
           console.log('Orçamento carregado com sucesso:', quoteForm);
-          // Modificação: iniciar na etapa de veículos em vez de cliente
           setCurrentStep('vehicle');
           
           toast({
@@ -105,6 +113,8 @@ const QuoteForm = () => {
   }, [currentStep, quoteForm.vehicles]);
 
   const goToNextStep = () => {
+    logState();
+    
     console.log("Avançando para próximo passo. Estado atual:", currentStep, "Cliente selecionado:", quoteForm.client);
     
     switch (currentStep) {
@@ -126,7 +136,6 @@ const QuoteForm = () => {
           });
           return;
         }
-        // Garantir que o primeiro veículo seja selecionado na aba
         if (quoteForm.vehicles.length > 0) {
           setSelectedVehicleTab(quoteForm.vehicles[0].vehicle.id);
         }
@@ -600,7 +609,11 @@ const QuoteForm = () => {
             >
               Voltar
             </Button>
-            <Button onClick={goToNextStep}>
+            <Button 
+              onClick={goToNextStep}
+              type="button"
+              className="min-w-20"
+            >
               {currentStep === 'result' ? (isEditMode ? "Atualizar Orçamento" : "Salvar Orçamento") : "Continuar"}
             </Button>
           </div>
