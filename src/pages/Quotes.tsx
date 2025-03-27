@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { quotes, getClientById, getVehicleById } from '@/lib/mock-data';
 import { SavedQuote } from '@/context/QuoteContext';
+import { useToast } from '@/hooks/use-toast';
 
 // Type guard para determinar se um objeto é um SavedQuote
 const isSavedQuote = (quote: any): quote is SavedQuote => {
@@ -20,6 +21,7 @@ const Quotes = () => {
   const [sortField, setSortField] = useState<'date' | 'value'>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
+  const { toast } = useToast();
   
   // Carregar orçamentos salvos do localStorage
   useEffect(() => {
@@ -28,14 +30,23 @@ const Quotes = () => {
       try {
         const parsedQuotes = JSON.parse(storedQuotes);
         setSavedQuotes(parsedQuotes);
+        console.log('Orçamentos carregados do localStorage:', parsedQuotes);
       } catch (error) {
         console.error('Erro ao carregar orçamentos salvos:', error);
+        toast({
+          title: "Erro ao carregar orçamentos",
+          description: "Não foi possível carregar os orçamentos salvos.",
+          variant: "destructive",
+        });
       }
+    } else {
+      console.log('Nenhum orçamento encontrado no localStorage');
     }
-  }, []);
+  }, [toast]);
   
   // Combinar os orçamentos mockados com os salvos
   const allQuotes = [...savedQuotes, ...quotes];
+  console.log('Total de orçamentos combinados:', allQuotes.length);
   
   // Filter and sort quotes
   const filteredQuotes = allQuotes
@@ -188,10 +199,9 @@ const Quotes = () => {
                               {quote.monthlyKm}/mês
                             </p>
                             
-                            {isSavedQuote(quote) && quote.vehicles.length > 1 && (
-                              <p className="text-sm">
-                                <span className="text-muted-foreground">Veículos:</span>{' '}
-                                {quote.vehicles.length}
+                            {isSavedQuote(quote) && quote.vehicles && quote.vehicles.length > 1 && (
+                              <p className="text-sm bg-primary/10 px-2 py-0.5 rounded-full text-primary font-medium">
+                                {quote.vehicles.length} veículos
                               </p>
                             )}
                           </div>
