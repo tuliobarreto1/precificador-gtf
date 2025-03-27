@@ -28,38 +28,37 @@ const isSavedQuote = (quote: any): quote is SavedQuote => {
 
 const QuoteDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const [quote, setQuote] = useState<any>(null);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
-  const { savedQuotes, deleteQuote, canEditQuote, canDeleteQuote, getCurrentUser } = useQuote();
-  const { toast } = useToast();
-  const navigate = useNavigate();
-  
-  // Buscar orçamentos salvos do localStorage
-  const getSavedQuotes = (): SavedQuote[] => {
-    return savedQuotes;
-  };
-  
-  // Buscar orçamento por ID (tanto mockados quanto salvos)
-  const findQuoteById = (quoteId: string) => {
-    // Primeiro buscar nos orçamentos mockados
-    const mockQuote = quotes.find(q => q.id === quoteId);
-    if (mockQuote) return mockQuote;
-    
-    // Se não encontrar, buscar nos salvos
-    const savedQuotes = getSavedQuotes();
-    return savedQuotes.find(q => q.id === quoteId);
-  };
-  
-  // Encontrar o orçamento pelo ID
-  const quote = id ? findQuoteById(id) : null;
-  
-  // Variáveis que dependem do quote
   const [isSaved, setIsSaved] = useState(false);
   const [client, setClient] = useState<any>(null);
   const [vehicleGroup, setVehicleGroup] = useState<any>(null);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
   
-  // Atualizar estado com base no orçamento
+  const { savedQuotes, deleteQuote, canEditQuote, canDeleteQuote, getCurrentUser } = useQuote();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  
+  // Buscar orçamento inicialmente
+  useEffect(() => {
+    if (!id) return;
+    
+    // Buscar nos orçamentos mockados
+    const mockQuote = quotes.find(q => q.id === id);
+    if (mockQuote) {
+      setQuote(mockQuote);
+      return;
+    }
+    
+    // Se não encontrar, buscar nos salvos
+    const savedQuote = savedQuotes.find(q => q.id === id);
+    if (savedQuote) {
+      setQuote(savedQuote);
+    }
+  }, [id, savedQuotes]);
+  
+  // Processar o orçamento encontrado
   useEffect(() => {
     if (!quote) return;
     
@@ -178,9 +177,9 @@ const QuoteDetail = () => {
     }
   };
 
-  // Verificar permissões para edição e exclusão
-  const canEdit = isSaved ? canEditQuote(quote as SavedQuote) : false;
-  const canDelete = isSaved ? canDeleteQuote(quote as SavedQuote) : false;
+  // Verificar permissões para edição e exclusão - com verificações adicionais de segurança
+  const canEdit = isSaved && quote ? canEditQuote(quote as SavedQuote) : false;
+  const canDelete = isSaved && quote ? canDeleteQuote(quote as SavedQuote) : false;
   
   // Obter parâmetros globais
   const globalParams = getGlobalParams();
@@ -193,7 +192,7 @@ const QuoteDetail = () => {
   // Calcular custos específicos com base no veículo selecionado
   const depreciationCost = selectedVehicle ? selectedVehicle.depreciationCost : 0;
   const maintenanceCost = selectedVehicle ? selectedVehicle.maintenanceCost : 0;
-  const trackingCost = isSaved ? 0 : (quote.trackingCost || 0);
+  const trackingCost = !isSaved && quote.trackingCost ? quote.trackingCost : 0;
   const vehicleTotalCost = selectedVehicle ? selectedVehicle.totalCost : 0;
   
   // Cálculo do custo por km
@@ -219,9 +218,9 @@ const QuoteDetail = () => {
               subtitle={`Criado em ${createdDate}`}
               className="mb-0"
             />
-            {isSaved && (quote as SavedQuote).createdBy && (
+            {isSaved && quote.createdBy && (
               <Badge variant="outline" className="ml-2">
-                Criado por: {(quote as SavedQuote).createdBy.name}
+                Criado por: {quote.createdBy.name}
               </Badge>
             )}
           </div>
@@ -397,17 +396,17 @@ const QuoteDetail = () => {
                   <span className="text-sm text-muted-foreground">Km Total</span>
                   <span className="font-medium">{totalKm.toLocaleString('pt-BR')} km</span>
                 </div>
-                {!isSaved && (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Nível de Operação</span>
-                      <span className="font-medium">{quote.operationSeverity}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Rastreamento</span>
-                      <span className="font-medium">{quote.hasTracking ? 'Sim' : 'Não'}</span>
-                    </div>
-                  </>
+                {!isSaved && quote.operationSeverity !== undefined && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Nível de Operação</span>
+                    <span className="font-medium">{quote.operationSeverity}</span>
+                  </div>
+                )}
+                {!isSaved && quote.hasTracking !== undefined && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Rastreamento</span>
+                    <span className="font-medium">{quote.hasTracking ? 'Sim' : 'Não'}</span>
+                  </div>
                 )}
               </div>
               
@@ -446,7 +445,7 @@ const QuoteDetail = () => {
                     </div>
                   </div>
                   
-                  {!isSaved && trackingCost > 0 && (
+                  {trackingCost > 0 && (
                     <div className="p-4 border rounded-md bg-muted/10">
                       <div className="flex flex-col">
                         <span className="text-muted-foreground text-sm">Rastreamento</span>
@@ -514,7 +513,7 @@ const QuoteDetail = () => {
           </Card>
           
           {/* Histórico de Edições - Apenas para orçamentos salvos com histórico */}
-          {isSaved && (quote as SavedQuote).editHistory && (quote as SavedQuote).editHistory!.length > 0 && (
+          {isSaved && quote.editHistory && quote.editHistory.length > 0 && (
             <Card className="lg:col-span-3">
               <CardHeader 
                 title="Histórico de Edições" 
@@ -531,7 +530,7 @@ const QuoteDetail = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(quote as SavedQuote).editHistory!.map((edit: EditRecord, index) => (
+                    {quote.editHistory.map((edit: EditRecord, index: number) => (
                       <TableRow key={index}>
                         <TableCell>{new Date(edit.editedAt).toLocaleString('pt-BR')}</TableCell>
                         <TableCell>{edit.editedBy.name}</TableCell>

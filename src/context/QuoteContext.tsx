@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Vehicle, Client, VehicleGroup, getVehicleGroupById } from '@/lib/mock-data';
 import { DepreciationParams, MaintenanceParams, calculateLeaseCost, calculateExtraKmRate } from '@/lib/calculation';
@@ -79,6 +78,9 @@ export type SavedQuote = {
     maintenanceCost: number;
     extraKmRate: number;
   }[];
+  operationSeverity?: 1 | 2 | 3 | 4 | 5 | 6;
+  hasTracking?: boolean;
+  trackingCost?: number;
 };
 
 // Mock do usuário atual
@@ -272,15 +274,15 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   // Verificar se um usuário pode editar um orçamento
   const canEditQuote = (quote: SavedQuote) => {
     const user = getCurrentUser();
-    // Pode editar se for o criador ou um gerente/admin
-    return quote.createdBy.id === user.id || user.role === 'manager' || user.role === 'admin';
+    // Verificamos se o objeto createdBy existe antes de acessar a propriedade id
+    return quote.createdBy && quote.createdBy.id === user.id || user.role === 'manager' || user.role === 'admin';
   };
 
   // Verificar se um usuário pode excluir um orçamento
   const canDeleteQuote = (quote: SavedQuote) => {
     const user = getCurrentUser();
-    // Pode excluir se for o criador ou um gerente/admin
-    return quote.createdBy.id === user.id || user.role === 'manager' || user.role === 'admin';
+    // Verificamos se o objeto createdBy existe antes de acessar a propriedade id
+    return quote.createdBy && quote.createdBy.id === user.id || user.role === 'manager' || user.role === 'admin';
   };
 
   // Calculate quote
