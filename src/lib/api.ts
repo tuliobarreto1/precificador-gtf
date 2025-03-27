@@ -1,3 +1,4 @@
+
 // Mock data for clients
 export interface Client {
   id: string;
@@ -96,17 +97,8 @@ export const getVehicleGroupById = (id: string): VehicleGroup | undefined => {
   return vehicleGroups.find(group => group.id === id);
 };
 
-// Function to fetch quotes (using mock data for now)
-export const getQuotes = (): Promise<{ success: boolean; quotes: Quote[]; error?: any }> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({ success: true, quotes });
-    }, 500);
-  });
-};
-
-// Função para buscar orçamentos
-export async function getQuotes() {
+// Função para buscar orçamentos (integrando com Supabase)
+export async function getQuotes(): Promise<{ success: boolean; quotes: any[]; error?: any }> {
   try {
     // Importar e usar a função do cliente Supabase
     const { getQuotesFromSupabase } = await import('@/integrations/supabase/client');
@@ -114,5 +106,80 @@ export async function getQuotes() {
   } catch (error) {
     console.error('Erro ao buscar orçamentos:', error);
     return { success: false, error, quotes: [] };
+  }
+}
+
+// Função de login para autenticação
+export async function signIn(email: string, password: string): Promise<{ success: boolean; error?: any }> {
+  try {
+    const { supabase } = await import('@/integrations/supabase/client');
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+    
+    if (error) {
+      console.error('Erro ao fazer login:', error);
+      return { success: false, error };
+    }
+    
+    return { success: true, user: data.user };
+  } catch (error) {
+    console.error('Erro ao fazer login:', error);
+    return { success: false, error };
+  }
+}
+
+// Função de registro para autenticação
+export async function signUp(email: string, password: string, name: string): Promise<{ success: boolean; error?: any }> {
+  try {
+    const { supabase } = await import('@/integrations/supabase/client');
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name
+        }
+      }
+    });
+    
+    if (error) {
+      console.error('Erro ao criar conta:', error);
+      return { success: false, error };
+    }
+    
+    return { success: true, user: data.user };
+  } catch (error) {
+    console.error('Erro ao criar conta:', error);
+    return { success: false, error };
+  }
+}
+
+// Função para obter o perfil do usuário atual
+export async function getCurrentProfile(): Promise<{ success: boolean; profile?: any; error?: any }> {
+  try {
+    const { supabase } = await import('@/integrations/supabase/client');
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      return { success: false, error: 'Nenhuma sessão encontrada' };
+    }
+    
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .single();
+    
+    if (error) {
+      console.error('Erro ao buscar perfil:', error);
+      return { success: false, error };
+    }
+    
+    return { success: true, profile };
+  } catch (error) {
+    console.error('Erro ao buscar perfil:', error);
+    return { success: false, error };
   }
 }
