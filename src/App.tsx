@@ -11,7 +11,6 @@ import QuoteDetail from "./pages/QuoteDetail";
 import Settings from "./pages/Settings";
 import Parameters from "./pages/Parameters";
 import Users from "./pages/Users";
-import ApiStatus from "./pages/ApiStatus";
 import NotFound from "./pages/NotFound";
 
 // Create a client
@@ -32,7 +31,6 @@ function App() {
             <Route path="/configuracoes" element={<Settings />} />
             <Route path="/parametros" element={<Parameters />} />
             <Route path="/usuarios" element={<Users />} />
-            <Route path="/api-status" element={<ApiStatus />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -1,12 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Car, Search, Loader2, AlertTriangle, Database, RefreshCw, Lock, Server } from 'lucide-react';
+import { ArrowRight, Car, Search, Loader2, AlertTriangle, Database, RefreshCw } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { getVehicleByPlate, SqlVehicle, testApiConnection, testCustomDatabaseConnection, DbCredentials } from '@/lib/sql-connection';
+import { getVehicleByPlate, SqlVehicle, testApiConnection } from '@/lib/sql-connection';
 import { vehicles, vehicleGroups, getVehicleGroupById } from '@/lib/mock-data';
 import VehicleCard from '@/components/ui-custom/VehicleCard';
 import { Vehicle, VehicleGroup } from '@/lib/mock-data';
@@ -22,16 +21,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { useForm } from "react-hook-form";
 
 type VehicleSelectorProps = {
   onSelectVehicle: (vehicle: Vehicle, vehicleGroup: VehicleGroup) => void;
@@ -49,20 +38,9 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
   const [connectionStatus, setConnectionStatus] = useState<{ status: string; environment: any } | null>(null);
   const [testingConnection, setTestingConnection] = useState(false);
   const [detailedError, setDetailedError] = useState<string | null>(null);
-  const [showCredentialsForm, setShowCredentialsForm] = useState(false);
+  const [showDiagnosticInfo, setShowDiagnosticInfo] = useState(false);
   const [diagnosticInfo, setDiagnosticInfo] = useState<any>(null);
   const { toast } = useToast();
-
-  // Formulário para credenciais de banco de dados
-  const credentialsForm = useForm<DbCredentials>({
-    defaultValues: {
-      server: 'asalocadora-prd-nlb-rds-4f4ca747cca4f9bf.elb.us-east-1.amazonaws.com',
-      port: '1433',
-      user: '',
-      password: '',
-      database: 'Locavia'
-    }
-  });
 
   useEffect(() => {
     const checkConnection = async () => {
@@ -134,49 +112,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
       }
     } catch (error) {
       console.error("Erro ao testar conexão:", error);
-      toast({
-        title: "Erro",
-        description: "Erro ao tentar testar a conexão com o banco de dados.",
-        variant: "destructive",
-      });
-      setDetailedError(error instanceof Error ? error.message : 'Erro desconhecido ao testar conexão');
-    } finally {
-      setTestingConnection(false);
-    }
-  };
-  
-  const testCustomConnection = async (credentials: DbCredentials) => {
-    try {
-      setTestingConnection(true);
-      setDetailedError(null);
-      
-      const data = await testCustomDatabaseConnection(credentials);
-      setDiagnosticInfo(data);
-      
-      if (data.status === 'success') {
-        toast({
-          title: "Conexão bem-sucedida",
-          description: "A conexão com o banco de dados foi estabelecida com sucesso usando as credenciais fornecidas.",
-        });
-        console.log('Teste de conexão personalizada bem-sucedido:', data);
-        setConnectionStatus({ 
-          status: 'online', 
-          environment: data.config || {} 
-        });
-        
-        // Ocultar o formulário após sucesso
-        setShowCredentialsForm(false);
-      } else {
-        toast({
-          title: "Falha na conexão",
-          description: data.message || "Não foi possível conectar ao banco de dados com as credenciais fornecidas.",
-          variant: "destructive",
-        });
-        console.error('Teste de conexão personalizada falhou:', data);
-        setDetailedError(JSON.stringify(data, null, 2));
-      }
-    } catch (error) {
-      console.error("Erro ao testar conexão personalizada:", error);
       toast({
         title: "Erro",
         description: "Erro ao tentar testar a conexão com o banco de dados.",
@@ -265,11 +200,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
     onSelectVehicle(mappedVehicle, foundVehicleGroup);
   };
 
-  const onCredentialsSubmit = (credentials: DbCredentials) => {
-    console.log("Testando conexão com credenciais:", credentials);
-    testCustomConnection(credentials);
-  };
-
   return (
     <div className="space-y-6 animate-fadeIn">
       {connectionStatus && connectionStatus.status !== 'online' && (
@@ -278,7 +208,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
           <AlertTitle>Atenção: Problemas de conexão com o servidor</AlertTitle>
           <AlertDescription>
             <p>A conexão com o servidor de banco de dados pode estar indisponível.</p>
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="flex gap-2 mt-2">
               <Button 
                 onClick={testDatabaseConnection} 
                 variant="outline" 
@@ -286,16 +216,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
                 disabled={testingConnection}
               >
                 {testingConnection ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
-                Testar Conexão Padrão
-              </Button>
-              
-              <Button 
-                onClick={() => setShowCredentialsForm(!showCredentialsForm)} 
-                variant="outline" 
-                size="sm"
-              >
-                <Lock className="mr-2 h-4 w-4" />
-                {showCredentialsForm ? 'Ocultar Formulário' : 'Inserir Credenciais Manualmente'}
+                Testar Conexão
               </Button>
               
               <AlertDialog>
@@ -353,100 +274,6 @@ DB_DATABASE=seu-banco-de-dados`}
                 </AlertDialogContent>
               </AlertDialog>
             </div>
-            
-            {showCredentialsForm && (
-              <div className="mt-4 p-4 border rounded-md bg-muted/30">
-                <h3 className="font-medium mb-4 flex items-center">
-                  <Server className="h-4 w-4 mr-2" />
-                  Inserir credenciais do banco de dados
-                </h3>
-                
-                <Form {...credentialsForm}>
-                  <form onSubmit={credentialsForm.handleSubmit(onCredentialsSubmit)} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={credentialsForm.control}
-                        name="server"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Servidor</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Endereço do servidor" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={credentialsForm.control}
-                        name="port"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Porta</FormLabel>
-                            <FormControl>
-                              <Input placeholder="1433" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={credentialsForm.control}
-                        name="user"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Usuário</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Nome de usuário" {...field} required />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={credentialsForm.control}
-                        name="password"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Senha</FormLabel>
-                            <FormControl>
-                              <Input type="password" placeholder="Senha" {...field} required />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={credentialsForm.control}
-                        name="database"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Banco de Dados</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Nome do banco de dados" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    
-                    <Button 
-                      type="submit" 
-                      className="w-full mt-4"
-                      disabled={testingConnection}
-                    >
-                      {testingConnection ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
-                      Testar Conexão
-                    </Button>
-                  </form>
-                </Form>
-              </div>
-            )}
           </AlertDescription>
         </Alert>
       )}
