@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,47 +11,57 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Client } from '@/lib/mock-data';
+import { CustomClient } from '@/context/QuoteContext';
 
 interface ClientFormProps {
-  formData: any;
-  setFormData: (data: any) => void;
-  existingClients: Client[];
+  formData?: any;
+  setFormData?: (data: any) => void;
+  existingClients?: Client[];
+  onClientSelect: (client: Client | CustomClient) => void;
 }
 
-const ClientForm: React.FC<ClientFormProps> = ({ formData, setFormData, existingClients }) => {
+const ClientForm: React.FC<ClientFormProps> = ({ 
+  formData, 
+  setFormData, 
+  existingClients = [], 
+  onClientSelect 
+}) => {
   const [showNewClientForm, setShowNewClientForm] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [clientData, setClientData] = useState({
+    clientName: '',
+    type: '',
+    document: '',
+    email: '',
+    responsible: ''
+  });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setClientData({ ...clientData, [name]: value });
+    if (setFormData) {
+      setFormData({ ...formData, [name]: value });
+    }
   };
 
   const handleSelectChange = (value: string) => {
-    setFormData({ ...formData, type: value });
+    setClientData({ ...clientData, type: value });
+    if (setFormData) {
+      setFormData({ ...formData, type: value });
+    }
   };
 
   useEffect(() => {
     if (selectedClient) {
-      setFormData({
-        ...formData,
-        clientId: selectedClient.id,
+      setClientData({
         clientName: selectedClient.name,
+        type: selectedClient.type,
         document: selectedClient.document,
-        email: selectedClient.email || ''
+        email: selectedClient.email || '',
+        responsible: clientData.responsible
       });
-    }
-  }, [selectedClient]);
-
-  const handleClientSelection = (clientId: string) => {
-    if (clientId === 'new') {
-      setShowNewClientForm(true);
-      setSelectedClient(null);
-    } else {
-      const selectedClient = existingClients.find(client => client.id === clientId);
-      if (selectedClient) {
-        setShowNewClientForm(false);
-        setSelectedClient(selectedClient);
+      
+      if (setFormData) {
         setFormData({
           ...formData,
           clientId: selectedClient.id,
@@ -59,8 +70,45 @@ const ClientForm: React.FC<ClientFormProps> = ({ formData, setFormData, existing
           email: selectedClient.email || ''
         });
       }
+      
+      onClientSelect(selectedClient);
+    }
+  }, [selectedClient]);
+
+  const handleClientSelection = (clientId: string) => {
+    if (clientId === 'new') {
+      setShowNewClientForm(true);
+      setSelectedClient(null);
+    } else {
+      const client = existingClients.find(client => client.id === clientId);
+      if (client) {
+        setShowNewClientForm(false);
+        setSelectedClient(client);
+      }
     }
   };
+
+  const handleSubmitNewClient = () => {
+    if (!clientData.clientName || !clientData.document) {
+      return; // Validação básica
+    }
+    
+    const newClient: CustomClient = {
+      id: `new-${Date.now()}`,
+      name: clientData.clientName,
+      type: clientData.type as 'PF' | 'PJ',
+      document: clientData.document,
+      email: clientData.email
+    };
+    
+    onClientSelect(newClient);
+  };
+
+  useEffect(() => {
+    if (showNewClientForm && clientData.clientName && clientData.document) {
+      handleSubmitNewClient();
+    }
+  }, [clientData.clientName, clientData.document, clientData.email, clientData.type]);
 
   return (
     <>
@@ -90,7 +138,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ formData, setFormData, existing
                 type="text"
                 id="clientName"
                 name="clientName"
-                value={formData.clientName}
+                value={clientData.clientName}
                 onChange={handleInputChange}
                 placeholder="Nome do cliente"
               />
@@ -115,7 +163,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ formData, setFormData, existing
                 type="text"
                 id="document"
                 name="document"
-                value={formData.document}
+                value={clientData.document}
                 onChange={handleInputChange}
                 placeholder="CPF/CNPJ"
               />
@@ -127,7 +175,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ formData, setFormData, existing
                 type="email"
                 id="email"
                 name="email"
-                value={formData.email}
+                value={clientData.email}
                 onChange={handleInputChange}
                 placeholder="Email do cliente"
               />

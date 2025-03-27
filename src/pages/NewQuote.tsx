@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Info, Users, Car, Wrench, Calculator, Plus, Trash2, Settings } from 'lucide-react';
@@ -116,7 +117,7 @@ const QuoteForm = () => {
 
   const renderClientStep = () => (
     <div className="space-y-6 animate-fadeIn">
-      <ClientForm onClientSelect={setClient} />
+      <ClientForm onClientSelect={setClient} existingClients={clients} />
     </div>
   );
 
