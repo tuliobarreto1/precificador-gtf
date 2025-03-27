@@ -10,14 +10,44 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { quotes, getClientById, getVehicleById, getVehicleGroupById } from '@/lib/mock-data';
 import { calculateExtraKmRate, getGlobalParams } from '@/lib/calculation';
+import { SavedQuote } from '@/context/QuoteContext';
+
+// Função para verificar se é um orçamento salvo
+const isSavedQuote = (quote: any): quote is SavedQuote => {
+  return 'clientName' in quote && 'vehicleBrand' in quote && 'vehicleModel' in quote;
+};
 
 const QuoteDetail = () => {
   const { id } = useParams<{ id: string }>();
   
-  // Find the quote by ID
-  const quote = quotes.find(q => q.id === id);
+  // Buscar orçamentos salvos do localStorage
+  const getSavedQuotes = (): SavedQuote[] => {
+    const storedQuotes = localStorage.getItem('savedQuotes');
+    if (storedQuotes) {
+      try {
+        return JSON.parse(storedQuotes);
+      } catch (error) {
+        console.error('Erro ao carregar orçamentos salvos:', error);
+      }
+    }
+    return [];
+  };
   
-  // If quote not found, display error message
+  // Buscar orçamento por ID (tanto mockados quanto salvos)
+  const findQuoteById = (quoteId: string) => {
+    // Primeiro buscar nos orçamentos mockados
+    const mockQuote = quotes.find(q => q.id === quoteId);
+    if (mockQuote) return mockQuote;
+    
+    // Se não encontrar, buscar nos salvos
+    const savedQuotes = getSavedQuotes();
+    return savedQuotes.find(q => q.id === quoteId);
+  };
+  
+  // Encontrar o orçamento pelo ID
+  const quote = id ? findQuoteById(id) : null;
+  
+  // Se orçamento não encontrado, exibir mensagem de erro
   if (!quote) {
     return (
       <MainLayout>
@@ -32,18 +62,74 @@ const QuoteDetail = () => {
     );
   }
   
-  // Get associated data
-  const client = getClientById(quote.clientId);
-  const vehicle = getVehicleById(quote.vehicleId);
-  const vehicleGroup = vehicle ? getVehicleGroupById(vehicle.groupId) : undefined;
+  // Definir variáveis com base no tipo de orçamento
+  const isSaved = isSavedQuote(quote);
   
-  // Get global parameters
+  // Obter dados relacionados
+  let client, vehicle, vehicleGroup;
+  
+  if (isSaved) {
+    // Para orçamentos salvos, usar os dados do próprio objeto
+    client = {
+      name: quote.clientName,
+      document: '', // Podemos não ter essa informação no SavedQuote
+      type: 'PJ', // Valor padrão, pode não ser preciso
+      email: ''
+    };
+    
+    // Para o veículo, usamos o primeiro da lista (se existir vários)
+    const firstVehicle = quote.vehicles[0];
+    if (firstVehicle) {
+      vehicle = {
+        id: firstVehicle.vehicleId,
+        brand: firstVehicle.vehicleBrand,
+        model: firstVehicle.vehicleModel,
+        plateNumber: firstVehicle.plateNumber,
+        year: '', // Pode não estar disponível
+        value: 0, // Valor não disponível diretamente, mas podemos calculá-lo
+        groupId: firstVehicle.groupId
+      };
+      
+      // Obter o grupo do veículo
+      vehicleGroup = getVehicleGroupById(firstVehicle.groupId);
+    }
+  } else {
+    // Para orçamentos mockados, buscar dados relacionados
+    client = getClientById(quote.clientId);
+    vehicle = getVehicleById(quote.vehicleId);
+    vehicleGroup = vehicle ? getVehicleGroupById(vehicle.groupId) : undefined;
+  }
+  
+  // Obter parâmetros globais
   const globalParams = getGlobalParams();
   
-  // Calculate additional data
-  const extraKmRate = vehicle ? calculateExtraKmRate(vehicle.value) : 0;
+  // Calcular dados adicionais
+  let extraKmRate = 0;
+  if (isSaved) {
+    // Usar o valor armazenado no orçamento salvo
+    const firstVehicle = quote.vehicles[0];
+    if (firstVehicle) {
+      extraKmRate = firstVehicle.extraKmRate;
+    }
+  } else if (vehicle) {
+    // Calcular para orçamentos mockados
+    extraKmRate = calculateExtraKmRate(vehicle.value);
+  }
+  
   const createdDate = new Date(quote.createdAt).toLocaleDateString('pt-BR');
   const totalKm = quote.monthlyKm * quote.contractMonths;
+  
+  // Calcular custos específicos (para orçamentos salvos, alguns podem não estar disponíveis)
+  const depreciationCost = isSaved && quote.vehicles[0] ? quote.vehicles[0].depreciationCost : (quote.depreciationCost || 0);
+  const maintenanceCost = isSaved && quote.vehicles[0] ? quote.vehicles[0].maintenanceCost : (quote.maintenanceCost || 0);
+  const trackingCost = isSaved ? 0 : (quote.trackingCost || 0); // Pode não estar disponível para orçamentos salvos
+  const costPerKm = isSaved ? (totalKm > 0 ? quote.totalCost / totalKm : 0) : (quote.costPerKm || 0);
+
+  // Cálculo das porcentagens dos componentes de custo
+  const totalCost = quote.totalCost;
+  const depreciationPercentage = totalCost > 0 ? ((depreciationCost / totalCost) * 100).toFixed(1) : "0";
+  const maintenancePercentage = totalCost > 0 ? ((maintenanceCost / totalCost) * 100).toFixed(1) : "0";
+  const trackingPercentage = totalCost > 0 ? ((trackingCost / totalCost) * 100).toFixed(1) : "0";
   
   return (
     <MainLayout>
@@ -94,16 +180,20 @@ const QuoteDetail = () => {
                     <span className="text-muted-foreground">Nome</span>
                     <span className="font-medium">{client?.name}</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Documento</span>
-                    <span>{client?.document}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Tipo</span>
-                    <Badge variant="outline">
-                      {client?.type === 'PJ' ? 'Pessoa Jurídica' : 'Pessoa Física'}
-                    </Badge>
-                  </div>
+                  {client?.document && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Documento</span>
+                      <span>{client.document}</span>
+                    </div>
+                  )}
+                  {!isSaved && client?.type && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Tipo</span>
+                      <Badge variant="outline">
+                        {client.type === 'PJ' ? 'Pessoa Jurídica' : 'Pessoa Física'}
+                      </Badge>
+                    </div>
+                  )}
                   {client?.email && (
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Email</span>
@@ -120,18 +210,29 @@ const QuoteDetail = () => {
                     <span className="text-muted-foreground">Modelo</span>
                     <span className="font-medium">{vehicle?.brand} {vehicle?.model}</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Ano</span>
-                    <span>{vehicle?.year}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Grupo</span>
-                    <Badge variant="outline">{vehicleGroup?.name}</Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Valor</span>
-                    <span>R$ {vehicle?.value.toLocaleString('pt-BR')}</span>
-                  </div>
+                  {vehicle?.year && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Ano</span>
+                      <span>{vehicle.year}</span>
+                    </div>
+                  )}
+                  {vehicleGroup && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Grupo</span>
+                      <Badge variant="outline">{vehicleGroup.name}</Badge>
+                    </div>
+                  )}
+                  {isSaved ? (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Veículos</span>
+                      <span>{quote.vehicles.length}</span>
+                    </div>
+                  ) : vehicle?.value ? (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Valor</span>
+                      <span>R$ {vehicle.value.toLocaleString('pt-BR')}</span>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -165,14 +266,18 @@ const QuoteDetail = () => {
                   <span className="text-sm text-muted-foreground">Km Total</span>
                   <span className="font-medium">{totalKm.toLocaleString('pt-BR')} km</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Nível de Operação</span>
-                  <span className="font-medium">{quote.operationSeverity}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Rastreamento</span>
-                  <span className="font-medium">{quote.hasTracking ? 'Sim' : 'Não'}</span>
-                </div>
+                {!isSaved && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Nível de Operação</span>
+                      <span className="font-medium">{quote.operationSeverity}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Rastreamento</span>
+                      <span className="font-medium">{quote.hasTracking ? 'Sim' : 'Não'}</span>
+                    </div>
+                  </>
+                )}
               </div>
               
               <div className="pt-4 mt-4 border-t">
@@ -193,9 +298,9 @@ const QuoteDetail = () => {
                   <div className="p-4 border rounded-md bg-muted/10">
                     <div className="flex flex-col">
                       <span className="text-muted-foreground text-sm">Depreciação</span>
-                      <span className="text-xl font-bold mt-1">R$ {quote.depreciationCost.toLocaleString('pt-BR')}</span>
+                      <span className="text-xl font-bold mt-1">R$ {depreciationCost.toLocaleString('pt-BR')}</span>
                       <span className="text-xs text-muted-foreground mt-1">
-                        {((quote.depreciationCost / quote.totalCost) * 100).toFixed(1)}% do valor total
+                        {depreciationPercentage}% do valor total
                       </span>
                     </div>
                   </div>
@@ -203,27 +308,29 @@ const QuoteDetail = () => {
                   <div className="p-4 border rounded-md bg-muted/10">
                     <div className="flex flex-col">
                       <span className="text-muted-foreground text-sm">Manutenção</span>
-                      <span className="text-xl font-bold mt-1">R$ {quote.maintenanceCost.toLocaleString('pt-BR')}</span>
+                      <span className="text-xl font-bold mt-1">R$ {maintenanceCost.toLocaleString('pt-BR')}</span>
                       <span className="text-xs text-muted-foreground mt-1">
-                        {((quote.maintenanceCost / quote.totalCost) * 100).toFixed(1)}% do valor total
+                        {maintenancePercentage}% do valor total
                       </span>
                     </div>
                   </div>
                   
-                  <div className="p-4 border rounded-md bg-muted/10">
-                    <div className="flex flex-col">
-                      <span className="text-muted-foreground text-sm">Rastreamento</span>
-                      <span className="text-xl font-bold mt-1">R$ {quote.trackingCost.toLocaleString('pt-BR')}</span>
-                      <span className="text-xs text-muted-foreground mt-1">
-                        {((quote.trackingCost / quote.totalCost) * 100).toFixed(1)}% do valor total
-                      </span>
+                  {!isSaved && (
+                    <div className="p-4 border rounded-md bg-muted/10">
+                      <div className="flex flex-col">
+                        <span className="text-muted-foreground text-sm">Rastreamento</span>
+                        <span className="text-xl font-bold mt-1">R$ {trackingCost.toLocaleString('pt-BR')}</span>
+                        <span className="text-xs text-muted-foreground mt-1">
+                          {trackingPercentage}% do valor total
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                   
                   <div className="p-4 border rounded-md bg-muted/10">
                     <div className="flex flex-col">
                       <span className="text-muted-foreground text-sm">Custo por KM</span>
-                      <span className="text-xl font-bold mt-1">R$ {quote.costPerKm.toFixed(2)}</span>
+                      <span className="text-xl font-bold mt-1">R$ {costPerKm.toFixed(2)}</span>
                       <span className="text-xs text-muted-foreground mt-1">
                         Baseado na quilometragem contratada
                       </span>
@@ -231,34 +338,32 @@ const QuoteDetail = () => {
                   </div>
                 </div>
                 
-                <div className="mt-8">
-                  <h3 className="font-medium mb-4">Parâmetros de Manutenção</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {vehicleGroup && (
-                      <>
-                        <div className="p-4 border rounded-md">
-                          <span className="text-muted-foreground text-sm">Intervalo de Revisão</span>
-                          <p className="font-medium">{vehicleGroup.revisionKm.toLocaleString('pt-BR')} km</p>
-                        </div>
-                        
-                        <div className="p-4 border rounded-md">
-                          <span className="text-muted-foreground text-sm">Custo por Revisão</span>
-                          <p className="font-medium">R$ {vehicleGroup.revisionCost.toLocaleString('pt-BR')}</p>
-                        </div>
-                        
-                        <div className="p-4 border rounded-md">
-                          <span className="text-muted-foreground text-sm">Intervalo de Troca de Pneus</span>
-                          <p className="font-medium">{vehicleGroup.tireKm.toLocaleString('pt-BR')} km</p>
-                        </div>
-                        
-                        <div className="p-4 border rounded-md">
-                          <span className="text-muted-foreground text-sm">Custo de Troca de Pneus</span>
-                          <p className="font-medium">R$ {vehicleGroup.tireCost.toLocaleString('pt-BR')}</p>
-                        </div>
-                      </>
-                    )}
+                {vehicleGroup && (
+                  <div className="mt-8">
+                    <h3 className="font-medium mb-4">Parâmetros de Manutenção</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="p-4 border rounded-md">
+                        <span className="text-muted-foreground text-sm">Intervalo de Revisão</span>
+                        <p className="font-medium">{vehicleGroup.revisionKm.toLocaleString('pt-BR')} km</p>
+                      </div>
+                      
+                      <div className="p-4 border rounded-md">
+                        <span className="text-muted-foreground text-sm">Custo por Revisão</span>
+                        <p className="font-medium">R$ {vehicleGroup.revisionCost.toLocaleString('pt-BR')}</p>
+                      </div>
+                      
+                      <div className="p-4 border rounded-md">
+                        <span className="text-muted-foreground text-sm">Intervalo de Troca de Pneus</span>
+                        <p className="font-medium">{vehicleGroup.tireKm.toLocaleString('pt-BR')} km</p>
+                      </div>
+                      
+                      <div className="p-4 border rounded-md">
+                        <span className="text-muted-foreground text-sm">Custo de Troca de Pneus</span>
+                        <p className="font-medium">R$ {vehicleGroup.tireCost.toLocaleString('pt-BR')}</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </Card>
