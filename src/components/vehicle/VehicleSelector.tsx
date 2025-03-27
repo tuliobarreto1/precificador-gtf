@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { ArrowRight, Car, Search, Loader2 } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -43,8 +44,10 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
 
     setIsSearching(true);
     setSearchError(null);
+    setFoundVehicle(null);
     
     try {
+      // Usar a função de busca real do SQL
       const vehicle = await searchVehicleByPlate(plateNumber);
       setFoundVehicle(vehicle);
       
@@ -55,9 +58,14 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({ onSelectVehicle, sele
           description: `Nenhum veículo encontrado com a placa ${plateNumber}.`,
           variant: "destructive",
         });
+      } else {
+        toast({
+          title: "Veículo encontrado",
+          description: `Veículo ${vehicle.DescricaoModelo} encontrado com sucesso.`,
+        });
       }
     } catch (error) {
-      console.error("Error searching vehicle:", error);
+      console.error("Erro ao buscar veículo:", error);
       setSearchError("Erro ao buscar veículo");
     } finally {
       setIsSearching(false);

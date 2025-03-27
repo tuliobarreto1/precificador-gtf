@@ -1,6 +1,7 @@
+
 import { toast } from '@/hooks/use-toast';
 
-// SQL Vehicle interface (keeping the same structure)
+// SQL Vehicle interface
 export interface SqlVehicle {
   Placa: string;
   DescricaoModelo: string;
@@ -12,8 +13,51 @@ export interface SqlVehicle {
   LetraGrupo: string;
 }
 
-// Mock database with some example vehicles
-const mockVehicles: SqlVehicle[] = [
+// Função para determinar qual API usar (proxy local em desenvolvimento, API real em produção)
+const getApiUrl = () => {
+  const isDev = import.meta.env.MODE === 'development';
+  return isDev ? 'http://localhost:3001/api' : '/api';
+};
+
+// Função para buscar veículo por placa
+export const searchVehicleByPlate = async (plate: string): Promise<SqlVehicle | null> => {
+  try {
+    console.log(`Buscando veículo com placa: ${plate}`);
+    
+    // Fazer requisição para a API
+    const response = await fetch(`${getApiUrl()}/vehicles/${plate}`);
+    
+    // Verificar se a resposta foi bem-sucedida
+    if (!response.ok) {
+      // Se o status for 404, o veículo não foi encontrado
+      if (response.status === 404) {
+        console.log('Nenhum veículo encontrado com placa:', plate);
+        return null;
+      }
+      
+      // Para outros erros, lançar exceção
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Erro ao buscar veículo');
+    }
+    
+    // Converter a resposta para JSON
+    const vehicle = await response.json() as SqlVehicle;
+    console.log('Veículo encontrado:', vehicle);
+    return vehicle;
+  } catch (error) {
+    console.error('Erro ao buscar veículo:', error);
+    toast({
+      title: "Erro na busca",
+      description: "Não foi possível buscar o veículo. " + (error instanceof Error ? error.message : ''),
+      variant: "destructive"
+    });
+    return null;
+  }
+};
+
+// Mock database com alguns veículos de exemplo para desenvolvimento e testes
+// Isso será usado apenas como fallback se a API estiver indisponível
+export const mockVehicles: SqlVehicle[] = [
   {
     Placa: 'ABC1234',
     DescricaoModelo: 'TOYOTA COROLLA',
@@ -66,33 +110,28 @@ const mockVehicles: SqlVehicle[] = [
   }
 ];
 
-// Function to search a vehicle by plate
-export const searchVehicleByPlate = async (plate: string): Promise<SqlVehicle | null> => {
+// Função de fallback para desenvolvimento e testes
+export const searchVehicleByPlateMock = async (plate: string): Promise<SqlVehicle | null> => {
   try {
-    console.log(`Searching for vehicle with plate: ${plate}`);
+    console.log(`Buscando veículo mock com placa: ${plate}`);
     
-    // Simulate API delay
+    // Simular atraso de API
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Case insensitive search
+    // Busca case insensitive
     const vehicle = mockVehicles.find(v => 
       v.Placa.toLowerCase() === plate.toLowerCase()
     );
     
     if (vehicle) {
-      console.log('Vehicle found:', vehicle);
+      console.log('Veículo mock encontrado:', vehicle);
       return vehicle;
     }
     
-    console.log('No vehicle found with plate:', plate);
+    console.log('Nenhum veículo mock encontrado com placa:', plate);
     return null;
   } catch (error) {
-    console.error('Error searching for vehicle:', error);
-    toast({
-      title: "Erro na busca",
-      description: "Não foi possível buscar o veículo. " + (error instanceof Error ? error.message : ''),
-      variant: "destructive"
-    });
+    console.error('Erro na busca mock:', error);
     return null;
   }
 };

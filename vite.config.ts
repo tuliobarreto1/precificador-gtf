@@ -1,22 +1,31 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
-import path from "path";
-import { componentTagger } from "lovable-tagger";
+
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-  server: {
-    host: "::",
-    port: 8080,
-  },
-  plugins: [
-    react(),
-    mode === 'development' &&
-    componentTagger(),
-  ].filter(Boolean),
+export default defineConfig({
+  plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      '@': path.resolve(__dirname, './src'),
     },
   },
-}));
+  define: {
+    // Garantir que as variáveis de ambiente estejam disponíveis
+    'process.env.VITE_DB_SERVER': JSON.stringify(process.env.VITE_DB_SERVER),
+    'process.env.VITE_DB_PORT': JSON.stringify(process.env.VITE_DB_PORT),
+    'process.env.VITE_DB_USER': JSON.stringify(process.env.VITE_DB_USER),
+    'process.env.VITE_DB_PASSWORD': JSON.stringify(process.env.VITE_DB_PASSWORD),
+    'process.env.VITE_DB_DATABASE': JSON.stringify(process.env.VITE_DB_DATABASE),
+  },
+  server: {
+    proxy: {
+      // Configuração de proxy para desenvolvimento
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      }
+    }
+  }
+})
