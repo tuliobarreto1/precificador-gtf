@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FileText, Search, Filter, Calendar, ArrowUpDown } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
@@ -8,25 +8,56 @@ import Card from '@/components/ui-custom/Card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { quotes, getClientById, getVehicleById } from '@/lib/mock-data';
+import { SavedQuote } from '@/context/QuoteContext';
 
 const Quotes = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<'date' | 'value'>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
+  
+  // Carregar orçamentos salvos do localStorage
+  useEffect(() => {
+    const storedQuotes = localStorage.getItem('savedQuotes');
+    if (storedQuotes) {
+      try {
+        const parsedQuotes = JSON.parse(storedQuotes);
+        setSavedQuotes(parsedQuotes);
+      } catch (error) {
+        console.error('Erro ao carregar orçamentos salvos:', error);
+      }
+    }
+  }, []);
+  
+  // Combinar os orçamentos mockados com os salvos
+  const allQuotes = [...savedQuotes, ...quotes];
   
   // Filter and sort quotes
-  const filteredQuotes = quotes
+  const filteredQuotes = allQuotes
     .filter(quote => {
       if (!searchTerm) return true;
       
-      const client = getClientById(quote.clientId);
-      const vehicle = getVehicleById(quote.vehicleId);
       const searchLower = searchTerm.toLowerCase();
       
+      // Para orçamentos mockados
+      if ('clientId' in quote && typeof quote.clientId === 'string') {
+        const client = getClientById(quote.clientId);
+        const vehicle = getVehicleById(quote.vehicleId);
+        
+        return (
+          (client?.name.toLowerCase().includes(searchLower) || false) ||
+          (vehicle?.model.toLowerCase().includes(searchLower) || false) ||
+          (vehicle?.brand.toLowerCase().includes(searchLower) || false) ||
+          `${quote.contractMonths} meses`.includes(searchLower) ||
+          `${quote.monthlyKm} km`.includes(searchLower)
+        );
+      }
+      
+      // Para orçamentos salvos
       return (
-        client?.name.toLowerCase().includes(searchLower) ||
-        vehicle?.model.toLowerCase().includes(searchLower) ||
-        vehicle?.brand.toLowerCase().includes(searchLower) ||
+        quote.clientName.toLowerCase().includes(searchLower) ||
+        quote.vehicleBrand.toLowerCase().includes(searchLower) ||
+        quote.vehicleModel.toLowerCase().includes(searchLower) ||
         `${quote.contractMonths} meses`.includes(searchLower) ||
         `${quote.monthlyKm} km`.includes(searchLower)
       );
@@ -116,9 +147,7 @@ const Quotes = () => {
             </div>
           ) : (
             filteredQuotes.map(quote => {
-              const client = getClientById(quote.clientId);
-              const vehicle = getVehicleById(quote.vehicleId);
-              
+              // Renderização para orçamentos salvos
               return (
                 <Link key={quote.id} to={`/orcamento/${quote.id}`}>
                   <Card className="hover:shadow-md transition-shadow">
@@ -131,13 +160,16 @@ const Quotes = () => {
                         <div>
                           <h3 className="font-medium">Orçamento #{quote.id}</h3>
                           <p className="text-sm text-muted-foreground">
-                            {client?.name} • {new Date(quote.createdAt).toLocaleDateString('pt-BR')}
+                            {'clientName' in quote ? quote.clientName : getClientById(quote.clientId)?.name} • {new Date(quote.createdAt).toLocaleDateString('pt-BR')}
                           </p>
                           
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
                             <p className="text-sm">
                               <span className="text-muted-foreground">Veículo:</span>{' '}
-                              {vehicle?.brand} {vehicle?.model}
+                              {'vehicleBrand' in quote 
+                                ? `${quote.vehicleBrand} ${quote.vehicleModel}`
+                                : `${getVehicleById(quote.vehicleId)?.brand} ${getVehicleById(quote.vehicleId)?.model}`
+                              }
                             </p>
                             <p className="text-sm">
                               <span className="text-muted-foreground">Prazo:</span>{' '}
@@ -147,6 +179,13 @@ const Quotes = () => {
                               <span className="text-muted-foreground">Km:</span>{' '}
                               {quote.monthlyKm}/mês
                             </p>
+                            
+                            {'vehicles' in quote && quote.vehicles.length > 1 && (
+                              <p className="text-sm">
+                                <span className="text-muted-foreground">Veículos:</span>{' '}
+                                {quote.vehicles.length}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>

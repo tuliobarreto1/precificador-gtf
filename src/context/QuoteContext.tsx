@@ -1,5 +1,4 @@
-
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Vehicle, Client, VehicleGroup, getVehicleGroupById } from '@/lib/mock-data';
 import { DepreciationParams, MaintenanceParams, calculateLeaseCost, calculateExtraKmRate } from '@/lib/calculation';
 
@@ -39,6 +38,31 @@ export type VehicleQuoteResult = {
   extraKmRate: number;
 };
 
+// Interface para orçamentos salvos
+export type SavedQuote = {
+  id: string;
+  clientId: string;
+  clientName: string;
+  vehicleId: string;
+  vehicleBrand: string;
+  vehicleModel: string;
+  contractMonths: number;
+  monthlyKm: number;
+  totalCost: number;
+  createdAt: string;
+  vehicles: {
+    vehicleId: string;
+    vehicleBrand: string;
+    vehicleModel: string;
+    plateNumber?: string;
+    groupId: string;
+    totalCost: number;
+    depreciationCost: number;
+    maintenanceCost: number;
+    extraKmRate: number;
+  }[];
+};
+
 // Context type
 type QuoteContextType = {
   quoteForm: QuoteFormData;
@@ -64,6 +88,9 @@ type QuoteContextType = {
     vehicleResults: VehicleQuoteResult[];
     totalCost: number;
   } | null;
+  savedQuotes: SavedQuote[];
+  saveQuote: () => void;
+  getSavedQuotes: () => SavedQuote[];
 };
 
 // Create context
@@ -82,9 +109,26 @@ const initialQuoteForm: QuoteFormData = {
   },
 };
 
+// Local Storage key
+const SAVED_QUOTES_KEY = 'savedQuotes';
+
 // Provider component
 export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   const [quoteForm, setQuoteForm] = useState<QuoteFormData>(initialQuoteForm);
+  const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
+
+  // Carregar cotações salvas do localStorage na inicialização
+  useEffect(() => {
+    const storedQuotes = localStorage.getItem(SAVED_QUOTES_KEY);
+    if (storedQuotes) {
+      try {
+        const parsedQuotes = JSON.parse(storedQuotes);
+        setSavedQuotes(parsedQuotes);
+      } catch (error) {
+        console.error('Erro ao carregar cotações salvas:', error);
+      }
+    }
+  }, []);
 
   // Update functions
   const setClient = (client: Client | null) => {
@@ -217,6 +261,61 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     };
   };
 
+  // Função para salvar um orçamento
+  const saveQuote = () => {
+    const quoteResult = calculateQuote();
+    if (!quoteForm.client || !quoteResult || quoteForm.vehicles.length === 0) {
+      return;
+    }
+
+    // Criar um ID único baseado no timestamp
+    const newId = Date.now().toString();
+    
+    // Criar o objeto de orçamento salvo
+    const newSavedQuote: SavedQuote = {
+      id: newId,
+      clientId: quoteForm.client.id,
+      clientName: quoteForm.client.name,
+      vehicleId: quoteForm.vehicles[0].vehicle.id, // Para compatibilidade com o formato atual
+      vehicleBrand: quoteForm.vehicles[0].vehicle.brand,
+      vehicleModel: quoteForm.vehicles[0].vehicle.model,
+      contractMonths: quoteForm.globalParams.contractMonths,
+      monthlyKm: quoteForm.globalParams.monthlyKm,
+      totalCost: quoteResult.totalCost,
+      createdAt: new Date().toISOString(),
+      vehicles: quoteResult.vehicleResults.map((result, index) => {
+        const vehicle = quoteForm.vehicles.find(v => v.vehicle.id === result.vehicleId);
+        if (!vehicle) {
+          throw new Error(`Veículo não encontrado: ${result.vehicleId}`);
+        }
+        
+        return {
+          vehicleId: vehicle.vehicle.id,
+          vehicleBrand: vehicle.vehicle.brand,
+          vehicleModel: vehicle.vehicle.model,
+          plateNumber: vehicle.vehicle.plateNumber,
+          groupId: vehicle.vehicleGroup.id,
+          totalCost: result.totalCost,
+          depreciationCost: result.depreciationCost,
+          maintenanceCost: result.maintenanceCost,
+          extraKmRate: result.extraKmRate,
+        };
+      }),
+    };
+
+    // Atualizar o estado e o localStorage
+    const updatedQuotes = [newSavedQuote, ...savedQuotes];
+    setSavedQuotes(updatedQuotes);
+    localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
+    
+    return newSavedQuote;
+  };
+
+  // Função para obter orçamentos salvos
+  const getSavedQuotes = () => {
+    return savedQuotes;
+  };
+
   return (
     <QuoteContext.Provider value={{
       quoteForm,
@@ -231,6 +330,9 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       setVehicleParams,
       resetForm,
       calculateQuote,
+      savedQuotes,
+      saveQuote,
+      getSavedQuotes,
     }}>
       {children}
     </QuoteContext.Provider>

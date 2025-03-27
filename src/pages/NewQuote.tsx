@@ -39,7 +39,8 @@ const QuoteForm = () => {
     setGlobalHasTracking, 
     setUseGlobalParams,
     setVehicleParams,
-    calculateQuote 
+    calculateQuote,
+    saveQuote
   } = useQuote();
 
   const goToNextStep = () => {
@@ -71,11 +72,20 @@ const QuoteForm = () => {
         setCurrentStep('result');
         break;
       case 'result':
-        toast({
-          title: "Orçamento salvo",
-          description: "Seu orçamento foi salvo com sucesso."
-        });
-        navigate('/orcamentos');
+        const savedQuote = saveQuote();
+        if (savedQuote) {
+          toast({
+            title: "Orçamento salvo",
+            description: "Seu orçamento foi salvo com sucesso."
+          });
+          navigate('/orcamentos');
+        } else {
+          toast({
+            title: "Erro ao salvar",
+            description: "Houve um problema ao salvar o orçamento.",
+            variant: "destructive"
+          });
+        }
         break;
     }
   };
