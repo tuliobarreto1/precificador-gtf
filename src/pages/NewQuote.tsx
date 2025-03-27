@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Info, Users, Car, Wrench, Calculator, Plus, Trash2, Settings } from 'lucide-react';
@@ -59,6 +60,7 @@ const QuoteForm = () => {
         
         if (success) {
           console.log('Orçamento carregado com sucesso:', quoteForm);
+          // Modificação: iniciar na etapa de veículos em vez de cliente
           setCurrentStep('vehicle');
           
           toast({
@@ -124,7 +126,10 @@ const QuoteForm = () => {
           });
           return;
         }
-        setSelectedVehicleTab(quoteForm.vehicles[0].vehicle.id);
+        // Garantir que o primeiro veículo seja selecionado na aba
+        if (quoteForm.vehicles.length > 0) {
+          setSelectedVehicleTab(quoteForm.vehicles[0].vehicle.id);
+        }
         setCurrentStep('params');
         break;
       case 'params':
@@ -581,7 +586,10 @@ const QuoteForm = () => {
           </div>
           
           <div className="min-h-[400px]">
-            {renderStepContent()}
+            {currentStep === 'client' && renderClientStep()}
+            {currentStep === 'vehicle' && renderVehicleStep()}
+            {currentStep === 'params' && renderParamsStep()}
+            {currentStep === 'result' && renderResultStep()}
           </div>
           
           <div className="flex justify-between pt-6 border-t">
@@ -593,7 +601,7 @@ const QuoteForm = () => {
               Voltar
             </Button>
             <Button onClick={goToNextStep}>
-              {currentStep === 'result' ? (isEditMode ? 'Atualizar Orçamento' : 'Salvar Orçamento') : 'Continuar'}
+              {currentStep === 'result' ? (isEditMode ? "Atualizar Orçamento" : "Salvar Orçamento") : "Continuar"}
             </Button>
           </div>
         </>
