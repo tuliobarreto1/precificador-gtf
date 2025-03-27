@@ -11,7 +11,7 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: localStorage,
+    storage: typeof localStorage !== 'undefined' ? localStorage : undefined,
     persistSession: true,
     autoRefreshToken: true
   }
@@ -20,11 +20,103 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 // Função para verificar a conexão com o Supabase
 export async function checkSupabaseConnection() {
   try {
+    console.log('Verificando conexão com o Supabase...');
     const { data, error } = await supabase.from('vehicle_groups').select('id').limit(1);
-    if (error) throw error;
+    
+    if (error) {
+      console.error('Erro ao conectar ao Supabase:', error);
+      throw error;
+    }
+    
+    console.log('Conexão com o Supabase estabelecida com sucesso:', data);
     return { success: true, data };
   } catch (error) {
     console.error('Erro ao conectar ao Supabase:', error);
+    return { success: false, error };
+  }
+}
+
+// Função para salvar orçamento no Supabase
+export async function saveQuoteToSupabase(quote: any) {
+  try {
+    console.log('Tentando salvar orçamento no Supabase:', quote);
+    
+    // Verifica se o orçamento já tem id (atualização) ou é um novo
+    if (quote.id) {
+      // Atualizar orçamento existente
+      const { data, error } = await supabase
+        .from('quotes')
+        .update({
+          client_id: quote.clientId,
+          contract_months: quote.contractMonths,
+          monthly_km: quote.monthlyKm,
+          operation_severity: quote.operationSeverity,
+          has_tracking: quote.hasTracking,
+          total_value: quote.totalCost || 0,
+          status: 'active',
+          title: `Orçamento ${new Date().toLocaleDateString('pt-BR')}`
+        })
+        .eq('id', quote.id)
+        .select();
+      
+      if (error) {
+        console.error('Erro ao atualizar orçamento no Supabase:', error);
+        return { success: false, error };
+      }
+      
+      console.log('Orçamento atualizado com sucesso:', data);
+      return { success: true, data };
+    } else {
+      // Criar novo orçamento
+      const { data, error } = await supabase
+        .from('quotes')
+        .insert({
+          client_id: quote.clientId,
+          contract_months: quote.contractMonths,
+          monthly_km: quote.monthlyKm,
+          operation_severity: quote.operationSeverity || 3,
+          has_tracking: quote.hasTracking || false,
+          total_value: quote.totalCost || 0,
+          status: 'active',
+          title: `Orçamento ${new Date().toLocaleDateString('pt-BR')}`
+        })
+        .select();
+      
+      if (error) {
+        console.error('Erro ao inserir orçamento no Supabase:', error);
+        return { success: false, error };
+      }
+      
+      if (data && data[0] && quote.vehicles && quote.vehicles.length > 0) {
+        // Salvar os itens do orçamento
+        const quoteId = data[0].id;
+        
+        // Preparar os itens para inserção
+        const quoteItems = quote.vehicles.map(item => ({
+          quote_id: quoteId,
+          vehicle_id: item.vehicleId,
+          monthly_value: item.totalCost || 0,
+          contract_months: quote.contractMonths,
+          monthly_km: quote.monthlyKm,
+          operation_severity: quote.operationSeverity || 3,
+          has_tracking: quote.hasTracking || false
+        }));
+        
+        const { error: itemsError } = await supabase
+          .from('quote_items')
+          .insert(quoteItems);
+          
+        if (itemsError) {
+          console.error('Erro ao inserir itens do orçamento:', itemsError);
+          // Não falharemos todo o processo se apenas os itens falharem
+        }
+      }
+      
+      console.log('Orçamento salvo com sucesso:', data);
+      return { success: true, data };
+    }
+  } catch (error) {
+    console.error('Erro inesperado ao salvar orçamento:', error);
     return { success: false, error };
   }
 }

@@ -537,6 +537,25 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       trackingCost: quoteResult.vehicleResults[0].trackingCost,
     };
 
+    // Também salvar no Supabase
+    try {
+      import('@/integrations/supabase/client').then(({ saveQuoteToSupabase }) => {
+        console.log('Tentando salvar orçamento no Supabase...');
+        saveQuoteToSupabase(newSavedQuote).then(result => {
+          if (result.success) {
+            console.log('Orçamento salvo no Supabase com sucesso!', result.data);
+          } else {
+            console.error('Falha ao salvar orçamento no Supabase:', result.error);
+          }
+        });
+      }).catch(err => {
+        console.error('Erro ao importar função do Supabase:', err);
+      });
+    } catch (error) {
+      console.error('Erro ao tentar salvar no Supabase:', error);
+      // Continuar salvando localmente mesmo se falhar no Supabase
+    }
+
     // Atualizar o estado e o localStorage
     const updatedQuotes = [newSavedQuote, ...savedQuotes];
     setSavedQuotes(updatedQuotes);
@@ -544,7 +563,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     // Salvar no localStorage com tratamento de erro
     try {
       localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
-      console.log('Orçamento salvo com sucesso:', newSavedQuote);
+      console.log('Orçamento salvo com sucesso no localStorage:', newSavedQuote);
       console.log('Total de orçamentos salvos:', updatedQuotes.length);
     } catch (error) {
       console.error('Erro ao salvar no localStorage:', error);
@@ -773,7 +792,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
         
         const vehicleGroup = getVehicleGroupById(vehicleItem.groupId);
         if (!vehicleGroup) {
-          console.warn(`⚠️ Grupo de veículo não encontrado: ${vehicleItem.groupId}`);
+          console.warn(`⚠️ Grupo de ve��culo não encontrado: ${vehicleItem.groupId}`);
           continue;
         }
         

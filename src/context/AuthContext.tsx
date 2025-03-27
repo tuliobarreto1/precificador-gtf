@@ -21,43 +21,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    console.log('Inicializando AuthProvider...');
+    
     // Configurar o listener de mudança de estado de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
+        console.log('Evento de autenticação:', event, currentSession?.user?.id);
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         
         if (currentSession?.user) {
           // Buscar o perfil do usuário, mas com setTimeout para evitar deadlock
           setTimeout(async () => {
-            const { success, profile } = await getCurrentProfile();
-            if (success && profile) {
-              setProfile(profile);
+            try {
+              const { success, profile } = await getCurrentProfile();
+              console.log('Perfil obtido:', success, profile);
+              if (success && profile) {
+                setProfile(profile);
+              }
+            } catch (error) {
+              console.error('Erro ao buscar perfil:', error);
+            } finally {
+              setIsLoading(false);
             }
           }, 0);
         } else {
           setProfile(null);
+          setIsLoading(false);
         }
-        
-        setIsLoading(false);
       }
     );
 
     // Verificar se já existe uma sessão
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      console.log('Sessão atual:', currentSession?.user?.id);
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       
       if (currentSession?.user) {
         getCurrentProfile().then(({ success, profile }) => {
+          console.log('Perfil obtido (inicial):', success, profile);
           if (success && profile) {
             setProfile(profile);
           }
+          setIsLoading(false);
+        }).catch(error => {
+          console.error('Erro ao buscar perfil inicial:', error);
           setIsLoading(false);
         });
       } else {
         setIsLoading(false);
       }
+    }).catch(error => {
+      console.error('Erro ao buscar sessão:', error);
+      setIsLoading(false);
     });
 
     return () => {
