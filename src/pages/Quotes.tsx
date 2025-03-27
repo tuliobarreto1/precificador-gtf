@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FileText, Search, Filter, Calendar, ArrowUpDown, User } from 'lucide-react';
@@ -15,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { quotes, getClientById, getVehicleById } from '@/lib/mock-data';
-import { SavedQuote, mockUsers } from '@/context/QuoteContext';
+import { SavedQuote, useQuote, mockUsers } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
 
 // Type guard para determinar se um objeto é um SavedQuote
@@ -30,27 +29,23 @@ const Quotes = () => {
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
   const [userFilter, setUserFilter] = useState<string>('all');
   const { toast } = useToast();
+  const { getSavedQuotes } = useQuote();
   
-  // Carregar orçamentos salvos do localStorage
+  // Carregar orçamentos salvos
   useEffect(() => {
-    const storedQuotes = localStorage.getItem('savedQuotes');
-    if (storedQuotes) {
-      try {
-        const parsedQuotes = JSON.parse(storedQuotes);
-        setSavedQuotes(parsedQuotes);
-        console.log('Orçamentos carregados do localStorage:', parsedQuotes);
-      } catch (error) {
-        console.error('Erro ao carregar orçamentos salvos:', error);
-        toast({
-          title: "Erro ao carregar orçamentos",
-          description: "Não foi possível carregar os orçamentos salvos.",
-          variant: "destructive",
-        });
-      }
-    } else {
-      console.log('Nenhum orçamento encontrado no localStorage');
+    try {
+      const quotes = getSavedQuotes();
+      setSavedQuotes(quotes);
+      console.log('Orçamentos carregados:', quotes);
+    } catch (error) {
+      console.error('Erro ao carregar orçamentos:', error);
+      toast({
+        title: "Erro ao carregar orçamentos",
+        description: "Não foi possível carregar os orçamentos salvos.",
+        variant: "destructive",
+      });
     }
-  }, [toast]);
+  }, [getSavedQuotes, toast]);
   
   // Combinar os orçamentos mockados com os salvos
   const allQuotes = [...savedQuotes, ...quotes];

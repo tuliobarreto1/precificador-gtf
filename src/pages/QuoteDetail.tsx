@@ -53,15 +53,21 @@ const QuoteDetail = () => {
   useEffect(() => {
     if (!id) return;
     
+    // Primeiro procura nos orçamentos locais
     const mockQuote = quotes.find(q => q.id === id);
     if (mockQuote) {
       setQuote(mockQuote);
       return;
     }
     
+    // Se não encontrou, procura nos orçamentos salvos
     const savedQuote = savedQuotes.find(q => q.id === id);
     if (savedQuote) {
+      console.log('Orçamento encontrado:', savedQuote);
       setQuote(savedQuote);
+    } else {
+      console.error('Orçamento não encontrado, ID:', id);
+      console.log('Orçamentos salvos disponíveis:', savedQuotes);
     }
   }, [id, savedQuotes]);
   
@@ -83,7 +89,7 @@ const QuoteDetail = () => {
       
       vehiclesData = quote.vehicles;
       
-      if (vehiclesData.length > 0) {
+      if (vehiclesData && vehiclesData.length > 0) {
         vehicleGroupData = getVehicleGroupById(vehiclesData[0].groupId);
       }
     } else {
