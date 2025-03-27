@@ -46,7 +46,7 @@ export type Quote = {
   trackingCost: number;
   costPerKm: number;
   // Propriedades adicionais para compatibilidade
-  date?: string;
+  date: string;
   clientName: string;
   vehicleBrand: string;
   vehicleModel: string;
@@ -326,5 +326,5 @@ export const getQuoteById = (id: string) => {
   return quotes.find(quote => quote.id === id);
 };
 
-// Para compatibilidade com o Quotes.tsx
+// Exportando mockQuotes para compatibilidade com Quotes.tsx
 export const mockQuotes = quotes;
