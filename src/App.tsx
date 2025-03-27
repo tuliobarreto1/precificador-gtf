@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import NewQuote from "./pages/NewQuote";
 import Quotes from "./pages/Quotes";
 import Settings from "./pages/Settings";
+import Parameters from "./pages/Parameters";
 import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
 
@@ -26,6 +27,7 @@ function App() {
             <Route path="/orcamento/novo" element={<NewQuote />} />
             <Route path="/orcamentos" element={<Quotes />} />
             <Route path="/configuracoes" element={<Settings />} />
+            <Route path="/parametros" element={<Parameters />} />
             <Route path="/usuarios" element={<Users />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
