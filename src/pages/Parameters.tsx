@@ -108,7 +108,15 @@ const Parameters = () => {
   const onSubmit = (values: FormValues) => {
     if (editMode) {
       setGroups(groups.map(group => 
-        group.id === currentGroupId ? { ...values } : group
+        group.id === currentGroupId ? {
+          id: values.id,
+          name: values.name,
+          description: values.description || '', // Ensure description is not undefined
+          revisionKm: values.revisionKm,
+          revisionCost: values.revisionCost,
+          tireKm: values.tireKm,
+          tireCost: values.tireCost,
+        } : group
       ));
       toast.success('Grupo de veículo atualizado com sucesso');
     } else {
@@ -120,7 +128,19 @@ const Parameters = () => {
         });
         return;
       }
-      setGroups([...groups, values]);
+      
+      // Ensure the new vehicle group has all required properties
+      const newGroup: VehicleGroup = {
+        id: values.id,
+        name: values.name,
+        description: values.description || '', // Ensure description is not undefined
+        revisionKm: values.revisionKm,
+        revisionCost: values.revisionCost,
+        tireKm: values.tireKm,
+        tireCost: values.tireCost,
+      };
+      
+      setGroups([...groups, newGroup]);
       toast.success('Grupo de veículo adicionado com sucesso');
     }
     setIsDialogOpen(false);
