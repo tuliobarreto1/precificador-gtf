@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Download, Send, Edit, Trash, ChevronDown, ChevronUp, Car } from 'lucide-react';
+import { ArrowLeft, Download, Send, Edit, Trash, Car } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
@@ -104,7 +104,7 @@ const QuoteDetail = () => {
     // usar o primeiro veículo como padrão
     if (!selectedVehicleId || !vehicles.find(v => v.vehicleId === selectedVehicleId)) {
       selectedVehicle = vehicles[0];
-      setSelectedVehicleId(selectedVehicle.vehicleId);
+      // Definir o vehicleId corretamente no efeito
     } else {
       selectedVehicle = vehicles.find(v => v.vehicleId === selectedVehicleId) || vehicles[0];
     }
@@ -134,6 +134,13 @@ const QuoteDetail = () => {
       vehicleGroup = getVehicleGroupById(vehicle.groupId);
     }
   }
+  
+  // Configurar o veículo selecionado quando o componente montar ou quando os veículos forem carregados
+  useEffect(() => {
+    if (vehicles.length > 0 && !selectedVehicleId) {
+      setSelectedVehicleId(vehicles[0].vehicleId);
+    }
+  }, [vehicles, selectedVehicleId]);
   
   // Obter parâmetros globais
   const globalParams = getGlobalParams();
@@ -242,21 +249,22 @@ const QuoteDetail = () => {
                   {/* Seletor de veículos para orçamentos com múltiplos veículos */}
                   {vehicles.length > 1 && (
                     <div className="w-48">
-                      <Select 
-                        value={selectedVehicleId || ''} 
-                        onValueChange={handleVehicleChange}
-                      >
-                        <SelectTrigger className="h-8">
-                          <SelectValue placeholder="Selecionar veículo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {vehicles.map((v) => (
-                            <SelectItem key={v.vehicleId} value={v.vehicleId}>
-                              {v.vehicleBrand} {v.vehicleModel}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {selectedVehicleId && (
+                        <div className="flex items-center space-x-2">
+                          <select
+                            value={selectedVehicleId}
+                            onChange={(e) => handleVehicleChange(e.target.value)}
+                            className="h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                          >
+                            {vehicles.map((v) => (
+                              <option key={v.vehicleId} value={v.vehicleId}>
+                                {v.vehicleBrand} {v.vehicleModel}
+                              </option>
+                            ))}
+                          </select>
+                          <Car className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
