@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FilePlus, Filter, RotateCcw, Search } from 'lucide-react';
@@ -8,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import StatsCard from '@/components/ui-custom/StatsCard';
 import { quotes, getClientById, getVehicleById } from '@/lib/mock-data';
 import { useQuote } from '@/context/QuoteContext';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, checkSupabaseConnection, getQuotesFromSupabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import StatusBadge from '@/components/status/StatusBadge';
 import { QuoteStatusFlow } from '@/lib/status-flow';
@@ -32,7 +31,7 @@ const Quotes = () => {
         setLoadingSupabase(true);
         console.log('Verificando conexão com o Supabase...');
         
-        const { success } = await supabase.checkSupabaseConnection();
+        const { success } = await checkSupabaseConnection();
         
         if (success) {
           console.log('Conexão com o Supabase estabelecida com sucesso');
@@ -56,7 +55,7 @@ const Quotes = () => {
   const loadSupabaseQuotes = async () => {
     try {
       console.log('Iniciando carregamento de orçamentos do Supabase...');
-      const { quotes: data, success, error } = await supabase.getQuotesFromSupabase();
+      const { quotes: data, success, error } = await getQuotesFromSupabase();
       
       if (success && data) {
         console.log(`Carregados ${data.length} orçamentos do Supabase com sucesso`);
