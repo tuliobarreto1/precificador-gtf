@@ -3,7 +3,6 @@ import React from 'react';
 import { Car, Info, Calendar, Wrench, Gauge } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Vehicle, VehicleGroup } from '@/lib/mock-data';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 
 type VehicleCardProps = {
   vehicle: Vehicle | any; // Aceita tanto Vehicle quanto o formato do Supabase

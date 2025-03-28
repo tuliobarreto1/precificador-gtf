@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { User, Plus, Search, Edit } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { User, Plus, Search, Edit, Trash2, AlertCircle } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -44,7 +55,10 @@ const Clients = () => {
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchClients();
@@ -90,6 +104,64 @@ const Clients = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEdit = (clientId: string) => {
+    navigate(`/cliente/${clientId}`);
+  };
+
+  const handleDelete = async () => {
+    if (!clientToDelete) return;
+    
+    try {
+      setIsDeleting(true);
+      
+      // Verificar se o cliente está em uso em algum orçamento
+      const { data: quotesData, error: quotesError } = await supabase
+        .from('quotes')
+        .select('id')
+        .eq('client_id', clientToDelete.id)
+        .limit(1);
+        
+      if (quotesError) throw quotesError;
+      
+      if (quotesData && quotesData.length > 0) {
+        toast({
+          title: "Não é possível excluir",
+          description: "Este cliente está vinculado a orçamentos e não pode ser excluído.",
+          variant: "destructive",
+        });
+        setIsDeleting(false);
+        setClientToDelete(null);
+        return;
+      }
+      
+      // Se não estiver em uso, proceder com a exclusão
+      const { error } = await supabase
+        .from('clients')
+        .delete()
+        .eq('id', clientToDelete.id);
+
+      if (error) throw error;
+
+      // Atualizar a lista de clientes
+      setClients(clients.filter(client => client.id !== clientToDelete.id));
+      
+      toast({
+        title: "Cliente excluído",
+        description: "O cliente foi excluído com sucesso.",
+      });
+    } catch (error: any) {
+      console.error('Erro ao excluir cliente:', error.message);
+      toast({
+        title: "Erro ao excluir",
+        description: error.message || "Não foi possível excluir o cliente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setClientToDelete(null);
     }
   };
 
@@ -212,12 +284,55 @@ const Clients = () => {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Link to={`/cliente/${client.id}`}>
-                            <Button variant="ghost" size="sm">
+                          <div className="flex justify-end gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleEdit(client.id)}
+                            >
                               <Edit className="h-4 w-4 mr-2" />
                               Editar
                             </Button>
-                          </Link>
+                            
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => setClientToDelete(client)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Excluir
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Excluir cliente</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tem certeza que deseja excluir o cliente <strong>{clientToDelete?.name}</strong>?
+                                    <div className="mt-2 flex items-center p-3 bg-amber-50 text-amber-800 rounded-md">
+                                      <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+                                      <span>Esta ação não poderá ser desfeita.</span>
+                                    </div>
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      handleDelete();
+                                    }}
+                                    disabled={isDeleting}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    {isDeleting ? 'Excluindo...' : 'Sim, excluir'}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
