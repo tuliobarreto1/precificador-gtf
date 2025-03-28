@@ -81,10 +81,13 @@ export const useQuotes = () => {
       
       if (success && data) {
         console.log(`Carregados ${data.length} orçamentos do Supabase com sucesso`);
-        console.log('Amostra do primeiro orçamento:', data[0]);
         
-        if (data[0]?.items) {
-          console.log('Itens do primeiro orçamento:', data[0].items);
+        if (data.length > 0) {
+          console.log('Amostra do primeiro orçamento:', data[0]);
+          
+          if (data[0]?.items) {
+            console.log('Itens do primeiro orçamento:', data[0].items);
+          }
         }
         
         setSupabaseQuotes(data);
@@ -113,19 +116,30 @@ export const useQuotes = () => {
 
   // Função auxiliar para obter informações do veículo para orçamentos do Supabase
   const getVehicleInfo = (quote: any) => {
+    console.log('Processando informações de veículo para orçamento:', quote.id);
+    
+    // Verificar se o orçamento tem itens com veículos associados
     if (quote.items && quote.items.length > 0) {
-      const firstItem = quote.items[0];
+      console.log(`Orçamento tem ${quote.items.length} itens`);
       
-      if (firstItem.vehicle && firstItem.vehicle.brand && firstItem.vehicle.model) {
+      // Pegar o primeiro item que tenha um veículo associado
+      const itemWithVehicle = quote.items.find(item => item.vehicle);
+      
+      if (itemWithVehicle && itemWithVehicle.vehicle) {
+        console.log('Veículo encontrado no item:', itemWithVehicle.vehicle);
         return { 
-          name: `${firstItem.vehicle.brand} ${firstItem.vehicle.model}`, 
-          value: firstItem.monthly_value || quote.total_value || 0
+          name: `${itemWithVehicle.vehicle.brand} ${itemWithVehicle.vehicle.model}`, 
+          value: itemWithVehicle.monthly_value || quote.total_value || 0
         };
       }
       
+      // Se não encontrou veículo nos itens, tenta buscar pelo vehicle_id
+      const firstItem = quote.items[0];
       if (firstItem.vehicle_id && supabaseVehicles.length > 0) {
+        console.log('Buscando veículo pelo ID:', firstItem.vehicle_id);
         const vehicle = supabaseVehicles.find(v => v.id === firstItem.vehicle_id);
         if (vehicle) {
+          console.log('Veículo encontrado pelo ID:', vehicle);
           return { 
             name: `${vehicle.brand} ${vehicle.model}`, 
             value: firstItem.monthly_value || quote.total_value || 0
@@ -133,12 +147,14 @@ export const useQuotes = () => {
         }
       }
       
+      // Se tem itens mas não tem veículo, retorna o valor do item
       return { 
         name: 'Veículo não especificado', 
         value: firstItem.monthly_value || quote.total_value || 0
       };
     }
     
+    // Se não tem itens, retorna um valor padrão
     return { name: 'Veículo não especificado', value: quote.total_value || 0 };
   };
 
@@ -167,7 +183,7 @@ export const useQuotes = () => {
     })),
     
     ...supabaseQuotes.map(quote => {
-      console.log('Processando orçamento do Supabase:', quote.id, quote);
+      console.log('Processando orçamento do Supabase:', quote.id);
       
       const vehicleInfo = getVehicleInfo(quote);
       console.log('Informações de veículo para orçamento:', quote.id, vehicleInfo);
