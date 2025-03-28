@@ -154,61 +154,25 @@ export async function saveQuoteToSupabase(quote: any) {
           vehicleId = newVehicle.id;
         }
         
-        // Criar o registro na quote_vehicles utilizando fetch diretamente
+        // Usar o supabase client diretamente para a tabela quote_vehicles
         try {
-          // Usar fetch para chamar a função RPC já que não está nos tipos
-          const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/insert_quote_vehicle`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': SUPABASE_PUBLISHABLE_KEY,
-              'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
-            },
-            body: JSON.stringify({
-              p_quote_id: quoteId,
-              p_vehicle_id: vehicleId,
-              p_monthly_value: vehicle.monthlyValue || quote.totalCost || 0,
-              p_contract_months: quote.contractMonths,
-              p_monthly_km: quote.monthlyKm,
-              p_operation_severity: quote.operationSeverity || 3,
-              p_has_tracking: quote.hasTracking || false
-            })
-          });
-          
-          if (!response.ok) {
-            throw new Error(`Erro ao inserir veículo do orçamento: ${response.statusText}`);
-          }
-        } catch (error) {
-          console.warn('Erro ao inserir veículo do orçamento via RPC, tentando inserção direta', error);
-          
-          // Fallback: inserir diretamente na tabela quote_vehicles
-          try {
-            // Usar fetch diretamente para a tabela que não está definida nos tipos
-            const response = await fetch(`${SUPABASE_URL}/rest/v1/quote_vehicles`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'apikey': SUPABASE_PUBLISHABLE_KEY,
-                'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-                'Prefer': 'return=minimal'
-              },
-              body: JSON.stringify({
-                quote_id: quoteId,
-                vehicle_id: vehicleId,
-                monthly_value: vehicle.monthlyValue || quote.totalCost || 0,
-                contract_months: quote.contractMonths,
-                monthly_km: quote.monthlyKm,
-                operation_severity: quote.operationSeverity || 3,
-                has_tracking: quote.hasTracking || false
-              })
+          const { error } = await supabase
+            .from('quote_vehicles')
+            .insert({
+              quote_id: quoteId,
+              vehicle_id: vehicleId,
+              monthly_value: vehicle.monthlyValue || quote.totalCost || 0,
+              contract_months: quote.contractMonths,
+              monthly_km: quote.monthlyKm,
+              operation_severity: quote.operationSeverity || 3,
+              has_tracking: quote.hasTracking || false
             });
             
-            if (!response.ok) {
-              throw new Error(`Erro ao inserir veículo do orçamento: ${response.statusText}`);
-            }
-          } catch (fallbackError) {
-            console.error('Erro ao inserir veículo do orçamento:', fallbackError);
+          if (error) {
+            console.error("Erro ao inserir veículo do orçamento:", error);
           }
+        } catch (error) {
+          console.error('Erro ao inserir veículo do orçamento:', error);
         }
       }
     }
@@ -341,22 +305,16 @@ export async function getVehiclesFromSupabase() {
 // Função para buscar veículos de um orçamento específico
 export async function getQuoteVehiclesFromSupabase(quoteId: string) {
   try {
-    // Usar fetch diretamente para a tabela que não está definida nos tipos
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/quote_vehicles?quote_id=eq.${quoteId}&select=*,vehicle:vehicle_id(*)`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_PUBLISHABLE_KEY,
-        'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
-      }
-    });
+    const { data, error } = await supabase
+      .from('quote_vehicles')
+      .select('*, vehicle:vehicle_id(*)')
+      .eq('quote_id', quoteId);
     
-    if (!response.ok) {
-      throw new Error(`Erro ao buscar veículos do orçamento: ${response.statusText}`);
+    if (error) {
+      return { success: false, error, vehicles: [] };
     }
     
-    const data = await response.json();
-    return { success: true, vehicles: Array.isArray(data) ? data : [] };
+    return { success: true, vehicles: data || [] };
   } catch (error) {
     console.error('Erro ao buscar veículos do orçamento:', error);
     return { success: false, error, vehicles: [] };
@@ -365,29 +323,20 @@ export async function getQuoteVehiclesFromSupabase(quoteId: string) {
 
 export const addVehicleToQuote = async (quoteId: string, vehicleData: any): Promise<{ success: boolean; data?: any; error?: any }> => {
   try {
-    // Usar fetch diretamente para a tabela que não está definida nos tipos
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/vehicles_quotes`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_PUBLISHABLE_KEY,
-        'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-        'Prefer': 'return=representation'
-      },
-      body: JSON.stringify({
+    const { data, error } = await supabase
+      .from('quote_vehicles')
+      .insert({
         quote_id: quoteId,
         vehicle_id: vehicleData.vehicle_id,
         monthly_value: vehicleData.monthly_value || 0
       })
-    });
+      .select();
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Erro ao adicionar veículo ao orçamento:', errorData);
-      return { success: false, error: errorData };
+    if (error) {
+      console.error('Erro ao adicionar veículo ao orçamento:', error);
+      return { success: false, error };
     }
 
-    const data = await response.json();
     return { success: true, data };
   } catch (error) {
     console.error('Erro inesperado ao adicionar veículo ao orçamento:', error);
@@ -397,30 +346,17 @@ export const addVehicleToQuote = async (quoteId: string, vehicleData: any): Prom
 
 export const getQuoteVehicles = async (quoteId: string): Promise<{ success: boolean; vehicles?: any[]; error?: any }> => {
   try {
-    // Usar fetch diretamente para a tabela que não está definida nos tipos
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/vehicles_quotes?quote_id=eq.${quoteId}&select=vehicle_id,monthly_value,vehicles(*)`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_PUBLISHABLE_KEY,
-        'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
-      }
-    });
+    const { data, error } = await supabase
+      .from('quote_vehicles')
+      .select('*, vehicle:vehicle_id(*)')
+      .eq('quote_id', quoteId);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Erro ao buscar veículos do orçamento:', errorData);
-      return { success: false, error: errorData, vehicles: [] };
+    if (error) {
+      console.error('Erro ao buscar veículos do orçamento:', error);
+      return { success: false, error, vehicles: [] };
     }
-
-    const data = await response.json();
     
-    // Verifique se data é um array antes de tentar acessar sua propriedade length
-    if (Array.isArray(data) && data.length > 0) {
-      return { success: true, vehicles: data };
-    }
-
-    return { success: true, vehicles: [] };
+    return { success: true, vehicles: data || [] };
   } catch (error) {
     console.error('Erro inesperado ao buscar veículos do orçamento:', error);
     return { success: false, error, vehicles: [] };

@@ -170,6 +170,60 @@ export type Database = {
           },
         ]
       }
+      quote_vehicles: {
+        Row: {
+          contract_months: number | null
+          created_at: string
+          has_tracking: boolean | null
+          id: string
+          monthly_km: number | null
+          monthly_value: number
+          operation_severity: number | null
+          quote_id: string | null
+          updated_at: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          contract_months?: number | null
+          created_at?: string
+          has_tracking?: boolean | null
+          id?: string
+          monthly_km?: number | null
+          monthly_value?: number
+          operation_severity?: number | null
+          quote_id?: string | null
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          contract_months?: number | null
+          created_at?: string
+          has_tracking?: boolean | null
+          id?: string
+          monthly_km?: number | null
+          monthly_value?: number
+          operation_severity?: number | null
+          quote_id?: string | null
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_vehicles_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_vehicles_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotes: {
         Row: {
           client_id: string | null
