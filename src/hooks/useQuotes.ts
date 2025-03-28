@@ -3,7 +3,11 @@ import { useState, useEffect } from 'react';
 import { useQuote } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
 import { quotes, getClientById, getVehicleById } from '@/lib/mock-data';
-import { checkSupabaseConnection, getQuotesFromSupabase, getVehiclesFromSupabase } from '@/integrations/supabase/client';
+import { 
+  checkSupabaseConnection, 
+  getQuotesFromSupabase, 
+  getVehiclesFromSupabase 
+} from '@/integrations/supabase/client';
 
 // Definindo o tipo com source restrito aos valores permitidos
 interface QuoteItem {

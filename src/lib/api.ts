@@ -72,7 +72,7 @@ export const quotes: Quote[] = [
   { id: '3', client: clients[2], vehicle: vehicles[2], contractMonths: 48, monthlyKm: 2000, totalCost: 2500, createdAt: '2023-03-20' },
 ];
 
-// Function to simulate API calls
+// Função para simular API calls
 export const getClients = (): Client[] => {
   return clients;
 };

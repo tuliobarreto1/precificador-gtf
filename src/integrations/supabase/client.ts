@@ -126,7 +126,7 @@ export async function saveQuoteToSupabase(quote: any) {
             .eq('plate_number', vehicle.plateNumber)
             .limit(1);
             
-          if (existingVehicles && existingVehicles.length > 0) {
+          if (existingVehicles && Array.isArray(existingVehicles) && existingVehicles.length > 0) {
             vehicleId = existingVehicles[0].id;
           }
         }
@@ -154,29 +154,47 @@ export async function saveQuoteToSupabase(quote: any) {
           vehicleId = newVehicle.id;
         }
         
-        // Criar o registro diretamente em quotes na coluna vehicle_id ou na tabela quote_vehicles
+        // Criar o registro na quote_vehicles utilizando fetch diretamente
         try {
-          // Tentar salvar na tabela quote_vehicles se disponível
-          await supabase.rpc('insert_quote_vehicle', {
-            p_quote_id: quoteId,
-            p_vehicle_id: vehicleId,
-            p_monthly_value: vehicle.monthlyValue || quote.totalCost || 0,
-            p_contract_months: quote.contractMonths,
-            p_monthly_km: quote.monthlyKm,
-            p_operation_severity: quote.operationSeverity || 3,
-            p_has_tracking: quote.hasTracking || false
+          // Usar fetch para chamar a função RPC já que não está nos tipos
+          const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/insert_quote_vehicle`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': SUPABASE_PUBLISHABLE_KEY,
+              'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
+            },
+            body: JSON.stringify({
+              p_quote_id: quoteId,
+              p_vehicle_id: vehicleId,
+              p_monthly_value: vehicle.monthlyValue || quote.totalCost || 0,
+              p_contract_months: quote.contractMonths,
+              p_monthly_km: quote.monthlyKm,
+              p_operation_severity: quote.operationSeverity || 3,
+              p_has_tracking: quote.hasTracking || false
+            })
           });
-        } catch (error) {
-          console.warn('Função RPC não disponível, utilizando fallback para inserir veículo do orçamento', error);
           
-          // Fallback: atualizar quote com vehicle_id
+          if (!response.ok) {
+            throw new Error(`Erro ao inserir veículo do orçamento: ${response.statusText}`);
+          }
+        } catch (error) {
+          console.warn('Erro ao inserir veículo do orçamento via RPC, tentando inserção direta', error);
+          
+          // Fallback: inserir diretamente na tabela quote_vehicles
           try {
-            await supabase
-              .from('quotes')
-              .update({ vehicle_id: vehicleId, monthly_value: vehicle.monthlyValue || quote.totalCost || 0 })
-              .eq('id', quoteId);
+            // @ts-ignore - Ignorar erro de tipo já que a tabela não está nos tipos gerados
+            await supabase.from('quote_vehicles').insert({
+              quote_id: quoteId,
+              vehicle_id: vehicleId,
+              monthly_value: vehicle.monthlyValue || quote.totalCost || 0,
+              contract_months: quote.contractMonths,
+              monthly_km: quote.monthlyKm,
+              operation_severity: quote.operationSeverity || 3,
+              has_tracking: quote.hasTracking || false
+            });
           } catch (fallbackError) {
-            console.error('Erro ao atualizar orçamento com veículo:', fallbackError);
+            console.error('Erro ao inserir veículo do orçamento:', fallbackError);
           }
         }
       }
@@ -194,15 +212,23 @@ export async function getQuotesFromSupabase() {
     console.log("Buscando orçamentos do Supabase...");
     
     try {
-      // Tente usar a função RPC personalizada
-      const { data, error } = await supabase.rpc('get_quotes_with_related_data');
+      // Usar fetch para chamar a função RPC já que não está nos tipos
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_quotes_with_related_data`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
+        }
+      });
       
-      if (error) {
-        throw error;
+      if (!response.ok) {
+        throw new Error(`Erro na chamada RPC: ${response.statusText}`);
       }
       
+      const data = await response.json();
       console.log("Orçamentos recuperados com sucesso via RPC:", Array.isArray(data) ? data.length : 0);
-      return { success: true, quotes: data || [] };
+      return { success: true, quotes: Array.isArray(data) ? data : [] };
     } catch (rpcError) {
       console.error("Erro com função RPC, utilizando método alternativo:", rpcError);
       
@@ -221,7 +247,7 @@ export async function getQuotesFromSupabase() {
       }
       
       console.log("Orçamentos recuperados via método alternativo:", Array.isArray(data) ? data.length : 0);
-      return { success: true, quotes: data || [] };
+      return { success: true, quotes: Array.isArray(data) ? data : [] };
     }
   } catch (error) {
     console.error("Erro inesperado ao buscar orçamentos:", error);
@@ -235,13 +261,22 @@ export async function getQuoteByIdFromSupabase(quoteId: string) {
     console.log(`Buscando orçamento com ID: ${quoteId}`);
     
     try {
-      // Tente usar a função RPC personalizada
-      const { data, error } = await supabase.rpc('get_quote_by_id', { p_quote_id: quoteId });
+      // Usar fetch para chamar a função RPC já que não está nos tipos
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_quote_by_id`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
+        },
+        body: JSON.stringify({ p_quote_id: quoteId })
+      });
       
-      if (error) {
-        throw error;
+      if (!response.ok) {
+        throw new Error(`Erro na chamada RPC: ${response.statusText}`);
       }
       
+      const data = await response.json();
       console.log("Orçamento recuperado com sucesso via RPC");
       return { success: true, quote: data };
     } catch (rpcError) {
@@ -285,6 +320,28 @@ export async function getVehiclesFromSupabase() {
     }
     
     return { success: true, vehicles: data || [] };
+  } catch (error) {
+    return { success: false, error, vehicles: [] };
+  }
+}
+
+// Função para buscar veículos de um orçamento específico
+export async function getQuoteVehiclesFromSupabase(quoteId: string) {
+  try {
+    // @ts-ignore - Ignorar erro de tipo já que a tabela não está nos tipos gerados
+    const { data, error } = await supabase
+      .from('quote_vehicles')
+      .select(`
+        *,
+        vehicle:vehicle_id(*)
+      `)
+      .eq('quote_id', quoteId);
+    
+    if (error) {
+      return { success: false, error, vehicles: [] };
+    }
+    
+    return { success: true, vehicles: Array.isArray(data) ? data : [] };
   } catch (error) {
     return { success: false, error, vehicles: [] };
   }
