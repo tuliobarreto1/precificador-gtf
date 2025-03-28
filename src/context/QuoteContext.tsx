@@ -498,7 +498,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     }
 
     // Caso contrário, continuar com a criação de um novo orçamento
-    // Criar um ID único baseado no timestamp
+    // Criar um ID único baseado no timestamp (será substituído por UUID no Supabase)
     const newId = Date.now().toString();
     
     // Obter o usuário atual
@@ -547,13 +547,40 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       veículos: newSavedQuote.vehicles.length
     });
 
-    // Também salvar no Supabase
+    // Também salvar no Supabase e atualizar o ID local se salvo com sucesso
+    let finalQuote = { ...newSavedQuote };
     try {
       import('@/integrations/supabase/client').then(async ({ saveQuoteToSupabase }) => {
         console.log('📤 Iniciando salvamento no Supabase...');
         const result = await saveQuoteToSupabase(newSavedQuote);
-        if (result.success) {
+        if (result.success && result.data && result.data[0]) {
           console.log('✅ Orçamento salvo no Supabase com sucesso!', result.data);
+          
+          // Atualizar o ID local com o UUID gerado pelo Supabase
+          const supabaseId = result.data[0].id;
+          
+          // Atualizar o orçamento local com o ID do Supabase
+          setSavedQuotes(prevQuotes => 
+            prevQuotes.map(q => 
+              q.id === newSavedQuote.id ? { ...q, id: supabaseId } : q
+            )
+          );
+          
+          // Atualizar também no localStorage
+          try {
+            const storedQuotes = localStorage.getItem(SAVED_QUOTES_KEY);
+            if (storedQuotes) {
+              const parsedQuotes = JSON.parse(storedQuotes);
+              const updatedQuotes = parsedQuotes.map((q: SavedQuote) => 
+                q.id === newSavedQuote.id ? { ...q, id: supabaseId } : q
+              );
+              localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
+              console.log('✅ ID do orçamento atualizado no localStorage para UUID do Supabase');
+            }
+          } catch (error) {
+            console.error('❌ Erro ao atualizar ID no localStorage:', error);
+          }
+          
         } else {
           console.error('❌ Falha ao salvar orçamento no Supabase:', result.error);
         }
