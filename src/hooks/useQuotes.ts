@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuote } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
@@ -113,12 +112,9 @@ export const useQuotes = () => {
 
   // Função auxiliar para obter informações do veículo para orçamentos do Supabase
   const getVehicleInfo = (quote: any) => {
-    // Verificar se temos itens no orçamento
     if (quote.items && quote.items.length > 0) {
-      // Tentar obter informações do primeiro item
       const firstItem = quote.items[0];
       
-      // Verificar se o item tem um veículo associado com detalhes completos
       if (firstItem.vehicle && firstItem.vehicle.brand && firstItem.vehicle.model) {
         return { 
           name: `${firstItem.vehicle.brand} ${firstItem.vehicle.model}`, 
@@ -126,7 +122,6 @@ export const useQuotes = () => {
         };
       }
       
-      // Se não tiver veículo completo mas tiver vehicle_id, tentar buscar nos veículos carregados
       if (firstItem.vehicle_id && supabaseVehicles.length > 0) {
         const vehicle = supabaseVehicles.find(v => v.id === firstItem.vehicle_id);
         if (vehicle) {
@@ -137,20 +132,17 @@ export const useQuotes = () => {
         }
       }
       
-      // Se ainda não temos informações do veículo, usar o valor do item
       return { 
         name: 'Veículo não especificado', 
         value: firstItem.monthly_value || quote.total_value || 0
       };
     }
     
-    // Se não há itens, retornar informação padrão
     return { name: 'Veículo não especificado', value: quote.total_value || 0 };
   };
 
   // Combinação dos orçamentos locais (mock) e do Supabase
   const allQuotes: QuoteItem[] = [
-    // DEMO: Orçamentos mockados apenas para desenvolvimento
     ...quotes.map(quote => ({
       id: quote.id,
       clientName: getClientById(quote.clientId)?.name || 'Cliente não encontrado',
@@ -158,13 +150,12 @@ export const useQuotes = () => {
       value: quote.totalCost,
       createdAt: new Date().toISOString(),
       status: 'ORCAMENTO',
-      source: 'demo' as const // Usando 'as const' para garantir o tipo específico
+      source: 'demo' as const
     })),
     
-    // LOCAL: Orçamentos salvos localmente no navegador
     ...(savedQuotes || []).map(quote => ({
       id: quote.id,
-      clientName: quote.clientName || (quote.client ? quote.client.name : 'Cliente não especificado'),
+      clientName: quote.clientName || 'Cliente não especificado',
       vehicleName: quote.vehicles && quote.vehicles.length > 0 ? 
         `${quote.vehicles[0].vehicleBrand} ${quote.vehicles[0].vehicleModel}` : 
         'Veículo não especificado',
@@ -174,7 +165,6 @@ export const useQuotes = () => {
       source: 'local' as const
     })),
     
-    // SUPABASE: Orçamentos carregados do Supabase
     ...supabaseQuotes.map(quote => {
       console.log('Processando orçamento do Supabase:', quote.id, quote);
       
@@ -193,10 +183,8 @@ export const useQuotes = () => {
     })
   ];
   
-  // Ordenar por data de criação (mais recente primeiro)
   allQuotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   
-  // Estatísticas básicas
   const totalQuotes = allQuotes.length;
   const totalValue = allQuotes.reduce((sum, quote) => sum + Number(quote.value), 0);
   const avgValue = totalQuotes > 0 ? totalValue / totalQuotes : 0;
