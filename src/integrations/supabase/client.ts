@@ -50,8 +50,12 @@ export async function saveQuoteToSupabase(quote: any) {
       veiculos: quote.vehicles?.length || 0
     });
     
-    // Verifica se o orçamento já tem id (atualização) ou é um novo
-    if (quote.id) {
+    // Verifica se o orçamento tem um ID válido formatado como UUID 
+    // (ids gerados localmente são timestamps e não são UUIDs válidos)
+    const isValidUuid = !!quote.id && 
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(quote.id);
+    
+    if (isValidUuid) {
       // Atualizar orçamento existente
       console.log(`Atualizando orçamento existente com ID ${quote.id}`);
       const { data, error } = await supabase
