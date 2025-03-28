@@ -38,32 +38,39 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Componente para as rotas aplicadas após o AuthProvider
+const AppRoutes = () => {
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      
+      {/* Rotas protegidas */}
+      <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+      <Route path="/orcamento/novo" element={<ProtectedRoute><NewQuote /></ProtectedRoute>} />
+      <Route path="/orcamentos" element={<ProtectedRoute><Quotes /></ProtectedRoute>} />
+      <Route path="/orcamento/:id" element={<ProtectedRoute><QuoteDetail /></ProtectedRoute>} />
+      <Route path="/editar-orcamento/:id" element={<ProtectedRoute><NewQuote /></ProtectedRoute>} />
+      <Route path="/configuracoes" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/parametros" element={<ProtectedRoute><Parameters /></ProtectedRoute>} />
+      <Route path="/usuarios" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+      
+      {/* Rota padrão para página não encontrada */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <AuthProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              
-              {/* Rotas protegidas */}
-              <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-              <Route path="/orcamento/novo" element={<ProtectedRoute><NewQuote /></ProtectedRoute>} />
-              <Route path="/orcamentos" element={<ProtectedRoute><Quotes /></ProtectedRoute>} />
-              <Route path="/orcamento/:id" element={<ProtectedRoute><QuoteDetail /></ProtectedRoute>} />
-              <Route path="/editar-orcamento/:id" element={<ProtectedRoute><NewQuote /></ProtectedRoute>} />
-              <Route path="/configuracoes" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-              <Route path="/parametros" element={<ProtectedRoute><Parameters /></ProtectedRoute>} />
-              <Route path="/usuarios" element={<ProtectedRoute><Users /></ProtectedRoute>} />
-              
-              {/* Rota padrão para página não encontrada */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </AuthProvider>
+        <BrowserRouter>
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
+        </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   );
