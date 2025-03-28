@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, Send, Edit, Trash, Car, Clock, FileEdit } from 'lucide-react';
@@ -64,7 +63,6 @@ const QuoteDetail = () => {
         return;
       }
       
-      // Primeiro, verificar se é um UUID válido (formato Supabase)
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       const isUuid = uuidRegex.test(id);
       
@@ -87,7 +85,6 @@ const QuoteDetail = () => {
         }
       }
       
-      // Se não foi encontrado no Supabase ou não é um UUID, buscar localmente
       const mockQuote = quotes.find(q => q.id === id);
       if (mockQuote) {
         console.log('Orçamento mock encontrado:', mockQuote);
@@ -96,7 +93,6 @@ const QuoteDetail = () => {
         return;
       }
       
-      // Tentar encontrar nos orçamentos salvos localmente
       if (savedQuotes && savedQuotes.length > 0) {
         const savedQuote = savedQuotes.find(q => q.id === id);
         if (savedQuote) {
@@ -122,7 +118,6 @@ const QuoteDetail = () => {
     if (isSupabase) {
       const processSupabaseQuote = async () => {
         try {
-          // Processar cliente
           const clientData = quote.client || {
             name: 'Cliente não encontrado',
             document: '',
@@ -130,11 +125,9 @@ const QuoteDetail = () => {
           };
           setClient(clientData);
           
-          // Processar valores do orçamento
           const totalValue = Number(quote.total_value) || 0;
           console.log('Total Value:', totalValue, typeof totalValue);
           
-          // Configurar grupo padrão
           const defaultGroup = {
             id: 'A',
             name: 'Grupo Padrão',
@@ -144,7 +137,6 @@ const QuoteDetail = () => {
             tireCost: 1400
           };
           
-          // Criar veículo simulado com dados do Supabase
           const vehicleData = {
             vehicleId: quote.id,
             vehicleBrand: 'Orçamento',
@@ -162,7 +154,6 @@ const QuoteDetail = () => {
           setSelectedVehicleId(vehicleData.vehicleId);
           setSelectedVehicle(vehicleData);
           setVehicleGroup(defaultGroup);
-          
         } catch (error) {
           console.error('Erro ao processar orçamento do Supabase:', error);
         }
@@ -172,7 +163,6 @@ const QuoteDetail = () => {
       return;
     }
     
-    // Processamento para orçamentos salvos localmente
     const quoteIsSaved = isSavedQuote(quote);
     setIsSaved(quoteIsSaved);
     
@@ -189,7 +179,9 @@ const QuoteDetail = () => {
       vehiclesData = quote.vehicles;
       
       if (vehiclesData && vehiclesData.length > 0) {
-        vehicleGroupData = getVehicleGroupById(vehiclesData[0].groupId);
+        if (vehiclesData[0].groupId) {
+          vehicleGroupData = getVehicleGroupById(vehiclesData[0].groupId);
+        }
       }
     } else {
       clientData = getClientById(quote.clientId);
@@ -209,7 +201,9 @@ const QuoteDetail = () => {
             extraKmRate: calculateExtraKmRate(vehicle.value)
           }
         ];
-        vehicleGroupData = getVehicleGroupById(vehicle.groupId);
+        if (vehicle.groupId) {
+          vehicleGroupData = getVehicleGroupById(vehicle.groupId);
+        }
       }
     }
     
@@ -235,7 +229,6 @@ const QuoteDetail = () => {
       
       if (selected) {
         setSelectedVehicle(selected);
-        // Atualizar o grupo do veículo quando mudar o veículo selecionado
         if (selected.group) {
           console.log('Atualizando grupo do veículo:', selected.group);
           setVehicleGroup(selected.group);
@@ -342,7 +335,7 @@ const QuoteDetail = () => {
       canDelete = canDeleteQuote(quote as SavedQuote);
       console.log('Permissões verificadas:', { canEdit, canDelete });
       console.log('Usuário atual:', getCurrentUser());
-      console.log('Criador do orçamento:', (quote as SavedQuote).createdBy);
+      console.log('Criador do or��amento:', (quote as SavedQuote).createdBy);
     } catch (error) {
       console.error("Erro ao verificar permissões:", error);
       canEdit = false;
@@ -352,7 +345,6 @@ const QuoteDetail = () => {
   
   const globalParams = getGlobalParams();
   
-  // Dados do orçamento - adaptados para ambos formatos (Supabase ou local)
   const quoteData = isSupabase 
     ? {
         createdAt: quote.created_at,

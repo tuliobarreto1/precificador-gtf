@@ -11,9 +11,9 @@ export type VehicleGroup = {
   name: string;
   revisionKm: number;
   tireKm: number;
-  revisionCost: number; // Added to fix Parameter.tsx errors
-  tireCost: number; // Added to fix Parameter.tsx errors
-  description?: string; // Added to fix Parameter.tsx errors
+  revisionCost: number;
+  tireCost: number;
+  description?: string;
 };
 
 // Vehicle type
@@ -24,13 +24,14 @@ export interface Vehicle {
   year: number;
   value: number;
   isUsed?: boolean;
-  plateNumber?: string;   // Add plate number for used vehicles
-  color?: string;         // Add color for used vehicles
-  odometer?: number;      // Add odometer for used vehicles
+  plateNumber?: string;
+  color?: string;
+  odometer?: number;
   revisionKm?: number;
   revisionCost?: number;
   tireKm?: number;
   tireCost?: number;
+  groupId?: string;
 }
 
 // Quote type - added to fix the import errors

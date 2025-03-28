@@ -431,8 +431,8 @@ DB_DATABASE=seu-banco-de-dados`}
           {vehicles
             .filter(vehicle => vehicleType === 'new' ? !vehicle.isUsed : vehicle.isUsed)
             .map((vehicle) => {
-            const group = getVehicleGroupById(vehicle.groupId);
-            if (!group) {
+            const group = vehicle.groupId ? getVehicleGroupById(vehicle.groupId) : null;
+            if (vehicle.groupId && !group) {
               console.error(`Grupo não encontrado para o veículo ${vehicle.id} (groupId: ${vehicle.groupId})`);
               return null;
             }
@@ -440,16 +440,16 @@ DB_DATABASE=seu-banco-de-dados`}
             
             const isSelected = isVehicleSelected(vehicle.id);
             
-            // Garantir que o veículo e grupo existem antes de renderizar
+            // Garantir que o veículo existe antes de renderizar
             const card = (
               <VehicleCard
                 key={vehicle.id}
                 vehicle={vehicle}
-                vehicleGroup={group}
+                vehicleGroup={group || undefined}
                 isSelected={isSelected}
                 onClick={() => {
                   if (!isSelected) {
-                    onSelectVehicle(vehicle, group);
+                    onSelectVehicle(vehicle, group || {} as VehicleGroup);
                   }
                 }}
                 className={isSelected ? 'cursor-default' : ''}
@@ -466,7 +466,7 @@ DB_DATABASE=seu-banco-de-dados`}
                     className="absolute bottom-4 right-4"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onSelectVehicle(vehicle, group);
+                      onSelectVehicle(vehicle, group || {} as VehicleGroup);
                     }}
                   >
                     Adicionar <Plus className="ml-1 h-4 w-4" />
