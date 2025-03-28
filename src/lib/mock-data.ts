@@ -1,4 +1,3 @@
-
 export type Client = {
   id: string;
   name: string;
@@ -18,18 +17,21 @@ export type VehicleGroup = {
 };
 
 // Vehicle type
-export type Vehicle = {
+export interface Vehicle {
   id: string;
   brand: string;
   model: string;
   year: number;
   value: number;
-  groupId: string;
-  isUsed: boolean;
+  isUsed?: boolean;
   plateNumber?: string;   // Add plate number for used vehicles
   color?: string;         // Add color for used vehicles
   odometer?: number;      // Add odometer for used vehicles
-};
+  revisionKm?: number;
+  revisionCost?: number;
+  tireKm?: number;
+  tireCost?: number;
+}
 
 // Quote type - added to fix the import errors
 export type Quote = {
@@ -288,4 +290,14 @@ export const getClientByDocument = (document: string) => {
 
 export const getVehicleById = (id: string) => {
   return vehicles.find(vehicle => vehicle.id === id);
+};
+
+// Fornecer valores padrão para dados de manutenção
+export const getVehicleMaintenance = (vehicle: Vehicle) => {
+  return {
+    revisionKm: vehicle.revisionKm || 10000,
+    revisionCost: vehicle.revisionCost || 500,
+    tireKm: vehicle.tireKm || 40000,
+    tireCost: vehicle.tireCost || 2000
+  };
 };

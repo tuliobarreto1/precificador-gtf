@@ -190,22 +190,19 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     
     console.log('Selecionando veículo encontrado:', foundVehicle);
     
-    const foundVehicleGroup = vehicleGroups.find(g => g.id === foundVehicle.LetraGrupo) || vehicleGroups[0];
-    
     const mappedVehicle: Vehicle = {
       id: `used-${foundVehicle.Placa}`,
       brand: foundVehicle.DescricaoModelo.split(' ')[0],
       model: foundVehicle.DescricaoModelo.split(' ').slice(1).join(' '),
       year: parseInt(foundVehicle.AnoFabricacaoModelo),
       value: foundVehicle.ValorCompra,
-      groupId: foundVehicleGroup.id,
       isUsed: true,
       plateNumber: foundVehicle.Placa,
       color: foundVehicle.Cor,
       odometer: foundVehicle.OdometroAtual
     };
     
-    onSelectVehicle(mappedVehicle, foundVehicleGroup);
+    onSelectVehicle(mappedVehicle, {} as any);
     
     setFoundVehicle(null);
     setPlateNumber('');

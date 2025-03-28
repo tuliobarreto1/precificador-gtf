@@ -316,30 +316,6 @@ export type Database = {
         }
         Relationships: []
       }
-      vehicle_groups: {
-        Row: {
-          created_at: string
-          description: string | null
-          id: string
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          id: string
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          name?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       vehicles: {
         Row: {
           brand: string
@@ -386,15 +362,7 @@ export type Database = {
           value?: number
           year?: number
         }
-        Relationships: [
-          {
-            foreignKeyName: "vehicles_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "vehicle_groups"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {

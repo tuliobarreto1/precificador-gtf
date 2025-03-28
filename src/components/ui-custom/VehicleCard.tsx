@@ -2,12 +2,11 @@
 import React from 'react';
 import { Car, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Vehicle, VehicleGroup } from '@/lib/mock-data';
+import { Vehicle } from '@/lib/mock-data';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 
 type VehicleCardProps = {
   vehicle: Vehicle | any; // Aceita tanto Vehicle quanto o formato do Supabase
-  vehicleGroup?: VehicleGroup; // Tornar opcional para suportar formato Supabase
   isSelected?: boolean;
   onClick?: () => void;
   className?: string;
@@ -16,7 +15,6 @@ type VehicleCardProps = {
 
 const VehicleCard = ({ 
   vehicle, 
-  vehicleGroup, 
   isSelected = false, 
   onClick, 
   className,
@@ -69,7 +67,6 @@ const VehicleCard = ({
           
           <p className="text-sm text-muted-foreground mt-1">
             {getYear()}
-            {vehicleGroup && ` • Grupo ${vehicleGroup.id}`}
             {getOdometer() && ` • ${Number(getOdometer()).toLocaleString('pt-BR')} km`}
           </p>
         </div>
@@ -80,18 +77,22 @@ const VehicleCard = ({
         </div>
       </div>
       
-      {vehicleGroup && (
-        <div className="mt-3 pt-3 border-t grid grid-cols-2 gap-2 text-sm">
-          <div>
-            <p className="text-muted-foreground">Revisão:</p>
-            <p>A cada {vehicleGroup.revisionKm.toLocaleString('pt-BR')} km</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground">Pneus:</p>
-            <p>A cada {vehicleGroup.tireKm.toLocaleString('pt-BR')} km</p>
-          </div>
+      <div className="mt-3 pt-3 border-t">
+        <div className="flex flex-wrap gap-2 text-sm">
+          {vehicle.revisionKm && (
+            <div>
+              <p className="text-muted-foreground">Revisão:</p>
+              <p>A cada {vehicle.revisionKm.toLocaleString('pt-BR')} km</p>
+            </div>
+          )}
+          {vehicle.tireKm && (
+            <div>
+              <p className="text-muted-foreground">Pneus:</p>
+              <p>A cada {vehicle.tireKm.toLocaleString('pt-BR')} km</p>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {children}
     </div>

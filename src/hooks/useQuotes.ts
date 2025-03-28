@@ -89,8 +89,8 @@ export const useQuotes = () => {
         if (data.length > 0) {
           console.log('Amostra do primeiro orçamento:', data[0]);
           
-          if (data[0]?.vehicles) {
-            console.log('Veículos do primeiro orçamento:', data[0].vehicles);
+          if (data[0]?.vehicle) {
+            console.log('Veículo do primeiro orçamento:', data[0].vehicle);
           }
         }
         
@@ -122,74 +122,24 @@ export const useQuotes = () => {
   const getVehicleInfo = (quote: any) => {
     console.log('Processando informações de veículo para orçamento:', quote.id);
     
-    // Verificar o novo formato com array de veículos diretamente no objeto de orçamento
-    if (quote.vehicles && Array.isArray(quote.vehicles)) {
-      // Para o novo formato onde vehicles é um array de objetos de veículo
-      console.log(`Orçamento tem ${quote.vehicles.length} veículos (novo formato)`);
-      
-      if (quote.vehicles.length > 0) {
-        const firstVehicle = quote.vehicles[0];
-        console.log('Primeiro veículo:', firstVehicle);
-        
-        return { 
-          name: `${firstVehicle.brand} ${firstVehicle.model}`, 
-          value: firstVehicle.monthly_value || quote.monthly_value || quote.total_value || 0
-        };
-      }
+    // Verificar o novo formato com veículo diretamente no objeto de orçamento
+    if (quote.vehicle) {
+      console.log('Veículo encontrado diretamente no orçamento:', quote.vehicle);
+      return { 
+        name: `${quote.vehicle.brand} ${quote.vehicle.model}`, 
+        value: quote.monthly_values || quote.total_value || 0
+      };
     }
     
-    // Verificar o formato antigo onde quote.vehicles são itens relacionados
-    else if (quote.vehicles && Array.isArray(quote.vehicles) && quote.vehicles.length > 0 && quote.vehicles[0].vehicle) {
-      console.log(`Orçamento tem ${quote.vehicles.length} itens relacionados (formato antigo)`);
-      
-      const firstItem = quote.vehicles[0];
-      if (firstItem.vehicle) {
-        console.log('Veículo encontrado no item:', firstItem.vehicle);
-        return { 
-          name: `${firstItem.vehicle.brand} ${firstItem.vehicle.model}`, 
-          value: firstItem.monthly_value || quote.total_value || 0
-        };
-      }
-    }
-    
-    // Verificar formato antigo de items
-    else if (quote.items && Array.isArray(quote.items) && quote.items.length > 0) {
-      console.log(`Orçamento tem ${quote.items.length} itens`);
-      
-      // Pegar o primeiro item que tenha um veículo associado
-      const itemWithVehicle = quote.items.find(item => item.vehicle);
-      
-      if (itemWithVehicle && itemWithVehicle.vehicle) {
-        console.log('Veículo encontrado no item:', itemWithVehicle.vehicle);
-        return { 
-          name: `${itemWithVehicle.vehicle.brand} ${itemWithVehicle.vehicle.model}`, 
-          value: itemWithVehicle.monthly_value || quote.total_value || 0
-        };
-      }
-      
-      // Se não encontrou veículo nos itens, tenta buscar pelo vehicle_id
-      const firstItem = quote.items[0];
-      if (firstItem.vehicle_id && supabaseVehicles.length > 0) {
-        console.log('Buscando veículo pelo ID:', firstItem.vehicle_id);
-        const vehicle = supabaseVehicles.find(v => v.id === firstItem.vehicle_id);
-        if (vehicle) {
-          console.log('Veículo encontrado pelo ID:', vehicle);
-          return { 
-            name: `${vehicle.brand} ${vehicle.model}`, 
-            value: firstItem.monthly_value || quote.total_value || 0
-          };
-        }
-      }
-    }
-    
-    // Usar vehicle_id diretamente do orçamento se existir
+    // Verificar o vehicle_id e usar o array de veículos já carregados
     if (quote.vehicle_id && supabaseVehicles.length > 0) {
-      console.log('Buscando veículo pelo ID direto no orçamento:', quote.vehicle_id);
+      console.log('Buscando veículo pelo ID:', quote.vehicle_id);
       const vehicle = supabaseVehicles.find(v => v.id === quote.vehicle_id);
       if (vehicle) {
+        console.log('Veículo encontrado pelo ID:', vehicle);
         return { 
           name: `${vehicle.brand} ${vehicle.model}`, 
-          value: quote.monthly_value || quote.total_value || 0 
+          value: quote.monthly_values || quote.total_value || 0 
         };
       }
     }
