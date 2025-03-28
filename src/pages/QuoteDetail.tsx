@@ -120,61 +120,55 @@ const QuoteDetail = () => {
     if (!quote) return;
     
     if (isSupabase) {
-      // Processar orçamento do Supabase
-      console.log('Processando orçamento do Supabase:', quote);
-      
-      const clientData = quote.client || {
-        name: 'Cliente não encontrado',
-        document: '',
-        email: '',
-      };
-      
-      setClient(clientData);
-      
-      // Verificar se existem itens no orçamento
-      if (quote.items && quote.items.length > 0) {
-        const vehiclesData = quote.items.map((item: any) => {
-          const vehicle = item.vehicle || {};
-          
-          return {
-            vehicleId: vehicle.id || item.vehicle_id,
-            vehicleBrand: vehicle.brand || 'Marca não disponível',
-            vehicleModel: vehicle.model || 'Modelo não disponível',
-            plateNumber: vehicle.plate_number || '',
-            groupId: vehicle.group_id || 'A',
-            totalCost: item.monthly_value || 0,
-            depreciationCost: item.monthly_value * 0.65 || 0, // Estimativa
-            maintenanceCost: item.monthly_value * 0.35 || 0, // Estimativa
-            extraKmRate: calculateExtraKmRate(vehicle.value || 50000)
+      const processSupabaseQuote = async () => {
+        try {
+          // Processar cliente
+          const clientData = quote.client || {
+            name: 'Cliente não encontrado',
+            document: '',
+            email: '',
           };
-        });
-        
-        setVehicles(vehiclesData);
-        
-        // Buscar grupo do veículo
-        if (vehiclesData.length > 0 && vehiclesData[0].groupId) {
-          setVehicleGroup(getVehicleGroupById(vehiclesData[0].groupId) || {
-            name: 'Grupo não disponível',
+          setClient(clientData);
+          
+          // Processar valores do orçamento
+          const totalValue = Number(quote.total_value) || 0;
+          console.log('Total Value:', totalValue, typeof totalValue);
+          
+          // Configurar grupo padrão
+          const defaultGroup = {
+            id: 'A',
+            name: 'Grupo Padrão',
             revisionKm: 15000,
             tireKm: 40000,
             revisionCost: 350,
             tireCost: 1400
-          });
+          };
+          
+          // Criar veículo simulado com dados do Supabase
+          const vehicleData = {
+            vehicleId: quote.id,
+            vehicleBrand: 'Orçamento',
+            vehicleModel: quote.title || `#${quote.id?.substring(0, 8)}`,
+            plateNumber: '',
+            groupId: 'A',
+            totalCost: Number(totalValue),
+            depreciationCost: Number(totalValue * 0.65),
+            maintenanceCost: Number(totalValue * 0.35),
+            extraKmRate: totalValue > 0 ? Number(totalValue * 0.002) : 0.5,
+            group: defaultGroup
+          };
+          
+          setVehicles([vehicleData]);
+          setSelectedVehicleId(vehicleData.vehicleId);
+          setSelectedVehicle(vehicleData);
+          setVehicleGroup(defaultGroup);
+          
+        } catch (error) {
+          console.error('Erro ao processar orçamento do Supabase:', error);
         }
-      } else {
-        setVehicles([{
-          vehicleId: '0',
-          vehicleBrand: 'Sem veículo',
-          vehicleModel: 'Não disponível',
-          plateNumber: '',
-          groupId: 'A',
-          totalCost: quote.total_value || 0,
-          depreciationCost: (quote.total_value || 0) * 0.65,
-          maintenanceCost: (quote.total_value || 0) * 0.35,
-          extraKmRate: 0.5
-        }]);
-      }
+      };
       
+      processSupabaseQuote();
       return;
     }
     
@@ -237,7 +231,21 @@ const QuoteDetail = () => {
   useEffect(() => {
     if (vehicles.length > 0 && selectedVehicleId) {
       const selected = vehicles.find(v => v.vehicleId === selectedVehicleId);
-      setSelectedVehicle(selected || vehicles[0]);
+      console.log('Alterando veículo selecionado:', selected);
+      
+      if (selected) {
+        setSelectedVehicle(selected);
+        // Atualizar o grupo do veículo quando mudar o veículo selecionado
+        if (selected.group) {
+          console.log('Atualizando grupo do veículo:', selected.group);
+          setVehicleGroup(selected.group);
+        }
+      } else {
+        setSelectedVehicle(vehicles[0]);
+        if (vehicles[0].group) {
+          setVehicleGroup(vehicles[0].group);
+        }
+      }
     }
   }, [selectedVehicleId, vehicles]);
   
@@ -269,7 +277,18 @@ const QuoteDetail = () => {
   }
   
   const handleVehicleChange = (vehicleId: string) => {
-    setSelectedVehicleId(vehicleId);
+    console.log('Alterando para veículo ID:', vehicleId);
+    const selectedVehicle = vehicles.find(v => v.vehicleId === vehicleId);
+    console.log('Dados do veículo selecionado:', selectedVehicle);
+    
+    if (selectedVehicle) {
+      setSelectedVehicleId(vehicleId);
+      setSelectedVehicle(selectedVehicle);
+      if (selectedVehicle.group) {
+        console.log('Atualizando grupo do veículo para:', selectedVehicle.group);
+        setVehicleGroup(selectedVehicle.group);
+      }
+    }
   };
 
   const handleEditClick = () => {
@@ -337,34 +356,34 @@ const QuoteDetail = () => {
   const quoteData = isSupabase 
     ? {
         createdAt: quote.created_at,
-        contractMonths: quote.contract_months || 24,
-        monthlyKm: quote.monthly_km || 3000,
-        operationSeverity: quote.operation_severity || 3,
-        hasTracking: quote.has_tracking || false,
+        contractMonths: Number(quote.contract_months) || 24,
+        monthlyKm: Number(quote.monthly_km) || 3000,
+        operationSeverity: Number(quote.operation_severity) || 3,
+        hasTracking: Boolean(quote.has_tracking),
         trackingCost: 0,
-        totalCost: quote.total_value || 0
+        totalCost: Number(quote.total_value) || 0
       }
     : quote;
   
-  const extraKmRate = selectedVehicle ? selectedVehicle.extraKmRate : 0;
+  const extraKmRate = selectedVehicle ? Number(selectedVehicle.extraKmRate) : 0;
   const createdDate = quoteData.createdAt 
     ? new Date(quoteData.createdAt).toLocaleDateString('pt-BR') 
     : 'Data não disponível';
   
-  const contractMonths = isSupabase ? quote.contract_months : quote.contractMonths;
-  const monthlyKm = isSupabase ? quote.monthly_km : quote.monthlyKm;
+  const contractMonths = Number(isSupabase ? quote.contract_months : quote.contractMonths) || 24;
+  const monthlyKm = Number(isSupabase ? quote.monthly_km : quote.monthlyKm) || 3000;
   const totalKm = monthlyKm * contractMonths;
   
-  const depreciationCost = selectedVehicle ? selectedVehicle.depreciationCost : 0;
-  const maintenanceCost = selectedVehicle ? selectedVehicle.maintenanceCost : 0;
-  const trackingCost = quoteData.trackingCost || 0;
-  const vehicleTotalCost = selectedVehicle ? selectedVehicle.totalCost : 0;
+  const depreciationCost = Number(selectedVehicle ? selectedVehicle.depreciationCost : 0);
+  const maintenanceCost = Number(selectedVehicle ? selectedVehicle.maintenanceCost : 0);
+  const trackingCost = Number(quoteData.trackingCost || 0);
+  const vehicleTotalCost = Number(selectedVehicle ? selectedVehicle.totalCost : 0);
   
-  const costPerKm = totalKm > 0 ? (selectedVehicle ? selectedVehicle.totalCost / totalKm : 0) : 0;
+  const costPerKm = totalKm > 0 ? Number((vehicleTotalCost / totalKm).toFixed(2)) : 0;
 
-  const depreciationPercentage = vehicleTotalCost > 0 ? ((depreciationCost / vehicleTotalCost) * 100).toFixed(1) : "0";
-  const maintenancePercentage = vehicleTotalCost > 0 ? ((maintenanceCost / vehicleTotalCost) * 100).toFixed(1) : "0";
-  const trackingPercentage = vehicleTotalCost > 0 ? ((trackingCost / vehicleTotalCost) * 100).toFixed(1) : "0";
+  const depreciationPercentage = vehicleTotalCost > 0 ? (Math.round((depreciationCost / vehicleTotalCost) * 1000) / 10).toFixed(1) : "0";
+  const maintenancePercentage = vehicleTotalCost > 0 ? (Math.round((maintenanceCost / vehicleTotalCost) * 1000) / 10).toFixed(1) : "0";
+  const trackingPercentage = vehicleTotalCost > 0 ? (Math.round((trackingCost / vehicleTotalCost) * 1000) / 10).toFixed(1) : "0";
   
   return (
     <MainLayout>
@@ -526,14 +545,14 @@ const QuoteDetail = () => {
                 {vehicles.length > 1 ? (
                   <>
                     <p className="text-3xl font-bold text-primary">
-                      R$ {quoteData.totalCost.toLocaleString('pt-BR')}
+                      R$ {Number(quoteData.totalCost).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       total por mês (todos os veículos)
                     </p>
                     <div className="mt-2 p-2 bg-white rounded-md">
                       <p className="text-xl font-semibold text-primary">
-                        R$ {vehicleTotalCost.toLocaleString('pt-BR')}
+                        R$ {vehicleTotalCost.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {selectedVehicle ? `${selectedVehicle.vehicleBrand} ${selectedVehicle.vehicleModel}` : 'Veículo selecionado'}
@@ -543,7 +562,7 @@ const QuoteDetail = () => {
                 ) : (
                   <>
                     <p className="text-3xl font-bold text-primary">
-                      R$ {vehicleTotalCost.toLocaleString('pt-BR')}
+                      R$ {vehicleTotalCost.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       por mês
@@ -598,7 +617,7 @@ const QuoteDetail = () => {
                   <div className="p-4 border rounded-md bg-muted/10">
                     <div className="flex flex-col">
                       <span className="text-muted-foreground text-sm">Depreciação</span>
-                      <span className="text-xl font-bold mt-1">R$ {depreciationCost.toLocaleString('pt-BR')}</span>
+                      <span className="text-xl font-bold mt-1">R$ {depreciationCost.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       <span className="text-xs text-muted-foreground mt-1">
                         {depreciationPercentage}% do valor total
                       </span>
@@ -608,7 +627,7 @@ const QuoteDetail = () => {
                   <div className="p-4 border rounded-md bg-muted/10">
                     <div className="flex flex-col">
                       <span className="text-muted-foreground text-sm">Manutenção</span>
-                      <span className="text-xl font-bold mt-1">R$ {maintenanceCost.toLocaleString('pt-BR')}</span>
+                      <span className="text-xl font-bold mt-1">R$ {maintenanceCost.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       <span className="text-xs text-muted-foreground mt-1">
                         {maintenancePercentage}% do valor total
                       </span>
@@ -619,7 +638,7 @@ const QuoteDetail = () => {
                     <div className="p-4 border rounded-md bg-muted/10">
                       <div className="flex flex-col">
                         <span className="text-muted-foreground text-sm">Rastreamento</span>
-                        <span className="text-xl font-bold mt-1">R$ {trackingCost.toLocaleString('pt-BR')}</span>
+                        <span className="text-xl font-bold mt-1">R$ {trackingCost.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         <span className="text-xs text-muted-foreground mt-1">
                           {trackingPercentage}% do valor total
                         </span>
@@ -649,7 +668,7 @@ const QuoteDetail = () => {
                       
                       <div className="p-4 border rounded-md">
                         <span className="text-muted-foreground text-sm">Custo por Revisão</span>
-                        <p className="font-medium">R$ {vehicleGroup.revisionCost.toLocaleString('pt-BR')}</p>
+                        <p className="font-medium">R$ {vehicleGroup.revisionCost.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                       </div>
                       
                       <div className="p-4 border rounded-md">
@@ -659,7 +678,7 @@ const QuoteDetail = () => {
                       
                       <div className="p-4 border rounded-md">
                         <span className="text-muted-foreground text-sm">Custo de Troca de Pneus</span>
-                        <p className="font-medium">R$ {vehicleGroup.tireCost.toLocaleString('pt-BR')}</p>
+                        <p className="font-medium">R$ {vehicleGroup.tireCost.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                       </div>
                     </div>
                   </div>

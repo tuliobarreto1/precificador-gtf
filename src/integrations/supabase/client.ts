@@ -6,20 +6,39 @@ import { v4 as uuidv4 } from 'uuid';
 const SUPABASE_URL = "https://pvsjjqmsoauuxxfgdhfg.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2c2pqcW1zb2F1dXh4ZmdkaGZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMxMTI5NTUsImV4cCI6MjA1ODY4ODk1NX0.Mp6zyYRkHfHZTkBIkV_lpYv8nkAkJ9i7cI1y8dGGF6M";
 
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: {
+    storage: typeof localStorage !== 'undefined' ? localStorage : undefined,
+    persistSession: true,
+    autoRefreshToken: true
+  }
+});
+
+// Função para verificar a conexão com o Supabase
+export async function checkSupabaseConnection() {
+  try {
+    const { data, error } = await supabase.from('vehicle_groups').select('id').limit(1);
+    
+    if (error) throw error;
+    
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error };
+  }
+}
+
+// Função para converter IDs de timestamp para formato UUID
+const convertToValidUuid = (id: string | number): string => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (typeof id === 'string' && uuidRegex.test(id)) {
+    return id;
+  }
+  return uuidv4();
+};
 
 // Função para salvar cliente no Supabase
 export async function saveClientToSupabase(client: any) {
   try {
-    console.log('🔍 Tentando salvar cliente:', {
-      id: client.id,
-      name: client.name,
-      document: client.document,
-      email: client.email
-    });
-
-    // Converter ID para UUID se necessário
     const clientId = convertToValidUuid(client.id);
 
     const { data, error } = await supabase
@@ -35,194 +54,63 @@ export async function saveClientToSupabase(client: any) {
       .single();
 
     if (error) {
-      console.error('❌ Erro ao salvar cliente no Supabase:', error);
       return { success: false, error };
     }
 
-    console.log('✅ Cliente salvo com sucesso:', data);
     return { success: true, data };
   } catch (error) {
-    console.error('❌ Erro inesperado ao salvar cliente:', error);
     return { success: false, error };
   }
 }
-
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage: typeof localStorage !== 'undefined' ? localStorage : undefined,
-    persistSession: true,
-    autoRefreshToken: true
-  }
-});
-
-// Função para verificar a conexão com o Supabase
-export async function checkSupabaseConnection() {
-  try {
-    console.log('Verificando conexão com o Supabase...');
-    const { data, error } = await supabase.from('vehicle_groups').select('id').limit(1);
-    
-    if (error) {
-      console.error('Erro ao conectar ao Supabase:', error);
-      throw error;
-    }
-    
-    console.log('Conexão com o Supabase estabelecida com sucesso:', data);
-    return { success: true, data };
-  } catch (error) {
-    console.error('Erro ao conectar ao Supabase:', error);
-    return { success: false, error };
-  }
-}
-
-// Função para converter IDs de timestamp para formato UUID
-const convertToValidUuid = (id: string | number): string => {
-  // Verifica se já é um UUID válido
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (typeof id === 'string' && uuidRegex.test(id)) {
-    return id;
-  }
-  
-  // Caso contrário, gerar um novo UUID
-  return uuidv4();
-};
 
 // Função para salvar orçamento no Supabase
 export async function saveQuoteToSupabase(quote: any) {
   try {
-    // Obter o usuário logado (ou do Supabase Auth ou do sistema admin)
     let userId = null;
-    
-    // Verificar se há um usuário admin logado
     const adminUserStr = localStorage.getItem('admin_user');
     if (adminUserStr) {
       const adminUser = JSON.parse(adminUserStr);
       userId = adminUser.id;
     } else {
-      // Verificar se há um usuário Supabase logado
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         userId = session.user.id;
       }
     }
     
-    console.log('🔍 Detalhando dados do orçamento para salvar:', {
-      clientId: quote.clientId,
-      contractMonths: quote.contractMonths,
-      monthlyKm: quote.monthlyKm,
-      operationSeverity: quote.operationSeverity || 3,
-      hasTracking: quote.hasTracking || false,
-      totalCost: quote.totalCost || 0,
-      id: quote.id || 'novo',
-      veiculos: quote.vehicles?.length || 0,
-      userId: userId
-    });
-    
-    // Verifica se o orçamento tem um ID válido formatado como UUID 
-    const isValidUuid = !!quote.id && 
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(quote.id);
-    
-    // Primeiro, salvar o cliente
     const clientResult = await saveClientToSupabase(quote.client);
     if (!clientResult.success) {
-      console.error('❌ Falha ao salvar cliente:', clientResult.error);
       return { success: false, error: clientResult.error };
     }
 
-    // Gera ou mantém o ID do orçamento no formato UUID
+    const isValidUuid = !!quote.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(quote.id);
     const quoteId = isValidUuid ? quote.id : uuidv4();
-    console.log(`ID do orçamento a ser usado: ${quoteId} (era: ${quote.id})`);
-    
-    // Usar o ID do cliente retornado pelo Supabase
     const clientUuid = clientResult.data.id;
     
-    if (isValidUuid) {
-      // Atualizar orçamento existente
-      console.log(`Atualizando orçamento existente com ID ${quoteId}`);
-      const { data, error } = await supabase
-        .from('quotes')
-        .update({
-          client_id: clientUuid,
-          contract_months: quote.contractMonths,
-          monthly_km: quote.monthlyKm,
-          operation_severity: quote.operationSeverity,
-          has_tracking: quote.hasTracking,
-          total_value: quote.totalCost || 0,
-          status: 'active',
-          title: `Orçamento ${new Date().toLocaleDateString('pt-BR')}`,
-          created_by: userId // Adicionar ID do usuário
-        })
-        .eq('id', quoteId)
-        .select();
-      
-      if (error) {
-        console.error('❌ Erro ao atualizar orçamento no Supabase:', error);
-        return { success: false, error };
-      }
-      
-      console.log('✅ Orçamento atualizado com sucesso:', data);
-      return { success: true, data };
-    } else {
-      // Criar novo orçamento
-      console.log('Inserindo novo orçamento no Supabase');
-      const { data, error } = await supabase
-        .from('quotes')
-        .insert({
-          id: quoteId,
-          client_id: clientUuid,
-          contract_months: quote.contractMonths,
-          monthly_km: quote.monthlyKm,
-          operation_severity: quote.operationSeverity || 3,
-          has_tracking: quote.hasTracking || false,
-          total_value: quote.totalCost || 0,
-          status: 'active',
-          title: `Orçamento ${new Date().toLocaleDateString('pt-BR')}`,
-          created_by: userId // Adicionar ID do usuário
-        })
-        .select();
-      
-      if (error) {
-        console.error('❌ Erro ao inserir orçamento no Supabase:', error);
-        console.error('Detalhes do erro:', error.details, error.message, error.hint);
-        return { success: false, error };
-      }
-      
-      console.log('✅ Orçamento salvo com sucesso:', data);
-      
-      if (data && data[0] && quote.vehicles && quote.vehicles.length > 0) {
-        // Salvar os itens do orçamento
-        const savedQuoteId = data[0].id;
-        console.log(`Salvando ${quote.vehicles.length} veículos para o orçamento ${savedQuoteId}`);
-        
-        // Preparar os itens para inserção
-        const quoteItems = quote.vehicles.map((item: any) => ({
-          quote_id: savedQuoteId,
-          vehicle_id: item.vehicle && item.vehicle.id ? convertToValidUuid(item.vehicle.id) : convertToValidUuid(item.vehicleId),
-          monthly_value: item.totalCost || 0,
-          contract_months: quote.contractMonths,
-          monthly_km: quote.monthlyKm,
-          operation_severity: quote.operationSeverity || 3,
-          has_tracking: quote.hasTracking || false
-        }));
-        
-        console.log('Itens do orçamento a serem inseridos:', quoteItems);
-        
-        const { error: itemsError } = await supabase
-          .from('quote_items')
-          .insert(quoteItems);
-          
-        if (itemsError) {
-          console.error('❌ Erro ao inserir itens do orçamento:', itemsError);
-          console.error('Detalhes do erro:', itemsError.details, itemsError.message, itemsError.hint);
-          // Não falharemos todo o processo se apenas os itens falharem
-        } else {
-          console.log('✅ Itens do orçamento salvos com sucesso');
-        }
-      }
-      
-      return { success: true, data };
+    const quoteData = {
+      id: quoteId,
+      client_id: clientUuid,
+      contract_months: quote.contractMonths,
+      monthly_km: quote.monthlyKm,
+      operation_severity: quote.operationSeverity || 3,
+      has_tracking: quote.hasTracking || false,
+      total_value: quote.totalCost || 0,
+      status: 'active',
+      title: `Orçamento ${new Date().toLocaleDateString('pt-BR')}`,
+      created_by: userId
+    };
+
+    const { data, error } = await supabase
+      .from('quotes')
+      .upsert(quoteData)
+      .select();
+
+    if (error) {
+      return { success: false, error };
     }
+    
+    return { success: true, data };
   } catch (error) {
-    console.error('❌ Erro inesperado ao salvar orçamento:', error);
     return { success: false, error };
   }
 }
@@ -230,41 +118,20 @@ export async function saveQuoteToSupabase(quote: any) {
 // Função para buscar orçamentos no Supabase
 export async function getQuotesFromSupabase() {
   try {
-    console.log('Buscando orçamentos no Supabase...');
-    
-    // Buscar orçamentos com relacionamentos de forma mais completa
     const { data, error } = await supabase
       .from('quotes')
       .select(`
         *,
-        client:client_id(*),
-        items:quote_items(
-          *,
-          vehicle:vehicle_id(*)
-        )
+        client:client_id(*)
       `)
       .order('created_at', { ascending: false });
     
     if (error) {
-      console.error('Erro ao buscar orçamentos no Supabase:', error);
       return { success: false, error, quotes: [] };
     }
     
-    console.log(`Encontrados ${data?.length || 0} orçamentos no Supabase`);
-    if (data && data.length > 0) {
-      console.log('Primeiro orçamento encontrado:', data[0]);
-      if (data[0].items && data[0].items.length > 0) {
-        console.log('Detalhes do primeiro item do orçamento:', data[0].items[0]);
-        console.log('Detalhes do veículo do primeiro item:', data[0].items[0].vehicle);
-      } else {
-        console.log('Primeiro orçamento não possui itens');
-      }
-    }
-    
     return { success: true, quotes: data || [] };
-    
   } catch (error) {
-    console.error('Erro inesperado ao buscar orçamentos:', error);
     return { success: false, error, quotes: [] };
   }
 }
@@ -272,36 +139,21 @@ export async function getQuotesFromSupabase() {
 // Função para buscar um único orçamento pelo ID
 export async function getQuoteByIdFromSupabase(quoteId: string) {
   try {
-    console.log(`Buscando orçamento com ID ${quoteId} no Supabase...`);
-    
     const { data, error } = await supabase
       .from('quotes')
       .select(`
         *,
-        client:client_id(*),
-        items:quote_items(
-          *,
-          vehicle:vehicle_id(*)
-        )
+        client:client_id(*)
       `)
       .eq('id', quoteId)
       .single();
     
     if (error) {
-      console.error(`Erro ao buscar orçamento com ID ${quoteId}:`, error);
       return { success: false, error };
     }
     
-    console.log('Orçamento encontrado:', data);
-    if (data.items && data.items.length > 0) {
-      console.log('Itens do orçamento:', data.items.length);
-      console.log('Primeiro veículo:', data.items[0].vehicle);
-    }
-    
     return { success: true, quote: data };
-    
   } catch (error) {
-    console.error('Erro inesperado ao buscar orçamento por ID:', error);
     return { success: false, error };
   }
 }
@@ -309,23 +161,17 @@ export async function getQuoteByIdFromSupabase(quoteId: string) {
 // Função para buscar veículos do Supabase
 export async function getVehiclesFromSupabase() {
   try {
-    console.log('Buscando veículos no Supabase...');
-    
     const { data, error } = await supabase
       .from('vehicles')
       .select('*')
       .order('brand', { ascending: true });
     
     if (error) {
-      console.error('Erro ao buscar veículos:', error);
       return { success: false, error, vehicles: [] };
     }
     
-    console.log(`Encontrados ${data?.length || 0} veículos no Supabase`);
     return { success: true, vehicles: data || [] };
-    
   } catch (error) {
-    console.error('Erro inesperado ao buscar veículos:', error);
     return { success: false, error, vehicles: [] };
   }
 }
