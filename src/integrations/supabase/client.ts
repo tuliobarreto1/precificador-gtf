@@ -39,11 +39,21 @@ export async function checkSupabaseConnection() {
 // Função para salvar orçamento no Supabase
 export async function saveQuoteToSupabase(quote: any) {
   try {
-    console.log('Tentando salvar orçamento no Supabase:', quote);
+    console.log('🔍 Detalhando dados do orçamento para salvar:', {
+      clientId: quote.clientId,
+      contractMonths: quote.contractMonths,
+      monthlyKm: quote.monthlyKm,
+      operationSeverity: quote.operationSeverity || 3,
+      hasTracking: quote.hasTracking || false,
+      totalCost: quote.totalCost || 0,
+      id: quote.id || 'novo',
+      veiculos: quote.vehicles?.length || 0
+    });
     
     // Verifica se o orçamento já tem id (atualização) ou é um novo
     if (quote.id) {
       // Atualizar orçamento existente
+      console.log(`Atualizando orçamento existente com ID ${quote.id}`);
       const { data, error } = await supabase
         .from('quotes')
         .update({
@@ -60,14 +70,15 @@ export async function saveQuoteToSupabase(quote: any) {
         .select();
       
       if (error) {
-        console.error('Erro ao atualizar orçamento no Supabase:', error);
+        console.error('❌ Erro ao atualizar orçamento no Supabase:', error);
         return { success: false, error };
       }
       
-      console.log('Orçamento atualizado com sucesso:', data);
+      console.log('✅ Orçamento atualizado com sucesso:', data);
       return { success: true, data };
     } else {
       // Criar novo orçamento
+      console.log('Inserindo novo orçamento no Supabase');
       const { data, error } = await supabase
         .from('quotes')
         .insert({
@@ -83,18 +94,22 @@ export async function saveQuoteToSupabase(quote: any) {
         .select();
       
       if (error) {
-        console.error('Erro ao inserir orçamento no Supabase:', error);
+        console.error('❌ Erro ao inserir orçamento no Supabase:', error);
+        console.error('Detalhes do erro:', error.details, error.message, error.hint);
         return { success: false, error };
       }
+      
+      console.log('✅ Orçamento salvo com sucesso:', data);
       
       if (data && data[0] && quote.vehicles && quote.vehicles.length > 0) {
         // Salvar os itens do orçamento
         const quoteId = data[0].id;
+        console.log(`Salvando ${quote.vehicles.length} veículos para o orçamento ${quoteId}`);
         
         // Preparar os itens para inserção
-        const quoteItems = quote.vehicles.map(item => ({
+        const quoteItems = quote.vehicles.map((item: any) => ({
           quote_id: quoteId,
-          vehicle_id: item.vehicleId,
+          vehicle_id: item.vehicle.id,
           monthly_value: item.totalCost || 0,
           contract_months: quote.contractMonths,
           monthly_km: quote.monthlyKm,
@@ -102,21 +117,25 @@ export async function saveQuoteToSupabase(quote: any) {
           has_tracking: quote.hasTracking || false
         }));
         
+        console.log('Itens do orçamento a serem inseridos:', quoteItems);
+        
         const { error: itemsError } = await supabase
           .from('quote_items')
           .insert(quoteItems);
           
         if (itemsError) {
-          console.error('Erro ao inserir itens do orçamento:', itemsError);
+          console.error('❌ Erro ao inserir itens do orçamento:', itemsError);
+          console.error('Detalhes do erro:', itemsError.details, itemsError.message, itemsError.hint);
           // Não falharemos todo o processo se apenas os itens falharem
+        } else {
+          console.log('✅ Itens do orçamento salvos com sucesso');
         }
       }
       
-      console.log('Orçamento salvo com sucesso:', data);
       return { success: true, data };
     }
   } catch (error) {
-    console.error('Erro inesperado ao salvar orçamento:', error);
+    console.error('❌ Erro inesperado ao salvar orçamento:', error);
     return { success: false, error };
   }
 }
@@ -144,8 +163,12 @@ export async function getQuotesFromSupabase() {
       return { success: false, error, quotes: [] };
     }
     
-    console.log('Orçamentos encontrados no Supabase:', data);
-    return { success: true, quotes: data };
+    console.log(`Encontrados ${data?.length || 0} orçamentos no Supabase`);
+    if (data && data.length > 0) {
+      console.log('Primeiro orçamento:', data[0]);
+    }
+    
+    return { success: true, quotes: data || [] };
     
   } catch (error) {
     console.error('Erro inesperado ao buscar orçamentos:', error);
