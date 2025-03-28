@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, Send, Edit, Trash, Car, Clock, FileEdit } from 'lucide-react';
@@ -29,9 +30,14 @@ import { quotes, getClientById, getVehicleById, getVehicleGroupById } from '@/li
 import { calculateExtraKmRate, getGlobalParams } from '@/lib/calculation';
 import { SavedQuote, useQuote, EditRecord } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
+import { getQuoteByIdFromSupabase } from '@/integrations/supabase/client';
 
 const isSavedQuote = (quote: any): quote is SavedQuote => {
   return 'clientName' in quote && 'vehicleBrand' in quote && 'vehicleModel' in quote;
+};
+
+const isSupabaseQuote = (quote: any): boolean => {
+  return quote && 'client_id' in quote && 'client' in quote;
 };
 
 const QuoteDetail = () => {
@@ -39,38 +45,140 @@ const QuoteDetail = () => {
   const [quote, setQuote] = useState<any>(null);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
+  const [isSupabase, setIsSupabase] = useState(false);
   const [client, setClient] = useState<any>(null);
   const [vehicleGroup, setVehicleGroup] = useState<any>(null);
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   
   const { savedQuotes, deleteQuote, canEditQuote, canDeleteQuote, getCurrentUser } = useQuote();
   const { toast } = useToast();
   const navigate = useNavigate();
   
   useEffect(() => {
-    if (!id) return;
-    
-    const mockQuote = quotes.find(q => q.id === id);
-    if (mockQuote) {
-      setQuote(mockQuote);
-      return;
+    async function fetchData() {
+      if (!id) {
+        setLoading(false);
+        return;
+      }
+      
+      // Primeiro, verificar se é um UUID válido (formato Supabase)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const isUuid = uuidRegex.test(id);
+      
+      if (isUuid) {
+        try {
+          console.log(`Tentando buscar orçamento do Supabase com ID: ${id}`);
+          const result = await getQuoteByIdFromSupabase(id);
+          
+          if (result.success && result.quote) {
+            console.log('Orçamento do Supabase encontrado:', result.quote);
+            setQuote(result.quote);
+            setIsSupabase(true);
+            setLoading(false);
+            return;
+          } else {
+            console.log('Orçamento não encontrado no Supabase, verificando localmente:', result.error);
+          }
+        } catch (error) {
+          console.error('Erro ao buscar orçamento do Supabase:', error);
+        }
+      }
+      
+      // Se não foi encontrado no Supabase ou não é um UUID, buscar localmente
+      const mockQuote = quotes.find(q => q.id === id);
+      if (mockQuote) {
+        console.log('Orçamento mock encontrado:', mockQuote);
+        setQuote(mockQuote);
+        setLoading(false);
+        return;
+      }
+      
+      // Tentar encontrar nos orçamentos salvos localmente
+      if (savedQuotes && savedQuotes.length > 0) {
+        const savedQuote = savedQuotes.find(q => q.id === id);
+        if (savedQuote) {
+          console.log('Orçamento salvo encontrado:', savedQuote);
+          setQuote(savedQuote);
+        } else {
+          console.error('Orçamento não encontrado, ID:', id);
+          console.log('Orçamentos salvos disponíveis:', savedQuotes);
+        }
+      } else {
+        console.log('Nenhum orçamento salvo disponível');
+      }
+      
+      setLoading(false);
     }
     
-    const savedQuote = savedQuotes.find(q => q.id === id);
-    if (savedQuote) {
-      console.log('Orçamento encontrado:', savedQuote);
-      setQuote(savedQuote);
-    } else {
-      console.error('Orçamento não encontrado, ID:', id);
-      console.log('Orçamentos salvos disponíveis:', savedQuotes);
-    }
+    fetchData();
   }, [id, savedQuotes]);
   
   useEffect(() => {
     if (!quote) return;
     
+    if (isSupabase) {
+      // Processar orçamento do Supabase
+      console.log('Processando orçamento do Supabase:', quote);
+      
+      const clientData = quote.client || {
+        name: 'Cliente não encontrado',
+        document: '',
+        email: '',
+      };
+      
+      setClient(clientData);
+      
+      // Verificar se existem itens no orçamento
+      if (quote.items && quote.items.length > 0) {
+        const vehiclesData = quote.items.map((item: any) => {
+          const vehicle = item.vehicle || {};
+          
+          return {
+            vehicleId: vehicle.id || item.vehicle_id,
+            vehicleBrand: vehicle.brand || 'Marca não disponível',
+            vehicleModel: vehicle.model || 'Modelo não disponível',
+            plateNumber: vehicle.plate_number || '',
+            groupId: vehicle.group_id || 'A',
+            totalCost: item.monthly_value || 0,
+            depreciationCost: item.monthly_value * 0.65 || 0, // Estimativa
+            maintenanceCost: item.monthly_value * 0.35 || 0, // Estimativa
+            extraKmRate: calculateExtraKmRate(vehicle.value || 50000)
+          };
+        });
+        
+        setVehicles(vehiclesData);
+        
+        // Buscar grupo do veículo
+        if (vehiclesData.length > 0 && vehiclesData[0].groupId) {
+          setVehicleGroup(getVehicleGroupById(vehiclesData[0].groupId) || {
+            name: 'Grupo não disponível',
+            revisionKm: 15000,
+            tireKm: 40000,
+            revisionCost: 350,
+            tireCost: 1400
+          });
+        }
+      } else {
+        setVehicles([{
+          vehicleId: '0',
+          vehicleBrand: 'Sem veículo',
+          vehicleModel: 'Não disponível',
+          plateNumber: '',
+          groupId: 'A',
+          totalCost: quote.total_value || 0,
+          depreciationCost: (quote.total_value || 0) * 0.65,
+          maintenanceCost: (quote.total_value || 0) * 0.35,
+          extraKmRate: 0.5
+        }]);
+      }
+      
+      return;
+    }
+    
+    // Processamento para orçamentos salvos localmente
     const quoteIsSaved = isSavedQuote(quote);
     setIsSaved(quoteIsSaved);
     
@@ -124,7 +232,7 @@ const QuoteDetail = () => {
         setSelectedVehicle(selected || vehiclesData[0]);
       }
     }
-  }, [quote, selectedVehicleId]);
+  }, [quote, selectedVehicleId, isSupabase]);
   
   useEffect(() => {
     if (vehicles.length > 0 && selectedVehicleId) {
@@ -132,6 +240,19 @@ const QuoteDetail = () => {
       setSelectedVehicle(selected || vehicles[0]);
     }
   }, [selectedVehicleId, vehicles]);
+  
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <h2 className="text-xl font-medium mb-2">Carregando orçamento...</h2>
+            <p className="text-muted-foreground">Aguarde um momento</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
   
   if (!quote) {
     return (
@@ -212,13 +333,31 @@ const QuoteDetail = () => {
   
   const globalParams = getGlobalParams();
   
+  // Dados do orçamento - adaptados para ambos formatos (Supabase ou local)
+  const quoteData = isSupabase 
+    ? {
+        createdAt: quote.created_at,
+        contractMonths: quote.contract_months || 24,
+        monthlyKm: quote.monthly_km || 3000,
+        operationSeverity: quote.operation_severity || 3,
+        hasTracking: quote.has_tracking || false,
+        trackingCost: 0,
+        totalCost: quote.total_value || 0
+      }
+    : quote;
+  
   const extraKmRate = selectedVehicle ? selectedVehicle.extraKmRate : 0;
-  const createdDate = new Date(quote.createdAt).toLocaleDateString('pt-BR');
-  const totalKm = quote.monthlyKm * quote.contractMonths;
+  const createdDate = quoteData.createdAt 
+    ? new Date(quoteData.createdAt).toLocaleDateString('pt-BR') 
+    : 'Data não disponível';
+  
+  const contractMonths = isSupabase ? quote.contract_months : quote.contractMonths;
+  const monthlyKm = isSupabase ? quote.monthly_km : quote.monthlyKm;
+  const totalKm = monthlyKm * contractMonths;
   
   const depreciationCost = selectedVehicle ? selectedVehicle.depreciationCost : 0;
   const maintenanceCost = selectedVehicle ? selectedVehicle.maintenanceCost : 0;
-  const trackingCost = !isSaved && quote.trackingCost ? quote.trackingCost : 0;
+  const trackingCost = quoteData.trackingCost || 0;
   const vehicleTotalCost = selectedVehicle ? selectedVehicle.totalCost : 0;
   
   const costPerKm = totalKm > 0 ? (selectedVehicle ? selectedVehicle.totalCost / totalKm : 0) : 0;
@@ -238,13 +377,18 @@ const QuoteDetail = () => {
               </Button>
             </Link>
             <PageTitle
-              title={`Orçamento #${quote?.id || ''}`}
+              title={isSupabase ? `${quote.title || 'Orçamento'} #${quote.id?.substring(0, 8) || ''}` : `Orçamento #${quote?.id || ''}`}
               subtitle={`Criado em ${createdDate}`}
               className="mb-0"
             />
             {isSaved && quote?.createdBy && (
               <Badge variant="outline" className="ml-2">
                 Criado por: {quote.createdBy.name}
+              </Badge>
+            )}
+            {isSupabase && (
+              <Badge variant="outline" className="ml-2">
+                Supabase
               </Badge>
             )}
           </div>
@@ -300,7 +444,7 @@ const QuoteDetail = () => {
                       <span>{client.document}</span>
                     </div>
                   )}
-                  {!isSaved && client?.type && (
+                  {!isSaved && !isSupabase && client?.type && (
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Tipo</span>
                       <Badge variant="outline">
@@ -382,7 +526,7 @@ const QuoteDetail = () => {
                 {vehicles.length > 1 ? (
                   <>
                     <p className="text-3xl font-bold text-primary">
-                      R$ {quote.totalCost.toLocaleString('pt-BR')}
+                      R$ {quoteData.totalCost.toLocaleString('pt-BR')}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       total por mês (todos os veículos)
@@ -413,28 +557,28 @@ const QuoteDetail = () => {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Prazo</span>
-                  <span className="font-medium">{quote.contractMonths} meses</span>
+                  <span className="font-medium">{contractMonths} meses</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Km Mensal</span>
-                  <span className="font-medium">{quote.monthlyKm.toLocaleString('pt-BR')} km</span>
+                  <span className="font-medium">{monthlyKm.toLocaleString('pt-BR')} km</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Km Total</span>
                   <span className="font-medium">{totalKm.toLocaleString('pt-BR')} km</span>
                 </div>
-                {!isSaved && quote.operationSeverity !== undefined && (
+                {(!isSaved && !isSupabase && quoteData.operationSeverity !== undefined) || (isSupabase && quote.operation_severity !== undefined) ? (
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Nível de Operação</span>
-                    <span className="font-medium">{quote.operationSeverity}</span>
+                    <span className="font-medium">{isSupabase ? quote.operation_severity : quoteData.operationSeverity}</span>
                   </div>
-                )}
-                {!isSaved && quote.hasTracking !== undefined && (
+                ) : null}
+                {(!isSaved && !isSupabase && quoteData.hasTracking !== undefined) || (isSupabase && quote.has_tracking !== undefined) ? (
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Rastreamento</span>
-                    <span className="font-medium">{quote.hasTracking ? 'Sim' : 'Não'}</span>
+                    <span className="font-medium">{isSupabase ? (quote.has_tracking ? 'Sim' : 'Não') : (quoteData.hasTracking ? 'Sim' : 'Não')}</span>
                   </div>
-                )}
+                ) : null}
               </div>
               
               <div className="pt-4 mt-4 border-t">
