@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
@@ -17,15 +16,33 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 
+type UserRole = 'admin' | 'supervisor' | 'user';
+type UserStatus = 'active' | 'inactive';
+
 type UserType = {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'supervisor' | 'user';
-  status: 'active' | 'inactive';
+  role: UserRole;
+  status: UserStatus;
   last_login?: string;
   password?: string; // Para novos usuários
+  created_at?: string;
+  updated_at?: string;
 };
+
+// Interface para o retorno da API do Supabase
+interface SupabaseUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  last_login: string | null;
+  password?: string;
+  created_at: string;
+  updated_at: string;
+}
 
 const UserRoleText = ({ role }: { role: string }) => {
   switch (role) {
@@ -90,10 +107,23 @@ const Users = () => {
       }
       
       console.log('Usuários carregados:', data);
-      setUsers(data || []);
+      
+      // Converter os dados do Supabase para o formato UserType
+      const typedUsers: UserType[] = (data || []).map((user: SupabaseUser) => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role as UserRole, // Conversão segura
+        status: user.status as UserStatus, // Conversão segura
+        last_login: user.last_login || undefined,
+        created_at: user.created_at,
+        updated_at: user.updated_at
+      }));
+      
+      setUsers(typedUsers);
     } catch (error) {
       console.error('Erro ao carregar usuários:', error);
-      toast.error('Erro ao carregar usuários');
+      toast.error("Erro ao carregar usuários");
     } finally {
       setLoading(false);
     }
@@ -106,7 +136,7 @@ const Users = () => {
 
   const handleAddUser = async () => {
     if (!newUser.name || !newUser.email || !newUser.password) {
-      toast.error('Por favor, preencha todos os campos obrigatórios');
+      toast.error("Por favor, preencha todos os campos obrigatórios");
       return;
     }
 
@@ -126,13 +156,25 @@ const Users = () => {
         throw error;
       }
       
-      setUsers([...users, data[0]]);
+      // Converter o resultado para UserType
+      const newUserData: UserType = {
+        id: data[0].id,
+        name: data[0].name,
+        email: data[0].email,
+        role: data[0].role as UserRole,
+        status: data[0].status as UserStatus,
+        last_login: data[0].last_login || undefined,
+        created_at: data[0].created_at,
+        updated_at: data[0].updated_at
+      };
+      
+      setUsers([...users, newUserData]);
       setNewUser({ id: '', name: '', email: '', role: 'user', status: 'active', password: '' });
       setIsAddUserOpen(false);
-      toast.success('Usuário adicionado com sucesso');
+      toast.success("Usuário adicionado com sucesso");
     } catch (error) {
       console.error('Erro ao adicionar usuário:', error);
-      toast.error('Erro ao adicionar usuário');
+      toast.error("Erro ao adicionar usuário");
     }
   };
 
@@ -155,15 +197,23 @@ const Users = () => {
         throw error;
       }
       
+      // Atualizar o usuário na lista local
       setUsers(users.map(user => 
-        user.id === currentUser.id ? data[0] : user
+        user.id === currentUser.id ? {
+          ...user,
+          name: data[0].name,
+          email: data[0].email,
+          role: data[0].role as UserRole,
+          status: data[0].status as UserStatus,
+          updated_at: data[0].updated_at
+        } : user
       ));
       
       setIsEditUserOpen(false);
-      toast.success('Usuário atualizado com sucesso');
+      toast.success("Usuário atualizado com sucesso");
     } catch (error) {
       console.error('Erro ao atualizar usuário:', error);
-      toast.error('Erro ao atualizar usuário');
+      toast.error("Erro ao atualizar usuário");
     }
   };
 

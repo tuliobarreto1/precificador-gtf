@@ -45,10 +45,8 @@ export default function Login() {
     e.preventDefault();
     
     if (!email || !password) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Por favor, preencha todos os campos obrigatórios.",
-        variant: "destructive",
+      toast.error("Campos obrigatórios", {
+        description: "Por favor, preencha todos os campos obrigatórios."
       });
       return;
     }
@@ -60,9 +58,8 @@ export default function Login() {
       const adminLoginResult = await signInAdmin(email, password);
       
       if (adminLoginResult.success) {
-        toast({
-          title: "Login realizado com sucesso",
-          description: "Bem-vindo(a) de volta!",
+        toast.success("Login realizado com sucesso", {
+          description: "Bem-vindo(a) de volta!"
         });
         navigate(from, { replace: true });
         return;
@@ -72,26 +69,21 @@ export default function Login() {
       const authLoginResult = await signIn(email, password);
       
       if (authLoginResult.success) {
-        toast({
-          title: "Login realizado com sucesso",
-          description: "Bem-vindo(a) de volta!",
+        toast.success("Login realizado com sucesso", {
+          description: "Bem-vindo(a) de volta!"
         });
         return;
       }
       
       // Se chegou aqui, não conseguiu autenticar
-      toast({
-        title: "Erro de autenticação",
-        description: "Email ou senha incorretos. Por favor, tente novamente.",
-        variant: "destructive",
+      toast.error("Erro de autenticação", {
+        description: "Email ou senha incorretos. Por favor, tente novamente."
       });
       
     } catch (error) {
       console.error('Erro no login:', error);
-      toast({
-        title: "Erro de autenticação",
-        description: "Ocorreu um erro ao tentar fazer login. Por favor, tente novamente.",
-        variant: "destructive",
+      toast.error("Erro de autenticação", {
+        description: "Ocorreu um erro ao tentar fazer login. Por favor, tente novamente."
       });
     } finally {
       setIsLoading(false);
