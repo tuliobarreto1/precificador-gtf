@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, FileEdit, Car, Calendar, User, Landmark, Gauge } from 'lucide-react';
@@ -15,10 +16,30 @@ import { useToast } from '@/hooks/use-toast';
 import { QuoteStatusFlow } from '@/lib/status-flow';
 import { fetchStatusHistory } from '@/lib/status-api';
 
+// Interface para os dados do veículo
+interface VehicleData {
+  id: string;
+  vehicle: {
+    id: string;
+    brand: string;
+    model: string;
+    year: number;
+    value: number;
+    plate_number?: string;
+    color?: string;
+    is_used: boolean;
+  };
+  monthly_value: number;
+  contract_months: number;
+  monthly_km: number;
+  operation_severity: number;
+  has_tracking: boolean;
+}
+
 const QuoteDetail = () => {
   const { id } = useParams();
   const [quote, setQuote] = useState<any>(null);
-  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<VehicleData[]>([]);
   const [statusHistory, setStatusHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,27 +57,23 @@ const QuoteDetail = () => {
           console.log("Dados do orçamento carregados:", quoteData);
           setQuote(quoteData);
           
-          // Se o orçamento já tiver veículos, use-os
-          if (quoteData.vehicles && Array.isArray(quoteData.vehicles) && quoteData.vehicles.length > 0) {
-            console.log("Veículos do orçamento carregados do orçamento:", quoteData.vehicles);
-            setVehicles(quoteData.vehicles);
+          // Buscar veículos separadamente
+          console.log("Buscando veículos para o orçamento:", id);
+          const { success: vehiclesSuccess, vehicles: vehiclesData } = await getQuoteVehicles(id);
+          
+          if (vehiclesSuccess && vehiclesData && Array.isArray(vehiclesData)) {
+            console.log("Veículos do orçamento carregados:", vehiclesData);
+            setVehicles(vehiclesData);
           } else {
-            // Caso contrário, faça uma busca específica
-            console.log("Buscando veículos separadamente para o orçamento:", id);
-            const { success: vehiclesSuccess, vehicles: vehiclesData } = await getQuoteVehicles(id);
-            
-            if (vehiclesSuccess && vehiclesData) {
-              console.log("Veículos do orçamento carregados separadamente:", vehiclesData);
-              setVehicles(vehiclesData);
-            } else {
-              console.log("Nenhum veículo encontrado para o orçamento:", id);
-              setVehicles([]);
-            }
+            console.log("Nenhum veículo encontrado para o orçamento:", id);
+            setVehicles([]);
           }
           
           // Buscar histórico de status
           const historyData = await fetchStatusHistory(id);
-          setStatusHistory(historyData || []);
+          if (historyData) {
+            setStatusHistory(historyData);
+          }
         } else {
           setError("Não foi possível carregar os dados do orçamento.");
           toast({

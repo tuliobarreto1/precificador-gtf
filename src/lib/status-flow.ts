@@ -1,144 +1,115 @@
 
-// Enum para os status possíveis do processo
-export enum QuoteStatusFlow {
-  ORCAMENTO = 'ORCAMENTO',
-  PROPOSTA_GERADA = 'PROPOSTA_GERADA',
-  EM_VERIFICACAO = 'EM_VERIFICACAO',
-  APROVADA = 'APROVADA',
-  CONTRATO_GERADO = 'CONTRATO_GERADO',
-  ASSINATURA_CLIENTE = 'ASSINATURA_CLIENTE',
-  ASSINATURA_DIRETORIA = 'ASSINATURA_DIRETORIA',
-  AGENDAMENTO_ENTREGA = 'AGENDAMENTO_ENTREGA',
-  ENTREGA = 'ENTREGA',
-  CONCLUIDO = 'CONCLUIDO'
-}
+// Definição dos possíveis status de fluxo de um orçamento
+export type QuoteStatusFlow = 
+  | 'ORCAMENTO' 
+  | 'PROPOSTA_GERADA' 
+  | 'EM_VERIFICACAO' 
+  | 'APROVADA' 
+  | 'CONTRATO_GERADO' 
+  | 'ASSINATURA_CLIENTE' 
+  | 'ASSINATURA_DIRETORIA' 
+  | 'AGENDAMENTO_ENTREGA' 
+  | 'ENTREGA' 
+  | 'CONCLUIDO';
 
-// Interface para o histórico de mudança de status
-export interface StatusHistoryItem {
-  id: string;
-  quote_id: string;
-  previous_status: QuoteStatusFlow | null;
-  new_status: QuoteStatusFlow;
-  changed_by: string | null;
-  changed_at: string;
-  observation: string | null;
-  user_name?: string; // Nome do usuário que fez a mudança
-}
-
-// Objeto que mapeia o status para suas informações de exibição
-export const statusInfo = {
-  [QuoteStatusFlow.ORCAMENTO]: {
+// Informações detalhadas sobre cada status
+export const statusInfo: Record<QuoteStatusFlow, {
+  label: string;
+  shortLabel: string;
+  description: string;
+  color: string;
+  icon: string;
+  step: number;
+  progressColor: string;
+}> = {
+  'ORCAMENTO': {
     label: 'Orçamento',
-    description: 'Orçamento em elaboração',
-    color: 'bg-sky-100 text-sky-800 border-sky-200',
+    shortLabel: 'Orçamento',
+    description: 'Orçamento inicial criado',
+    color: 'bg-blue-100 text-blue-800',
     icon: 'FileEdit',
     step: 1,
-    progressColor: 'bg-sky-500'
+    progressColor: 'bg-blue-500'
   },
-  [QuoteStatusFlow.PROPOSTA_GERADA]: {
+  'PROPOSTA_GERADA': {
     label: 'Proposta Gerada',
-    description: 'Proposta pronta para envio',
-    color: 'bg-sky-200 text-sky-900 border-sky-300',
-    icon: 'FileCheck',
+    shortLabel: 'Proposta',
+    description: 'Proposta formal gerada e pronta para envio',
+    color: 'bg-indigo-100 text-indigo-800',
+    icon: 'FileText',
     step: 2,
-    progressColor: 'bg-sky-600'
+    progressColor: 'bg-indigo-500'
   },
-  [QuoteStatusFlow.EM_VERIFICACAO]: {
+  'EM_VERIFICACAO': {
     label: 'Em Verificação',
-    description: 'Enviada para verificação do cliente',
-    color: 'bg-amber-100 text-amber-800 border-amber-200',
-    icon: 'ClipboardCheck',
+    shortLabel: 'Verificação',
+    description: 'Proposta em análise pelo cliente',
+    color: 'bg-purple-100 text-purple-800',
+    icon: 'Search',
     step: 3,
+    progressColor: 'bg-purple-500'
+  },
+  'APROVADA': {
+    label: 'Aprovada',
+    shortLabel: 'Aprovada',
+    description: 'Proposta aprovada pelo cliente',
+    color: 'bg-green-100 text-green-800',
+    icon: 'CheckCircle',
+    step: 4,
+    progressColor: 'bg-green-500'
+  },
+  'CONTRATO_GERADO': {
+    label: 'Contrato Gerado',
+    shortLabel: 'Contrato',
+    description: 'Contrato formal gerado e pronto para assinatura',
+    color: 'bg-teal-100 text-teal-800',
+    icon: 'FileCheck',
+    step: 5,
+    progressColor: 'bg-teal-500'
+  },
+  'ASSINATURA_CLIENTE': {
+    label: 'Assinatura do Cliente',
+    shortLabel: 'Ass. Cliente',
+    description: 'Aguardando assinatura do cliente',
+    color: 'bg-amber-100 text-amber-800',
+    icon: 'PenTool',
+    step: 6,
     progressColor: 'bg-amber-500'
   },
-  [QuoteStatusFlow.APROVADA]: {
-    label: 'Aprovada',
-    description: 'Cliente aprovou a proposta',
-    color: 'bg-amber-200 text-amber-900 border-amber-300',
-    icon: 'ThumbsUp',
-    step: 4,
-    progressColor: 'bg-amber-600'
-  },
-  [QuoteStatusFlow.CONTRATO_GERADO]: {
-    label: 'Contrato Gerado',
-    description: 'Contrato pronto para assinatura',
-    color: 'bg-amber-300 text-amber-950 border-amber-400',
-    icon: 'FileText',
-    step: 5,
-    progressColor: 'bg-amber-700'
-  },
-  [QuoteStatusFlow.ASSINATURA_CLIENTE]: {
-    label: 'Aguardando Assinatura do Cliente',
-    description: 'Contrato enviado para o cliente assinar',
-    color: 'bg-gray-100 text-gray-800 border-gray-200',
-    icon: 'FileSignature',
-    step: 6,
-    progressColor: 'bg-gray-500'
-  },
-  [QuoteStatusFlow.ASSINATURA_DIRETORIA]: {
-    label: 'Aguardando Assinatura da Diretoria',
-    description: 'Contrato aguardando assinatura interna',
-    color: 'bg-gray-200 text-gray-900 border-gray-300',
-    icon: 'Briefcase',
+  'ASSINATURA_DIRETORIA': {
+    label: 'Assinatura da Diretoria',
+    shortLabel: 'Ass. Diretoria',
+    description: 'Aguardando assinatura da diretoria',
+    color: 'bg-orange-100 text-orange-800',
+    icon: 'Stamp',
     step: 7,
-    progressColor: 'bg-gray-600'
+    progressColor: 'bg-orange-500'
   },
-  [QuoteStatusFlow.AGENDAMENTO_ENTREGA]: {
+  'AGENDAMENTO_ENTREGA': {
     label: 'Agendamento de Entrega',
-    description: 'Definindo data de entrega',
-    color: 'bg-lime-100 text-lime-800 border-lime-200',
-    icon: 'CalendarRange',
+    shortLabel: 'Agendamento',
+    description: 'Entrega sendo agendada com o cliente',
+    color: 'bg-rose-100 text-rose-800',
+    icon: 'Calendar',
     step: 8,
-    progressColor: 'bg-lime-500'
+    progressColor: 'bg-rose-500'
   },
-  [QuoteStatusFlow.ENTREGA]: {
+  'ENTREGA': {
     label: 'Entrega',
-    description: 'Entrega do veículo programada',
-    color: 'bg-lime-200 text-lime-900 border-lime-300',
-    icon: 'Car',
+    shortLabel: 'Entrega',
+    description: 'Veículos em processo de entrega',
+    color: 'bg-pink-100 text-pink-800',
+    icon: 'Truck',
     step: 9,
-    progressColor: 'bg-lime-600'
+    progressColor: 'bg-pink-500'
   },
-  [QuoteStatusFlow.CONCLUIDO]: {
+  'CONCLUIDO': {
     label: 'Concluído',
-    description: 'Processo finalizado',
-    color: 'bg-green-200 text-green-900 border-green-300',
-    icon: 'CheckCircle',
+    shortLabel: 'Concluído',
+    description: 'Processo concluído com sucesso',
+    color: 'bg-emerald-100 text-emerald-800',
+    icon: 'CheckSquare',
     step: 10,
-    progressColor: 'bg-green-600'
+    progressColor: 'bg-emerald-500'
   }
 };
-
-// Array de todos os status em ordem
-export const allStatus = [
-  QuoteStatusFlow.ORCAMENTO,
-  QuoteStatusFlow.PROPOSTA_GERADA,
-  QuoteStatusFlow.EM_VERIFICACAO,
-  QuoteStatusFlow.APROVADA,
-  QuoteStatusFlow.CONTRATO_GERADO,
-  QuoteStatusFlow.ASSINATURA_CLIENTE,
-  QuoteStatusFlow.ASSINATURA_DIRETORIA,
-  QuoteStatusFlow.AGENDAMENTO_ENTREGA,
-  QuoteStatusFlow.ENTREGA,
-  QuoteStatusFlow.CONCLUIDO
-];
-
-// Função para calcular o progresso
-export function calculateProgress(status: QuoteStatusFlow): number {
-  const currentStep = statusInfo[status].step;
-  return (currentStep / allStatus.length) * 100;
-}
-
-// Função para verificar se uma transição de status é válida
-export function isValidTransition(currentStatus: QuoteStatusFlow, newStatus: QuoteStatusFlow): boolean {
-  // Permitir voltar para qualquer status anterior
-  const currentIndex = allStatus.indexOf(currentStatus);
-  const newIndex = allStatus.indexOf(newStatus);
-  
-  if (newIndex < currentIndex) {
-    return true; // Permite retroceder
-  }
-  
-  // Apenas permite avançar para o próximo status na sequência
-  return newIndex === currentIndex + 1;
-}

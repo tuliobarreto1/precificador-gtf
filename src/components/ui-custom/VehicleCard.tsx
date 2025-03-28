@@ -1,238 +1,172 @@
 
 import React from 'react';
-import { Car, Info, Calendar, Wrench, Gauge, DollarSign, TrendingDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Vehicle, VehicleGroup } from '@/lib/mock-data';
+import { Car, Calendar, Gauge, Tag } from 'lucide-react';
 
-type VehicleCardProps = {
-  vehicle: Vehicle | any; // Aceita tanto Vehicle quanto o formato do Supabase
-  vehicleGroup?: VehicleGroup; // Propriedade do grupo de veículo
-  isSelected?: boolean;
-  onClick?: () => void;
+interface Vehicle {
+  id: string;
+  brand: string;
+  model: string;
+  year: number;
+  value?: number;
+  plateNumber?: string;
+  plate_number?: string; // Formato do Supabase
+  color?: string;
+  isUsed?: boolean;
+  is_used?: boolean; // Formato do Supabase
+  odometer?: number;
+  groupId?: string;
+  group_id?: string; // Formato do Supabase
+}
+
+interface VehicleGroup {
+  id: string;
+  name?: string;
+  description?: string;
+}
+
+interface VehicleCardProps {
+  vehicle: Vehicle;
+  vehicleGroup?: VehicleGroup;
   className?: string;
   children?: React.ReactNode;
+  isSelected?: boolean;
+  onClick?: () => void;
   showDetailedInfo?: boolean;
+}
+
+const getPlateNumber = (vehicle: Vehicle): string | undefined => {
+  return vehicle.plateNumber || vehicle.plate_number;
 };
 
-const VehicleCard = ({ 
-  vehicle, 
+const isVehicleUsed = (vehicle: Vehicle): boolean => {
+  return vehicle.isUsed || vehicle.is_used || false;
+};
+
+const getGroupId = (vehicle: Vehicle): string | undefined => {
+  return vehicle.groupId || vehicle.group_id;
+};
+
+const VehicleCard: React.FC<VehicleCardProps> = ({
+  vehicle,
   vehicleGroup,
-  isSelected = false, 
-  onClick, 
   className,
   children,
+  isSelected = false,
+  onClick,
   showDetailedInfo = false
-}: VehicleCardProps) => {
-  // Se vehicle for null ou undefined, exibir um cartão vazio
+}) => {
+  // Tratamento de segurança para caso o veículo seja undefined
   if (!vehicle) {
     return (
       <div className={cn(
-        "bg-white rounded-xl border p-4 transition-all duration-200 relative",
+        "border rounded-lg p-4 bg-muted/20 flex items-center justify-center",
         className
       )}>
-        <div className="flex items-center justify-center h-24">
-          <p className="text-muted-foreground">Veículo não disponível</p>
-        </div>
+        <p className="text-muted-foreground">Dados do veículo não disponíveis</p>
       </div>
     );
   }
-  
-  // Função auxiliar para extrair valores independente do formato do veículo
-  const getBrand = () => {
-    if (vehicle?.vehicleBrand) return vehicle.vehicleBrand;
-    if (vehicle?.brand) return vehicle.brand;
-    if (vehicle?.vehicle?.brand) return vehicle.vehicle?.brand;
-    return 'Não especificado';
-  };
-  
-  const getModel = () => {
-    if (vehicle?.vehicleModel) return vehicle.vehicleModel;
-    if (vehicle?.model) return vehicle.model;
-    if (vehicle?.vehicle?.model) return vehicle.vehicle?.model;
-    return 'Não especificado';
-  };
-  
-  const getYear = () => {
-    if (vehicle?.year) return vehicle.year;
-    if (vehicle?.vehicle?.year) return vehicle.vehicle?.year;
-    return 'N/A';
-  };
-  
-  const getPlate = () => {
-    if (vehicle?.plateNumber) return vehicle.plateNumber;
-    if (vehicle?.plate_number) return vehicle.plate_number;
-    if (vehicle?.vehicle?.plate_number) return vehicle.vehicle?.plate_number;
-    return null;
-  };
-  
-  const isUsed = () => {
-    if (vehicle?.isUsed !== undefined) return vehicle.isUsed;
-    if (vehicle?.is_used !== undefined) return vehicle.is_used;
-    if (vehicle?.vehicle?.is_used !== undefined) return vehicle.vehicle?.is_used;
-    return false;
-  };
-  
-  const getOdometer = () => {
-    if (vehicle?.odometer) return vehicle.odometer;
-    if (vehicle?.vehicle?.odometer) return vehicle.vehicle?.odometer;
-    return null;
-  };
-  
-  const getValue = () => {
-    // Valores podem estar em diferentes propriedades dependendo da fonte
-    if (vehicle?.value !== undefined) return vehicle.value;
-    if (vehicle?.monthly_value !== undefined) return vehicle.monthly_value;
-    if (vehicle?.monthlyValue !== undefined) return vehicle.monthlyValue;
-    if (vehicle?.vehicle?.value !== undefined) return vehicle.vehicle.value;
-    if (vehicle?.totalCost !== undefined) return vehicle.totalCost;
-    return 0;
-  };
-  
-  // Pegar informações de revisão e pneus
-  const getRevisionKm = () => {
-    if (vehicle?.revisionKm) return vehicle.revisionKm;
-    if (vehicle?.vehicle?.revisionKm) return vehicle.vehicle.revisionKm;
-    if (vehicleGroup?.revisionKm) return vehicleGroup.revisionKm;
-    return 20000; // Valor padrão estimado
-  };
-  
-  const getTireKm = () => {
-    if (vehicle?.tireKm) return vehicle.tireKm;
-    if (vehicle?.vehicle?.tireKm) return vehicle.vehicle.tireKm;
-    if (vehicleGroup?.tireKm) return vehicleGroup.tireKm;
-    return 40000; // Valor padrão estimado
-  };
 
-  // Obter informações de depreciação e manutenção
-  const getDepreciationCost = () => {
-    if (vehicle?.depreciationCost !== undefined) return vehicle.depreciationCost;
-    if (vehicle?.vehicle?.depreciationCost !== undefined) return vehicle.vehicle.depreciationCost;
-    
-    // Cálculo estimado se não houver valor definido
-    const originalValue = vehicle?.vehicle?.value || vehicle?.value || 0;
-    return originalValue * 0.3; // Estima 30% de depreciação
-  };
-
-  const getMaintenanceCost = () => {
-    if (vehicle?.maintenanceCost !== undefined) return vehicle.maintenanceCost;
-    if (vehicle?.vehicle?.maintenanceCost !== undefined) return vehicle.vehicle.maintenanceCost;
-    
-    // Estimativa de custo de manutenção baseado no valor do veículo
-    const vehicleValue = vehicle?.vehicle?.value || vehicle?.value || 0;
-    return vehicleValue * 0.05; // Estima 5% do valor como custo anual de manutenção
-  };
-
-  // Calcular custo por km
-  const getCostPerKm = () => {
-    const totalValue = getValue();
-    
-    // Tenta obter valores específicos, ou usa valores padrão
-    const monthlyKm = vehicle?.monthly_km || 3000;
-    const contractMonths = vehicle?.contract_months || 24;
-    const totalKm = monthlyKm * contractMonths;
-    
-    if (totalValue && totalKm > 0) {
-      return Number((totalValue / totalKm).toFixed(2));
-    }
-    return 0.50; // Valor padrão estimado de R$0,50 por km
-  };
+  // Valores seguros
+  const brand = vehicle.brand || 'Marca não especificada';
+  const model = vehicle.model || 'Modelo não especificado';
+  const year = vehicle.year || new Date().getFullYear();
+  const plateNumber = getPlateNumber(vehicle);
+  const isUsed = isVehicleUsed(vehicle);
+  const group = vehicleGroup?.id || getGroupId(vehicle) || '?';
   
   return (
     <div 
-      onClick={onClick}
       className={cn(
-        "bg-white rounded-xl border p-4 transition-all duration-200 relative",
-        "hover:shadow-md hover:border-primary/30 cursor-pointer",
-        isSelected && "border-primary/70 ring-1 ring-primary/30 shadow-md",
+        "relative border rounded-lg p-4 hover:border-primary/50 transition-colors",
+        onClick && "cursor-pointer",
+        isSelected && "border-primary bg-primary/5",
         className
       )}
+      onClick={onClick}
     >
-      <div className="flex items-center space-x-4">
-        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-          <Car className="text-primary" size={24} />
-        </div>
-        
-        <div className="flex-1">
+      <div className="flex items-start justify-between">
+        <div>
           <div className="flex items-center">
-            <h3 className="font-medium">{getBrand()} {getModel()}</h3>
-            {isUsed() && (
-              <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                Usado
-              </span>
-            )}
-            {getPlate() && (
-              <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
-                {getPlate()}
-              </span>
-            )}
+            <Car className="h-4 w-4 mr-2 text-muted-foreground" />
+            <h3 className="font-medium">
+              {brand} {model}
+            </h3>
           </div>
           
-          <p className="text-sm text-muted-foreground mt-1">
-            {getYear()}
-            {getOdometer() && ` • ${Number(getOdometer()).toLocaleString('pt-BR')} km`}
-          </p>
-        </div>
-        
-        <div className="text-right">
-          <p className="font-medium">R$ {Number(getValue()).toLocaleString('pt-BR')}</p>
-          <p className="text-xs text-muted-foreground mt-1">Valor do veículo</p>
-        </div>
-      </div>
-      
-      {(getRevisionKm() || getTireKm() || showDetailedInfo) && (
-        <div className="mt-3 pt-3 border-t">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {getRevisionKm() && (
+          <div className="text-sm mt-1 space-y-1">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-3 w-3 text-muted-foreground" />
+              <span>{year}</span>
+              
+              {plateNumber && (
+                <>
+                  <span className="text-muted-foreground">•</span>
+                  <span>{plateNumber}</span>
+                </>
+              )}
+              
+              {isUsed && (
+                <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full text-xs">
+                  Usado
+                </span>
+              )}
+            </div>
+            
+            {group && (
               <div className="flex items-center gap-2">
-                <Wrench className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Revisão:</p>
-                  <p className="text-sm">A cada {getRevisionKm().toLocaleString('pt-BR')} km</p>
-                </div>
+                <Tag className="h-3 w-3 text-muted-foreground" />
+                <span>Grupo {group}</span>
+                
+                {vehicleGroup?.description && (
+                  <span className="text-xs text-muted-foreground">
+                    ({vehicleGroup.description})
+                  </span>
+                )}
               </div>
             )}
             
-            {getTireKm() && (
-              <div className="flex items-center gap-2">
-                <Gauge className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Pneus:</p>
-                  <p className="text-sm">A cada {getTireKm().toLocaleString('pt-BR')} km</p>
-                </div>
-              </div>
-            )}
-
             {showDetailedInfo && (
               <>
-                <div className="flex items-center gap-2">
-                  <TrendingDown className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Depreciação:</p>
-                    <p className="text-sm">R$ {Number(getDepreciationCost()).toLocaleString('pt-BR')}</p>
+                {vehicle.value && (
+                  <div className="mt-2">
+                    <p className="text-sm text-muted-foreground">Valor do veículo:</p>
+                    <p className="font-medium">
+                      R$ {Number(vehicle.value).toLocaleString('pt-BR')}
+                    </p>
                   </div>
-                </div>
+                )}
                 
-                <div className="flex items-center gap-2">
-                  <Wrench className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Manutenção:</p>
-                    <p className="text-sm">R$ {Number(getMaintenanceCost()).toLocaleString('pt-BR')}</p>
+                {vehicle.color && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-muted-foreground">Cor:</span>
+                    <span>{vehicle.color}</span>
                   </div>
-                </div>
+                )}
                 
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Custo por KM:</p>
-                    <p className="text-sm">R$ {getCostPerKm().toFixed(2)}</p>
+                {(vehicle.odometer !== undefined && vehicle.odometer > 0) && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <Gauge className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-muted-foreground">Odômetro:</span>
+                    <span>{vehicle.odometer.toLocaleString('pt-BR')} km</span>
                   </div>
-                </div>
+                )}
               </>
             )}
           </div>
         </div>
-      )}
 
+        {vehicle.value && !children && (
+          <div className="text-right">
+            <p className="font-medium">
+              R$ {Number(vehicle.value).toLocaleString('pt-BR')}
+            </p>
+            <p className="text-xs text-muted-foreground">Valor do veículo</p>
+          </div>
+        )}
+      </div>
+      
       {children}
     </div>
   );
