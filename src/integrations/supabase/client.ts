@@ -87,53 +87,7 @@ export async function saveQuoteToSupabase(quote: any) {
     const quoteId = isValidUuid ? quote.id : uuidv4();
     const clientUuid = clientResult.data.id;
     
-    // Determinar o veículo primário
-    let vehicleId = null;
-    let monthlyValue = 0;
-    
-    if (quote.vehicles && quote.vehicles.length > 0) {
-      // Usar o primeiro veículo na lista
-      const primaryVehicle = quote.vehicles[0];
-      
-      // Verificar se o veículo já existe no Supabase pelo número da placa
-      if (primaryVehicle.plateNumber) {
-        const { data: existingVehicles } = await supabase
-          .from('vehicles')
-          .select('id')
-          .eq('plate_number', primaryVehicle.plateNumber)
-          .limit(1);
-          
-        if (existingVehicles && Array.isArray(existingVehicles) && existingVehicles.length > 0) {
-          vehicleId = existingVehicles[0].id;
-        }
-      }
-      
-      // Se o veículo não existir, criar um novo
-      if (!vehicleId) {
-        const { data: newVehicle, error: vehicleError } = await supabase
-          .from('vehicles')
-          .insert({
-            brand: primaryVehicle.vehicleBrand || primaryVehicle.brand || 'Não especificado',
-            model: primaryVehicle.vehicleModel || primaryVehicle.model || 'Não especificado',
-            year: primaryVehicle.year || new Date().getFullYear(),
-            value: primaryVehicle.value || 0,
-            plate_number: primaryVehicle.plateNumber || null,
-            is_used: primaryVehicle.isUsed || false
-          })
-          .select()
-          .single();
-          
-        if (vehicleError) {
-          console.error("Erro ao salvar veículo:", vehicleError);
-          return { success: false, error: vehicleError };
-        }
-        
-        vehicleId = newVehicle.id;
-      }
-      
-      monthlyValue = primaryVehicle.monthlyValue || quote.totalCost || 0;
-    }
-    
+    // Remover campos relacionados a veículos do objeto principal do orçamento
     const quoteData: any = {
       id: quoteId,
       client_id: clientUuid,
@@ -147,12 +101,6 @@ export async function saveQuoteToSupabase(quote: any) {
       created_by: userId
     };
     
-    // Adicionar dados do veículo se disponíveis
-    if (vehicleId) {
-      quoteData.vehicle_id = vehicleId;
-      quoteData.monthly_values = monthlyValue;
-    }
-
     const { data, error } = await supabase
       .from('quotes')
       .upsert(quoteData)
@@ -160,6 +108,68 @@ export async function saveQuoteToSupabase(quote: any) {
 
     if (error) {
       return { success: false, error };
+    }
+    
+    // Salvar veículos associados ao orçamento
+    if (quote.vehicles && quote.vehicles.length > 0) {
+      for (const vehicleItem of quote.vehicles) {
+        const vehicle = vehicleItem.vehicle;
+        
+        // Verificar se o veículo já existe no Supabase pela placa
+        let vehicleId = null;
+        if (vehicle.plateNumber) {
+          const { data: existingVehicles } = await supabase
+            .from('vehicles')
+            .select('id')
+            .eq('plate_number', vehicle.plateNumber)
+            .limit(1);
+            
+          if (existingVehicles && Array.isArray(existingVehicles) && existingVehicles.length > 0) {
+            vehicleId = existingVehicles[0].id;
+          }
+        }
+        
+        // Se o veículo não existir, criar um novo
+        if (!vehicleId) {
+          const { data: newVehicle, error: vehicleError } = await supabase
+            .from('vehicles')
+            .insert({
+              brand: vehicle.brand || 'Não especificado',
+              model: vehicle.model || 'Não especificado',
+              year: vehicle.year || new Date().getFullYear(),
+              value: vehicle.value || 0,
+              plate_number: vehicle.plateNumber || null,
+              is_used: vehicle.isUsed || false,
+              group_id: vehicle.groupId || null
+            })
+            .select()
+            .single();
+            
+          if (vehicleError) {
+            console.error("Erro ao salvar veículo:", vehicleError);
+            continue;
+          }
+          
+          vehicleId = newVehicle.id;
+        }
+        
+        // Salvar relação veículo-orçamento na tabela quote_vehicles
+        const monthlyValue = vehicleItem.params ? 
+          (quote.totalCost / quote.vehicles.length) : // Distribuir igualmente se não tiver valor específico
+          (vehicle.monthlyValue || 0);
+          
+        await supabase
+          .from('quote_vehicles')
+          .insert({
+            quote_id: quoteId,
+            vehicle_id: vehicleId,
+            monthly_value: monthlyValue,
+            monthly_km: vehicleItem.params?.monthlyKm || quote.monthlyKm,
+            contract_months: vehicleItem.params?.contractMonths || quote.contractMonths,
+            operation_severity: vehicleItem.params?.operationSeverity || quote.operationSeverity || 3,
+            has_tracking: vehicleItem.params?.hasTracking || quote.hasTracking || false
+          });
+      }
     }
     
     return { success: true, data };
@@ -177,8 +187,7 @@ export async function getQuotesFromSupabase() {
       .from('quotes')
       .select(`
         *,
-        client:client_id(*),
-        vehicle:vehicle_id(*)
+        client:client_id(*)
       `)
       .order('created_at', { ascending: false });
       
@@ -186,8 +195,22 @@ export async function getQuotesFromSupabase() {
       throw error;
     }
     
-    console.log("Orçamentos recuperados:", Array.isArray(data) ? data.length : 0);
-    return { success: true, quotes: Array.isArray(data) ? data : [] };
+    // Buscar veículos para cada orçamento
+    const quotes = Array.isArray(data) ? data : [];
+    for (const quote of quotes) {
+      const { data: vehiclesData } = await supabase
+        .from('quote_vehicles')
+        .select(`
+          *,
+          vehicle:vehicle_id(*)
+        `)
+        .eq('quote_id', quote.id);
+        
+      quote.vehicles = Array.isArray(vehiclesData) ? vehiclesData : [];
+    }
+    
+    console.log("Orçamentos recuperados:", quotes.length);
+    return { success: true, quotes };
   } catch (error) {
     console.error("Erro inesperado ao buscar orçamentos:", error);
     return { success: false, error, quotes: [] };
@@ -203,8 +226,7 @@ export async function getQuoteByIdFromSupabase(quoteId: string) {
       .from('quotes')
       .select(`
         *,
-        client:client_id(*),
-        vehicle:vehicle_id(*)
+        client:client_id(*)
       `)
       .eq('id', quoteId)
       .single();
@@ -214,14 +236,23 @@ export async function getQuoteByIdFromSupabase(quoteId: string) {
       return { success: false, error };
     }
     
-    // Verificar e processar dados do veículo
+    // Buscar veículos associados a este orçamento
     if (data) {
-      console.log("Orçamento recuperado:", data);
-      
-      // Garantir que o objeto vehicle existe, mesmo que seja nulo
-      if (!data.vehicle) {
-        data.vehicle = null;
+      const { data: vehiclesData, error: vehiclesError } = await supabase
+        .from('quote_vehicles')
+        .select(`
+          *,
+          vehicle:vehicle_id(*)
+        `)
+        .eq('quote_id', quoteId);
+        
+      if (!vehiclesError && vehiclesData) {
+        data.vehicles = vehiclesData;
+      } else {
+        data.vehicles = [];
       }
+      
+      console.log("Orçamento recuperado:", data);
     }
     
     return { success: true, quote: data };
@@ -231,53 +262,68 @@ export async function getQuoteByIdFromSupabase(quoteId: string) {
   }
 }
 
-// Função para buscar veículos do Supabase
-export async function getVehiclesFromSupabase() {
-  try {
-    const { data, error } = await supabase
-      .from('vehicles')
-      .select('*')
-      .order('brand', { ascending: true });
-    
-    if (error) {
-      return { success: false, error, vehicles: [] };
-    }
-    
-    return { success: true, vehicles: data || [] };
-  } catch (error) {
-    return { success: false, error, vehicles: [] };
-  }
-}
-
 export const addVehicleToQuote = async (quoteId: string, vehicleData: any): Promise<{ success: boolean; data?: any; error?: any }> => {
   try {
-    // Verificar se as colunas vehicle_id e monthly_values existem
-    const { data: tableInfo, error: tableError } = await supabase
-      .from('quotes')
-      .select('id')
-      .limit(1);
+    // Verificar se o veículo já existe
+    let vehicleId = vehicleData.vehicle_id;
+    
+    if (!vehicleId && vehicleData.vehicle) {
+      // Se não tiver ID mas tiver objeto de veículo, verificar se já existe ou criar
+      const vehicle = vehicleData.vehicle;
       
-    if (tableError) {
-      console.error('Erro ao verificar estrutura da tabela:', tableError);
-      return { success: false, error: tableError };
+      if (vehicle.plateNumber) {
+        const { data: existingVehicles } = await supabase
+          .from('vehicles')
+          .select('id')
+          .eq('plate_number', vehicle.plateNumber)
+          .limit(1);
+          
+        if (existingVehicles && Array.isArray(existingVehicles) && existingVehicles.length > 0) {
+          vehicleId = existingVehicles[0].id;
+        }
+      }
+      
+      // Se ainda não tiver ID, criar veículo
+      if (!vehicleId) {
+        const { data: newVehicle, error: vehicleError } = await supabase
+          .from('vehicles')
+          .insert({
+            brand: vehicle.brand || 'Não especificado',
+            model: vehicle.model || 'Não especificado',
+            year: vehicle.year || new Date().getFullYear(),
+            value: vehicle.value || 0,
+            plate_number: vehicle.plateNumber || null,
+            is_used: vehicle.isUsed || false,
+            group_id: vehicle.groupId || null
+          })
+          .select()
+          .single();
+          
+        if (vehicleError) {
+          console.error('Erro ao criar veículo:', vehicleError);
+          return { success: false, error: vehicleError };
+        }
+        
+        vehicleId = newVehicle.id;
+      }
     }
     
-    // Preparar dados para atualização, verificando a estrutura da tabela
-    const updateData: any = {};
-    
-    // Sempre podemos adicionar esses campos
-    if (vehicleData.vehicle_id) {
-      updateData.vehicle_id = vehicleData.vehicle_id;
-    }
-    if (vehicleData.monthly_value !== undefined) {
-      updateData.monthly_values = vehicleData.monthly_value;
+    if (!vehicleId) {
+      return { success: false, error: { message: 'ID do veículo não fornecido' } };
     }
     
-    // Atualizar o orçamento
+    // Adicionar veículo ao orçamento
     const { data, error } = await supabase
-      .from('quotes')
-      .update(updateData)
-      .eq('id', quoteId)
+      .from('quote_vehicles')
+      .insert({
+        quote_id: quoteId,
+        vehicle_id: vehicleId,
+        monthly_value: vehicleData.monthly_value || 0,
+        monthly_km: vehicleData.monthly_km,
+        contract_months: vehicleData.contract_months,
+        operation_severity: vehicleData.operation_severity,
+        has_tracking: vehicleData.has_tracking
+      })
       .select();
 
     if (error) {
@@ -294,36 +340,24 @@ export const addVehicleToQuote = async (quoteId: string, vehicleData: any): Prom
 
 export const getQuoteVehicles = async (quoteId: string): Promise<{ success: boolean; vehicles?: any[]; error?: any }> => {
   try {
-    // Agora buscamos o veículo diretamente do orçamento
     const { data, error } = await supabase
-      .from('quotes')
+      .from('quote_vehicles')
       .select(`
-        vehicle_id,
-        monthly_values,
+        *,
         vehicle:vehicle_id(*)
       `)
-      .eq('id', quoteId)
-      .single();
+      .eq('quote_id', quoteId);
 
     if (error) {
-      console.error('Erro ao buscar veículo do orçamento:', error);
+      console.error('Erro ao buscar veículos do orçamento:', error);
       return { success: false, error, vehicles: [] };
     }
     
-    // Se o orçamento tiver um veículo, tratamos para evitar erros
-    const vehicles = [];
-    if (data && data.vehicle_id) {
-      const vehicle = data.vehicle || {};
-      const vehicleWithValue = {
-        ...vehicle,
-        monthly_value: data.monthly_values || 0
-      };
-      vehicles.push(vehicleWithValue);
-    }
+    const vehicles = data || [];
     
     return { success: true, vehicles };
   } catch (error) {
-    console.error('Erro inesperado ao buscar veículo do orçamento:', error);
+    console.error('Erro inesperado ao buscar veículos do orçamento:', error);
     return { success: false, error, vehicles: [] };
   }
 };

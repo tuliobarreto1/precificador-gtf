@@ -233,12 +233,14 @@ export type Database = {
           has_tracking: boolean
           id: string
           monthly_km: number
+          monthly_values: number | null
           operation_severity: number
           status: string
           status_flow: Database["public"]["Enums"]["quote_status"]
           title: string
           total_value: number
           updated_at: string
+          vehicle_id: string | null
         }
         Insert: {
           client_id?: string | null
@@ -248,12 +250,14 @@ export type Database = {
           has_tracking?: boolean
           id?: string
           monthly_km?: number
+          monthly_values?: number | null
           operation_severity?: number
           status?: string
           status_flow?: Database["public"]["Enums"]["quote_status"]
           title: string
           total_value?: number
           updated_at?: string
+          vehicle_id?: string | null
         }
         Update: {
           client_id?: string | null
@@ -263,12 +267,14 @@ export type Database = {
           has_tracking?: boolean
           id?: string
           monthly_km?: number
+          monthly_values?: number | null
           operation_severity?: number
           status?: string
           status_flow?: Database["public"]["Enums"]["quote_status"]
           title?: string
           total_value?: number
           updated_at?: string
+          vehicle_id?: string | null
         }
         Relationships: [
           {
@@ -276,6 +282,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
             referencedColumns: ["id"]
           },
         ]

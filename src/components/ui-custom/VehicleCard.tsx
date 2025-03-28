@@ -7,7 +7,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 
 type VehicleCardProps = {
   vehicle: Vehicle | any; // Aceita tanto Vehicle quanto o formato do Supabase
-  vehicleGroup?: VehicleGroup; // Adicionado como opcional
+  vehicleGroup?: VehicleGroup; // Propriedade do grupo de veículo
   isSelected?: boolean;
   onClick?: () => void;
   className?: string;

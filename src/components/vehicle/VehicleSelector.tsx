@@ -432,16 +432,9 @@ DB_DATABASE=seu-banco-de-dados`}
             .filter(vehicle => vehicleType === 'new' ? !vehicle.isUsed : vehicle.isUsed)
             .map((vehicle) => {
             const group = vehicle.groupId ? getVehicleGroupById(vehicle.groupId) : null;
-            if (vehicle.groupId && !group) {
-              console.error(`Grupo não encontrado para o veículo ${vehicle.id} (groupId: ${vehicle.groupId})`);
-              return null;
-            }
-            console.log('Renderizando veículo:', { vehicle, group });
-            
             const isSelected = isVehicleSelected(vehicle.id);
             
-            // Garantir que o veículo existe antes de renderizar
-            const card = (
+            return (
               <VehicleCard
                 key={vehicle.id}
                 vehicle={vehicle}
@@ -474,7 +467,6 @@ DB_DATABASE=seu-banco-de-dados`}
                 )}
               </VehicleCard>
             );
-            return card;
           })}
         </div>
       )}
