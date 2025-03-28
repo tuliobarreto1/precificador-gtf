@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
@@ -8,37 +8,31 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { MoreHorizontal, Plus, Search, User, UserPlus, UserX, UsersIcon, Edit, Trash2, RefreshCw, Key } from 'lucide-react';
+import { MoreHorizontal, Search, User, UserPlus, Edit, Trash2, RefreshCw, Key } from 'lucide-react';
 import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 
 type UserType = {
-  id: number;
+  id: string;
   name: string;
   email: string;
-  role: 'admin' | 'manager' | 'user';
+  role: 'admin' | 'supervisor' | 'user';
   status: 'active' | 'inactive';
-  lastLogin: string;
+  last_login?: string;
+  password?: string; // Para novos usuários
 };
-
-const mockUsers: UserType[] = [
-  { id: 1, name: 'Admin Principal', email: 'admin@carleasemaster.com.br', role: 'admin', status: 'active', lastLogin: '2023-10-15 14:30' },
-  { id: 2, name: 'Gerente de Vendas', email: 'gerente@carleasemaster.com.br', role: 'manager', status: 'active', lastLogin: '2023-10-14 09:15' },
-  { id: 3, name: 'Usuário Teste', email: 'teste@carleasemaster.com.br', role: 'user', status: 'active', lastLogin: '2023-10-10 16:45' },
-  { id: 4, name: 'Consultor 1', email: 'consultor1@carleasemaster.com.br', role: 'user', status: 'active', lastLogin: '2023-10-09 11:20' },
-  { id: 5, name: 'Usuário Inativo', email: 'inativo@carleasemaster.com.br', role: 'user', status: 'inactive', lastLogin: '2023-09-25 10:30' },
-];
 
 const UserRoleText = ({ role }: { role: string }) => {
   switch (role) {
     case 'admin':
       return 'Administrador';
-    case 'manager':
-      return 'Gerente';
+    case 'supervisor':
+      return 'Supervisor';
     case 'user':
       return 'Usuário';
     default:
@@ -55,67 +49,210 @@ const UserStatusBadge = ({ status }: { status: string }) => {
 };
 
 const Users = () => {
-  const [users, setUsers] = useState<UserType[]>(mockUsers);
+  const { adminUser } = useAuth();
+  const [users, setUsers] = useState<UserType[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [isEditUserOpen, setIsEditUserOpen] = useState(false);
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
-  const [newUser, setNewUser] = useState({ name: '', email: '', role: 'user', status: 'active' });
+  const [newUser, setNewUser] = useState<UserType>({ 
+    id: '', 
+    name: '', 
+    email: '', 
+    role: 'user', 
+    status: 'active', 
+    password: '' 
+  });
+  const [loading, setLoading] = useState(true);
+  const [newPassword, setNewPassword] = useState('');
+
+  // Verificar se o usuário atual é admin
+  const isCurrentUserAdmin = adminUser?.role === 'admin';
+
+  // Carregar usuários do Supabase
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      
+      const { data, error } = await supabase
+        .from('system_users')
+        .select('*')
+        .order('name');
+      
+      if (error) {
+        throw error;
+      }
+      
+      console.log('Usuários carregados:', data);
+      setUsers(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar usuários:', error);
+      toast.error('Erro ao carregar usuários');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
     user.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleAddUser = () => {
-    const id = users.length > 0 ? Math.max(...users.map(user => user.id)) + 1 : 1;
-    const newUserData = {
-      ...newUser,
-      id,
-      role: newUser.role as 'admin' | 'manager' | 'user',
-      status: newUser.status as 'active' | 'inactive',
-      lastLogin: 'Nunca'
-    };
-    
-    setUsers([...users, newUserData]);
-    setNewUser({ name: '', email: '', role: 'user', status: 'active' });
-    setIsAddUserOpen(false);
-    toast.success('Usuário adicionado com sucesso');
+  const handleAddUser = async () => {
+    if (!newUser.name || !newUser.email || !newUser.password) {
+      toast.error('Por favor, preencha todos os campos obrigatórios');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('system_users')
+        .insert({
+          name: newUser.name,
+          email: newUser.email,
+          password: newUser.password,
+          role: newUser.role,
+          status: newUser.status
+        })
+        .select();
+      
+      if (error) {
+        throw error;
+      }
+      
+      setUsers([...users, data[0]]);
+      setNewUser({ id: '', name: '', email: '', role: 'user', status: 'active', password: '' });
+      setIsAddUserOpen(false);
+      toast.success('Usuário adicionado com sucesso');
+    } catch (error) {
+      console.error('Erro ao adicionar usuário:', error);
+      toast.error('Erro ao adicionar usuário');
+    }
   };
 
-  const handleUpdateUser = () => {
+  const handleUpdateUser = async () => {
     if (!currentUser) return;
     
-    setUsers(users.map(user => 
-      user.id === currentUser.id ? currentUser : user
-    ));
-    
-    setIsEditUserOpen(false);
-    toast.success('Usuário atualizado com sucesso');
+    try {
+      const { data, error } = await supabase
+        .from('system_users')
+        .update({
+          name: currentUser.name,
+          email: currentUser.email,
+          role: currentUser.role,
+          status: currentUser.status
+        })
+        .eq('id', currentUser.id)
+        .select();
+      
+      if (error) {
+        throw error;
+      }
+      
+      setUsers(users.map(user => 
+        user.id === currentUser.id ? data[0] : user
+      ));
+      
+      setIsEditUserOpen(false);
+      toast.success('Usuário atualizado com sucesso');
+    } catch (error) {
+      console.error('Erro ao atualizar usuário:', error);
+      toast.error('Erro ao atualizar usuário');
+    }
   };
 
-  const handleDeleteUser = (userId: number) => {
-    setUsers(users.filter(user => user.id !== userId));
-    toast.success('Usuário removido com sucesso');
-  };
-
-  const handleToggleStatus = (userId: number) => {
-    setUsers(users.map(user => 
-      user.id === userId ? 
-        { ...user, status: user.status === 'active' ? 'inactive' : 'active' } 
-        : user
-    ));
-    
-    const updatedUser = users.find(user => user.id === userId);
-    const newStatus = updatedUser?.status === 'active' ? 'inativo' : 'ativo';
-    toast.success(`Usuário ${updatedUser?.name} agora está ${newStatus}`);
-  };
-
-  const handleResetPassword = () => {
+  const handleDeleteUser = async () => {
     if (!currentUser) return;
-    setIsResetPasswordOpen(false);
-    toast.success(`Senha do usuário ${currentUser.name} foi redefinida`);
+    
+    // Verificar se está tentando excluir o próprio admin (proteger o admin principal)
+    if (currentUser.role === 'admin' && !isCurrentUserAdmin) {
+      toast.error('Você não tem permissão para excluir um administrador');
+      setIsDeleteConfirmOpen(false);
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('system_users')
+        .delete()
+        .eq('id', currentUser.id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      setUsers(users.filter(user => user.id !== currentUser.id));
+      setIsDeleteConfirmOpen(false);
+      toast.success('Usuário removido com sucesso');
+    } catch (error) {
+      console.error('Erro ao remover usuário:', error);
+      toast.error('Erro ao remover usuário');
+    }
+  };
+
+  const handleToggleStatus = async (userId: string) => {
+    const userToUpdate = users.find(user => user.id === userId);
+    if (!userToUpdate) return;
+    
+    // Verificar se está tentando desativar o próprio admin (proteger o admin principal)
+    if (userToUpdate.role === 'admin' && userToUpdate.status === 'active' && !isCurrentUserAdmin) {
+      toast.error('Você não tem permissão para desativar um administrador');
+      return;
+    }
+    
+    const newStatus = userToUpdate.status === 'active' ? 'inactive' : 'active';
+    
+    try {
+      const { data, error } = await supabase
+        .from('system_users')
+        .update({ status: newStatus })
+        .eq('id', userId)
+        .select();
+      
+      if (error) {
+        throw error;
+      }
+      
+      setUsers(users.map(user => 
+        user.id === userId ? { ...user, status: newStatus } : user
+      ));
+      
+      toast.success(`Usuário ${userToUpdate.name} agora está ${newStatus === 'active' ? 'ativo' : 'inativo'}`);
+    } catch (error) {
+      console.error('Erro ao atualizar status do usuário:', error);
+      toast.error('Erro ao atualizar status do usuário');
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!currentUser || !newPassword) {
+      toast.error('Por favor, informe a nova senha');
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('system_users')
+        .update({ password: newPassword })
+        .eq('id', currentUser.id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      setIsResetPasswordOpen(false);
+      setNewPassword('');
+      toast.success(`Senha do usuário ${currentUser.name} foi redefinida`);
+    } catch (error) {
+      console.error('Erro ao redefinir senha:', error);
+      toast.error('Erro ao redefinir senha');
+    }
   };
 
   return (
@@ -150,79 +287,88 @@ const Users = () => {
             </div>
           </div>
 
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Função</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Último Login</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.length > 0 ? (
-                  filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell><UserRoleText role={user.role} /></TableCell>
-                      <TableCell><UserStatusBadge status={user.status} /></TableCell>
-                      <TableCell>{user.lastLogin}</TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <span className="sr-only">Abrir menu</span>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => {
-                              setCurrentUser(user);
-                              setIsEditUserOpen(true);
-                            }}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => {
-                              setCurrentUser(user);
-                              setIsResetPasswordOpen(true);
-                            }}>
-                              <Key className="mr-2 h-4 w-4" />
-                              Redefinir Senha
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleToggleStatus(user.id)}>
-                              <RefreshCw className="mr-2 h-4 w-4" />
-                              {user.status === 'active' ? 'Desativar' : 'Ativar'}
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => handleDeleteUser(user.id)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+          {loading ? (
+            <div className="text-center py-8">Carregando usuários...</div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Função</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Último Login</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.length > 0 ? (
+                    filteredUsers.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">{user.name}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell><UserRoleText role={user.role} /></TableCell>
+                        <TableCell><UserStatusBadge status={user.status} /></TableCell>
+                        <TableCell>{user.last_login ? new Date(user.last_login).toLocaleString() : 'Nunca'}</TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Abrir menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => {
+                                setCurrentUser(user);
+                                setIsEditUserOpen(true);
+                              }}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => {
+                                setCurrentUser(user);
+                                setNewPassword('');
+                                setIsResetPasswordOpen(true);
+                              }}>
+                                <Key className="mr-2 h-4 w-4" />
+                                Redefinir Senha
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleToggleStatus(user.id)}>
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                                {user.status === 'active' ? 'Desativar' : 'Ativar'}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => {
+                                  setCurrentUser(user);
+                                  setIsDeleteConfirmOpen(true);
+                                }}
+                                disabled={user.role === 'admin' && !isCurrentUserAdmin}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-24 text-center">
+                        {searchQuery ? 'Nenhum usuário encontrado com esses critérios.' : 'Nenhum usuário cadastrado.'}
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
-                      Nenhum usuário encontrado.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </div>
       </Card>
 
@@ -256,18 +402,28 @@ const Users = () => {
               />
             </div>
             <div className="grid gap-2">
+              <Label htmlFor="password">Senha</Label>
+              <Input
+                id="password"
+                type="password"
+                value={newUser.password || ''}
+                onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                placeholder="Digite a senha"
+              />
+            </div>
+            <div className="grid gap-2">
               <Label>Função</Label>
               <RadioGroup
                 value={newUser.role}
-                onValueChange={(value) => setNewUser({...newUser, role: value})}
+                onValueChange={(value: 'admin' | 'supervisor' | 'user') => setNewUser({...newUser, role: value})}
               >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="admin" id="admin" />
+                  <RadioGroupItem value="admin" id="admin" disabled={!isCurrentUserAdmin} />
                   <Label htmlFor="admin">Administrador</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="manager" id="manager" />
-                  <Label htmlFor="manager">Gerente</Label>
+                  <RadioGroupItem value="supervisor" id="supervisor" />
+                  <Label htmlFor="supervisor">Supervisor</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="user" id="user" />
@@ -327,17 +483,21 @@ const Users = () => {
                 <Label>Função</Label>
                 <RadioGroup
                   value={currentUser.role}
-                  onValueChange={(value: 'admin' | 'manager' | 'user') => 
+                  onValueChange={(value: 'admin' | 'supervisor' | 'user') => 
                     setCurrentUser({...currentUser, role: value})
                   }
                 >
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="admin" id="edit-admin" />
+                    <RadioGroupItem 
+                      value="admin" 
+                      id="edit-admin" 
+                      disabled={!isCurrentUserAdmin || (currentUser.role === 'admin' && !isCurrentUserAdmin)}
+                    />
                     <Label htmlFor="edit-admin">Administrador</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="manager" id="edit-manager" />
-                    <Label htmlFor="edit-manager">Gerente</Label>
+                    <RadioGroupItem value="supervisor" id="edit-supervisor" />
+                    <Label htmlFor="edit-supervisor">Supervisor</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="user" id="edit-user" />
@@ -353,6 +513,7 @@ const Users = () => {
                     onCheckedChange={(checked) => 
                       setCurrentUser({...currentUser, status: checked ? 'active' : 'inactive'})
                     }
+                    disabled={currentUser.role === 'admin' && !isCurrentUserAdmin}
                   />
                   <Label>{currentUser.status === 'active' ? 'Ativo' : 'Inativo'}</Label>
                 </div>
@@ -372,17 +533,45 @@ const Users = () => {
           <DialogHeader>
             <DialogTitle>Redefinir Senha</DialogTitle>
             <DialogDescription>
-              {currentUser && `Tem certeza que deseja redefinir a senha de ${currentUser.name}?`}
+              {currentUser && `Digite a nova senha para ${currentUser.name}`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="new-password">Nova Senha</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Digite a nova senha"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsResetPasswordOpen(false)}>Cancelar</Button>
+            <Button onClick={handleResetPassword} disabled={!newPassword}>Redefinir Senha</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de confirmação para exclusão */}
+      <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirmar Exclusão</DialogTitle>
+            <DialogDescription>
+              {currentUser && `Tem certeza que deseja excluir o usuário ${currentUser.name}?`}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground">
-              Uma nova senha será gerada e enviada para o email do usuário.
+              Esta ação não pode ser desfeita.
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsResetPasswordOpen(false)}>Cancelar</Button>
-            <Button onClick={handleResetPassword}>Redefinir Senha</Button>
+            <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDeleteUser}>Excluir</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

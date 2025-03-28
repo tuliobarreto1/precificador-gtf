@@ -185,6 +185,42 @@ export type Database = {
           },
         ]
       }
+      system_users: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          last_login: string | null
+          name: string
+          password: string
+          role: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          last_login?: string | null
+          name: string
+          password: string
+          role: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          last_login?: string | null
+          name?: string
+          password?: string
+          role?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       vehicle_groups: {
         Row: {
           created_at: string
@@ -270,7 +306,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_modify_quote: {
+        Args: {
+          _user_id: string
+          _quote_id: string
+          _user_role: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

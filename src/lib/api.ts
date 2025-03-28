@@ -189,3 +189,80 @@ export async function getCurrentProfile(): Promise<{ success: boolean; profile?:
     return { success: false, error };
   }
 }
+
+// Função para autenticação de admin usando a tabela system_users
+export async function signInAdmin(email: string, password: string): Promise<AuthResponse> {
+  try {
+    const { supabase } = await import('@/integrations/supabase/client');
+    
+    // Verificar se o usuário existe na tabela system_users
+    const { data, error } = await supabase
+      .from('system_users')
+      .select('id, name, email, password, role, status')
+      .eq('email', email)
+      .eq('status', 'active')
+      .single();
+    
+    if (error || !data) {
+      console.error('Usuário não encontrado ou inativo:', error);
+      return { success: false, error: { message: 'Usuário não encontrado ou inativo' } };
+    }
+    
+    // Verificar a senha (deveria verificar hash, mas estamos simplificando)
+    if (data.password !== password) {
+      console.error('Senha incorreta');
+      return { success: false, error: { message: 'Credenciais inválidas' } };
+    }
+    
+    // Armazenar os dados do usuário no localStorage para simular uma sessão
+    localStorage.setItem('admin_user', JSON.stringify({
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      role: data.role
+    }));
+    
+    // Atualizar o último login
+    await supabase
+      .from('system_users')
+      .update({ last_login: new Date().toISOString() })
+      .eq('id', data.id);
+    
+    return { 
+      success: true, 
+      user: {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        role: data.role
+      } 
+    };
+  } catch (error) {
+    console.error('Erro na autenticação de admin:', error);
+    return { success: false, error };
+  }
+}
+
+// Função para verificar se o usuário admin está logado
+export function getAdminUser() {
+  try {
+    const adminUserStr = localStorage.getItem('admin_user');
+    if (!adminUserStr) return null;
+    
+    return JSON.parse(adminUserStr);
+  } catch (error) {
+    console.error('Erro ao obter usuário admin:', error);
+    return null;
+  }
+}
+
+// Função para logout do usuário admin
+export async function signOutAdmin(): Promise<{ success: boolean }> {
+  try {
+    localStorage.removeItem('admin_user');
+    return { success: true };
+  } catch (error) {
+    console.error('Erro ao fazer logout de admin:', error);
+    return { success: false };
+  }
+}

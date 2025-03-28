@@ -2,11 +2,20 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { getCurrentProfile } from '@/lib/api';
+import { getCurrentProfile, getAdminUser, signOutAdmin } from '@/lib/api';
+
+// Tipo para usuários administradores
+interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'supervisor' | 'user';
+}
 
 interface AuthContextProps {
   session: Session | null;
   user: User | null;
+  adminUser: AdminUser | null;  // Adicionando usuário admin
   profile: any | null;
   isLoading: boolean;
   signOut: () => Promise<void>;
@@ -17,11 +26,23 @@ const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [adminUser, setAdminUser] = useState<AdminUser | null>(null);  // Estado para usuário admin
   const [profile, setProfile] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     console.log('Inicializando AuthProvider...');
+    
+    // Verificar se há um usuário admin logado
+    const checkAdminUser = () => {
+      const admin = getAdminUser();
+      setAdminUser(admin);
+      if (admin) {
+        setIsLoading(false);
+      }
+    };
+    
+    checkAdminUser();
     
     // Configurar o listener de mudança de estado de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -46,13 +67,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           }, 0);
         } else {
-          setProfile(null);
-          setIsLoading(false);
+          // Se não há usuário Supabase, verificar se há admin
+          checkAdminUser();
+          if (!adminUser) {
+            setProfile(null);
+            setIsLoading(false);
+          }
         }
       }
     );
 
-    // Verificar se já existe uma sessão
+    // Verificar se já existe uma sessão Supabase
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
       console.log('Sessão atual:', currentSession?.user?.id);
       setSession(currentSession);
@@ -70,7 +95,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsLoading(false);
         });
       } else {
-        setIsLoading(false);
+        // Se não há usuário Supabase, só verificar admin
+        if (!adminUser) {
+          setIsLoading(false);
+        }
       }
     }).catch(error => {
       console.error('Erro ao buscar sessão:', error);
@@ -83,11 +111,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // Fazer logout do usuário admin, se houver
+    if (adminUser) {
+      await signOutAdmin();
+      setAdminUser(null);
+    }
+    
+    // Fazer logout do usuário Supabase, se houver
+    if (session) {
+      await supabase.auth.signOut();
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, profile, isLoading, signOut }}>
+    <AuthContext.Provider value={{ session, user, adminUser, profile, isLoading, signOut }}>
       {children}
     </AuthContext.Provider>
   );

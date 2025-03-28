@@ -6,16 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
-import { signIn, signUp } from '@/lib/api';
+import { toast } from 'sonner';
+import { signIn, signInAdmin } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -57,50 +55,46 @@ export default function Login() {
     
     setIsLoading(true);
     
-    const { success } = await signIn(email, password);
-    
-    setIsLoading(false);
-    
-    if (success) {
+    try {
+      // Primeiro, tentamos login na tabela system_users (onde está o administrador)
+      const adminLoginResult = await signInAdmin(email, password);
+      
+      if (adminLoginResult.success) {
+        toast({
+          title: "Login realizado com sucesso",
+          description: "Bem-vindo(a) de volta!",
+        });
+        navigate(from, { replace: true });
+        return;
+      }
+      
+      // Se não encontrou na tabela system_users, tenta via Supabase auth
+      const authLoginResult = await signIn(email, password);
+      
+      if (authLoginResult.success) {
+        toast({
+          title: "Login realizado com sucesso",
+          description: "Bem-vindo(a) de volta!",
+        });
+        return;
+      }
+      
+      // Se chegou aqui, não conseguiu autenticar
       toast({
-        title: "Login realizado com sucesso",
-        description: "Bem-vindo(a) de volta!",
-      });
-    }
-  };
-  
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!name || !email || !password) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Por favor, preencha todos os campos obrigatórios.",
+        title: "Erro de autenticação",
+        description: "Email ou senha incorretos. Por favor, tente novamente.",
         variant: "destructive",
       });
-      return;
-    }
-    
-    if (password.length < 6) {
+      
+    } catch (error) {
+      console.error('Erro no login:', error);
       toast({
-        title: "Senha muito curta",
-        description: "A senha deve ter pelo menos 6 caracteres.",
+        title: "Erro de autenticação",
+        description: "Ocorreu um erro ao tentar fazer login. Por favor, tente novamente.",
         variant: "destructive",
       });
-      return;
-    }
-    
-    setIsLoading(true);
-    
-    const { success } = await signUp(email, password, name);
-    
-    setIsLoading(false);
-    
-    if (success) {
-      toast({
-        title: "Conta criada com sucesso",
-        description: "Verifique seu e-mail para confirmar sua conta.",
-      });
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -116,7 +110,7 @@ export default function Login() {
           <Tabs defaultValue="login">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="register">Cadastro</TabsTrigger>
+              <TabsTrigger value="register" disabled>Solicitar Acesso</TabsTrigger>
             </TabsList>
             
             <TabsContent value="login">
@@ -165,57 +159,18 @@ export default function Login() {
             </TabsContent>
             
             <TabsContent value="register">
-              <form onSubmit={handleSignUp}>
-                <CardHeader>
-                  <CardTitle>Criar Conta</CardTitle>
-                  <CardDescription>Cadastre-se para começar a usar o sistema</CardDescription>
-                </CardHeader>
-                
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Nome Completo</Label>
-                    <Input 
-                      id="name" 
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="email-signup">Email</Label>
-                    <Input 
-                      id="email-signup" 
-                      type="email" 
-                      placeholder="seu@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="password-signup">Senha</Label>
-                    <Input 
-                      id="password-signup" 
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Mínimo 6 caracteres
-                    </p>
-                  </div>
-                </CardContent>
-                
-                <CardFooter>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Carregando..." : "Cadastrar"}
-                  </Button>
-                </CardFooter>
-              </form>
+              <CardHeader>
+                <CardTitle>Solicitar Acesso</CardTitle>
+                <CardDescription>
+                  Por favor, entre em contato com o administrador do sistema para solicitar acesso.
+                </CardDescription>
+              </CardHeader>
+              
+              <CardFooter>
+                <Button type="button" className="w-full" onClick={() => window.location.href = "mailto:tulio.barreto@asalocadoa.com.br?subject=Solicitação de Acesso ao Sistema de Precificação"}>
+                  Enviar email para administrador
+                </Button>
+              </CardFooter>
             </TabsContent>
           </Tabs>
         </Card>
