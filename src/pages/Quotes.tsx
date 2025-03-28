@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Search, Filter, Calendar, ArrowUpDown, User, RefreshCw } from 'lucide-react';
+import { FileText, Search, Filter, Calendar, ArrowUpDown, User, RefreshCw, Info, AlertTriangle } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import Card from '@/components/ui-custom/Card';
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-import { getQuotesFromSupabase } from '@/integrations/supabase/client';
+import { getQuotesFromSupabase, checkSupabaseConnection } from '@/integrations/supabase/client';
 
 const Quotes = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,23 +18,70 @@ const Quotes = () => {
   const [quotes, setQuotes] = useState<any[]>([]);
   const [userFilter, setUserFilter] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   const { toast } = useToast();
   const { user } = useAuth();
+  
+  // Função para verificar a conexão com o Supabase
+  const checkConnection = async () => {
+    setConnectionStatus('checking');
+    try {
+      const { success } = await checkSupabaseConnection();
+      
+      if (success) {
+        console.log('Conexão com o Supabase estabelecida com sucesso');
+        setConnectionStatus('connected');
+        toast({
+          title: "Supabase conectado",
+          description: "Conexão com o banco de dados estabelecida com sucesso."
+        });
+      } else {
+        console.error('Falha ao conectar com o Supabase');
+        setConnectionStatus('error');
+        toast({
+          title: "Erro de conexão",
+          description: "Não foi possível conectar ao banco de dados Supabase.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao verificar conexão:', error);
+      setConnectionStatus('error');
+      toast({
+        title: "Erro de conexão",
+        description: "Ocorreu um erro ao verificar a conexão com o banco de dados.",
+        variant: "destructive"
+      });
+    }
+  };
   
   // Função para carregar orçamentos
   const loadQuotes = async () => {
     setIsLoading(true);
     try {
+      console.log('Iniciando carregamento de orçamentos do Supabase...');
       const { success, quotes, error } = await getQuotesFromSupabase();
       
       if (success && quotes) {
-        console.log('Orçamentos carregados do Supabase:', quotes);
+        console.log(`Carregados ${quotes.length} orçamentos do Supabase com sucesso`);
         setQuotes(quotes);
+        
+        if (quotes.length > 0) {
+          toast({
+            title: "Orçamentos carregados",
+            description: `${quotes.length} orçamentos encontrados no banco de dados.`
+          });
+        } else {
+          toast({
+            title: "Nenhum orçamento encontrado",
+            description: "Não existem orçamentos no banco de dados."
+          });
+        }
       } else {
         console.error('Erro ao carregar orçamentos:', error);
         toast({
           title: "Erro ao carregar orçamentos",
-          description: "Não foi possível carregar os orçamentos.",
+          description: "Não foi possível carregar os orçamentos do banco de dados.",
           variant: "destructive",
         });
       }
@@ -42,7 +89,7 @@ const Quotes = () => {
       console.error('Erro ao carregar orçamentos:', error);
       toast({
         title: "Erro ao carregar orçamentos",
-        description: "Não foi possível carregar os orçamentos.",
+        description: "Ocorreu um erro inesperado ao tentar carregar os orçamentos.",
         variant: "destructive",
       });
     } finally {
@@ -50,10 +97,12 @@ const Quotes = () => {
     }
   };
   
-  // Carregar orçamentos ao montar o componente
+  // Verificar conexão e carregar orçamentos ao montar o componente
   useEffect(() => {
-    console.log("Componente Quotes montado, carregando orçamentos");
-    loadQuotes();
+    console.log("Componente Quotes montado, verificando conexão e carregando orçamentos");
+    checkConnection().then(() => {
+      loadQuotes();
+    });
   }, []);
   
   // Filtrar e ordenar orçamentos
@@ -72,7 +121,7 @@ const Quotes = () => {
       // Cliente
       (quote.client?.name && quote.client.name.toLowerCase().includes(searchLower)) ||
       // Título do orçamento
-      quote.title.toLowerCase().includes(searchLower) ||
+      (quote.title && quote.title.toLowerCase().includes(searchLower)) ||
       // Itens (veículos)
       (quote.items && quote.items.some(item => 
         item.vehicle && 
@@ -126,6 +175,27 @@ const Quotes = () => {
             </Link>
           </div>
         </div>
+        
+        {connectionStatus === 'error' && (
+          <Card className="mb-6 border-destructive/50 bg-destructive/10">
+            <div className="p-4 flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <div>
+                <h3 className="font-medium">Problema de conexão com o banco de dados</h3>
+                <p className="text-sm text-muted-foreground">
+                  Não foi possível estabelecer conexão com o Supabase. Os orçamentos podem não ser salvos ou exibidos corretamente.
+                </p>
+              </div>
+              <Button 
+                variant="outline" 
+                className="ml-auto" 
+                onClick={checkConnection}
+              >
+                Tentar novamente
+              </Button>
+            </div>
+          </Card>
+        )}
         
         <Card className="mb-6">
           <div className="p-4 space-y-4">
@@ -184,16 +254,32 @@ const Quotes = () => {
             </div>
           ) : filteredQuotes.length === 0 ? (
             <div className="text-center py-12 border rounded-lg">
-              <p className="text-muted-foreground">Nenhum orçamento encontrado</p>
-              <div className="mt-4">
-                <Button 
-                  variant="outline" 
-                  onClick={loadQuotes}
-                  className="mx-auto"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Atualizar
-                </Button>
+              <div className="flex flex-col items-center">
+                <Info className="h-12 w-12 text-muted-foreground mb-3" />
+                <p className="text-muted-foreground">Nenhum orçamento encontrado</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {quotes.length > 0 
+                    ? "Tente ajustar os filtros de busca" 
+                    : "Crie um novo orçamento para começar"
+                  }
+                </p>
+                <div className="mt-4 flex gap-3">
+                  <Button 
+                    variant="outline" 
+                    onClick={loadQuotes}
+                    className="mx-auto"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Atualizar
+                  </Button>
+                  
+                  <Link to="/orcamento/novo">
+                    <Button>
+                      <FileText className="h-4 w-4 mr-2" />
+                      Novo Orçamento
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </div>
           ) : (

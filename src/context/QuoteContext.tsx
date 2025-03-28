@@ -457,7 +457,11 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   const saveQuote = (): boolean => {
     const quoteResult = calculateQuote();
     if (!quoteForm.client || !quoteResult || quoteForm.vehicles.length === 0) {
-      console.error('Erro ao salvar orçamento: dados incompletos');
+      console.error('Erro ao salvar orçamento: dados incompletos', {
+        client: !!quoteForm.client,
+        quoteResult: !!quoteResult,
+        vehicles: quoteForm.vehicles.length
+      });
       return false;
     }
 
@@ -537,22 +541,27 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       trackingCost: quoteResult.vehicleResults[0].trackingCost,
     };
 
+    console.log('📝 Tentando salvar novo orçamento:', {
+      clientName: newSavedQuote.clientName,
+      totalCost: newSavedQuote.totalCost,
+      veículos: newSavedQuote.vehicles.length
+    });
+
     // Também salvar no Supabase
     try {
-      import('@/integrations/supabase/client').then(({ saveQuoteToSupabase }) => {
-        console.log('Tentando salvar orçamento no Supabase...');
-        saveQuoteToSupabase(newSavedQuote).then(result => {
-          if (result.success) {
-            console.log('Orçamento salvo no Supabase com sucesso!', result.data);
-          } else {
-            console.error('Falha ao salvar orçamento no Supabase:', result.error);
-          }
-        });
+      import('@/integrations/supabase/client').then(async ({ saveQuoteToSupabase }) => {
+        console.log('📤 Iniciando salvamento no Supabase...');
+        const result = await saveQuoteToSupabase(newSavedQuote);
+        if (result.success) {
+          console.log('✅ Orçamento salvo no Supabase com sucesso!', result.data);
+        } else {
+          console.error('❌ Falha ao salvar orçamento no Supabase:', result.error);
+        }
       }).catch(err => {
-        console.error('Erro ao importar função do Supabase:', err);
+        console.error('❌ Erro ao importar função do Supabase:', err);
       });
     } catch (error) {
-      console.error('Erro ao tentar salvar no Supabase:', error);
+      console.error('❌ Erro ao tentar salvar no Supabase:', error);
       // Continuar salvando localmente mesmo se falhar no Supabase
     }
 
@@ -563,10 +572,10 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     // Salvar no localStorage com tratamento de erro
     try {
       localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
-      console.log('Orçamento salvo com sucesso no localStorage:', newSavedQuote);
-      console.log('Total de orçamentos salvos:', updatedQuotes.length);
+      console.log('✅ Orçamento salvo com sucesso no localStorage:', newSavedQuote);
+      console.log('📊 Total de orçamentos salvos:', updatedQuotes.length);
     } catch (error) {
-      console.error('Erro ao salvar no localStorage:', error);
+      console.error('❌ Erro ao salvar no localStorage:', error);
       return false;
     }
     
