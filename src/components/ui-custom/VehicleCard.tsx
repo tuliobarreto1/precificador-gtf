@@ -23,13 +23,61 @@ const VehicleCard = ({
   children,
   showDetailedInfo = false
 }: VehicleCardProps) => {
+  // Se vehicle for null ou undefined, exibir um cartão vazio
+  if (!vehicle) {
+    return (
+      <div className={cn(
+        "bg-white rounded-xl border p-4 transition-all duration-200 relative",
+        className
+      )}>
+        <div className="flex items-center justify-center h-24">
+          <p className="text-muted-foreground">Veículo não disponível</p>
+        </div>
+      </div>
+    );
+  }
+  
   // Função auxiliar para extrair valores independente do formato do veículo
-  const getBrand = () => vehicle?.vehicleBrand || vehicle?.brand || vehicle?.vehicle?.brand || 'Não especificado';
-  const getModel = () => vehicle?.vehicleModel || vehicle?.model || vehicle?.vehicle?.model || 'Não especificado';
-  const getYear = () => vehicle?.year || vehicle?.vehicle?.year || 'N/A';
-  const getPlate = () => vehicle?.plateNumber || vehicle?.plate_number || vehicle?.vehicle?.plate_number || null;
-  const isUsed = () => vehicle?.isUsed || vehicle?.is_used || vehicle?.vehicle?.is_used || false;
-  const getOdometer = () => vehicle?.odometer || vehicle?.vehicle?.odometer || null;
+  const getBrand = () => {
+    if (vehicle?.vehicleBrand) return vehicle.vehicleBrand;
+    if (vehicle?.brand) return vehicle.brand;
+    if (vehicle?.vehicle?.brand) return vehicle.vehicle?.brand;
+    return 'Não especificado';
+  };
+  
+  const getModel = () => {
+    if (vehicle?.vehicleModel) return vehicle.vehicleModel;
+    if (vehicle?.model) return vehicle.model;
+    if (vehicle?.vehicle?.model) return vehicle.vehicle?.model;
+    return 'Não especificado';
+  };
+  
+  const getYear = () => {
+    if (vehicle?.year) return vehicle.year;
+    if (vehicle?.vehicle?.year) return vehicle.vehicle?.year;
+    return 'N/A';
+  };
+  
+  const getPlate = () => {
+    if (vehicle?.plateNumber) return vehicle.plateNumber;
+    if (vehicle?.plate_number) return vehicle.plate_number;
+    if (vehicle?.vehicle?.plate_number) return vehicle.vehicle?.plate_number;
+    return null;
+  };
+  
+  const isUsed = () => {
+    if (vehicle?.isUsed !== undefined) return vehicle.isUsed;
+    if (vehicle?.is_used !== undefined) return vehicle.is_used;
+    if (vehicle?.vehicle?.is_used !== undefined) return vehicle.vehicle?.is_used;
+    return false;
+  };
+  
+  const getOdometer = () => {
+    if (vehicle?.odometer) return vehicle.odometer;
+    if (vehicle?.vehicle?.odometer) return vehicle.vehicle?.odometer;
+    return null;
+  };
+  
   const getValue = () => {
     // Valores podem estar em diferentes propriedades dependendo da fonte
     if (vehicle?.value !== undefined) return vehicle.value;
@@ -88,20 +136,6 @@ const VehicleCard = ({
     }
     return 0.50; // Valor padrão estimado de R$0,50 por km
   };
-  
-  // Se vehicle for null ou undefined, exibir um cartão vazio
-  if (!vehicle) {
-    return (
-      <div className={cn(
-        "bg-white rounded-xl border p-4 transition-all duration-200 relative",
-        className
-      )}>
-        <div className="flex items-center justify-center h-24">
-          <p className="text-muted-foreground">Veículo não disponível</p>
-        </div>
-      </div>
-    );
-  }
   
   return (
     <div 

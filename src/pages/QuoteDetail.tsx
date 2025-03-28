@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, FileEdit, Car, Calendar, User, Landmark, Gauge } from 'lucide-react';
@@ -37,12 +36,22 @@ const QuoteDetail = () => {
           console.log("Dados do orçamento carregados:", quoteData);
           setQuote(quoteData);
           
-          // Buscar veículos associados a este orçamento
-          const { success: vehiclesSuccess, vehicles: vehiclesData } = await getQuoteVehicles(id);
-          
-          if (vehiclesSuccess && vehiclesData) {
-            console.log("Veículos do orçamento carregados:", vehiclesData);
-            setVehicles(vehiclesData);
+          // Se o orçamento já tiver veículos, use-os
+          if (quoteData.vehicles && Array.isArray(quoteData.vehicles) && quoteData.vehicles.length > 0) {
+            console.log("Veículos do orçamento carregados do orçamento:", quoteData.vehicles);
+            setVehicles(quoteData.vehicles);
+          } else {
+            // Caso contrário, faça uma busca específica
+            console.log("Buscando veículos separadamente para o orçamento:", id);
+            const { success: vehiclesSuccess, vehicles: vehiclesData } = await getQuoteVehicles(id);
+            
+            if (vehiclesSuccess && vehiclesData) {
+              console.log("Veículos do orçamento carregados separadamente:", vehiclesData);
+              setVehicles(vehiclesData);
+            } else {
+              console.log("Nenhum veículo encontrado para o orçamento:", id);
+              setVehicles([]);
+            }
           }
           
           // Buscar histórico de status
@@ -289,34 +298,7 @@ const QuoteDetail = () => {
               </div>
             </Card>
             
-            <Card>
-              <CardHeader title="Histórico de Status" />
-              <div className="p-6">
-                {statusHistory && statusHistory.length > 0 ? (
-                  <div className="space-y-4">
-                    {statusHistory.map((item) => (
-                      <div key={item.id} className="border-b pb-3 last:border-0 last:pb-0">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-medium">
-                              {item.previous_status ? `${item.previous_status} → ${item.new_status}` : item.new_status}
-                            </p>
-                            {item.observation && (
-                              <p className="text-sm text-muted-foreground mt-1">{item.observation}</p>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(item.changed_at).toLocaleString('pt-BR')}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-center text-muted-foreground">Nenhum histórico de alteração de status disponível.</p>
-                )}
-              </div>
-            </Card>
+            <StatusHistory quoteId={id} />
           </div>
         </div>
       </div>
