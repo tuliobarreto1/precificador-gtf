@@ -230,8 +230,8 @@ export async function getQuotesFromSupabase() {
         `)
         .eq('quote_id', quote.id);
         
-      // Adicionar veículos ao objeto de orçamento
-      quote.vehicles = vehiclesData || [];
+      // Adicionar veículos ao objeto de orçamento como propriedade não-tipada
+      (quote as any).vehicles = vehiclesData || [];
     }
     
     console.log("Orçamentos recuperados:", quotes.length);
@@ -272,9 +272,9 @@ export async function getQuoteByIdFromSupabase(quoteId: string) {
         .eq('quote_id', quoteId);
         
       if (!vehiclesError && vehiclesData) {
-        data.vehicles = vehiclesData;
+        (data as any).vehicles = vehiclesData;
       } else {
-        data.vehicles = [];
+        (data as any).vehicles = [];
       }
       
       console.log("Orçamento recuperado:", data);
