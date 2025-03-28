@@ -132,6 +132,44 @@ export type Database = {
           },
         ]
       }
+      quote_status_history: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          id: string
+          new_status: Database["public"]["Enums"]["quote_status"]
+          observation: string | null
+          previous_status: Database["public"]["Enums"]["quote_status"] | null
+          quote_id: string | null
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_status: Database["public"]["Enums"]["quote_status"]
+          observation?: string | null
+          previous_status?: Database["public"]["Enums"]["quote_status"] | null
+          quote_id?: string | null
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_status?: Database["public"]["Enums"]["quote_status"]
+          observation?: string | null
+          previous_status?: Database["public"]["Enums"]["quote_status"] | null
+          quote_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_status_history_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotes: {
         Row: {
           client_id: string | null
@@ -143,6 +181,7 @@ export type Database = {
           monthly_km: number
           operation_severity: number
           status: string
+          status_flow: Database["public"]["Enums"]["quote_status"]
           title: string
           total_value: number
           updated_at: string
@@ -157,6 +196,7 @@ export type Database = {
           monthly_km?: number
           operation_severity?: number
           status?: string
+          status_flow?: Database["public"]["Enums"]["quote_status"]
           title: string
           total_value?: number
           updated_at?: string
@@ -171,6 +211,7 @@ export type Database = {
           monthly_km?: number
           operation_severity?: number
           status?: string
+          status_flow?: Database["public"]["Enums"]["quote_status"]
           title?: string
           total_value?: number
           updated_at?: string
@@ -314,9 +355,26 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_valid_status_transition: {
+        Args: {
+          current_status: Database["public"]["Enums"]["quote_status"]
+          new_status: Database["public"]["Enums"]["quote_status"]
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      quote_status:
+        | "ORCAMENTO"
+        | "PROPOSTA_GERADA"
+        | "EM_VERIFICACAO"
+        | "APROVADA"
+        | "CONTRATO_GERADO"
+        | "ASSINATURA_CLIENTE"
+        | "ASSINATURA_DIRETORIA"
+        | "AGENDAMENTO_ENTREGA"
+        | "ENTREGA"
+        | "CONCLUIDO"
     }
     CompositeTypes: {
       [_ in never]: never
