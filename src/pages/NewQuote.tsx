@@ -708,7 +708,7 @@ const QuoteForm = () => {
         <>
           <div className="flex items-center justify-between bg-muted/30 p-1 rounded-lg">
             {STEPS.map((step, index) => (
-              <React.Fragment key={step.id}>
+              <div key={step.id} className="flex-1 first:flex-none last:flex-none">
                 {index > 0 && (
                   <div className="h-[2px] flex-1 bg-border" />
                 )}
@@ -730,7 +730,7 @@ const QuoteForm = () => {
                     </span>
                   )}
                 </div>
-              </React.Fragment>
+              </div>
             ))}
           </div>
           

@@ -10,6 +10,44 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
+// Função para salvar cliente no Supabase
+export async function saveClientToSupabase(client: any) {
+  try {
+    console.log('🔍 Tentando salvar cliente:', {
+      id: client.id,
+      name: client.name,
+      document: client.document,
+      email: client.email
+    });
+
+    // Converter ID para UUID se necessário
+    const clientId = convertToValidUuid(client.id);
+
+    const { data, error } = await supabase
+      .from('clients')
+      .upsert({
+        id: clientId,
+        name: client.name,
+        document: client.document || null,
+        email: client.email || null,
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Erro ao salvar cliente no Supabase:', error);
+      return { success: false, error };
+    }
+
+    console.log('✅ Cliente salvo com sucesso:', data);
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Erro inesperado ao salvar cliente:', error);
+    return { success: false, error };
+  }
+}
+
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: typeof localStorage !== 'undefined' ? localStorage : undefined,
@@ -67,12 +105,19 @@ export async function saveQuoteToSupabase(quote: any) {
     const isValidUuid = !!quote.id && 
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(quote.id);
     
+    // Primeiro, salvar o cliente
+    const clientResult = await saveClientToSupabase(quote.client);
+    if (!clientResult.success) {
+      console.error('❌ Falha ao salvar cliente:', clientResult.error);
+      return { success: false, error: clientResult.error };
+    }
+
     // Gera ou mantém o ID do orçamento no formato UUID
     const quoteId = isValidUuid ? quote.id : uuidv4();
     console.log(`ID do orçamento a ser usado: ${quoteId} (era: ${quote.id})`);
     
-    // Certifica-se de que client_id seja um UUID válido
-    const clientUuid = convertToValidUuid(quote.clientId);
+    // Usar o ID do cliente retornado pelo Supabase
+    const clientUuid = clientResult.data.id;
     
     if (isValidUuid) {
       // Atualizar orçamento existente

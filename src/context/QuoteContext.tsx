@@ -542,6 +542,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     };
 
     console.log('📝 Tentando salvar novo orçamento:', {
+      clientId: newSavedQuote.clientId,
       clientName: newSavedQuote.clientName,
       totalCost: newSavedQuote.totalCost,
       veículos: newSavedQuote.vehicles.length
@@ -552,7 +553,11 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     try {
       import('@/integrations/supabase/client').then(async ({ saveQuoteToSupabase }) => {
         console.log('📤 Iniciando salvamento no Supabase...');
-        const result = await saveQuoteToSupabase(newSavedQuote);
+        // Passar o objeto cliente completo para a função de salvamento
+        const result = await saveQuoteToSupabase({
+          ...newSavedQuote,
+          client: quoteForm.client // Adicionar cliente aqui
+        });
         if (result.success && result.data && result.data[0]) {
           console.log('✅ Orçamento salvo no Supabase com sucesso!', result.data);
           
