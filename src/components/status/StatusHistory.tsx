@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { StatusHistoryItem, statusInfo } from '@/lib/status-flow';
+import { StatusHistoryItem, statusInfo, QuoteStatusFlow } from '@/lib/status-flow';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import StatusBadge from './StatusBadge';

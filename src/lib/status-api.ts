@@ -1,17 +1,18 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { QuoteStatusFlow } from './status-flow';
+import { QuoteStatusFlow, StatusHistoryItem } from './status-flow';
 
 /**
  * Busca o histórico de alterações de status de um orçamento
  */
-export const fetchStatusHistory = async (quoteId: string) => {
+export const fetchStatusHistory = async (quoteId: string): Promise<StatusHistoryItem[]> => {
   try {
     console.log(`Buscando histórico de status para orçamento ${quoteId}`);
     
+    // Remover a tentativa de join com "users:changed_by(name)" que estava causando o erro
     const { data, error } = await supabase
       .from('quote_status_history')
-      .select('*')  // Remover a tentativa de join com "users:changed_by(name)"
+      .select('*')
       .eq('quote_id', quoteId)
       .order('changed_at', { ascending: false });
     
@@ -20,7 +21,17 @@ export const fetchStatusHistory = async (quoteId: string) => {
       return [];
     }
     
-    return data || [];
+    // Converter os dados para o formato esperado pelo StatusHistoryItem
+    return (data || []).map(item => ({
+      id: item.id,
+      quote_id: item.quote_id,
+      previous_status: item.previous_status as QuoteStatusFlow,
+      new_status: item.new_status as QuoteStatusFlow,
+      changed_by: item.changed_by,
+      changed_at: item.changed_at,
+      observation: item.observation,
+      user_name: undefined // Não temos essa informação no momento
+    }));
   } catch (error) {
     console.error('Erro ao buscar histórico de status:', error);
     return [];
