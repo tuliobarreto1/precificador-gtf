@@ -47,7 +47,7 @@ const QuoteDetail = () => {
           
           // Buscar histórico de status
           const historyData = await fetchStatusHistory(id);
-          setStatusHistory(historyData);
+          setStatusHistory(historyData || []);
         } else {
           setError("Não foi possível carregar os dados do orçamento.");
           toast({
@@ -122,9 +122,10 @@ const QuoteDetail = () => {
   };
   
   // Função para recarregar os dados quando algo for atualizado
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (id) {
-      fetchStatusHistory(id).then(data => setStatusHistory(data));
+      const historyData = await fetchStatusHistory(id);
+      setStatusHistory(historyData || []);
     }
   };
 
@@ -288,9 +289,34 @@ const QuoteDetail = () => {
               </div>
             </Card>
             
-            <StatusHistory 
-              history={statusHistory}
-            />
+            <Card>
+              <CardHeader title="Histórico de Status" />
+              <div className="p-6">
+                {statusHistory && statusHistory.length > 0 ? (
+                  <div className="space-y-4">
+                    {statusHistory.map((item) => (
+                      <div key={item.id} className="border-b pb-3 last:border-0 last:pb-0">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium">
+                              {item.previous_status ? `${item.previous_status} → ${item.new_status}` : item.new_status}
+                            </p>
+                            {item.observation && (
+                              <p className="text-sm text-muted-foreground mt-1">{item.observation}</p>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(item.changed_at).toLocaleString('pt-BR')}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-center text-muted-foreground">Nenhum histórico de alteração de status disponível.</p>
+                )}
+              </div>
+            </Card>
           </div>
         </div>
       </div>
