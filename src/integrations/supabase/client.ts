@@ -294,22 +294,3 @@ export async function getQuoteByIdFromSupabase(quoteId: string) {
     return { success: false, error };
   }
 }
-
-// Componente para proteger rotas
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, adminUser, isLoading } = useAuth();
-  const location = useLocation();
-
-  // Se estiver carregando, não faz nada ainda
-  if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
-  }
-  
-  // Se não há usuário autenticado, redirecionar para login
-  if (!user && !adminUser) {
-    // Redirecionar para a página de login, salvando o caminho atual para redirecionamento após login
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  return <>{children}</>;
-};

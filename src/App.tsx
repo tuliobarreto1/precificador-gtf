@@ -3,8 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import Index from "./pages/Index";
 import NewQuote from "./pages/NewQuote";
@@ -22,7 +21,7 @@ const queryClient = new QueryClient();
 
 // Componente para proteger rotas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoading } = useAuth();
+  const { user, adminUser, isLoading } = useAuth();
   const location = useLocation();
 
   // Se estiver carregando, não faz nada ainda
@@ -31,7 +30,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
   
   // Se não há usuário autenticado, redirecionar para login
-  if (!user) {
+  if (!user && !adminUser) {
     // Redirecionar para a página de login, salvando o caminho atual para redirecionamento após login
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
