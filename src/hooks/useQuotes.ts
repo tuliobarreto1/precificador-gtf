@@ -81,6 +81,12 @@ export const useQuotes = () => {
       
       if (success && data) {
         console.log(`Carregados ${data.length} orçamentos do Supabase com sucesso`);
+        console.log('Amostra do primeiro orçamento:', data[0]);
+        
+        if (data[0]?.items) {
+          console.log('Itens do primeiro orçamento:', data[0].items);
+        }
+        
         setSupabaseQuotes(data);
       } else {
         console.error('Erro ao carregar orçamentos do Supabase:', error);
@@ -107,33 +113,39 @@ export const useQuotes = () => {
 
   // Função auxiliar para obter informações do veículo para orçamentos do Supabase
   const getVehicleInfo = (quote: any) => {
-    if (!quote.items || quote.items.length === 0) {
-      return { name: 'Veículo não especificado', value: 0 };
-    }
-    
-    // Tentar obter informações do primeiro item
-    const firstItem = quote.items[0];
-    
-    // Verificar se o item tem um veículo associado
-    if (firstItem.vehicle && firstItem.vehicle.brand && firstItem.vehicle.model) {
+    // Verificar se temos itens no orçamento
+    if (quote.items && quote.items.length > 0) {
+      // Tentar obter informações do primeiro item
+      const firstItem = quote.items[0];
+      
+      // Verificar se o item tem um veículo associado com detalhes completos
+      if (firstItem.vehicle && firstItem.vehicle.brand && firstItem.vehicle.model) {
+        return { 
+          name: `${firstItem.vehicle.brand} ${firstItem.vehicle.model}`, 
+          value: firstItem.monthly_value || quote.total_value || 0
+        };
+      }
+      
+      // Se não tiver veículo completo mas tiver vehicle_id, tentar buscar nos veículos carregados
+      if (firstItem.vehicle_id && supabaseVehicles.length > 0) {
+        const vehicle = supabaseVehicles.find(v => v.id === firstItem.vehicle_id);
+        if (vehicle) {
+          return { 
+            name: `${vehicle.brand} ${vehicle.model}`, 
+            value: firstItem.monthly_value || quote.total_value || 0
+          };
+        }
+      }
+      
+      // Se ainda não temos informações do veículo, usar o valor do item
       return { 
-        name: `${firstItem.vehicle.brand} ${firstItem.vehicle.model}`, 
+        name: 'Veículo não especificado', 
         value: firstItem.monthly_value || quote.total_value || 0
       };
     }
     
-    // Se não tiver veículo associado mas tiver vehicle_id, tentar buscar nos veículos carregados
-    if (firstItem.vehicle_id && supabaseVehicles.length > 0) {
-      const vehicle = supabaseVehicles.find(v => v.id === firstItem.vehicle_id);
-      if (vehicle) {
-        return { 
-          name: `${vehicle.brand} ${vehicle.model}`, 
-          value: firstItem.monthly_value || quote.total_value || 0
-        };
-      }
-    }
-    
-    return { name: 'Veículo não especificado', value: firstItem.monthly_value || quote.total_value || 0 };
+    // Se não há itens, retornar informação padrão
+    return { name: 'Veículo não especificado', value: quote.total_value || 0 };
   };
 
   // Combinação dos orçamentos locais (mock) e do Supabase
@@ -152,11 +164,11 @@ export const useQuotes = () => {
     // LOCAL: Orçamentos salvos localmente no navegador
     ...(savedQuotes || []).map(quote => ({
       id: quote.id,
-      clientName: quote.clientName,
+      clientName: quote.clientName || (quote.client ? quote.client.name : 'Cliente não especificado'),
       vehicleName: quote.vehicles && quote.vehicles.length > 0 ? 
         `${quote.vehicles[0].vehicleBrand} ${quote.vehicles[0].vehicleModel}` : 
         'Veículo não especificado',
-      value: quote.totalCost,
+      value: quote.totalCost || 0,
       createdAt: quote.createdAt || new Date().toISOString(),
       status: 'ORCAMENTO',
       source: 'local' as const
@@ -164,13 +176,17 @@ export const useQuotes = () => {
     
     // SUPABASE: Orçamentos carregados do Supabase
     ...supabaseQuotes.map(quote => {
+      console.log('Processando orçamento do Supabase:', quote.id, quote);
+      
       const vehicleInfo = getVehicleInfo(quote);
+      console.log('Informações de veículo para orçamento:', quote.id, vehicleInfo);
+      
       return {
         id: quote.id,
-        clientName: quote.client?.name || 'Cliente não encontrado',
+        clientName: quote.client?.name || 'Cliente não especificado',
         vehicleName: vehicleInfo.name,
         value: vehicleInfo.value || quote.total_value || 0,
-        createdAt: quote.created_at,
+        createdAt: quote.created_at || new Date().toISOString(),
         status: quote.status_flow || 'ORCAMENTO',
         source: 'supabase' as const
       };

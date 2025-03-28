@@ -42,38 +42,46 @@ const QuoteTable = ({ quotes }: QuoteTableProps) => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {quotes.map((quote) => (
-            <TableRow key={`${quote.source}-${quote.id}`}>
-              <TableCell>
-                <Link to={`/orcamento/${quote.id}`}>
-                  <span className="font-medium hover:text-primary">
-                    {quote.clientName || "Cliente não especificado"}
-                  </span>
-                </Link>
-              </TableCell>
-              <TableCell>{quote.vehicleName || "Veículo não especificado"}</TableCell>
-              <TableCell>
-                R$ {Number(quote.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </TableCell>
-              <TableCell>
-                <StatusBadge status={quote.status as QuoteStatusFlow} size="sm" />
-              </TableCell>
-              <TableCell>
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                  quote.source === 'supabase' ? 'bg-blue-50 text-blue-700' : 
-                  quote.source === 'local' ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-700'
-                }`}>
-                  {quote.source === 'supabase' ? 'Supabase' : 
-                   quote.source === 'local' ? 'Local' : 'Demo'}
-                </span>
-              </TableCell>
-              <TableCell className="text-right">
-                <Link to={`/orcamento/${quote.id}`}>
-                  <Button variant="link" size="sm">Ver detalhes</Button>
-                </Link>
+          {quotes.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                Nenhum orçamento encontrado
               </TableCell>
             </TableRow>
-          ))}
+          ) : (
+            quotes.map((quote) => (
+              <TableRow key={`${quote.source}-${quote.id}`}>
+                <TableCell>
+                  <Link to={`/orcamento/${quote.id}`}>
+                    <span className="font-medium hover:text-primary">
+                      {quote.clientName || "Cliente não especificado"}
+                    </span>
+                  </Link>
+                </TableCell>
+                <TableCell>{quote.vehicleName || "Veículo não especificado"}</TableCell>
+                <TableCell>
+                  R$ {Number(quote.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={quote.status as QuoteStatusFlow} size="sm" />
+                </TableCell>
+                <TableCell>
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                    quote.source === 'supabase' ? 'bg-blue-50 text-blue-700' : 
+                    quote.source === 'local' ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-700'
+                  }`}>
+                    {quote.source === 'supabase' ? 'Supabase' : 
+                     quote.source === 'local' ? 'Local' : 'Demo'}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <Link to={`/orcamento/${quote.id}`}>
+                    <Button variant="link" size="sm">Ver detalhes</Button>
+                  </Link>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
     </div>
