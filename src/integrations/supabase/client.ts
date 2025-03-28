@@ -110,11 +110,11 @@ export async function saveQuoteToSupabase(quote: any) {
       return { success: false, error };
     }
     
-    // Se houver veículos, salvar os itens do orçamento
+    // Se houver veículos, salvar em quote_vehicles
     if (quote.vehicles && quote.vehicles.length > 0) {
       console.log("Salvando veículos do orçamento:", quote.vehicles);
       
-      // Para cada veículo, criar um item no quote_items
+      // Para cada veículo, criar um registro na quote_vehicles
       for (const vehicle of quote.vehicles) {
         // Verificar se o veículo já existe no Supabase pelo número da placa
         let vehicleId = null;
@@ -154,9 +154,9 @@ export async function saveQuoteToSupabase(quote: any) {
           vehicleId = newVehicle.id;
         }
         
-        // Criar o item do orçamento
+        // Criar o registro na quote_vehicles
         const { error: itemError } = await supabase
-          .from('quote_items')
+          .from('quote_vehicles')
           .insert({
             quote_id: quoteId,
             vehicle_id: vehicleId,
@@ -168,7 +168,7 @@ export async function saveQuoteToSupabase(quote: any) {
           });
           
         if (itemError) {
-          console.error("Erro ao salvar item do orçamento:", itemError);
+          console.error("Erro ao salvar veículo do orçamento:", itemError);
         }
       }
     }
@@ -184,27 +184,40 @@ export async function getQuotesFromSupabase() {
   try {
     console.log("Buscando orçamentos do Supabase...");
     
+    // Utilizando a nova função que retorna todos os dados relacionados
     const { data, error } = await supabase
-      .from('quotes')
-      .select(`
-        *,
-        client:client_id(*),
-        items:quote_items(
-          *,
-          vehicle:vehicle_id(*)
-        )
-      `)
+      .rpc('get_quote_with_related_data')
       .order('created_at', { ascending: false });
     
     if (error) {
       console.error("Erro ao buscar orçamentos:", error);
-      return { success: false, error, quotes: [] };
+      
+      // Fallback para o método antigo caso a função RPC não esteja disponível
+      const fallbackResult = await supabase
+        .from('quotes')
+        .select(`
+          *,
+          client:client_id(*),
+          vehicles:quote_vehicles(
+            *,
+            vehicle:vehicle_id(*)
+          )
+        `)
+        .order('created_at', { ascending: false });
+        
+      if (fallbackResult.error) {
+        console.error("Erro no fallback ao buscar orçamentos:", fallbackResult.error);
+        return { success: false, error: fallbackResult.error, quotes: [] };
+      }
+      
+      console.log("Orçamentos recuperados via fallback:", fallbackResult.data?.length || 0);
+      return { success: true, quotes: fallbackResult.data || [] };
     }
     
     console.log("Orçamentos recuperados com sucesso:", data?.length || 0);
     if (data && data.length > 0) {
       console.log("Amostra do primeiro orçamento:", data[0]);
-      console.log("Itens do primeiro orçamento:", data[0].items);
+      console.log("Veículos do primeiro orçamento:", data[0].vehicles);
     }
     
     return { success: true, quotes: data || [] };
@@ -219,28 +232,38 @@ export async function getQuoteByIdFromSupabase(quoteId: string) {
   try {
     console.log(`Buscando orçamento com ID: ${quoteId}`);
     
+    // Usar a nova função para buscar o orçamento com dados relacionados
     const { data, error } = await supabase
-      .from('quotes')
-      .select(`
-        *,
-        client:client_id(*),
-        items:quote_items(
-          *,
-          vehicle:vehicle_id(*)
-        )
-      `)
-      .eq('id', quoteId)
+      .rpc('get_quote_with_related_data', { quote_id: quoteId })
       .single();
     
     if (error) {
       console.error("Erro ao buscar orçamento por ID:", error);
-      return { success: false, error };
+      
+      // Fallback para o método antigo
+      const fallbackResult = await supabase
+        .from('quotes')
+        .select(`
+          *,
+          client:client_id(*),
+          vehicles:quote_vehicles(
+            *,
+            vehicle:vehicle_id(*)
+          )
+        `)
+        .eq('id', quoteId)
+        .single();
+        
+      if (fallbackResult.error) {
+        console.error("Erro no fallback ao buscar orçamento por ID:", fallbackResult.error);
+        return { success: false, error: fallbackResult.error };
+      }
+      
+      console.log("Orçamento recuperado via fallback:", fallbackResult.data);
+      return { success: true, quote: fallbackResult.data };
     }
     
     console.log("Orçamento recuperado com sucesso:", data);
-    if (data?.items) {
-      console.log("Itens do orçamento:", data.items);
-    }
     
     return { success: true, quote: data };
   } catch (error) {
@@ -266,4 +289,3 @@ export async function getVehiclesFromSupabase() {
     return { success: false, error, vehicles: [] };
   }
 }
-

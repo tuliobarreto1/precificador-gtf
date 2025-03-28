@@ -29,10 +29,13 @@ const VehicleCard = ({
   const getPlate = () => vehicle.plateNumber || vehicle.plate_number || null;
   const isUsed = () => vehicle.isUsed || vehicle.is_used || false;
   const getOdometer = () => vehicle.odometer || null;
-  const getValue = () => vehicle.value || vehicle.monthlyValue || 0;
-  
-  // Verificar o formato e extrair valores de acordo
-  const isSupabaseFormat = !!(vehicle.brand || vehicle.plate_number);
+  const getValue = () => {
+    // Valores podem estar em diferentes propriedades dependendo da fonte
+    if (vehicle.value !== undefined) return vehicle.value;
+    if (vehicle.monthlyValue !== undefined) return vehicle.monthlyValue;
+    if (vehicle.monthly_value !== undefined) return vehicle.monthly_value;
+    return 0;
+  };
   
   return (
     <div 

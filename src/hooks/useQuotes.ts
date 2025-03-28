@@ -85,8 +85,8 @@ export const useQuotes = () => {
         if (data.length > 0) {
           console.log('Amostra do primeiro orçamento:', data[0]);
           
-          if (data[0]?.items) {
-            console.log('Itens do primeiro orçamento:', data[0].items);
+          if (data[0]?.vehicles) {
+            console.log('Veículos do primeiro orçamento:', data[0].vehicles);
           }
         }
         
@@ -118,8 +118,38 @@ export const useQuotes = () => {
   const getVehicleInfo = (quote: any) => {
     console.log('Processando informações de veículo para orçamento:', quote.id);
     
-    // Verificar se o orçamento tem itens com veículos associados
-    if (quote.items && quote.items.length > 0) {
+    // Verificar o novo formato com array de veículos diretamente no objeto de orçamento
+    if (quote.vehicles && Array.isArray(quote.vehicles)) {
+      // Para o novo formato onde vehicles é um array de objetos de veículo
+      console.log(`Orçamento tem ${quote.vehicles.length} veículos (novo formato)`);
+      
+      if (quote.vehicles.length > 0) {
+        const firstVehicle = quote.vehicles[0];
+        console.log('Primeiro veículo:', firstVehicle);
+        
+        return { 
+          name: `${firstVehicle.brand} ${firstVehicle.model}`, 
+          value: firstVehicle.monthly_value || quote.monthly_value || quote.total_value || 0
+        };
+      }
+    }
+    
+    // Verificar o formato antigo onde quote.vehicles são itens relacionados
+    else if (quote.vehicles && quote.vehicles.length > 0 && quote.vehicles[0].vehicle) {
+      console.log(`Orçamento tem ${quote.vehicles.length} itens relacionados (formato antigo)`);
+      
+      const firstItem = quote.vehicles[0];
+      if (firstItem.vehicle) {
+        console.log('Veículo encontrado no item:', firstItem.vehicle);
+        return { 
+          name: `${firstItem.vehicle.brand} ${firstItem.vehicle.model}`, 
+          value: firstItem.monthly_value || quote.total_value || 0
+        };
+      }
+    }
+    
+    // Verificar formato antigo de items
+    else if (quote.items && quote.items.length > 0) {
       console.log(`Orçamento tem ${quote.items.length} itens`);
       
       // Pegar o primeiro item que tenha um veículo associado
@@ -146,15 +176,21 @@ export const useQuotes = () => {
           };
         }
       }
-      
-      // Se tem itens mas não tem veículo, retorna o valor do item
-      return { 
-        name: 'Veículo não especificado', 
-        value: firstItem.monthly_value || quote.total_value || 0
-      };
     }
     
-    // Se não tem itens, retorna um valor padrão
+    // Usar vehicle_id diretamente do orçamento se existir
+    if (quote.vehicle_id && supabaseVehicles.length > 0) {
+      console.log('Buscando veículo pelo ID direto no orçamento:', quote.vehicle_id);
+      const vehicle = supabaseVehicles.find(v => v.id === quote.vehicle_id);
+      if (vehicle) {
+        return { 
+          name: `${vehicle.brand} ${vehicle.model}`, 
+          value: quote.monthly_value || quote.total_value || 0 
+        };
+      }
+    }
+    
+    // Se não conseguiu encontrar informações do veículo de nenhuma forma
     return { name: 'Veículo não especificado', value: quote.total_value || 0 };
   };
 
@@ -185,12 +221,15 @@ export const useQuotes = () => {
     ...supabaseQuotes.map(quote => {
       console.log('Processando orçamento do Supabase:', quote.id);
       
+      const clientName = quote.client_name || (quote.client && quote.client.name) || 'Cliente não especificado';
+      console.log('Nome do cliente:', clientName);
+      
       const vehicleInfo = getVehicleInfo(quote);
       console.log('Informações de veículo para orçamento:', quote.id, vehicleInfo);
       
       return {
         id: quote.id,
-        clientName: quote.client?.name || 'Cliente não especificado',
+        clientName: clientName,
         vehicleName: vehicleInfo.name,
         value: vehicleInfo.value || quote.total_value || 0,
         createdAt: quote.created_at || new Date().toISOString(),
