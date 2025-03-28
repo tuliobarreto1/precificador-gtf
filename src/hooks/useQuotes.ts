@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useQuote } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
 import { quotes, getClientById, getVehicleById } from '@/lib/mock-data';
-import { checkSupabaseConnection, getQuotesFromSupabase } from '@/integrations/supabase/client';
+import { checkSupabaseConnection, getQuotesFromSupabase, getVehiclesFromSupabase } from '@/integrations/supabase/client';
 
 // Definindo o tipo com source restrito aos valores permitidos
 interface QuoteItem {
@@ -22,6 +22,7 @@ export const useQuotes = () => {
   const [error, setError] = useState<string | null>(null);
   const [supabaseConnected, setSupabaseConnected] = useState(false);
   const [supabaseQuotes, setSupabaseQuotes] = useState<any[]>([]);
+  const [supabaseVehicles, setSupabaseVehicles] = useState<any[]>([]);
   
   const { savedQuotes } = useQuote();
   const { toast } = useToast();
@@ -40,7 +41,8 @@ export const useQuotes = () => {
         if (success) {
           console.log('Conexão com o Supabase estabelecida com sucesso');
           setSupabaseConnected(true);
-          loadSupabaseQuotes();
+          await loadSupabaseVehicles();
+          await loadSupabaseQuotes();
         } else {
           console.error('Falha ao conectar ao Supabase');
           setSupabaseConnected(false);
@@ -55,6 +57,22 @@ export const useQuotes = () => {
     
     checkConnection();
   }, []);
+  
+  const loadSupabaseVehicles = async () => {
+    try {
+      console.log('Iniciando carregamento de veículos do Supabase...');
+      const { vehicles, success, error } = await getVehiclesFromSupabase();
+      
+      if (success && vehicles) {
+        console.log(`Carregados ${vehicles.length} veículos do Supabase com sucesso`);
+        setSupabaseVehicles(vehicles);
+      } else {
+        console.error('Erro ao carregar veículos do Supabase:', error);
+      }
+    } catch (error) {
+      console.error('Erro inesperado ao carregar veículos do Supabase:', error);
+    }
+  };
   
   const loadSupabaseQuotes = async () => {
     try {
@@ -76,6 +94,7 @@ export const useQuotes = () => {
   
   const handleRefresh = () => {
     setLoading(true);
+    loadSupabaseVehicles();
     loadSupabaseQuotes();
     setTimeout(() => {
       setLoading(false);
@@ -84,6 +103,37 @@ export const useQuotes = () => {
         description: "A lista de orçamentos foi atualizada com sucesso."
       });
     }, 1000);
+  };
+
+  // Função auxiliar para obter informações do veículo para orçamentos do Supabase
+  const getVehicleInfo = (quote: any) => {
+    if (!quote.items || quote.items.length === 0) {
+      return { name: 'Veículo não especificado', value: 0 };
+    }
+    
+    // Tentar obter informações do primeiro item
+    const firstItem = quote.items[0];
+    
+    // Verificar se o item tem um veículo associado
+    if (firstItem.vehicle && firstItem.vehicle.brand && firstItem.vehicle.model) {
+      return { 
+        name: `${firstItem.vehicle.brand} ${firstItem.vehicle.model}`, 
+        value: firstItem.monthly_value || quote.total_value || 0
+      };
+    }
+    
+    // Se não tiver veículo associado mas tiver vehicle_id, tentar buscar nos veículos carregados
+    if (firstItem.vehicle_id && supabaseVehicles.length > 0) {
+      const vehicle = supabaseVehicles.find(v => v.id === firstItem.vehicle_id);
+      if (vehicle) {
+        return { 
+          name: `${vehicle.brand} ${vehicle.model}`, 
+          value: firstItem.monthly_value || quote.total_value || 0
+        };
+      }
+    }
+    
+    return { name: 'Veículo não especificado', value: firstItem.monthly_value || quote.total_value || 0 };
   };
 
   // Combinação dos orçamentos locais (mock) e do Supabase
@@ -113,17 +163,18 @@ export const useQuotes = () => {
     })),
     
     // SUPABASE: Orçamentos carregados do Supabase
-    ...supabaseQuotes.map(quote => ({
-      id: quote.id,
-      clientName: quote.client?.name || 'Cliente não encontrado',
-      vehicleName: quote.items && quote.items.length > 0 && quote.items[0].vehicle ? 
-        `${quote.items[0].vehicle.brand} ${quote.items[0].vehicle.model}` : 
-        'Veículo não especificado',
-      value: quote.total_value || 0,
-      createdAt: quote.created_at,
-      status: quote.status_flow || 'ORCAMENTO',
-      source: 'supabase' as const
-    }))
+    ...supabaseQuotes.map(quote => {
+      const vehicleInfo = getVehicleInfo(quote);
+      return {
+        id: quote.id,
+        clientName: quote.client?.name || 'Cliente não encontrado',
+        vehicleName: vehicleInfo.name,
+        value: vehicleInfo.value || quote.total_value || 0,
+        createdAt: quote.created_at,
+        status: quote.status_flow || 'ORCAMENTO',
+        source: 'supabase' as const
+      };
+    })
   ];
   
   // Ordenar por data de criação (mais recente primeiro)

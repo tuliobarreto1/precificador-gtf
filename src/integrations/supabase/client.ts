@@ -196,7 +196,7 @@ export async function saveQuoteToSupabase(quote: any) {
         // Preparar os itens para inserção
         const quoteItems = quote.vehicles.map((item: any) => ({
           quote_id: savedQuoteId,
-          vehicle_id: convertToValidUuid(item.vehicle.id),
+          vehicle_id: item.vehicle && item.vehicle.id ? convertToValidUuid(item.vehicle.id) : convertToValidUuid(item.vehicleId),
           monthly_value: item.totalCost || 0,
           contract_months: quote.contractMonths,
           monthly_km: quote.monthlyKm,
@@ -232,7 +232,7 @@ export async function getQuotesFromSupabase() {
   try {
     console.log('Buscando orçamentos no Supabase...');
     
-    // Buscar orçamentos com relacionamentos
+    // Buscar orçamentos com relacionamentos de forma mais completa
     const { data, error } = await supabase
       .from('quotes')
       .select(`
@@ -252,7 +252,13 @@ export async function getQuotesFromSupabase() {
     
     console.log(`Encontrados ${data?.length || 0} orçamentos no Supabase`);
     if (data && data.length > 0) {
-      console.log('Primeiro orçamento:', data[0]);
+      console.log('Primeiro orçamento encontrado:', data[0]);
+      if (data[0].items && data[0].items.length > 0) {
+        console.log('Detalhes do primeiro item do orçamento:', data[0].items[0]);
+        console.log('Detalhes do veículo do primeiro item:', data[0].items[0].vehicle);
+      } else {
+        console.log('Primeiro orçamento não possui itens');
+      }
     }
     
     return { success: true, quotes: data || [] };
@@ -287,10 +293,39 @@ export async function getQuoteByIdFromSupabase(quoteId: string) {
     }
     
     console.log('Orçamento encontrado:', data);
+    if (data.items && data.items.length > 0) {
+      console.log('Itens do orçamento:', data.items.length);
+      console.log('Primeiro veículo:', data.items[0].vehicle);
+    }
+    
     return { success: true, quote: data };
     
   } catch (error) {
     console.error('Erro inesperado ao buscar orçamento por ID:', error);
     return { success: false, error };
+  }
+}
+
+// Função para buscar veículos do Supabase
+export async function getVehiclesFromSupabase() {
+  try {
+    console.log('Buscando veículos no Supabase...');
+    
+    const { data, error } = await supabase
+      .from('vehicles')
+      .select('*')
+      .order('brand', { ascending: true });
+    
+    if (error) {
+      console.error('Erro ao buscar veículos:', error);
+      return { success: false, error, vehicles: [] };
+    }
+    
+    console.log(`Encontrados ${data?.length || 0} veículos no Supabase`);
+    return { success: true, vehicles: data || [] };
+    
+  } catch (error) {
+    console.error('Erro inesperado ao buscar veículos:', error);
+    return { success: false, error, vehicles: [] };
   }
 }

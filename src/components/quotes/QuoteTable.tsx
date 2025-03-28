@@ -47,13 +47,13 @@ const QuoteTable = ({ quotes }: QuoteTableProps) => {
               <TableCell>
                 <Link to={`/orcamento/${quote.id}`}>
                   <span className="font-medium hover:text-primary">
-                    {quote.clientName}
+                    {quote.clientName || "Cliente não especificado"}
                   </span>
                 </Link>
               </TableCell>
-              <TableCell>{quote.vehicleName}</TableCell>
+              <TableCell>{quote.vehicleName || "Veículo não especificado"}</TableCell>
               <TableCell>
-                R$ {Number(quote.value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                R$ {Number(quote.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </TableCell>
               <TableCell>
                 <StatusBadge status={quote.status as QuoteStatusFlow} size="sm" />
