@@ -1,3 +1,4 @@
+
 // Mock data for clients
 export interface Client {
   id: string;
@@ -101,7 +102,14 @@ export async function getQuotes(): Promise<{ success: boolean; quotes: any[]; er
   try {
     // Importar e usar a função do cliente Supabase
     const { getQuotesFromSupabase } = await import('@/integrations/supabase/client');
-    return await getQuotesFromSupabase();
+    const result = await getQuotesFromSupabase();
+    
+    // Garantir que o resultado tenha um array de orçamentos
+    return { 
+      success: result.success, 
+      quotes: Array.isArray(result.quotes) ? result.quotes : [],
+      error: result.error 
+    };
   } catch (error) {
     console.error('Erro ao buscar orçamentos:', error);
     return { success: false, error, quotes: [] };

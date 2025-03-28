@@ -154,21 +154,30 @@ export async function saveQuoteToSupabase(quote: any) {
           vehicleId = newVehicle.id;
         }
         
-        // Criar o registro na quote_vehicles
-        const { error: itemError } = await supabase
-          .from('quote_vehicles')
-          .insert({
-            quote_id: quoteId,
-            vehicle_id: vehicleId,
-            monthly_value: vehicle.monthlyValue || quote.totalCost || 0,
-            contract_months: quote.contractMonths,
-            monthly_km: quote.monthlyKm,
-            operation_severity: quote.operationSeverity || 3,
-            has_tracking: quote.hasTracking || false
+        // Criar o registro diretamente em quotes na coluna vehicle_id ou na tabela quote_vehicles
+        try {
+          // Tentar salvar na tabela quote_vehicles se disponível
+          await supabase.rpc('insert_quote_vehicle', {
+            p_quote_id: quoteId,
+            p_vehicle_id: vehicleId,
+            p_monthly_value: vehicle.monthlyValue || quote.totalCost || 0,
+            p_contract_months: quote.contractMonths,
+            p_monthly_km: quote.monthlyKm,
+            p_operation_severity: quote.operationSeverity || 3,
+            p_has_tracking: quote.hasTracking || false
           });
+        } catch (error) {
+          console.warn('Função RPC não disponível, utilizando fallback para inserir veículo do orçamento', error);
           
-        if (itemError) {
-          console.error("Erro ao salvar veículo do orçamento:", itemError);
+          // Fallback: atualizar quote com vehicle_id
+          try {
+            await supabase
+              .from('quotes')
+              .update({ vehicle_id: vehicleId, monthly_value: vehicle.monthlyValue || quote.totalCost || 0 })
+              .eq('id', quoteId);
+          } catch (fallbackError) {
+            console.error('Erro ao atualizar orçamento com veículo:', fallbackError);
+          }
         }
       }
     }
@@ -184,43 +193,36 @@ export async function getQuotesFromSupabase() {
   try {
     console.log("Buscando orçamentos do Supabase...");
     
-    // Utilizando a nova função que retorna todos os dados relacionados
-    const { data, error } = await supabase
-      .rpc('get_quote_with_related_data')
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error("Erro ao buscar orçamentos:", error);
+    try {
+      // Tente usar a função RPC personalizada
+      const { data, error } = await supabase.rpc('get_quotes_with_related_data');
       
-      // Fallback para o método antigo caso a função RPC não esteja disponível
-      const fallbackResult = await supabase
+      if (error) {
+        throw error;
+      }
+      
+      console.log("Orçamentos recuperados com sucesso via RPC:", Array.isArray(data) ? data.length : 0);
+      return { success: true, quotes: data || [] };
+    } catch (rpcError) {
+      console.error("Erro com função RPC, utilizando método alternativo:", rpcError);
+      
+      // Método alternativo: buscar diretamente
+      const { data, error } = await supabase
         .from('quotes')
         .select(`
           *,
           client:client_id(*),
-          vehicles:quote_vehicles(
-            *,
-            vehicle:vehicle_id(*)
-          )
+          vehicles:vehicle_id(*)
         `)
         .order('created_at', { ascending: false });
         
-      if (fallbackResult.error) {
-        console.error("Erro no fallback ao buscar orçamentos:", fallbackResult.error);
-        return { success: false, error: fallbackResult.error, quotes: [] };
+      if (error) {
+        throw error;
       }
       
-      console.log("Orçamentos recuperados via fallback:", fallbackResult.data?.length || 0);
-      return { success: true, quotes: fallbackResult.data || [] };
+      console.log("Orçamentos recuperados via método alternativo:", Array.isArray(data) ? data.length : 0);
+      return { success: true, quotes: data || [] };
     }
-    
-    console.log("Orçamentos recuperados com sucesso:", data?.length || 0);
-    if (data && data.length > 0) {
-      console.log("Amostra do primeiro orçamento:", data[0]);
-      console.log("Veículos do primeiro orçamento:", data[0].vehicles);
-    }
-    
-    return { success: true, quotes: data || [] };
   } catch (error) {
     console.error("Erro inesperado ao buscar orçamentos:", error);
     return { success: false, error, quotes: [] };
@@ -232,40 +234,38 @@ export async function getQuoteByIdFromSupabase(quoteId: string) {
   try {
     console.log(`Buscando orçamento com ID: ${quoteId}`);
     
-    // Usar a nova função para buscar o orçamento com dados relacionados
-    const { data, error } = await supabase
-      .rpc('get_quote_with_related_data', { quote_id: quoteId })
-      .single();
-    
-    if (error) {
-      console.error("Erro ao buscar orçamento por ID:", error);
+    try {
+      // Tente usar a função RPC personalizada
+      const { data, error } = await supabase.rpc('get_quote_by_id', { p_quote_id: quoteId });
+      
+      if (error) {
+        throw error;
+      }
+      
+      console.log("Orçamento recuperado com sucesso via RPC");
+      return { success: true, quote: data };
+    } catch (rpcError) {
+      console.error("Erro com função RPC, utilizando método alternativo:", rpcError);
       
       // Fallback para o método antigo
-      const fallbackResult = await supabase
+      const { data, error } = await supabase
         .from('quotes')
         .select(`
           *,
           client:client_id(*),
-          vehicles:quote_vehicles(
-            *,
-            vehicle:vehicle_id(*)
-          )
+          vehicles:vehicle_id(*)
         `)
         .eq('id', quoteId)
         .single();
         
-      if (fallbackResult.error) {
-        console.error("Erro no fallback ao buscar orçamento por ID:", fallbackResult.error);
-        return { success: false, error: fallbackResult.error };
+      if (error) {
+        console.error("Erro no fallback ao buscar orçamento por ID:", error);
+        return { success: false, error };
       }
       
-      console.log("Orçamento recuperado via fallback:", fallbackResult.data);
-      return { success: true, quote: fallbackResult.data };
+      console.log("Orçamento recuperado via método alternativo:", data);
+      return { success: true, quote: data };
     }
-    
-    console.log("Orçamento recuperado com sucesso:", data);
-    
-    return { success: true, quote: data };
   } catch (error) {
     console.error("Erro inesperado ao buscar orçamento por ID:", error);
     return { success: false, error };

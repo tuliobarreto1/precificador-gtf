@@ -63,7 +63,7 @@ export const useQuotes = () => {
       console.log('Iniciando carregamento de veículos do Supabase...');
       const { vehicles, success, error } = await getVehiclesFromSupabase();
       
-      if (success && vehicles) {
+      if (success && Array.isArray(vehicles)) {
         console.log(`Carregados ${vehicles.length} veículos do Supabase com sucesso`);
         setSupabaseVehicles(vehicles);
       } else {
@@ -79,7 +79,7 @@ export const useQuotes = () => {
       console.log('Iniciando carregamento de orçamentos do Supabase...');
       const { quotes: data, success, error } = await getQuotesFromSupabase();
       
-      if (success && data) {
+      if (success && Array.isArray(data)) {
         console.log(`Carregados ${data.length} orçamentos do Supabase com sucesso`);
         
         if (data.length > 0) {
@@ -135,7 +135,7 @@ export const useQuotes = () => {
     }
     
     // Verificar o formato antigo onde quote.vehicles são itens relacionados
-    else if (quote.vehicles && quote.vehicles.length > 0 && quote.vehicles[0].vehicle) {
+    else if (quote.vehicles && Array.isArray(quote.vehicles) && quote.vehicles.length > 0 && quote.vehicles[0].vehicle) {
       console.log(`Orçamento tem ${quote.vehicles.length} itens relacionados (formato antigo)`);
       
       const firstItem = quote.vehicles[0];
@@ -149,7 +149,7 @@ export const useQuotes = () => {
     }
     
     // Verificar formato antigo de items
-    else if (quote.items && quote.items.length > 0) {
+    else if (quote.items && Array.isArray(quote.items) && quote.items.length > 0) {
       console.log(`Orçamento tem ${quote.items.length} itens`);
       
       // Pegar o primeiro item que tenha um veículo associado
