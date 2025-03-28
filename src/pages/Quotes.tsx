@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FilePlus, Filter, RotateCcw, Search } from 'lucide-react';
@@ -82,8 +83,10 @@ const Quotes = () => {
     }, 1000);
   };
   
-  // Combinar orçamentos locais (mock) e do Supabase
+  // Combinação dos orçamentos locais (mock) e do Supabase
+  // Aqui está o problema - a fonte dos orçamentos do Supabase está sendo marcada incorretamente
   const allQuotes = [
+    // DEMO: Orçamentos mockados apenas para desenvolvimento
     ...quotes.map(quote => ({
       id: quote.id,
       clientName: getClientById(quote.clientId)?.name || 'Cliente não encontrado',
@@ -91,8 +94,10 @@ const Quotes = () => {
       value: quote.totalCost,
       createdAt: new Date().toISOString(),
       status: 'ORCAMENTO',
-      source: 'mock'
+      source: 'demo' // Alterado para 'demo' para ficar mais claro
     })),
+    
+    // LOCAL: Orçamentos salvos localmente no navegador
     ...(savedQuotes || []).map(quote => ({
       id: quote.id,
       clientName: quote.clientName,
@@ -104,6 +109,8 @@ const Quotes = () => {
       status: 'ORCAMENTO',
       source: 'local'
     })),
+    
+    // SUPABASE: Orçamentos carregados do Supabase
     ...supabaseQuotes.map(quote => ({
       id: quote.id,
       clientName: quote.client?.name || 'Cliente não encontrado',
@@ -113,7 +120,7 @@ const Quotes = () => {
       value: quote.total_value || 0,
       createdAt: quote.created_at,
       status: quote.status_flow || 'ORCAMENTO',
-      source: 'supabase'
+      source: 'supabase' // Garantir que isso está definido corretamente
     }))
   ];
   
