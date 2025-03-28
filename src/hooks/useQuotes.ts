@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { quotes, getClientById, getVehicleById } from '@/lib/mock-data';
 import { checkSupabaseConnection, getQuotesFromSupabase } from '@/integrations/supabase/client';
 
+// Definindo o tipo com source restrito aos valores permitidos
 interface QuoteItem {
   id: string;
   clientName: string;
@@ -95,7 +96,7 @@ export const useQuotes = () => {
       value: quote.totalCost,
       createdAt: new Date().toISOString(),
       status: 'ORCAMENTO',
-      source: 'demo' // Alterado para 'demo' para ficar mais claro
+      source: 'demo' as const // Usando 'as const' para garantir o tipo específico
     })),
     
     // LOCAL: Orçamentos salvos localmente no navegador
@@ -108,7 +109,7 @@ export const useQuotes = () => {
       value: quote.totalCost,
       createdAt: quote.createdAt || new Date().toISOString(),
       status: 'ORCAMENTO',
-      source: 'local'
+      source: 'local' as const
     })),
     
     // SUPABASE: Orçamentos carregados do Supabase
@@ -121,7 +122,7 @@ export const useQuotes = () => {
       value: quote.total_value || 0,
       createdAt: quote.created_at,
       status: quote.status_flow || 'ORCAMENTO',
-      source: 'supabase' // Garantir que isso está definido corretamente
+      source: 'supabase' as const
     }))
   ];
   
