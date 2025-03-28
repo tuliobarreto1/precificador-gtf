@@ -14,11 +14,13 @@ import { Separator } from '@/components/ui/separator';
 import { getQuoteByIdFromSupabase, getQuoteVehicles } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { QuoteStatusFlow } from '@/lib/status-flow';
+import { fetchStatusHistory } from '@/lib/status-api';
 
 const QuoteDetail = () => {
   const { id } = useParams();
   const [quote, setQuote] = useState<any>(null);
   const [vehicles, setVehicles] = useState<any[]>([]);
+  const [statusHistory, setStatusHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -42,6 +44,10 @@ const QuoteDetail = () => {
             console.log("Veículos do orçamento carregados:", vehiclesData);
             setVehicles(vehiclesData);
           }
+          
+          // Buscar histórico de status
+          const historyData = await fetchStatusHistory(id);
+          setStatusHistory(historyData);
         } else {
           setError("Não foi possível carregar os dados do orçamento.");
           toast({
@@ -109,6 +115,18 @@ const QuoteDetail = () => {
   
   // Obter status
   const status = quote.status_flow || 'ORCAMENTO';
+  
+  // Função para atualizar quando o status for alterado
+  const handleStatusChange = (newStatus: QuoteStatusFlow) => {
+    setQuote({...quote, status_flow: newStatus});
+  };
+  
+  // Função para recarregar os dados quando algo for atualizado
+  const handleUpdate = () => {
+    if (id) {
+      fetchStatusHistory(id).then(data => setStatusHistory(data));
+    }
+  };
 
   return (
     <MainLayout>
@@ -130,7 +148,7 @@ const QuoteDetail = () => {
               </Link>
             </div>
             <PageTitle 
-              title={`Orçamento #${id.substring(0, 8)}`} 
+              title={`Orçamento #${id?.substring(0, 8)}`} 
               subtitle={`Cliente: ${client.name || 'Não especificado'}`}
             />
           </div>
@@ -262,22 +280,17 @@ const QuoteDetail = () => {
               
               <div className="p-6">
                 <StatusUpdater 
-                  quoteId={id} 
+                  quoteId={id || ''} 
                   currentStatus={status as QuoteStatusFlow} 
-                  onStatusChange={(newStatus) => {
-                    setQuote(prev => ({...prev, status_flow: newStatus}));
-                  }}
+                  onStatusChange={handleStatusChange}
+                  onUpdate={handleUpdate}
                 />
               </div>
             </Card>
             
-            <Card>
-              <CardHeader title="Histórico de Status" />
-              
-              <div className="p-6">
-                <StatusHistory quoteId={id} />
-              </div>
-            </Card>
+            <StatusHistory 
+              history={statusHistory}
+            />
           </div>
         </div>
       </div>

@@ -79,10 +79,12 @@ const StatusBreadcrumb: React.FC<StatusBreadcrumbProps> = ({
         return (
           <React.Fragment key={status}>
             {index > 0 && (
-              <div className={cn(
-                'h-px w-6 mx-1',
-                isPast ? statusData.progressColor : 'bg-gray-200'
-              )} />
+              <div 
+                className={cn(
+                  'h-px w-6 mx-1',
+                  isPast ? statusData.progressColor : 'bg-gray-200'
+                )}
+              />
             )}
             <div 
               className={cn(

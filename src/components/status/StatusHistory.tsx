@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { StatusHistoryItem, statusInfo } from '@/lib/status-flow';
@@ -7,19 +7,59 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import StatusBadge from './StatusBadge';
 import { cn } from '@/lib/utils';
+import { fetchStatusHistory } from '@/lib/status-api';
 
 interface StatusHistoryProps {
-  history: StatusHistoryItem[];
+  history?: StatusHistoryItem[];
+  quoteId?: string;
   className?: string;
 }
 
-const StatusHistory: React.FC<StatusHistoryProps> = ({ history, className }) => {
+const StatusHistory: React.FC<StatusHistoryProps> = ({ history: initialHistory, quoteId, className }) => {
+  const [loading, setLoading] = useState(false);
+  const [history, setHistory] = useState<StatusHistoryItem[]>([]);
+  
+  // Se quoteId for fornecido, buscar histórico da API
+  useEffect(() => {
+    if (quoteId) {
+      setLoading(true);
+      fetchStatusHistory(quoteId)
+        .then(data => {
+          setHistory(data);
+        })
+        .catch(error => {
+          console.error("Erro ao buscar histórico de status:", error);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    } else if (initialHistory) {
+      // Se history foi passado diretamente como prop
+      setHistory(initialHistory);
+    }
+  }, [quoteId, initialHistory]);
+  
   // Ordenar o histórico pelo mais recente
-  const sortedHistory = [...history].sort((a, b) => 
+  const sortedHistory = [...(history || [])].sort((a, b) => 
     new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime()
   );
   
-  if (history.length === 0) {
+  if (loading) {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle>Histórico de Status</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-center py-4">
+            <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  
+  if (sortedHistory.length === 0) {
     return (
       <Card className={className}>
         <CardHeader>

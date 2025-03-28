@@ -16,11 +16,13 @@ import { useToast } from '@/hooks/use-toast';
 import { QuoteStatusFlow, statusInfo, allStatus, isValidTransition } from '@/lib/status-flow';
 import { supabase } from '@/integrations/supabase/client';
 import StatusBadge from './StatusBadge';
+import { updateQuoteStatus } from '@/lib/status-api';
 
 interface StatusUpdaterProps {
   quoteId: string;
   currentStatus: QuoteStatusFlow;
   onUpdate?: () => void;
+  onStatusChange?: (newStatus: QuoteStatusFlow) => void;
   disabled?: boolean;
 }
 
@@ -28,6 +30,7 @@ const StatusUpdater: React.FC<StatusUpdaterProps> = ({
   quoteId, 
   currentStatus,
   onUpdate,
+  onStatusChange,
   disabled = false
 }) => {
   const [open, setOpen] = useState(false);
@@ -60,32 +63,16 @@ const StatusUpdater: React.FC<StatusUpdaterProps> = ({
     try {
       setIsSubmitting(true);
       
-      // Atualizar status no Supabase
-      const { error } = await supabase
-        .from('quotes')
-        .update({ status_flow: selectedStatus })
-        .eq('id', quoteId);
+      // Utilizar a função da API para atualizar o status
+      const success = await updateQuoteStatus(quoteId, selectedStatus, observation);
       
-      if (error) {
-        console.error("Erro ao atualizar status:", error);
+      if (!success) {
         toast({
           title: "Erro ao atualizar status",
-          description: error.message,
+          description: "Não foi possível atualizar o status do orçamento",
           variant: "destructive"
         });
         return;
-      }
-      
-      // Se tiver observação, adicionar manualmente ao histórico
-      if (observation) {
-        await supabase
-          .from('quote_status_history')
-          .insert({
-            quote_id: quoteId,
-            previous_status: currentStatus,
-            new_status: selectedStatus,
-            observation: observation
-          });
       }
       
       toast({
@@ -95,11 +82,16 @@ const StatusUpdater: React.FC<StatusUpdaterProps> = ({
       
       // Fechar o diálogo e limpar o estado
       setOpen(false);
+      
+      // Chamar a função de callback para status change
+      if (onStatusChange) onStatusChange(selectedStatus);
+      
+      // Chamar a função de callback para atualização geral
+      if (onUpdate) onUpdate();
+      
+      // Limpar o estado no final
       setSelectedStatus(null);
       setObservation('');
-      
-      // Chamar a função de callback se fornecida
-      if (onUpdate) onUpdate();
       
     } catch (error) {
       console.error("Erro:", error);
