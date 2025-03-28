@@ -89,8 +89,8 @@ export const useQuotes = () => {
         if (data.length > 0) {
           console.log('Amostra do primeiro orçamento:', data[0]);
           
-          if (data[0]?.vehicle) {
-            console.log('Veículo do primeiro orçamento:', data[0].vehicle);
+          if (data[0]?.vehicles && data[0]?.vehicles.length > 0) {
+            console.log('Veículos do primeiro orçamento:', data[0].vehicles);
           }
         }
         
@@ -122,7 +122,26 @@ export const useQuotes = () => {
   const getVehicleInfo = (quote: any) => {
     console.log('Processando informações de veículo para orçamento:', quote.id);
     
-    // Verificar o novo formato com veículo diretamente no objeto de orçamento
+    // Verificar se há veículos no array de quote.vehicles
+    if (quote.vehicles && Array.isArray(quote.vehicles) && quote.vehicles.length > 0) {
+      console.log('Veículos encontrados no array vehicles:', quote.vehicles.length);
+      // Usar o primeiro veículo para exibição na lista
+      const firstVehicle = quote.vehicles[0];
+      
+      if (firstVehicle.vehicle) {
+        return { 
+          name: `${firstVehicle.vehicle.brand} ${firstVehicle.vehicle.model}`, 
+          value: firstVehicle.monthly_value || quote.total_value || 0
+        };
+      } else {
+        return { 
+          name: 'Veículo não especificado', 
+          value: quote.total_value || 0 
+        };
+      }
+    }
+    
+    // Compatibilidade com o formato antigo de veículo
     if (quote.vehicle) {
       console.log('Veículo encontrado diretamente no orçamento:', quote.vehicle);
       return { 
