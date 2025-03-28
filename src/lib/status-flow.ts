@@ -12,6 +12,55 @@ export type QuoteStatusFlow =
   | 'ENTREGA' 
   | 'CONCLUIDO';
 
+// Definição do item de histórico de status
+export interface StatusHistoryItem {
+  id: string;
+  quote_id: string;
+  previous_status?: QuoteStatusFlow;
+  new_status: QuoteStatusFlow;
+  changed_by: string;
+  changed_at: string;
+  observation?: string;
+  user_name?: string;
+}
+
+// Array com todos os status em ordem de fluxo
+export const allStatus: QuoteStatusFlow[] = [
+  'ORCAMENTO',
+  'PROPOSTA_GERADA',
+  'EM_VERIFICACAO',
+  'APROVADA',
+  'CONTRATO_GERADO',
+  'ASSINATURA_CLIENTE',
+  'ASSINATURA_DIRETORIA',
+  'AGENDAMENTO_ENTREGA',
+  'ENTREGA',
+  'CONCLUIDO'
+];
+
+// Função para calcular o progresso baseado no status atual
+export const calculateProgress = (currentStatus: QuoteStatusFlow): number => {
+  const index = allStatus.indexOf(currentStatus);
+  if (index === -1) return 0;
+  
+  return Math.round((index / (allStatus.length - 1)) * 100);
+};
+
+// Função para verificar se a transição de status é válida
+export const isValidTransition = (
+  fromStatus: QuoteStatusFlow, 
+  toStatus: QuoteStatusFlow
+): boolean => {
+  const fromIndex = allStatus.indexOf(fromStatus);
+  const toIndex = allStatus.indexOf(toStatus);
+  
+  // Permitir voltar para qualquer status anterior
+  if (toIndex < fromIndex) return true;
+  
+  // Permitir avançar apenas para o próximo status
+  return toIndex === fromIndex + 1;
+};
+
 // Informações detalhadas sobre cada status
 export const statusInfo: Record<QuoteStatusFlow, {
   label: string;
