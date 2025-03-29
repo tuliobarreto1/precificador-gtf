@@ -235,7 +235,8 @@ app.get('/api/vehicle-groups', async (req, res) => {
 // Endpoint para buscar modelos de veículos por grupo
 app.get('/api/vehicle-models/:groupCode', async (req, res) => {
   try {
-    const { groupCode } = req.params;
+    // Decodificar o parâmetro para lidar com caracteres especiais como '+'
+    const groupCode = decodeURIComponent(req.params.groupCode);
     console.log(`Buscando modelos de veículos para o grupo: ${groupCode}`);
     
     let pool;
@@ -255,7 +256,8 @@ app.get('/api/vehicle-models/:groupCode', async (req, res) => {
     }
     
     // Verificar se o groupCode é uma letra ou código
-    const isLetter = /^[A-Za-z]$/.test(groupCode);
+    // Nota: precisamos considerar letras com + (ex: B+) como letras
+    const isLetter = /^[A-Za-z](\+)?$/.test(groupCode);
     console.log(`Tipo de código de grupo: ${isLetter ? 'Letra' : 'Código'}`);
     
     let query;
@@ -309,6 +311,7 @@ app.get('/api/vehicle-models/:groupCode', async (req, res) => {
     
     console.log('Executando consulta SQL para buscar modelos...');
     console.log('Query SQL:', query);
+    console.log('Parâmetro groupCode:', groupCode);
     
     try {
       const result = await pool.request()

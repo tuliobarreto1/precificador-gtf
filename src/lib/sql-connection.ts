@@ -141,6 +141,7 @@ export async function getVehicleGroups(): Promise<SqlVehicleGroup[]> {
           return [
             { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
             { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
+            { CodigoGrupo: "2", Letra: "B+", Descricao: "Econômico Plus" },
             { CodigoGrupo: "3", Letra: "C", Descricao: "Intermediário" },
             { CodigoGrupo: "4", Letra: "D", Descricao: "Executivo" },
             { CodigoGrupo: "5", Letra: "E", Descricao: "SUV" },
@@ -179,6 +180,7 @@ export async function getVehicleGroups(): Promise<SqlVehicleGroup[]> {
         return [
           { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
           { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
+          { CodigoGrupo: "2", Letra: "B+", Descricao: "Econômico Plus" },
           { CodigoGrupo: "3", Letra: "C", Descricao: "Intermediário" },
           { CodigoGrupo: "4", Letra: "D", Descricao: "Executivo" },
           { CodigoGrupo: "5", Letra: "E", Descricao: "SUV" },
@@ -192,6 +194,7 @@ export async function getVehicleGroups(): Promise<SqlVehicleGroup[]> {
         return [
           { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
           { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
+          { CodigoGrupo: "2", Letra: "B+", Descricao: "Econômico Plus" },
           { CodigoGrupo: "3", Letra: "C", Descricao: "Intermediário" },
           { CodigoGrupo: "4", Letra: "D", Descricao: "Executivo" },
           { CodigoGrupo: "5", Letra: "E", Descricao: "SUV" },
@@ -208,6 +211,7 @@ export async function getVehicleGroups(): Promise<SqlVehicleGroup[]> {
     return [
       { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
       { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
+      { CodigoGrupo: "2", Letra: "B+", Descricao: "Econômico Plus" },
       { CodigoGrupo: "3", Letra: "C", Descricao: "Intermediário" },
       { CodigoGrupo: "4", Letra: "D", Descricao: "Executivo" },
       { CodigoGrupo: "5", Letra: "E", Descricao: "SUV" },
@@ -226,7 +230,9 @@ export async function getVehicleModelsByGroup(groupCode: string): Promise<SqlVeh
     
     // Obter a URL base da API
     const baseUrl = getApiBaseUrl();
-    const apiUrl = `${baseUrl}/api/vehicle-models/${groupCode}`;
+    // Codificar corretamente o groupCode para a URL (importante para caracteres como '+')
+    const encodedGroupCode = encodeURIComponent(groupCode);
+    const apiUrl = `${baseUrl}/api/vehicle-models/${encodedGroupCode}`;
     console.log(`Enviando requisição para: ${apiUrl}`);
     
     // Configurar um timeout para a requisição
@@ -262,6 +268,11 @@ export async function getVehicleModelsByGroup(groupCode: string): Promise<SqlVeh
               { CodigoModelo: "B2", Descricao: "Chevrolet Onix", CodigoGrupoVeiculo: "2", LetraGrupo: "B", MaiorValorCompra: 68000 },
               { CodigoModelo: "B3", Descricao: "VW Polo", CodigoGrupoVeiculo: "2", LetraGrupo: "B", MaiorValorCompra: 72000 }
             ],
+            'B+': [
+              { CodigoModelo: "BP1", Descricao: "Toyota Yaris HB", CodigoGrupoVeiculo: "2", LetraGrupo: "B+", MaiorValorCompra: 75000 },
+              { CodigoModelo: "BP2", Descricao: "Chevrolet Onix Plus", CodigoGrupoVeiculo: "2", LetraGrupo: "B+", MaiorValorCompra: 79000 },
+              { CodigoModelo: "BP3", Descricao: "VW Virtus", CodigoGrupoVeiculo: "2", LetraGrupo: "B+", MaiorValorCompra: 82000 }
+            ],
             'C': [
               { CodigoModelo: "C1", Descricao: "Honda City", CodigoGrupoVeiculo: "3", LetraGrupo: "C", MaiorValorCompra: 85000 },
               { CodigoModelo: "C2", Descricao: "Toyota Yaris", CodigoGrupoVeiculo: "3", LetraGrupo: "C", MaiorValorCompra: 88000 },
@@ -293,6 +304,12 @@ export async function getVehicleModelsByGroup(groupCode: string): Promise<SqlVeh
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || `Erro ao buscar modelos de veículos. Status: ${response.status}`;
+          
+          // Se tem dados de fallback na resposta de erro, use-os
+          if (errorData.fallbackData && Array.isArray(errorData.fallbackData)) {
+            console.log('Usando dados de fallback recebidos da API para o grupo', groupCode);
+            return errorData.fallbackData;
+          }
         } catch (jsonError) {
           const errorText = await response.text();
           errorMessage = `Erro ao buscar modelos de veículos. Status: ${response.status}. Resposta: ${errorText.substring(0, 200)}`;
@@ -416,4 +433,3 @@ export async function testApiConnection(): Promise<{ status: string; environment
     };
   }
 }
-
