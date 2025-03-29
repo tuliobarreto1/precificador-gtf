@@ -74,14 +74,17 @@ const getColor = (vehicle: any): string | undefined => {
 };
 
 const getValue = (vehicle: any): number | undefined => {
+  // Verificar se há um valor mensal diretamente no objeto (caso quote_vehicles)
+  if (vehicle.monthly_value !== undefined) {
+    return vehicle.monthly_value;
+  }
+  
+  // Verificar se há um valor no veículo aninhado
   if (vehicle.vehicle) {
     return vehicle.vehicle.value;
   }
   
-  if (vehicle.monthly_value) {
-    return vehicle.monthly_value;
-  }
-  
+  // Por fim, verificar no próprio objeto
   return vehicle.value;
 };
 
@@ -126,6 +129,8 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
       </div>
     );
   }
+
+  console.log("Renderizando VehicleCard com dados:", vehicle);
 
   // Valores seguros
   const brand = getBrand(vehicle);
@@ -191,7 +196,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
             
             {showDetailedInfo && (
               <>
-                {value && (
+                {value !== undefined && (
                   <div className="mt-2">
                     <p className="text-sm text-muted-foreground">Valor do veículo:</p>
                     <p className="font-medium">
@@ -219,7 +224,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
           </div>
         </div>
 
-        {value && !children && (
+        {value !== undefined && !children && (
           <div className="text-right">
             <p className="font-medium">
               R$ {Number(value).toLocaleString('pt-BR')}
