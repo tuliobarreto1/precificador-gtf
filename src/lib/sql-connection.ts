@@ -1,4 +1,3 @@
-
 // Este arquivo é usado para fazer requisições à API que interage com o SQL Server
 
 export interface SqlVehicle {
@@ -96,7 +95,8 @@ export async function getVehicleGroups(): Promise<SqlVehicleGroup[]> {
     console.log('Iniciando busca de grupos de veículos');
     
     // Usar a rota correta para o servidor proxy
-    const apiUrl = '/api/vehicle-groups';
+    const baseUrl = window.location.port === '3000' || window.location.port === '5173' ? 'http://localhost:3002' : '';
+    const apiUrl = `${baseUrl}/api/vehicle-groups`;
     console.log(`Enviando requisição para: ${apiUrl}`);
     
     // Configurar um timeout para a requisição
@@ -207,8 +207,9 @@ export async function getVehicleModelsByGroup(groupCode: string): Promise<SqlVeh
   try {
     console.log(`Iniciando busca de modelos de veículos para o grupo: ${groupCode}`);
     
-    // Usar a URL correta
-    const apiUrl = `/api/vehicle-models/${groupCode}`;
+    // Usar a URL correta com o mesmo padrão que getVehicleGroups
+    const baseUrl = window.location.port === '3000' || window.location.port === '5173' ? 'http://localhost:3002' : '';
+    const apiUrl = `${baseUrl}/api/vehicle-models/${groupCode}`;
     console.log(`Enviando requisição para: ${apiUrl}`);
     
     // Configurar um timeout para a requisição
@@ -335,8 +336,13 @@ export async function testApiConnection(): Promise<{ status: string; environment
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos de timeout
     
+    // Usar a mesma lógica de URL baseada na porta
+    const baseUrl = window.location.port === '3000' || window.location.port === '5173' ? 'http://localhost:3002' : '';
+    const apiUrl = `${baseUrl}/api/status`;
+    console.log(`Enviando requisição para: ${apiUrl}`);
+    
     try {
-      const response = await fetch('/api/status', { 
+      const response = await fetch(apiUrl, { 
         signal: controller.signal 
       });
       clearTimeout(timeoutId);
