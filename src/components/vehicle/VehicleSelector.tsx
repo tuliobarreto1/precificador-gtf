@@ -278,19 +278,21 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       brand: foundVehicle.DescricaoModelo.split(' ')[0],
       model: foundVehicle.DescricaoModelo.split(' ').slice(1).join(' '),
       year: parseInt(foundVehicle.AnoFabricacaoModelo),
-      value: foundVehicle.ValorCompra,
+      value: foundVehicle.ValorCompra || 0,
       isUsed: true,
       plateNumber: foundVehicle.Placa,
-      color: foundVehicle.Cor,
-      odometer: foundVehicle.OdometroAtual,
-      fuelType: foundVehicle.TipoCombustivel,
-      groupId: foundVehicle.LetraGrupo,
+      color: foundVehicle.Cor || '',
+      odometer: foundVehicle.OdometroAtual || 0,
+      fuelType: foundVehicle.TipoCombustivel || '',
+      groupId: foundVehicle.LetraGrupo || 'A',
     };
     
+    console.log('Veículo mapeado para adicionar:', mappedVehicle);
+    
     const mappedGroup: VehicleGroup = {
-      id: foundVehicle.LetraGrupo,
-      name: `Grupo ${foundVehicle.LetraGrupo}`,
-      description: `Veículos do grupo ${foundVehicle.LetraGrupo}`,
+      id: foundVehicle.LetraGrupo || 'A',
+      name: `Grupo ${foundVehicle.LetraGrupo || 'A'}`,
+      description: `Veículos do grupo ${foundVehicle.LetraGrupo || 'A'}`,
       revisionKm: 10000,
       revisionCost: 500,
       tireKm: 40000,
@@ -306,7 +308,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       description: `${foundVehicle.DescricaoModelo} (${foundVehicle.Placa}) foi adicionado à cotação.`,
     });
   };
-  
+
   const handleSelectNewVehicle = () => {
     if (!selectedModel) {
       toast({

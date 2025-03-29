@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Car, Calendar, Gauge, Tag, DollarSign, Droplet } from 'lucide-react';
@@ -104,7 +103,7 @@ const getFuelType = (vehicle: any): string | undefined => {
   return vehicle.fuelType || vehicle.fuel_type || vehicle.tipoCombustivel;
 };
 
-const isVehicleUsed = (vehicle: any): boolean => {
+const getIsUsed = (vehicle: any): boolean => {
   if (vehicle.vehicle) {
     return vehicle.vehicle.isUsed || vehicle.vehicle.is_used || false;
   }
@@ -118,7 +117,6 @@ const getGroupId = (vehicle: any): string | undefined => {
   return vehicle.groupId || vehicle.group_id;
 };
 
-// Nova função para obter os custos do veículo
 const getVehicleCosts = (vehicle: any) => {
   // Se o veículo já tem resultados de cálculo
   if (vehicle.result) {
@@ -180,7 +178,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
   const model = getModel(vehicle);
   const year = getYear(vehicle);
   const plateNumber = getPlateNumber(vehicle);
-  const isUsed = isVehicleUsed(vehicle);
+  const isUsed = getIsUsed(vehicle);
   const group = vehicleGroup?.id || getGroupId(vehicle) || '?';
   const color = getColor(vehicle);
   const value = getValue(vehicle);
