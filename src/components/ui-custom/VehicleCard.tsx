@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Car, Calendar, Gauge, Tag, DollarSign, Droplet } from 'lucide-react';
@@ -14,7 +15,8 @@ interface Vehicle {
   isUsed?: boolean;
   is_used?: boolean; // Formato do Supabase
   odometer?: number;
-  fuelType?: string; // Adicionado campo para tipo de combustível
+  fuelType?: string;
+  fuel_type?: string; // Formato do Supabase
   groupId?: string;
   group_id?: string; // Formato do Supabase
 }

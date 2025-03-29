@@ -277,7 +277,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       id: `used-${foundVehicle.Placa}`,
       brand: foundVehicle.DescricaoModelo.split(' ')[0],
       model: foundVehicle.DescricaoModelo.split(' ').slice(1).join(' '),
-      year: parseInt(foundVehicle.AnoFabricacaoModelo),
+      year: parseInt(foundVehicle.AnoFabricacaoModelo) || new Date().getFullYear(),
       value: foundVehicle.ValorCompra || 0,
       isUsed: true,
       plateNumber: foundVehicle.Placa,

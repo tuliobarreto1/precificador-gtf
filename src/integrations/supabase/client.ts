@@ -236,13 +236,13 @@ export async function saveQuoteToSupabase(quote: any) {
             const updateData = {
               brand: vehicle.brand || 'Não especificado',
               model: vehicle.model || 'Não especificado',
-              year: vehicle.year || new Date().getFullYear(),
-              value: vehicle.value || 0,
-              plate_number: vehicle.plateNumber || null,
-              is_used: vehicle.isUsed === true, // Garantir que seja boolean
-              group_id: vehicle.groupId || 'A',
+              year: parseInt(vehicle.year) || new Date().getFullYear(),
+              value: parseFloat(vehicle.value) || 0,
+              plate_number: vehicle.plateNumber || vehicle.plate_number || null,
+              is_used: vehicle.isUsed === true || vehicle.isUsed === true, // Garantir que seja boolean
+              group_id: vehicle.groupId || vehicle.group_id || 'A',
               color: vehicle.color || null,
-              odometer: vehicle.odometer || 0
+              odometer: parseInt(vehicle.odometer) || 0
             };
             
             console.log("Atualizando veículo existente com dados:", updateData);
@@ -261,11 +261,14 @@ export async function saveQuoteToSupabase(quote: any) {
         }
         
         // Se não encontrou pelo ID, tenta pela placa (se disponível)
-        if (!vehicleId && vehicle.plateNumber) {
+        if (!vehicleId && (vehicle.plateNumber || vehicle.plate_number)) {
+          const plateToSearch = vehicle.plateNumber || vehicle.plate_number;
+          console.log(`Buscando veículo pela placa: ${plateToSearch}`);
+          
           const { data: existingVehicles } = await supabase
             .from('vehicles')
             .select('id')
-            .eq('plate_number', vehicle.plateNumber)
+            .eq('plate_number', plateToSearch)
             .limit(1);
             
           if (existingVehicles && Array.isArray(existingVehicles) && existingVehicles.length > 0) {
@@ -276,12 +279,12 @@ export async function saveQuoteToSupabase(quote: any) {
             const updateData = {
               brand: vehicle.brand || 'Não especificado',
               model: vehicle.model || 'Não especificado',
-              year: vehicle.year || new Date().getFullYear(),
-              value: vehicle.value || 0,
-              is_used: vehicle.isUsed === true, // Garantir que seja boolean
-              group_id: vehicle.groupId || 'A',
+              year: parseInt(vehicle.year) || new Date().getFullYear(),
+              value: parseFloat(vehicle.value) || 0,
+              is_used: true, // Veículos com placa são sempre usados
+              group_id: vehicle.groupId || vehicle.group_id || 'A',
               color: vehicle.color || null,
-              odometer: vehicle.odometer || 0
+              odometer: parseInt(vehicle.odometer) || 0
             };
             
             console.log("Atualizando veículo existente com dados:", updateData);
@@ -303,17 +306,17 @@ export async function saveQuoteToSupabase(quote: any) {
         if (!vehicleId) {
           console.log("Criando novo veículo com dados:", vehicle);
           
-          // CORREÇÃO: Garantir que todos os campos são devidamente mapeados
+          // CORREÇÃO: Garantir que todos os campos são devidamente mapeados e convertidos
           const vehicleData = {
             brand: vehicle.brand || 'Não especificado',
             model: vehicle.model || 'Não especificado',
-            year: vehicle.year || new Date().getFullYear(),
-            value: vehicle.value || 0,
-            plate_number: vehicle.plateNumber || null,
-            is_used: vehicle.isUsed === true, // Garantir que seja boolean
-            group_id: vehicle.groupId || 'A',
+            year: parseInt(vehicle.year) || new Date().getFullYear(),
+            value: parseFloat(vehicle.value) || 0,
+            plate_number: vehicle.plateNumber || vehicle.plate_number || null,
+            is_used: vehicle.plateNumber || vehicle.plate_number ? true : (vehicle.isUsed === true || vehicle.isUsed === true), // Se tem placa, é usado
+            group_id: vehicle.groupId || vehicle.group_id || 'A',
             color: vehicle.color || null,
-            odometer: vehicle.odometer || 0
+            odometer: parseInt(vehicle.odometer) || 0
           };
           
           console.log("Dados formatados do veículo para inserção:", vehicleData);
@@ -362,7 +365,7 @@ export async function saveQuoteToSupabase(quote: any) {
             depreciationCost = vehicleResult.depreciationCost || 0;
             maintenanceCost = vehicleResult.maintenanceCost || 0;
             extraKmRate = vehicleResult.extraKmRate || 0;
-            totalCost = vehicleResult.totalCost || 0;
+            totalCost = vehicleResult.totalCost || vehicleResult.monthlyValue || 0;
             monthlyValue = totalCost;
             console.log("Valores calculados encontrados:", {depreciationCost, maintenanceCost, totalCost});
           }
