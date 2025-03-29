@@ -153,15 +153,18 @@ app.get('/api/vehicle-groups', async (req, res) => {
     try {
       pool = await connectToDatabase();
     } catch (connError) {
+      console.error('Erro ao conectar ao banco de dados para grupos:', connError);
       return res.status(500).json({
-        message: 'Erro ao conectar ao banco de dados',
+        message: 'Erro ao conectar ao banco de dados para grupos de veículos',
         error: connError.message,
-        config: {
-          server: config.server,
-          user: config.user,
-          database: config.database,
-          port: config.port
-        }
+        fallbackData: [
+          { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
+          { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
+          { CodigoGrupo: "3", Letra: "C", Descricao: "Intermediário" },
+          { CodigoGrupo: "4", Letra: "D", Descricao: "Executivo" },
+          { CodigoGrupo: "5", Letra: "E", Descricao: "SUV" },
+          { CodigoGrupo: "6", Letra: "F", Descricao: "Luxo" }
+        ]
       });
     }
     
@@ -180,7 +183,12 @@ app.get('/api/vehicle-groups', async (req, res) => {
       `);
       
       console.log(`Consulta SQL executada com sucesso. Grupos encontrados: ${result.recordset.length}`);
-      console.log('Primeiros registros:', result.recordset.slice(0, 3));
+      
+      if (result.recordset.length > 0) {
+        console.log('Primeiros registros:', result.recordset.slice(0, 3));
+      } else {
+        console.log('Nenhum grupo de veículo encontrado');
+      }
       
       res.json(result.recordset);
     } catch (queryError) {
@@ -234,15 +242,15 @@ app.get('/api/vehicle-models/:groupCode', async (req, res) => {
     try {
       pool = await connectToDatabase();
     } catch (connError) {
+      console.error('Erro ao conectar ao banco de dados para modelos:', connError);
       return res.status(500).json({
-        message: 'Erro ao conectar ao banco de dados',
+        message: 'Erro ao conectar ao banco de dados para modelos de veículos',
         error: connError.message,
-        config: {
-          server: config.server,
-          user: config.user,
-          database: config.database,
-          port: config.port
-        }
+        fallbackData: [
+          { CodigoModelo: `${groupCode}1`, Descricao: `Modelo 1 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 75000 },
+          { CodigoModelo: `${groupCode}2`, Descricao: `Modelo 2 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 80000 },
+          { CodigoModelo: `${groupCode}3`, Descricao: `Modelo 3 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 85000 }
+        ]
       });
     }
     
@@ -310,6 +318,8 @@ app.get('/api/vehicle-models/:groupCode', async (req, res) => {
       console.log(`Consulta SQL executada com sucesso. Modelos encontrados: ${result.recordset.length}`);
       if (result.recordset.length > 0) {
         console.log('Primeiro modelo encontrado:', result.recordset[0]);
+      } else {
+        console.log(`Nenhum modelo encontrado para o grupo ${groupCode}`);
       }
       
       res.json(result.recordset);
@@ -333,7 +343,12 @@ app.get('/api/vehicle-models/:groupCode', async (req, res) => {
     res.status(500).json({
       message: 'Erro ao buscar modelos de veículos',
       error: error.message,
-      stack: error.stack
+      stack: error.stack,
+      fallbackData: [
+        { CodigoModelo: `${groupCode}1`, Descricao: `Modelo 1 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 75000 },
+        { CodigoModelo: `${groupCode}2`, Descricao: `Modelo 2 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 80000 },
+        { CodigoModelo: `${groupCode}3`, Descricao: `Modelo 3 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 85000 }
+      ]
     });
   } finally {
     try {
@@ -429,4 +444,3 @@ app.listen(PORT, () => {
   console.log(`- GET /api/vehicle-models/:groupCode`);
   console.log(`Variáveis de ambiente carregadas do arquivo: ${path.resolve(__dirname, '../../.env')}`);
 });
-
