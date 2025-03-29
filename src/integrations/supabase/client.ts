@@ -224,6 +224,28 @@ export async function saveQuoteToSupabase(quote: any) {
           if (existingVehicleById && Array.isArray(existingVehicleById) && existingVehicleById.length > 0) {
             vehicleId = existingVehicleById[0].id;
             console.log("Veículo existente encontrado pelo ID:", vehicleId);
+            
+            // CORREÇÃO: Atualizar os dados do veículo existente com as informações corretas
+            const { error: updateError } = await supabase
+              .from('vehicles')
+              .update({
+                brand: vehicle.brand || 'Não especificado',
+                model: vehicle.model || 'Não especificado',
+                year: vehicle.year || new Date().getFullYear(),
+                value: vehicle.value || 0,
+                plate_number: vehicle.plateNumber || null,
+                is_used: vehicle.isUsed || false,
+                group_id: vehicle.groupId || 'A',
+                color: vehicle.color || null,
+                odometer: vehicle.odometer || 0
+              })
+              .eq('id', vehicleId);
+              
+            if (updateError) {
+              console.error("Erro ao atualizar dados do veículo:", updateError);
+            } else {
+              console.log("Dados do veículo atualizados com sucesso");
+            }
           }
         }
         
@@ -238,6 +260,27 @@ export async function saveQuoteToSupabase(quote: any) {
           if (existingVehicles && Array.isArray(existingVehicles) && existingVehicles.length > 0) {
             vehicleId = existingVehicles[0].id;
             console.log("Veículo existente encontrado pela placa:", vehicleId);
+            
+            // CORREÇÃO: Atualizar os dados do veículo existente com as informações corretas
+            const { error: updateError } = await supabase
+              .from('vehicles')
+              .update({
+                brand: vehicle.brand || 'Não especificado',
+                model: vehicle.model || 'Não especificado',
+                year: vehicle.year || new Date().getFullYear(),
+                value: vehicle.value || 0,
+                is_used: vehicle.isUsed || false,
+                group_id: vehicle.groupId || 'A',
+                color: vehicle.color || null,
+                odometer: vehicle.odometer || 0
+              })
+              .eq('id', vehicleId);
+              
+            if (updateError) {
+              console.error("Erro ao atualizar dados do veículo:", updateError);
+            } else {
+              console.log("Dados do veículo atualizados com sucesso");
+            }
           }
         }
         
@@ -245,17 +288,20 @@ export async function saveQuoteToSupabase(quote: any) {
         if (!vehicleId) {
           console.log("Criando novo veículo com dados:", vehicle);
           
+          // CORREÇÃO: Garantir que todos os campos são devidamente mapeados
           const vehicleData = {
             brand: vehicle.brand || 'Não especificado',
             model: vehicle.model || 'Não especificado',
             year: vehicle.year || new Date().getFullYear(),
             value: vehicle.value || 0,
             plate_number: vehicle.plateNumber || null,
-            is_used: vehicle.isUsed || false,
+            is_used: vehicle.isUsed || false, // CORREÇÃO: Garantir que is_used seja definido corretamente
             group_id: vehicle.groupId || 'A',
             color: vehicle.color || null,
             odometer: vehicle.odometer || 0
           };
+          
+          console.log("Dados formatados do veículo para inserção:", vehicleData);
           
           const { data: newVehicle, error: vehicleError } = await supabase
             .from('vehicles')
