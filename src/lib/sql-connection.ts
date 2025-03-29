@@ -99,15 +99,64 @@ export async function getVehicleGroups(): Promise<SqlVehicleGroup[]> {
     const apiUrl = '/api/vehicle-groups';
     console.log(`Enviando requisição para: ${apiUrl}`);
     
-    const response = await fetch(apiUrl);
-    console.log(`Resposta recebida. Status: ${response.status}`);
+    // Configurar um timeout para a requisição
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos de timeout
     
-    if (!response.ok) {
-      console.log('Resposta não ok, status:', response.status);
+    try {
+      const response = await fetch(apiUrl, { 
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      clearTimeout(timeoutId);
       
-      // Se não obtiver conexão com a API real, retornar alguns grupos padrão para teste
-      if (response.status === 404) {
-        console.log('API de grupos não encontrada, usando dados padrão para teste');
+      console.log(`Resposta recebida. Status: ${response.status}`);
+      
+      if (!response.ok) {
+        console.log('Resposta não ok, status:', response.status);
+        
+        // Se não obtiver conexão com a API real, retornar alguns grupos padrão para teste
+        if (response.status === 404 || response.status === 500) {
+          console.log('API de grupos não encontrada ou erro no servidor, usando dados padrão para teste');
+          return [
+            { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
+            { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
+            { CodigoGrupo: "3", Letra: "C", Descricao: "Intermediário" },
+            { CodigoGrupo: "4", Letra: "D", Descricao: "Executivo" },
+            { CodigoGrupo: "5", Letra: "E", Descricao: "SUV" },
+            { CodigoGrupo: "6", Letra: "F", Descricao: "Luxo" }
+          ];
+        }
+        
+        // Tenta obter mensagem de erro
+        let errorText;
+        try {
+          const errorData = await response.json();
+          errorText = errorData.message || `Erro ao buscar grupos de veículos. Status: ${response.status}`;
+        } catch (jsonError) {
+          errorText = await response.text();
+          errorText = `Erro ao buscar grupos de veículos. Status: ${response.status}. Resposta: ${errorText.substring(0, 100)}`;
+        }
+        
+        console.error('Erro ao buscar grupos de veículos:', errorText);
+        throw new Error(errorText);
+      }
+      
+      try {
+        const data = await response.json();
+        console.log(`${data.length} grupos de veículos recebidos:`, data);
+        return data;
+      } catch (e) {
+        console.error('Erro ao analisar resposta JSON:', e);
+        // Tentar recuperar o texto da resposta para diagnóstico
+        const responseText = await response.text();
+        console.error('Texto da resposta:', responseText);
+        
+        // Usar dados padrão em caso de erro de parsing
+        console.log('Usando dados padrão devido ao erro na análise da resposta');
         return [
           { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
           { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
@@ -117,36 +166,20 @@ export async function getVehicleGroups(): Promise<SqlVehicleGroup[]> {
           { CodigoGrupo: "6", Letra: "F", Descricao: "Luxo" }
         ];
       }
-      
-      // Não tente ler o corpo da resposta duas vezes
-      let errorMessage;
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.message || `Erro ao buscar grupos de veículos. Status: ${response.status}`;
-      } catch (jsonError) {
-        errorMessage = `Erro ao buscar grupos de veículos. Status: ${response.status}`;
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        console.error('Timeout ao conectar com a API de grupos de veículos');
+        return [
+          { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
+          { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
+          { CodigoGrupo: "3", Letra: "C", Descricao: "Intermediário" },
+          { CodigoGrupo: "4", Letra: "D", Descricao: "Executivo" },
+          { CodigoGrupo: "5", Letra: "E", Descricao: "SUV" },
+          { CodigoGrupo: "6", Letra: "F", Descricao: "Luxo" }
+        ];
       }
-      
-      console.error('Erro ao buscar grupos de veículos:', errorMessage);
-      throw new Error(errorMessage);
-    }
-    
-    try {
-      const data = await response.json();
-      console.log(`${data.length} grupos de veículos recebidos`);
-      return data;
-    } catch (e) {
-      console.error('Erro ao analisar resposta JSON:', e);
-      // Tentar alternativa de dados padrão
-      console.log('Usando dados padrão devido ao erro na análise da resposta');
-      return [
-        { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
-        { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
-        { CodigoGrupo: "3", Letra: "C", Descricao: "Intermediário" },
-        { CodigoGrupo: "4", Letra: "D", Descricao: "Executivo" },
-        { CodigoGrupo: "5", Letra: "E", Descricao: "SUV" },
-        { CodigoGrupo: "6", Letra: "F", Descricao: "Luxo" }
-      ];
+      throw fetchError;
     }
   } catch (error) {
     console.error('Erro ao buscar grupos de veículos:', error);
@@ -176,79 +209,110 @@ export async function getVehicleModelsByGroup(groupCode: string): Promise<SqlVeh
     const apiUrl = `/api/vehicle-models/${groupCode}`;
     console.log(`Enviando requisição para: ${apiUrl}`);
     
-    const response = await fetch(apiUrl);
-    console.log(`Resposta recebida. Status: ${response.status}`);
-    
-    if (!response.ok) {
-      // Se não obtiver conexão com a API real, retornar alguns modelos padrão para teste
-      if (response.status === 404) {
-        console.log('API de modelos não encontrada, usando dados padrão para teste');
-        
-        // Dados padrão diferentes para cada grupo
-        const modelosPadrao: { [key: string]: SqlVehicleModel[] } = {
-          'A': [
-            { CodigoModelo: "A1", Descricao: "Fiat Uno", CodigoGrupoVeiculo: "1", LetraGrupo: "A", MaiorValorCompra: 45000 },
-            { CodigoModelo: "A2", Descricao: "Renault Kwid", CodigoGrupoVeiculo: "1", LetraGrupo: "A", MaiorValorCompra: 48000 },
-            { CodigoModelo: "A3", Descricao: "VW Up", CodigoGrupoVeiculo: "1", LetraGrupo: "A", MaiorValorCompra: 52000 }
-          ],
-          'B': [
-            { CodigoModelo: "B1", Descricao: "Hyundai HB20", CodigoGrupoVeiculo: "2", LetraGrupo: "B", MaiorValorCompra: 65000 },
-            { CodigoModelo: "B2", Descricao: "Chevrolet Onix", CodigoGrupoVeiculo: "2", LetraGrupo: "B", MaiorValorCompra: 68000 },
-            { CodigoModelo: "B3", Descricao: "VW Polo", CodigoGrupoVeiculo: "2", LetraGrupo: "B", MaiorValorCompra: 72000 }
-          ],
-          'C': [
-            { CodigoModelo: "C1", Descricao: "Honda City", CodigoGrupoVeiculo: "3", LetraGrupo: "C", MaiorValorCompra: 85000 },
-            { CodigoModelo: "C2", Descricao: "Toyota Yaris", CodigoGrupoVeiculo: "3", LetraGrupo: "C", MaiorValorCompra: 88000 },
-            { CodigoModelo: "C3", Descricao: "Nissan Versa", CodigoGrupoVeiculo: "3", LetraGrupo: "C", MaiorValorCompra: 92000 }
-          ],
-          'D': [
-            { CodigoModelo: "D1", Descricao: "Toyota Corolla", CodigoGrupoVeiculo: "4", LetraGrupo: "D", MaiorValorCompra: 120000 },
-            { CodigoModelo: "D2", Descricao: "Honda Civic", CodigoGrupoVeiculo: "4", LetraGrupo: "D", MaiorValorCompra: 125000 },
-            { CodigoModelo: "D3", Descricao: "VW Jetta", CodigoGrupoVeiculo: "4", LetraGrupo: "D", MaiorValorCompra: 130000 }
-          ],
-          'E': [
-            { CodigoModelo: "E1", Descricao: "Jeep Renegade", CodigoGrupoVeiculo: "5", LetraGrupo: "E", MaiorValorCompra: 110000 },
-            { CodigoModelo: "E2", Descricao: "Hyundai Creta", CodigoGrupoVeiculo: "5", LetraGrupo: "E", MaiorValorCompra: 115000 },
-            { CodigoModelo: "E3", Descricao: "VW T-Cross", CodigoGrupoVeiculo: "5", LetraGrupo: "E", MaiorValorCompra: 120000 }
-          ],
-          'F': [
-            { CodigoModelo: "F1", Descricao: "BMW X1", CodigoGrupoVeiculo: "6", LetraGrupo: "F", MaiorValorCompra: 250000 },
-            { CodigoModelo: "F2", Descricao: "Mercedes GLA", CodigoGrupoVeiculo: "6", LetraGrupo: "F", MaiorValorCompra: 270000 },
-            { CodigoModelo: "F3", Descricao: "Audi Q3", CodigoGrupoVeiculo: "6", LetraGrupo: "F", MaiorValorCompra: 260000 }
-          ]
-        };
-        
-        // Retornar os modelos do grupo solicitado ou um array vazio se o grupo não existir nos dados padrão
-        return modelosPadrao[groupCode] || [];
-      }
-      
-      // Tenta obter mensagem de erro
-      let errorMessage;
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.message || `Erro ao buscar modelos de veículos. Status: ${response.status}`;
-      } catch {
-        const errorText = await response.text();
-        errorMessage = `Erro ao buscar modelos de veículos. Status: ${response.status}. Resposta: ${errorText.substring(0, 200)}`;
-      }
-      
-      console.error('Erro ao buscar modelos de veículos:', errorMessage);
-      throw new Error(errorMessage);
-    }
+    // Configurar um timeout para a requisição
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos de timeout
     
     try {
-      const data = await response.json();
-      console.log(`${data.length} modelos de veículos recebidos`);
-      return data;
-    } catch (e) {
-      console.error('Erro ao analisar resposta JSON:', e);
-      // Fornecer dados padrão para o grupo em caso de erro de análise
-      const modelosPadrao: SqlVehicleModel[] = [
-        { CodigoModelo: `${groupCode}1`, Descricao: `Modelo 1 Grupo ${groupCode}`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 75000 },
-        { CodigoModelo: `${groupCode}2`, Descricao: `Modelo 2 Grupo ${groupCode}`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 80000 },
-        { CodigoModelo: `${groupCode}3`, Descricao: `Modelo 3 Grupo ${groupCode}`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 85000 }
-      ];
-      return modelosPadrao;
+      const response = await fetch(apiUrl, {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      clearTimeout(timeoutId);
+      
+      console.log(`Resposta recebida. Status: ${response.status}`);
+      
+      if (!response.ok) {
+        // Se não obtiver conexão com a API real, retornar alguns modelos padrão para teste
+        if (response.status === 404 || response.status === 500) {
+          console.log('API de modelos não encontrada ou erro no servidor, usando dados padrão para teste');
+          
+          // Dados padrão diferentes para cada grupo
+          const modelosPadrao: { [key: string]: SqlVehicleModel[] } = {
+            'A': [
+              { CodigoModelo: "A1", Descricao: "Fiat Uno", CodigoGrupoVeiculo: "1", LetraGrupo: "A", MaiorValorCompra: 45000 },
+              { CodigoModelo: "A2", Descricao: "Renault Kwid", CodigoGrupoVeiculo: "1", LetraGrupo: "A", MaiorValorCompra: 48000 },
+              { CodigoModelo: "A3", Descricao: "VW Up", CodigoGrupoVeiculo: "1", LetraGrupo: "A", MaiorValorCompra: 52000 }
+            ],
+            'B': [
+              { CodigoModelo: "B1", Descricao: "Hyundai HB20", CodigoGrupoVeiculo: "2", LetraGrupo: "B", MaiorValorCompra: 65000 },
+              { CodigoModelo: "B2", Descricao: "Chevrolet Onix", CodigoGrupoVeiculo: "2", LetraGrupo: "B", MaiorValorCompra: 68000 },
+              { CodigoModelo: "B3", Descricao: "VW Polo", CodigoGrupoVeiculo: "2", LetraGrupo: "B", MaiorValorCompra: 72000 }
+            ],
+            'C': [
+              { CodigoModelo: "C1", Descricao: "Honda City", CodigoGrupoVeiculo: "3", LetraGrupo: "C", MaiorValorCompra: 85000 },
+              { CodigoModelo: "C2", Descricao: "Toyota Yaris", CodigoGrupoVeiculo: "3", LetraGrupo: "C", MaiorValorCompra: 88000 },
+              { CodigoModelo: "C3", Descricao: "Nissan Versa", CodigoGrupoVeiculo: "3", LetraGrupo: "C", MaiorValorCompra: 92000 }
+            ],
+            'D': [
+              { CodigoModelo: "D1", Descricao: "Toyota Corolla", CodigoGrupoVeiculo: "4", LetraGrupo: "D", MaiorValorCompra: 120000 },
+              { CodigoModelo: "D2", Descricao: "Honda Civic", CodigoGrupoVeiculo: "4", LetraGrupo: "D", MaiorValorCompra: 125000 },
+              { CodigoModelo: "D3", Descricao: "VW Jetta", CodigoGrupoVeiculo: "4", LetraGrupo: "D", MaiorValorCompra: 130000 }
+            ],
+            'E': [
+              { CodigoModelo: "E1", Descricao: "Jeep Renegade", CodigoGrupoVeiculo: "5", LetraGrupo: "E", MaiorValorCompra: 110000 },
+              { CodigoModelo: "E2", Descricao: "Hyundai Creta", CodigoGrupoVeiculo: "5", LetraGrupo: "E", MaiorValorCompra: 115000 },
+              { CodigoModelo: "E3", Descricao: "VW T-Cross", CodigoGrupoVeiculo: "5", LetraGrupo: "E", MaiorValorCompra: 120000 }
+            ],
+            'F': [
+              { CodigoModelo: "F1", Descricao: "BMW X1", CodigoGrupoVeiculo: "6", LetraGrupo: "F", MaiorValorCompra: 250000 },
+              { CodigoModelo: "F2", Descricao: "Mercedes GLA", CodigoGrupoVeiculo: "6", LetraGrupo: "F", MaiorValorCompra: 270000 },
+              { CodigoModelo: "F3", Descricao: "Audi Q3", CodigoGrupoVeiculo: "6", LetraGrupo: "F", MaiorValorCompra: 260000 }
+            ]
+          };
+          
+          // Retornar os modelos do grupo solicitado ou um array vazio se o grupo não existir nos dados padrão
+          return modelosPadrao[groupCode] || [];
+        }
+        
+        // Tenta obter mensagem de erro
+        let errorMessage;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || `Erro ao buscar modelos de veículos. Status: ${response.status}`;
+        } catch (jsonError) {
+          const errorText = await response.text();
+          errorMessage = `Erro ao buscar modelos de veículos. Status: ${response.status}. Resposta: ${errorText.substring(0, 200)}`;
+        }
+        
+        console.error('Erro ao buscar modelos de veículos:', errorMessage);
+        throw new Error(errorMessage);
+      }
+      
+      try {
+        const data = await response.json();
+        console.log(`${data.length} modelos de veículos recebidos`);
+        return data;
+      } catch (e) {
+        console.error('Erro ao analisar resposta JSON:', e);
+        // Tentar recuperar o texto da resposta para diagnóstico
+        const responseText = await response.text();
+        console.error('Texto da resposta:', responseText);
+        
+        // Fornecer dados padrão para o grupo em caso de erro de análise
+        const modelosPadrao: SqlVehicleModel[] = [
+          { CodigoModelo: `${groupCode}1`, Descricao: `Modelo 1 Grupo ${groupCode}`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 75000 },
+          { CodigoModelo: `${groupCode}2`, Descricao: `Modelo 2 Grupo ${groupCode}`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 80000 },
+          { CodigoModelo: `${groupCode}3`, Descricao: `Modelo 3 Grupo ${groupCode}`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 85000 }
+        ];
+        return modelosPadrao;
+      }
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        console.error('Timeout ao conectar com a API de modelos de veículos');
+        // Fornecer dados padrão para o grupo em caso de timeout
+        const modelosPadrao: SqlVehicleModel[] = [
+          { CodigoModelo: `${groupCode}1`, Descricao: `Modelo 1 Grupo ${groupCode}`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 75000 },
+          { CodigoModelo: `${groupCode}2`, Descricao: `Modelo 2 Grupo ${groupCode}`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 80000 },
+          { CodigoModelo: `${groupCode}3`, Descricao: `Modelo 3 Grupo ${groupCode}`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 85000 }
+        ];
+        return modelosPadrao;
+      }
+      throw fetchError;
     }
   } catch (error) {
     console.error('Erro ao buscar modelos de veículos:', error);
