@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Car, Calendar, Gauge, Tag, DollarSign, Droplet } from 'lucide-react';
@@ -39,12 +38,10 @@ interface VehicleCardProps {
 }
 
 const getPlateNumber = (vehicle: any): string | undefined => {
-  // Verificar primeiro se o veículo é um objeto aninhado (caso de quote_vehicles)
   if (vehicle.vehicle) {
     return vehicle.vehicle.plateNumber || vehicle.vehicle.plate_number;
   }
   
-  // Caso contrário, verificar no próprio objeto
   return vehicle.plateNumber || vehicle.plate_number;
 };
 
@@ -77,17 +74,14 @@ const getColor = (vehicle: any): string | undefined => {
 };
 
 const getValue = (vehicle: any): number | undefined => {
-  // Verificar se há um valor mensal diretamente no objeto (caso quote_vehicles)
   if (vehicle.monthly_value !== undefined) {
     return vehicle.monthly_value;
   }
   
-  // Verificar se há um valor no veículo aninhado
   if (vehicle.vehicle) {
     return vehicle.vehicle.value;
   }
   
-  // Por fim, verificar no próprio objeto
   return vehicle.value;
 };
 
@@ -120,7 +114,6 @@ const getGroupId = (vehicle: any): string | undefined => {
 };
 
 const getVehicleCosts = (vehicle: any) => {
-  // Se o veículo já tem resultados de cálculo
   if (vehicle.result) {
     return {
       depreciationCost: vehicle.result.depreciationCost || 0,
@@ -130,7 +123,6 @@ const getVehicleCosts = (vehicle: any) => {
     };
   }
   
-  // Se os custos estão no formato do Supabase
   if (vehicle.depreciation_cost !== undefined || 
       vehicle.maintenance_cost !== undefined || 
       vehicle.total_cost !== undefined) {
@@ -142,7 +134,6 @@ const getVehicleCosts = (vehicle: any) => {
     };
   }
   
-  // Se não houver informações de custo disponíveis
   return {
     depreciationCost: 0,
     maintenanceCost: 0,
@@ -161,7 +152,6 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
   showDetailedInfo = false,
   showCosts = false
 }) => {
-  // Tratamento de segurança para caso o veículo seja undefined
   if (!vehicle) {
     return (
       <div className={cn(
@@ -175,7 +165,6 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
 
   console.log("Renderizando VehicleCard com dados:", vehicle);
 
-  // Valores seguros
   const brand = getBrand(vehicle);
   const model = getModel(vehicle);
   const year = getYear(vehicle);
@@ -187,7 +176,6 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
   const odometer = getOdometer(vehicle);
   const fuelType = getFuelType(vehicle);
   
-  // Informações de custo (se disponíveis)
   const costs = getVehicleCosts(vehicle);
   
   return (

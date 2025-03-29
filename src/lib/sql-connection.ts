@@ -1,20 +1,24 @@
 
-// Este arquivo é usado para fazer requisições à API que interage com o SQL Server
+import { supabase } from '@/integrations/supabase/client';
 
+// Definição das interfaces
 export interface SqlVehicle {
+  CodigoMVA: number;
   Placa: string;
+  CodigoModelo: string;
   DescricaoModelo: string;
+  CodigoGrupoVeiculo: string;
+  LetraGrupo: string;
+  DescricaoGrupo: string;
   AnoFabricacaoModelo: string;
   Cor: string;
   TipoCombustivel: string;
+  NumeroPassageiros: number;
   OdometroAtual: number;
+  Status: string;
+  DescricaoStatus: string;
   ValorCompra: number;
-  LetraGrupo: string;
-  CodigoMVA?: string;
-  NumeroPassageiros?: number;
-  Status?: string;
-  DescricaoStatus?: string;
-  DataCompra?: Date;
+  DataCompra: string;
 }
 
 export interface SqlVehicleGroup {
@@ -31,405 +35,181 @@ export interface SqlVehicleModel {
   MaiorValorCompra: number;
 }
 
-/**
- * Obtém a URL base da API baseada no ambiente
- */
-function getApiBaseUrl(): string {
-  // Em desenvolvimento, a API roda na porta 3002
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return 'http://localhost:3002';
-  }
-  
-  // Em produção, a API está no mesmo domínio
-  return '';
-}
-
-/**
- * Busca um veículo pelo número da placa
- * @param plate Número da placa do veículo
- * @returns Dados do veículo ou null se não encontrado
- */
-export async function getVehicleByPlate(plate: string): Promise<SqlVehicle | null> {
+// Função para testar conexão com a API
+export const testApiConnection = async () => {
   try {
-    console.log(`Iniciando busca de veículo com placa: ${plate}`);
+    console.log('Testando conexão com a API...');
+    const response = await fetch('http://localhost:3002/api/status');
+    const data = await response.json();
+    console.log('Resposta do teste de conexão:', data);
+    return data;
+  } catch (error) {
+    console.error('Erro ao testar conexão com a API:', error);
+    throw error;
+  }
+};
+
+// Função para buscar veículo por placa
+export const getVehicleByPlate = async (plate: string): Promise<SqlVehicle | null> => {
+  try {
+    console.log(`Buscando veículo com placa: ${plate}`);
     
-    // Limpar a placa antes de enviar (remover espaços, hífens, etc.)
-    const cleanPlate = plate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    console.log(`Placa formatada: ${cleanPlate}`);
+    // Primeiro, tentamos buscar no Supabase
+    const { data: supabaseVehicle, error: supabaseError } = await supabase
+      .from('vehicles')
+      .select('*')
+      .eq('plate_number', plate)
+      .single();
     
-    // Faz a requisição para a API proxy local
-    const baseUrl = getApiBaseUrl();
-    const apiUrl = `${baseUrl}/api/vehicles/${cleanPlate}`;
-    console.log(`Enviando requisição para: ${apiUrl}`);
+    if (supabaseVehicle && !supabaseError) {
+      console.log('Veículo encontrado no Supabase:', supabaseVehicle);
+      
+      // Converter o formato do Supabase para o formato SqlVehicle
+      return {
+        CodigoMVA: 0,
+        Placa: supabaseVehicle.plate_number,
+        CodigoModelo: '0',
+        DescricaoModelo: `${supabaseVehicle.brand} ${supabaseVehicle.model}`,
+        CodigoGrupoVeiculo: supabaseVehicle.group_id || 'A',
+        LetraGrupo: supabaseVehicle.group_id || 'A',
+        DescricaoGrupo: `Grupo ${supabaseVehicle.group_id || 'A'}`,
+        AnoFabricacaoModelo: supabaseVehicle.year.toString(),
+        Cor: supabaseVehicle.color || '',
+        TipoCombustivel: '',
+        NumeroPassageiros: 5,
+        OdometroAtual: supabaseVehicle.odometer || 0,
+        Status: 'Ativo',
+        DescricaoStatus: 'Veículo Ativo',
+        ValorCompra: supabaseVehicle.value || 0,
+        DataCompra: new Date().toISOString()
+      };
+    }
     
-    const response = await fetch(apiUrl);
-    console.log(`Resposta recebida. Status: ${response.status}`);
+    // Se não encontrar no Supabase, busca na API externa
+    console.log('Veículo não encontrado no Supabase, buscando na API externa...');
+    const response = await fetch(`http://localhost:3002/api/vehicles/${plate}`);
     
-    // Se a resposta não for ok (status 200-299), retorne null
     if (!response.ok) {
       if (response.status === 404) {
-        console.log(`Veículo com placa ${cleanPlate} não encontrado`);
+        console.log(`Nenhum veículo encontrado com a placa ${plate}`);
         return null;
       }
       
-      let errorData;
-      try {
-        errorData = await response.json();
-      } catch (e) {
-        // Tentar obter o texto da resposta se não conseguir analisar o JSON
-        const errorText = await response.text();
-        console.error('Resposta de erro não é JSON válido:', errorText);
-        throw new Error(`Erro ao buscar veículo. Status: ${response.status}. Resposta: ${errorText}`);
-      }
-      
+      const errorData = await response.json();
       console.error('Erro ao buscar veículo:', errorData);
-      throw new Error(errorData.message || `Erro ao buscar veículo. Status: ${response.status}`);
+      throw new Error(errorData.message || 'Erro ao buscar veículo');
     }
     
-    // Retorna os dados do veículo
-    try {
-      const data = await response.json();
-      console.log('Dados do veículo recebidos:', data);
-      return data;
-    } catch (e) {
-      console.error('Erro ao analisar resposta JSON:', e);
-      // Tentar obter o texto da resposta para diagnóstico
-      const responseText = await response.text();
-      console.error('Texto da resposta:', responseText);
-      throw new Error(`Erro ao analisar resposta do servidor: ${responseText.substring(0, 200)}...`);
+    const vehicle = await response.json();
+    console.log('Veículo encontrado na API externa:', vehicle);
+    
+    // Após encontrar na API externa, armazenamos no Supabase para uso futuro
+    if (vehicle) {
+      const { error: insertError } = await supabase
+        .from('vehicles')
+        .insert({
+          brand: vehicle.DescricaoModelo.split(' ')[0],
+          model: vehicle.DescricaoModelo.split(' ').slice(1).join(' '),
+          year: parseInt(vehicle.AnoFabricacaoModelo) || new Date().getFullYear(),
+          value: vehicle.ValorCompra || 0,
+          is_used: true,
+          plate_number: vehicle.Placa,
+          color: vehicle.Cor || '',
+          odometer: vehicle.OdometroAtual || 0,
+          group_id: vehicle.LetraGrupo || 'A'
+        });
+      
+      if (insertError) {
+        console.error('Erro ao salvar veículo no Supabase:', insertError);
+      } else {
+        console.log('Veículo salvo no Supabase com sucesso');
+      }
     }
+    
+    return vehicle;
   } catch (error) {
     console.error('Erro ao buscar veículo:', error);
     throw error;
   }
-}
+};
 
-/**
- * Busca todos os grupos de veículos disponíveis
- */
-export async function getVehicleGroups(): Promise<SqlVehicleGroup[]> {
+// Função para buscar grupos de veículos
+export const getVehicleGroups = async (): Promise<SqlVehicleGroup[]> => {
   try {
-    console.log('Iniciando busca de grupos de veículos');
+    console.log('Buscando grupos de veículos...');
     
-    // Obter a URL base da API
-    const baseUrl = getApiBaseUrl();
-    const apiUrl = `${baseUrl}/api/vehicle-groups`;
-    console.log(`Enviando requisição para: ${apiUrl}`);
+    // Primeiro, tentamos buscar do cache ou Supabase
+    // Posteriormente, implementar cache
     
-    // Configurar um timeout para a requisição
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos de timeout
+    const response = await fetch('http://localhost:3002/api/vehicle-groups');
     
-    try {
-      const response = await fetch(apiUrl, { 
-        signal: controller.signal,
-        headers: {
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
-        }
-      });
-      clearTimeout(timeoutId);
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Erro ao buscar grupos de veículos:', errorData);
       
-      console.log(`Resposta recebida. Status: ${response.status}`);
-      
-      if (!response.ok) {
-        console.log('Resposta não ok, status:', response.status);
-        
-        // Se não obtiver conexão com a API real, retornar alguns grupos padrão para teste
-        if (response.status === 404 || response.status === 500) {
-          console.log('API de grupos não encontrada ou erro no servidor, usando dados padrão para teste');
-          return [
-            { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
-            { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
-            { CodigoGrupo: "2", Letra: "B+", Descricao: "Econômico Plus" },
-            { CodigoGrupo: "3", Letra: "C", Descricao: "Intermediário" },
-            { CodigoGrupo: "4", Letra: "D", Descricao: "Executivo" },
-            { CodigoGrupo: "5", Letra: "E", Descricao: "SUV" },
-            { CodigoGrupo: "6", Letra: "F", Descricao: "Luxo" }
-          ];
-        }
-        
-        // Tenta obter mensagem de erro
-        let errorText;
-        try {
-          const errorData = await response.json();
-          errorText = errorData.message || `Erro ao buscar grupos de veículos. Status: ${response.status}`;
-          
-          // Se tem dados de fallback na resposta de erro, use-os
-          if (errorData.fallbackData && Array.isArray(errorData.fallbackData)) {
-            console.log('Usando dados de fallback recebidos da API');
-            return errorData.fallbackData;
-          }
-        } catch (jsonError) {
-          errorText = await response.text();
-          errorText = `Erro ao buscar grupos de veículos. Status: ${response.status}. Resposta: ${errorText.substring(0, 100)}`;
-        }
-        
-        console.error('Erro ao buscar grupos de veículos:', errorText);
-        throw new Error(errorText);
+      // Retornar dados padrão em caso de erro
+      if (errorData.fallbackData) {
+        console.log('Usando dados alternativos para grupos de veículos');
+        return errorData.fallbackData;
       }
       
-      try {
-        const data = await response.json();
-        console.log(`${data.length} grupos de veículos recebidos:`, data);
-        return data;
-      } catch (e) {
-        console.error('Erro ao analisar resposta JSON:', e);
-        // Não tente ler o corpo da resposta novamente se já foi consumido
-        console.error('Usando dados padrão devido ao erro na análise da resposta');
-        return [
-          { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
-          { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
-          { CodigoGrupo: "2", Letra: "B+", Descricao: "Econômico Plus" },
-          { CodigoGrupo: "3", Letra: "C", Descricao: "Intermediário" },
-          { CodigoGrupo: "4", Letra: "D", Descricao: "Executivo" },
-          { CodigoGrupo: "5", Letra: "E", Descricao: "SUV" },
-          { CodigoGrupo: "6", Letra: "F", Descricao: "Luxo" }
-        ];
-      }
-    } catch (fetchError) {
-      clearTimeout(timeoutId);
-      if (fetchError.name === 'AbortError') {
-        console.error('Timeout ao conectar com a API de grupos de veículos');
-        return [
-          { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
-          { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
-          { CodigoGrupo: "2", Letra: "B+", Descricao: "Econômico Plus" },
-          { CodigoGrupo: "3", Letra: "C", Descricao: "Intermediário" },
-          { CodigoGrupo: "4", Letra: "D", Descricao: "Executivo" },
-          { CodigoGrupo: "5", Letra: "E", Descricao: "SUV" },
-          { CodigoGrupo: "6", Letra: "F", Descricao: "Luxo" }
-        ];
-      }
-      throw fetchError;
+      throw new Error(errorData.message || 'Erro ao buscar grupos de veículos');
     }
+    
+    const groups = await response.json();
+    console.log(`Grupos de veículos encontrados: ${groups.length}`);
+    return groups;
   } catch (error) {
     console.error('Erro ao buscar grupos de veículos:', error);
     
-    // Retornar dados padrão em caso de erro
-    console.log('Usando dados padrão devido ao erro na requisição');
+    // Dados padrão em caso de erro
+    console.log('Usando dados padrão para grupos de veículos devido a erro');
     return [
       { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
       { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
-      { CodigoGrupo: "2", Letra: "B+", Descricao: "Econômico Plus" },
       { CodigoGrupo: "3", Letra: "C", Descricao: "Intermediário" },
       { CodigoGrupo: "4", Letra: "D", Descricao: "Executivo" },
       { CodigoGrupo: "5", Letra: "E", Descricao: "SUV" },
       { CodigoGrupo: "6", Letra: "F", Descricao: "Luxo" }
     ];
   }
-}
+};
 
-/**
- * Busca modelos de veículos disponíveis por grupo
- * @param groupCode Código ou Letra do grupo de veículos
- */
-export async function getVehicleModelsByGroup(groupCode: string): Promise<SqlVehicleModel[]> {
+// Função para buscar modelos de veículos por grupo
+export const getVehicleModelsByGroup = async (groupCode: string): Promise<SqlVehicleModel[]> => {
   try {
-    console.log(`Iniciando busca de modelos de veículos para o grupo: ${groupCode}`);
+    console.log(`Buscando modelos de veículos para o grupo: ${groupCode}`);
     
-    // Obter a URL base da API
-    const baseUrl = getApiBaseUrl();
-    // Codificar corretamente o groupCode para a URL (importante para caracteres como '+')
-    const encodedGroupCode = encodeURIComponent(groupCode);
-    const apiUrl = `${baseUrl}/api/vehicle-models/${encodedGroupCode}`;
-    console.log(`Enviando requisição para: ${apiUrl}`);
+    // Primeiro, tentamos buscar do cache ou Supabase
+    // Posteriormente, implementar cache
     
-    // Configurar um timeout para a requisição
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos de timeout
+    const response = await fetch(`http://localhost:3002/api/vehicle-models/${encodeURIComponent(groupCode)}`);
     
-    try {
-      const response = await fetch(apiUrl, {
-        signal: controller.signal,
-        headers: {
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
-        }
-      });
-      clearTimeout(timeoutId);
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error(`Erro ao buscar modelos de veículos para o grupo ${groupCode}:`, errorData);
       
-      console.log(`Resposta recebida. Status: ${response.status}`);
-      
-      if (!response.ok) {
-        // Se não obtiver conexão com a API real, retornar alguns modelos padrão para teste
-        if (response.status === 404 || response.status === 500) {
-          console.log('API de modelos não encontrada ou erro no servidor, usando dados padrão para teste');
-          
-          // Dados padrão diferentes para cada grupo
-          const modelosPadrao: { [key: string]: SqlVehicleModel[] } = {
-            'A': [
-              { CodigoModelo: "A1", Descricao: "Fiat Uno", CodigoGrupoVeiculo: "1", LetraGrupo: "A", MaiorValorCompra: 45000 },
-              { CodigoModelo: "A2", Descricao: "Renault Kwid", CodigoGrupoVeiculo: "1", LetraGrupo: "A", MaiorValorCompra: 48000 },
-              { CodigoModelo: "A3", Descricao: "VW Up", CodigoGrupoVeiculo: "1", LetraGrupo: "A", MaiorValorCompra: 52000 }
-            ],
-            'B': [
-              { CodigoModelo: "B1", Descricao: "Hyundai HB20", CodigoGrupoVeiculo: "2", LetraGrupo: "B", MaiorValorCompra: 65000 },
-              { CodigoModelo: "B2", Descricao: "Chevrolet Onix", CodigoGrupoVeiculo: "2", LetraGrupo: "B", MaiorValorCompra: 68000 },
-              { CodigoModelo: "B3", Descricao: "VW Polo", CodigoGrupoVeiculo: "2", LetraGrupo: "B", MaiorValorCompra: 72000 }
-            ],
-            'B+': [
-              { CodigoModelo: "BP1", Descricao: "Toyota Yaris HB", CodigoGrupoVeiculo: "2", LetraGrupo: "B+", MaiorValorCompra: 75000 },
-              { CodigoModelo: "BP2", Descricao: "Chevrolet Onix Plus", CodigoGrupoVeiculo: "2", LetraGrupo: "B+", MaiorValorCompra: 79000 },
-              { CodigoModelo: "BP3", Descricao: "VW Virtus", CodigoGrupoVeiculo: "2", LetraGrupo: "B+", MaiorValorCompra: 82000 }
-            ],
-            'C': [
-              { CodigoModelo: "C1", Descricao: "Honda City", CodigoGrupoVeiculo: "3", LetraGrupo: "C", MaiorValorCompra: 85000 },
-              { CodigoModelo: "C2", Descricao: "Toyota Yaris", CodigoGrupoVeiculo: "3", LetraGrupo: "C", MaiorValorCompra: 88000 },
-              { CodigoModelo: "C3", Descricao: "Nissan Versa", CodigoGrupoVeiculo: "3", LetraGrupo: "C", MaiorValorCompra: 92000 }
-            ],
-            'D': [
-              { CodigoModelo: "D1", Descricao: "Toyota Corolla", CodigoGrupoVeiculo: "4", LetraGrupo: "D", MaiorValorCompra: 120000 },
-              { CodigoModelo: "D2", Descricao: "Honda Civic", CodigoGrupoVeiculo: "4", LetraGrupo: "D", MaiorValorCompra: 125000 },
-              { CodigoModelo: "D3", Descricao: "VW Jetta", CodigoGrupoVeiculo: "4", LetraGrupo: "D", MaiorValorCompra: 130000 }
-            ],
-            'E': [
-              { CodigoModelo: "E1", Descricao: "Jeep Renegade", CodigoGrupoVeiculo: "5", LetraGrupo: "E", MaiorValorCompra: 110000 },
-              { CodigoModelo: "E2", Descricao: "Hyundai Creta", CodigoGrupoVeiculo: "5", LetraGrupo: "E", MaiorValorCompra: 115000 },
-              { CodigoModelo: "E3", Descricao: "VW T-Cross", CodigoGrupoVeiculo: "5", LetraGrupo: "E", MaiorValorCompra: 120000 }
-            ],
-            'F': [
-              { CodigoModelo: "F1", Descricao: "BMW X1", CodigoGrupoVeiculo: "6", LetraGrupo: "F", MaiorValorCompra: 250000 },
-              { CodigoModelo: "F2", Descricao: "Mercedes GLA", CodigoGrupoVeiculo: "6", LetraGrupo: "F", MaiorValorCompra: 270000 },
-              { CodigoModelo: "F3", Descricao: "Audi Q3", CodigoGrupoVeiculo: "6", LetraGrupo: "F", MaiorValorCompra: 260000 }
-            ]
-          };
-          
-          // Retornar os modelos do grupo solicitado ou um array vazio se o grupo não existir nos dados padrão
-          return modelosPadrao[groupCode] || [];
-        }
-        
-        // Tenta obter mensagem de erro
-        let errorMessage;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || `Erro ao buscar modelos de veículos. Status: ${response.status}`;
-          
-          // Se tem dados de fallback na resposta de erro, use-os
-          if (errorData.fallbackData && Array.isArray(errorData.fallbackData)) {
-            console.log('Usando dados de fallback recebidos da API para o grupo', groupCode);
-            return errorData.fallbackData;
-          }
-        } catch (jsonError) {
-          const errorText = await response.text();
-          errorMessage = `Erro ao buscar modelos de veículos. Status: ${response.status}. Resposta: ${errorText.substring(0, 200)}`;
-        }
-        
-        console.error('Erro ao buscar modelos de veículos:', errorMessage);
-        throw new Error(errorMessage);
+      // Retornar dados padrão em caso de erro
+      if (errorData.fallbackData) {
+        console.log('Usando dados alternativos para modelos de veículos');
+        return errorData.fallbackData;
       }
       
-      try {
-        const data = await response.json();
-        console.log(`${data.length} modelos de veículos recebidos`);
-        return data;
-      } catch (e) {
-        console.error('Erro ao analisar resposta JSON:', e);
-        // Tentar recuperar o texto da resposta para diagnóstico
-        const responseText = await response.text();
-        console.error('Texto da resposta:', responseText);
-        
-        // Fornecer dados padrão para o grupo em caso de erro de análise
-        const modelosPadrao: SqlVehicleModel[] = [
-          { CodigoModelo: `${groupCode}1`, Descricao: `Modelo 1 Grupo ${groupCode}`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 75000 },
-          { CodigoModelo: `${groupCode}2`, Descricao: `Modelo 2 Grupo ${groupCode}`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 80000 },
-          { CodigoModelo: `${groupCode}3`, Descricao: `Modelo 3 Grupo ${groupCode}`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 85000 }
-        ];
-        return modelosPadrao;
-      }
-    } catch (fetchError) {
-      clearTimeout(timeoutId);
-      if (fetchError.name === 'AbortError') {
-        console.error('Timeout ao conectar com a API de modelos de veículos');
-        // Fornecer dados padrão para o grupo em caso de timeout
-        const modelosPadrao: SqlVehicleModel[] = [
-          { CodigoModelo: `${groupCode}1`, Descricao: `Modelo 1 Grupo ${groupCode}`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 75000 },
-          { CodigoModelo: `${groupCode}2`, Descricao: `Modelo 2 Grupo ${groupCode}`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 80000 },
-          { CodigoModelo: `${groupCode}3`, Descricao: `Modelo 3 Grupo ${groupCode}`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 85000 }
-        ];
-        return modelosPadrao;
-      }
-      throw fetchError;
+      throw new Error(errorData.message || 'Erro ao buscar modelos de veículos');
     }
+    
+    const models = await response.json();
+    console.log(`Modelos de veículos encontrados para o grupo ${groupCode}: ${models.length}`);
+    return models;
   } catch (error) {
-    console.error('Erro ao buscar modelos de veículos:', error);
-    // Fornecer dados padrão para o grupo em caso de erro geral
-    const modelosPadrao: SqlVehicleModel[] = [
-      { CodigoModelo: `${groupCode}1`, Descricao: `Modelo 1 Grupo ${groupCode}`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 75000 },
-      { CodigoModelo: `${groupCode}2`, Descricao: `Modelo 2 Grupo ${groupCode}`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 80000 },
-      { CodigoModelo: `${groupCode}3`, Descricao: `Modelo 3 Grupo ${groupCode}`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 85000 }
+    console.error(`Erro ao buscar modelos de veículos para o grupo ${groupCode}:`, error);
+    
+    // Dados padrão em caso de erro
+    console.log('Usando dados padrão para modelos de veículos devido a erro');
+    return [
+      { CodigoModelo: `${groupCode}1`, Descricao: `Modelo 1 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 75000 },
+      { CodigoModelo: `${groupCode}2`, Descricao: `Modelo 2 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 80000 },
+      { CodigoModelo: `${groupCode}3`, Descricao: `Modelo 3 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 85000 }
     ];
-    return modelosPadrao;
   }
-}
-
-// Adicionar uma função para testar a conexão com o servidor
-export async function testApiConnection(): Promise<{ status: string; environment: any }> {
-  try {
-    console.log('Testando conexão com a API...');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos de timeout
-    
-    // Obter a URL base da API
-    const baseUrl = getApiBaseUrl();
-    const apiUrl = `${baseUrl}/api/status`;
-    console.log(`Enviando requisição para: ${apiUrl}`);
-    
-    try {
-      const response = await fetch(apiUrl, { 
-        signal: controller.signal 
-      });
-      clearTimeout(timeoutId);
-      
-      console.log(`Resposta do teste de API recebida. Status: ${response.status}`);
-      
-      if (!response.ok) {
-        console.error(`Status da API retornou ${response.status}`);
-        return { 
-          status: 'offline', 
-          environment: { 
-            error: `Status da API retornou ${response.status}`,
-            timestamp: new Date().toISOString()
-          } 
-        };
-      }
-      
-      try {
-        const data = await response.json();
-        console.log('Dados de status da API:', data);
-        return data;
-      } catch (e) {
-        console.error('Erro ao analisar resposta JSON do status:', e);
-        // Retornar status online mesmo com erro de parsing, para permitir o uso da aplicação
-        return { 
-          status: 'online', 
-          environment: { 
-            timestamp: new Date().toISOString()
-          } 
-        };
-      }
-    } catch (fetchError) {
-      clearTimeout(timeoutId);
-      if (fetchError.name === 'AbortError') {
-        console.error('Timeout ao conectar com a API');
-        return { 
-          status: 'timeout', 
-          environment: { 
-            error: 'Timeout ao conectar com a API',
-            timestamp: new Date().toISOString()
-          } 
-        };
-      }
-      throw fetchError;
-    }
-  } catch (error) {
-    console.error('Erro ao testar conexão com a API:', error);
-    return { 
-      status: 'error', 
-      environment: { 
-        error: error instanceof Error ? error.message : 'Erro desconhecido',
-        timestamp: new Date().toISOString()
-      } 
-    };
-  }
-}
+};
