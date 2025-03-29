@@ -1,4 +1,3 @@
-
 // Este arquivo é usado para configurar um proxy de API local durante o desenvolvimento
 // para contornar limitações de CORS e segurança em requisições diretas do navegador
 // para o SQL Server
@@ -255,13 +254,16 @@ app.get('/api/vehicle-models/:groupCode', async (req, res) => {
       });
     }
     
-    // Verificar se o groupCode é uma letra ou código
-    // Nota: precisamos considerar letras com + (ex: B+) como letras
-    const isLetter = /^[A-Za-z](\+)?$/.test(groupCode);
-    console.log(`Tipo de código de grupo: ${isLetter ? 'Letra' : 'Código'}`);
+    // Verificar se o groupCode é uma letra, uma letra seguida de + (como 'B+') ou dois caracteres (como 'BT')
+    // Nota: precisamos considerar diferentes formatos de grupos
+    const isLetterFormat = /^[A-Za-z](\+)?$/.test(groupCode);
+    const isTwoCharFormat = /^[A-Za-z]{2}$/.test(groupCode);
+    
+    console.log(`Tipo de código de grupo: ${isLetterFormat ? 'Letra ou Letra+' : (isTwoCharFormat ? 'Dois caracteres' : 'Código')}`);
     
     let query;
-    if (isLetter) {
+    if (isLetterFormat || isTwoCharFormat) {
+      // Se for letra, letra+ ou dois caracteres, usamos o mesmo tratamento
       query = `
         SELECT DISTINCT
           vm.CodigoModelo,
