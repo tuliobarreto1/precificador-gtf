@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { Car, Calendar, Gauge, Tag } from 'lucide-react';
+import { Car, Calendar, Gauge, Tag, DollarSign } from 'lucide-react';
 
 interface Vehicle {
   id: string;
@@ -33,6 +33,7 @@ interface VehicleCardProps {
   isSelected?: boolean;
   onClick?: () => void;
   showDetailedInfo?: boolean;
+  showCosts?: boolean; // Nova propriedade para exibir informações de custos
 }
 
 const getPlateNumber = (vehicle: any): string | undefined => {
@@ -109,6 +110,39 @@ const getGroupId = (vehicle: any): string | undefined => {
   return vehicle.groupId || vehicle.group_id;
 };
 
+// Nova função para obter os custos do veículo
+const getVehicleCosts = (vehicle: any) => {
+  // Se o veículo já tem resultados de cálculo
+  if (vehicle.result) {
+    return {
+      depreciationCost: vehicle.result.depreciationCost || 0,
+      maintenanceCost: vehicle.result.maintenanceCost || 0,
+      extraKmRate: vehicle.result.extraKmRate || 0,
+      totalCost: vehicle.result.totalCost || 0
+    };
+  }
+  
+  // Se os custos estão no formato do Supabase
+  if (vehicle.depreciation_cost !== undefined || 
+      vehicle.maintenance_cost !== undefined || 
+      vehicle.total_cost !== undefined) {
+    return {
+      depreciationCost: vehicle.depreciation_cost || 0,
+      maintenanceCost: vehicle.maintenance_cost || 0,
+      extraKmRate: vehicle.extra_km_rate || 0,
+      totalCost: vehicle.total_cost || vehicle.monthly_value || 0
+    };
+  }
+  
+  // Se não houver informações de custo disponíveis
+  return {
+    depreciationCost: 0,
+    maintenanceCost: 0,
+    extraKmRate: 0,
+    totalCost: getValue(vehicle) || 0
+  };
+};
+
 const VehicleCard: React.FC<VehicleCardProps> = ({
   vehicle,
   vehicleGroup,
@@ -116,7 +150,8 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
   children,
   isSelected = false,
   onClick,
-  showDetailedInfo = false
+  showDetailedInfo = false,
+  showCosts = false
 }) => {
   // Tratamento de segurança para caso o veículo seja undefined
   if (!vehicle) {
@@ -142,6 +177,9 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
   const color = getColor(vehicle);
   const value = getValue(vehicle);
   const odometer = getOdometer(vehicle);
+  
+  // Informações de custo (se disponíveis)
+  const costs = getVehicleCosts(vehicle);
   
   return (
     <div 
@@ -221,15 +259,45 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
                 )}
               </>
             )}
+            
+            {showCosts && (
+              <div className="mt-3 pt-2 border-t grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground">Depreciação:</p>
+                  <p>R$ {costs.depreciationCost.toLocaleString('pt-BR')}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Manutenção:</p>
+                  <p>R$ {costs.maintenanceCost.toLocaleString('pt-BR')}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Km excedente:</p>
+                  <p>R$ {costs.extraKmRate.toLocaleString('pt-BR', {maximumFractionDigits: 2})}</p>
+                </div>
+                <div className="font-medium">
+                  <p className="text-xs text-muted-foreground">Custo total:</p>
+                  <p>R$ {costs.totalCost.toLocaleString('pt-BR')}</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {value !== undefined && !children && (
+        {value !== undefined && !children && !showCosts && (
           <div className="text-right">
             <p className="font-medium">
               R$ {Number(value).toLocaleString('pt-BR')}
             </p>
             <p className="text-xs text-muted-foreground">Valor do veículo</p>
+          </div>
+        )}
+        
+        {costs.totalCost > 0 && !children && showCosts && (
+          <div className="text-right">
+            <p className="font-medium">
+              R$ {costs.totalCost.toLocaleString('pt-BR')}
+            </p>
+            <p className="text-xs text-muted-foreground">Valor mensal</p>
           </div>
         )}
       </div>

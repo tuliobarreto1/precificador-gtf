@@ -120,36 +120,48 @@ export type Database = {
         Row: {
           contract_months: number | null
           created_at: string
+          depreciation_cost: number | null
+          extra_km_rate: number | null
           has_tracking: boolean | null
           id: string
+          maintenance_cost: number | null
           monthly_km: number | null
           monthly_value: number
           operation_severity: number | null
           quote_id: string | null
+          total_cost: number | null
           updated_at: string
           vehicle_id: string | null
         }
         Insert: {
           contract_months?: number | null
           created_at?: string
+          depreciation_cost?: number | null
+          extra_km_rate?: number | null
           has_tracking?: boolean | null
           id?: string
+          maintenance_cost?: number | null
           monthly_km?: number | null
           monthly_value?: number
           operation_severity?: number | null
           quote_id?: string | null
+          total_cost?: number | null
           updated_at?: string
           vehicle_id?: string | null
         }
         Update: {
           contract_months?: number | null
           created_at?: string
+          depreciation_cost?: number | null
+          extra_km_rate?: number | null
           has_tracking?: boolean | null
           id?: string
+          maintenance_cost?: number | null
           monthly_km?: number | null
           monthly_value?: number
           operation_severity?: number | null
           quote_id?: string | null
+          total_cost?: number | null
           updated_at?: string
           vehicle_id?: string | null
         }
