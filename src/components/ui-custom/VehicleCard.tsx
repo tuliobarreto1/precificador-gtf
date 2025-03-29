@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { Car, Calendar, Gauge, Tag, DollarSign } from 'lucide-react';
+import { Car, Calendar, Gauge, Tag, DollarSign, Droplet } from 'lucide-react';
 
 interface Vehicle {
   id: string;
@@ -15,6 +15,7 @@ interface Vehicle {
   isUsed?: boolean;
   is_used?: boolean; // Formato do Supabase
   odometer?: number;
+  fuelType?: string; // Adicionado campo para tipo de combustível
   groupId?: string;
   group_id?: string; // Formato do Supabase
 }
@@ -94,6 +95,13 @@ const getOdometer = (vehicle: any): number | undefined => {
     return vehicle.vehicle.odometer;
   }
   return vehicle.odometer;
+};
+
+const getFuelType = (vehicle: any): string | undefined => {
+  if (vehicle.vehicle) {
+    return vehicle.vehicle.fuelType || vehicle.vehicle.fuel_type;
+  }
+  return vehicle.fuelType || vehicle.fuel_type || vehicle.tipoCombustivel;
 };
 
 const isVehicleUsed = (vehicle: any): boolean => {
@@ -177,6 +185,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
   const color = getColor(vehicle);
   const value = getValue(vehicle);
   const odometer = getOdometer(vehicle);
+  const fuelType = getFuelType(vehicle);
   
   // Informações de custo (se disponíveis)
   const costs = getVehicleCosts(vehicle);
@@ -247,6 +256,14 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-muted-foreground">Cor:</span>
                     <span>{color}</span>
+                  </div>
+                )}
+                
+                {fuelType && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <Droplet className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-muted-foreground">Combustível:</span>
+                    <span>{fuelType}</span>
                   </div>
                 )}
                 

@@ -278,6 +278,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     
     console.log('Selecionando veículo encontrado:', foundVehicle);
     
+    // Aqui corrigimos as propriedades para satisfazer o tipo Vehicle
     const mappedVehicle: Vehicle = {
       id: `used-${foundVehicle.Placa}`,
       brand: foundVehicle.DescricaoModelo.split(' ')[0],
@@ -288,16 +289,18 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       plateNumber: foundVehicle.Placa,
       color: foundVehicle.Cor,
       odometer: foundVehicle.OdometroAtual,
-      tipoCombustivel: foundVehicle.TipoCombustivel,
+      fuelType: foundVehicle.TipoCombustivel, // Propriedade corrigida
       groupId: foundVehicle.LetraGrupo,
     };
     
+    // Criando um grupo padrão baseado na informação disponível
     const mappedGroup: VehicleGroup = {
       id: foundVehicle.LetraGrupo,
-      name: foundVehicle.DescricaoGrupo || `Grupo ${foundVehicle.LetraGrupo}`,
+      name: `Grupo ${foundVehicle.LetraGrupo}`,
       description: `Veículos do grupo ${foundVehicle.LetraGrupo}`,
-      monthlyDepreciationRate: 0.015,
-      monthlyCostPerKm: 0.25
+      // Usamos valores default para as taxas, já que não temos esses dados do SQL Server
+      depreciation: 0.015,
+      maintenance: 0.25
     };
     
     onSelectVehicle(mappedVehicle, mappedGroup);
@@ -322,6 +325,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     
     const finalPrice = customPrice !== null ? customPrice : selectedModel.MaiorValorCompra;
     
+    // Criando um veículo com as propriedades corretas
     const mappedVehicle: Vehicle = {
       id: `new-${selectedModel.CodigoModelo}`,
       brand: selectedModel.Descricao.split(' ')[0],
@@ -332,12 +336,13 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       groupId: selectedModel.LetraGrupo,
     };
     
+    // Criando um grupo padrão
     const mappedGroup: VehicleGroup = {
       id: selectedModel.LetraGrupo,
       name: `Grupo ${selectedModel.LetraGrupo}`,
       description: `Veículos do grupo ${selectedModel.LetraGrupo}`,
-      monthlyDepreciationRate: 0.015,
-      monthlyCostPerKm: 0.25
+      depreciation: 0.015,
+      maintenance: 0.25
     };
     
     onSelectVehicle(mappedVehicle, mappedGroup);

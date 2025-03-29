@@ -27,6 +27,7 @@ export interface Vehicle {
   plateNumber?: string;
   color?: string;
   odometer?: number;
+  fuelType?: string;
   revisionKm?: number;
   revisionCost?: number;
   tireKm?: number;
