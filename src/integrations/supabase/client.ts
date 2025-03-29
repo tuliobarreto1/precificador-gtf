@@ -89,6 +89,8 @@ export async function saveClientToSupabase(client: any) {
 // Função para salvar orçamento no Supabase
 export async function saveQuoteToSupabase(quote: any) {
   try {
+    console.log("Iniciando salvamento de orçamento no Supabase:", quote);
+    
     let userId = null;
     const adminUserStr = localStorage.getItem('admin_user');
     if (adminUserStr) {
@@ -101,8 +103,10 @@ export async function saveQuoteToSupabase(quote: any) {
       }
     }
     
+    // Salvar cliente
     const clientResult = await saveClientToSupabase(quote.client);
     if (!clientResult.success) {
+      console.error("Erro ao salvar cliente:", clientResult.error);
       return { success: false, error: clientResult.error };
     }
 
@@ -120,9 +124,11 @@ export async function saveQuoteToSupabase(quote: any) {
       has_tracking: quote.hasTracking || false,
       total_value: quote.totalCost || 0,
       status: 'active',
-      title: `Orçamento ${new Date().toLocaleDateString('pt-BR')}`,
+      title: quote.title || `Orçamento ${new Date().toLocaleDateString('pt-BR')}`,
       created_by: userId
     };
+    
+    console.log("Salvando orçamento com dados:", quoteData);
     
     const { data, error } = await supabase
       .from('quotes')
@@ -130,41 +136,63 @@ export async function saveQuoteToSupabase(quote: any) {
       .select();
 
     if (error) {
+      console.error("Erro ao salvar orçamento:", error);
       return { success: false, error };
     }
     
+    console.log("Orçamento salvo com sucesso. ID:", quoteId);
+    
     // Salvar veículos associados ao orçamento
     if (quote.vehicles && quote.vehicles.length > 0) {
+      console.log(`Processando ${quote.vehicles.length} veículos para salvar...`);
+      
       for (const vehicleItem of quote.vehicles) {
         const vehicle = vehicleItem.vehicle;
+        console.log("Processando veículo:", vehicle);
         
         // Verificar se o veículo já existe no Supabase pela placa
         let vehicleId = null;
-        if (vehicle.plateNumber) {
-          const { data: existingVehicles } = await supabase
+        if (vehicle.plateNumber || vehicle.plate_number) {
+          const plateToCheck = vehicle.plateNumber || vehicle.plate_number;
+          console.log("Verificando se veículo já existe pela placa:", plateToCheck);
+          
+          const { data: existingVehicles, error: searchError } = await supabase
             .from('vehicles')
             .select('id')
-            .eq('plate_number', vehicle.plateNumber)
+            .eq('plate_number', plateToCheck)
             .limit(1);
+            
+          if (searchError) {
+            console.error("Erro ao buscar veículo existente:", searchError);
+          }
             
           if (existingVehicles && Array.isArray(existingVehicles) && existingVehicles.length > 0) {
             vehicleId = existingVehicles[0].id;
+            console.log("Veículo existente encontrado com ID:", vehicleId);
           }
         }
         
         // Se o veículo não existir, criar um novo
         if (!vehicleId) {
+          console.log("Criando novo veículo...");
+          
+          const vehicleData = {
+            brand: vehicle.brand || 'Não especificado',
+            model: vehicle.model || 'Não especificado',
+            year: vehicle.year || new Date().getFullYear(),
+            value: vehicle.value || 0,
+            plate_number: vehicle.plateNumber || vehicle.plate_number || null,
+            is_used: vehicle.isUsed || vehicle.is_used || false,
+            group_id: vehicle.groupId || vehicle.group_id || null,
+            color: vehicle.color || null,
+            odometer: vehicle.odometer || 0
+          };
+          
+          console.log("Dados do novo veículo:", vehicleData);
+          
           const { data: newVehicle, error: vehicleError } = await supabase
             .from('vehicles')
-            .insert({
-              brand: vehicle.brand || 'Não especificado',
-              model: vehicle.model || 'Não especificado',
-              year: vehicle.year || new Date().getFullYear(),
-              value: vehicle.value || 0,
-              plate_number: vehicle.plateNumber || null,
-              is_used: vehicle.isUsed || false,
-              group_id: vehicle.groupId || null
-            })
+            .insert(vehicleData)
             .select()
             .single();
             
@@ -174,29 +202,65 @@ export async function saveQuoteToSupabase(quote: any) {
           }
           
           vehicleId = newVehicle.id;
+          console.log("Novo veículo criado com ID:", vehicleId);
         }
         
-        // Salvar relação veículo-orçamento na tabela quote_vehicles
-        const monthlyValue = vehicleItem.params ? 
-          (quote.totalCost / quote.vehicles.length) : // Distribuir igualmente se não tiver valor específico
-          (vehicle.monthlyValue || 0);
+        if (!vehicleId) {
+          console.error("Não foi possível obter ID do veículo, pulando...");
+          continue;
+        }
+        
+        // Obter parâmetros do veículo
+        let params = quote.useGlobalParams 
+          ? quote.globalParams 
+          : (vehicleItem.params || quote.globalParams);
+        
+        if (!params) {
+          params = {
+            contractMonths: quote.contractMonths || 12,
+            monthlyKm: quote.monthlyKm || 2000,
+            operationSeverity: quote.operationSeverity || 3,
+            hasTracking: quote.hasTracking || false
+          };
+        }
+        
+        const monthlyValue = vehicleItem.monthlyValue || 
+          (quote.totalCost ? quote.totalCost / quote.vehicles.length : 0);
           
-        await supabase
+        console.log("Parâmetros do veículo:", params);
+        console.log("Valor mensal do veículo:", monthlyValue);
+        
+        // Salvar relação veículo-orçamento na tabela quote_vehicles
+        const quoteVehicleData = {
+          quote_id: quoteId,
+          vehicle_id: vehicleId,
+          monthly_value: monthlyValue,
+          monthly_km: params.monthlyKm,
+          contract_months: params.contractMonths,
+          operation_severity: params.operationSeverity,
+          has_tracking: params.hasTracking
+        };
+        
+        console.log("Salvando dados de quote_vehicles:", quoteVehicleData);
+        
+        const { error: quoteVehicleError } = await supabase
           .from('quote_vehicles')
-          .insert({
-            quote_id: quoteId,
-            vehicle_id: vehicleId,
-            monthly_value: monthlyValue,
-            monthly_km: vehicleItem.params?.monthlyKm || quote.monthlyKm,
-            contract_months: vehicleItem.params?.contractMonths || quote.contractMonths,
-            operation_severity: vehicleItem.params?.operationSeverity || quote.operationSeverity || 3,
-            has_tracking: vehicleItem.params?.hasTracking || quote.hasTracking || false
-          });
+          .insert(quoteVehicleData);
+          
+        if (quoteVehicleError) {
+          console.error("Erro ao associar veículo ao orçamento:", quoteVehicleError);
+          continue;
+        }
+        
+        console.log("Veículo associado com sucesso ao orçamento");
       }
+    } else {
+      console.log("Nenhum veículo para associar ao orçamento");
     }
     
-    return { success: true, data };
+    return { success: true, data: { id: quoteId } };
   } catch (error) {
+    console.error("Erro inesperado ao salvar orçamento:", error);
     return { success: false, error };
   }
 }
@@ -262,9 +326,9 @@ export async function getQuoteByIdFromSupabase(quoteId: string) {
     
     // Buscar veículos associados a este orçamento
     if (data) {
-      const { vehicles } = await getQuoteVehicles(quoteId);
+      const { vehicles, success } = await getQuoteVehicles(quoteId);
       
-      if (vehicles && Array.isArray(vehicles)) {
+      if (success && vehicles && Array.isArray(vehicles)) {
         (data as any).vehicles = vehicles;
         console.log(`Veículos associados ao orçamento ${quoteId}:`, vehicles);
       } else {
@@ -364,7 +428,14 @@ export const getQuoteVehicles = async (quoteId: string): Promise<{ success: bool
     const { data, error } = await supabase
       .from('quote_vehicles')
       .select(`
-        *,
+        id,
+        quote_id,
+        vehicle_id,
+        monthly_value,
+        monthly_km,
+        contract_months,
+        operation_severity,
+        has_tracking,
         vehicle:vehicle_id(*)
       `)
       .eq('quote_id', quoteId);

@@ -26,7 +26,7 @@ interface VehicleGroup {
 }
 
 interface VehicleCardProps {
-  vehicle: Vehicle;
+  vehicle: Vehicle | any; // Permitir que vehicle seja do formato do Supabase também
   vehicleGroup?: VehicleGroup;
   className?: string;
   children?: React.ReactNode;
@@ -35,15 +35,74 @@ interface VehicleCardProps {
   showDetailedInfo?: boolean;
 }
 
-const getPlateNumber = (vehicle: Vehicle): string | undefined => {
+const getPlateNumber = (vehicle: any): string | undefined => {
+  // Verificar primeiro se o veículo é um objeto aninhado (caso de quote_vehicles)
+  if (vehicle.vehicle) {
+    return vehicle.vehicle.plateNumber || vehicle.vehicle.plate_number;
+  }
+  
+  // Caso contrário, verificar no próprio objeto
   return vehicle.plateNumber || vehicle.plate_number;
 };
 
-const isVehicleUsed = (vehicle: Vehicle): boolean => {
+const getBrand = (vehicle: any): string => {
+  if (vehicle.vehicle) {
+    return vehicle.vehicle.brand || 'Marca não especificada';
+  }
+  return vehicle.brand || 'Marca não especificada';
+};
+
+const getModel = (vehicle: any): string => {
+  if (vehicle.vehicle) {
+    return vehicle.vehicle.model || 'Modelo não especificado';
+  }
+  return vehicle.model || 'Modelo não especificado';
+};
+
+const getYear = (vehicle: any): number => {
+  if (vehicle.vehicle) {
+    return vehicle.vehicle.year || new Date().getFullYear();
+  }
+  return vehicle.year || new Date().getFullYear();
+};
+
+const getColor = (vehicle: any): string | undefined => {
+  if (vehicle.vehicle) {
+    return vehicle.vehicle.color;
+  }
+  return vehicle.color;
+};
+
+const getValue = (vehicle: any): number | undefined => {
+  if (vehicle.vehicle) {
+    return vehicle.vehicle.value;
+  }
+  
+  if (vehicle.monthly_value) {
+    return vehicle.monthly_value;
+  }
+  
+  return vehicle.value;
+};
+
+const getOdometer = (vehicle: any): number | undefined => {
+  if (vehicle.vehicle) {
+    return vehicle.vehicle.odometer;
+  }
+  return vehicle.odometer;
+};
+
+const isVehicleUsed = (vehicle: any): boolean => {
+  if (vehicle.vehicle) {
+    return vehicle.vehicle.isUsed || vehicle.vehicle.is_used || false;
+  }
   return vehicle.isUsed || vehicle.is_used || false;
 };
 
-const getGroupId = (vehicle: Vehicle): string | undefined => {
+const getGroupId = (vehicle: any): string | undefined => {
+  if (vehicle.vehicle) {
+    return vehicle.vehicle.groupId || vehicle.vehicle.group_id;
+  }
   return vehicle.groupId || vehicle.group_id;
 };
 
@@ -69,12 +128,15 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
   }
 
   // Valores seguros
-  const brand = vehicle.brand || 'Marca não especificada';
-  const model = vehicle.model || 'Modelo não especificado';
-  const year = vehicle.year || new Date().getFullYear();
+  const brand = getBrand(vehicle);
+  const model = getModel(vehicle);
+  const year = getYear(vehicle);
   const plateNumber = getPlateNumber(vehicle);
   const isUsed = isVehicleUsed(vehicle);
   const group = vehicleGroup?.id || getGroupId(vehicle) || '?';
+  const color = getColor(vehicle);
+  const value = getValue(vehicle);
+  const odometer = getOdometer(vehicle);
   
   return (
     <div 
@@ -129,27 +191,27 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
             
             {showDetailedInfo && (
               <>
-                {vehicle.value && (
+                {value && (
                   <div className="mt-2">
                     <p className="text-sm text-muted-foreground">Valor do veículo:</p>
                     <p className="font-medium">
-                      R$ {Number(vehicle.value).toLocaleString('pt-BR')}
+                      R$ {Number(value).toLocaleString('pt-BR')}
                     </p>
                   </div>
                 )}
                 
-                {vehicle.color && (
+                {color && (
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-muted-foreground">Cor:</span>
-                    <span>{vehicle.color}</span>
+                    <span>{color}</span>
                   </div>
                 )}
                 
-                {(vehicle.odometer !== undefined && vehicle.odometer > 0) && (
+                {(odometer !== undefined && odometer > 0) && (
                   <div className="flex items-center gap-2 mt-1">
                     <Gauge className="h-3 w-3 text-muted-foreground" />
                     <span className="text-muted-foreground">Odômetro:</span>
-                    <span>{vehicle.odometer.toLocaleString('pt-BR')} km</span>
+                    <span>{odometer.toLocaleString('pt-BR')} km</span>
                   </div>
                 )}
               </>
@@ -157,10 +219,10 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
           </div>
         </div>
 
-        {vehicle.value && !children && (
+        {value && !children && (
           <div className="text-right">
             <p className="font-medium">
-              R$ {Number(vehicle.value).toLocaleString('pt-BR')}
+              R$ {Number(value).toLocaleString('pt-BR')}
             </p>
             <p className="text-xs text-muted-foreground">Valor do veículo</p>
           </div>
