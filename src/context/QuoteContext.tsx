@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Vehicle, Client, VehicleGroup, getVehicleGroupById, getClientById, getVehicleById } from '@/lib/mock-data';
 import { DepreciationParams, MaintenanceParams, calculateLeaseCost, calculateExtraKmRate } from '@/lib/calculation';
-import { toast } from 'react-toastify';
+import { toast } from "@/components/ui/use-toast";
 import { supabase } from '@/integrations/supabase/client';
 
 // Item de veículo na cotação
