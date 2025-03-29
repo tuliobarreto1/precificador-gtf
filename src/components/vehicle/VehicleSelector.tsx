@@ -1,16 +1,31 @@
+
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Car, Search, Loader2, AlertTriangle, Database, RefreshCw, Plus, Check, X } from 'lucide-react';
+import { ArrowRight, Car, Search, Loader2, AlertTriangle, Database, RefreshCw, Plus, Check, X, Menu } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { getVehicleByPlate, SqlVehicle, testApiConnection } from '@/lib/sql-connection';
-import { vehicles, vehicleGroups, getVehicleGroupById } from '@/lib/mock-data';
+import { 
+  getVehicleByPlate, 
+  SqlVehicle, 
+  testApiConnection, 
+  getVehicleGroups, 
+  SqlVehicleGroup, 
+  getVehicleModelsByGroup, 
+  SqlVehicleModel 
+} from '@/lib/sql-connection';
 import VehicleCard from '@/components/ui-custom/VehicleCard';
 import { Vehicle, VehicleGroup } from '@/lib/mock-data';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,6 +61,16 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   const [detailedError, setDetailedError] = useState<string | null>(null);
   const [showDiagnosticInfo, setShowDiagnosticInfo] = useState(false);
   const [diagnosticInfo, setDiagnosticInfo] = useState<any>(null);
+  
+  // Novos estados para seleção de veículos por grupo
+  const [vehicleGroups, setVehicleGroups] = useState<SqlVehicleGroup[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [vehicleModels, setVehicleModels] = useState<SqlVehicleModel[]>([]);
+  const [selectedModel, setSelectedModel] = useState<SqlVehicleModel | null>(null);
+  const [customPrice, setCustomPrice] = useState<number | null>(null);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [loadingModels, setLoadingModels] = useState(false);
+  
   const { toast } = useToast();
 
   useEffect(() => {
@@ -67,10 +92,73 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     checkConnection();
   }, []);
 
+  // Carregar grupos de veículos quando a tela iniciar
+  useEffect(() => {
+    const loadVehicleGroups = async () => {
+      if (vehicleType === 'new') {
+        try {
+          setLoadingGroups(true);
+          const groups = await getVehicleGroups();
+          setVehicleGroups(groups);
+          console.log('Grupos de veículos carregados:', groups);
+        } catch (error) {
+          console.error('Erro ao carregar grupos de veículos:', error);
+          toast({
+            title: "Erro",
+            description: "Não foi possível carregar os grupos de veículos.",
+            variant: "destructive",
+          });
+        } finally {
+          setLoadingGroups(false);
+        }
+      }
+    };
+    
+    loadVehicleGroups();
+  }, [vehicleType, toast]);
+  
+  // Carregar modelos quando um grupo for selecionado
+  useEffect(() => {
+    const loadVehicleModels = async () => {
+      if (selectedGroup) {
+        try {
+          setLoadingModels(true);
+          setSelectedModel(null);
+          const models = await getVehicleModelsByGroup(selectedGroup);
+          setVehicleModels(models);
+          console.log('Modelos de veículos carregados:', models);
+        } catch (error) {
+          console.error('Erro ao carregar modelos de veículos:', error);
+          toast({
+            title: "Erro",
+            description: "Não foi possível carregar os modelos de veículos.",
+            variant: "destructive",
+          });
+        } finally {
+          setLoadingModels(false);
+        }
+      }
+    };
+    
+    loadVehicleModels();
+  }, [selectedGroup, toast]);
+  
+  // Atualizar preço quando um modelo for selecionado
+  useEffect(() => {
+    if (selectedModel) {
+      setCustomPrice(selectedModel.MaiorValorCompra || 0);
+    } else {
+      setCustomPrice(null);
+    }
+  }, [selectedModel]);
+
   const handleVehicleTypeChange = (value: string) => {
     setVehicleType(value as VehicleType);
     setFoundVehicle(null);
     setSearchError(null);
+    setSelectedGroup(null);
+    setSelectedModel(null);
+    setCustomPrice(null);
   };
 
   const testDatabaseConnection = async () => {
@@ -199,10 +287,20 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       isUsed: true,
       plateNumber: foundVehicle.Placa,
       color: foundVehicle.Cor,
-      odometer: foundVehicle.OdometroAtual
+      odometer: foundVehicle.OdometroAtual,
+      tipoCombustivel: foundVehicle.TipoCombustivel,
+      groupId: foundVehicle.LetraGrupo,
     };
     
-    onSelectVehicle(mappedVehicle, {} as any);
+    const mappedGroup: VehicleGroup = {
+      id: foundVehicle.LetraGrupo,
+      name: foundVehicle.DescricaoGrupo || `Grupo ${foundVehicle.LetraGrupo}`,
+      description: `Veículos do grupo ${foundVehicle.LetraGrupo}`,
+      monthlyDepreciationRate: 0.015,
+      monthlyCostPerKm: 0.25
+    };
+    
+    onSelectVehicle(mappedVehicle, mappedGroup);
     
     setFoundVehicle(null);
     setPlateNumber('');
@@ -210,6 +308,48 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       title: "Veículo adicionado",
       description: `${foundVehicle.DescricaoModelo} (${foundVehicle.Placa}) foi adicionado à cotação.`,
     });
+  };
+  
+  const handleSelectNewVehicle = () => {
+    if (!selectedModel) {
+      toast({
+        title: "Modelo não selecionado",
+        description: "Selecione um modelo de veículo para adicionar à cotação.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const finalPrice = customPrice !== null ? customPrice : selectedModel.MaiorValorCompra;
+    
+    const mappedVehicle: Vehicle = {
+      id: `new-${selectedModel.CodigoModelo}`,
+      brand: selectedModel.Descricao.split(' ')[0],
+      model: selectedModel.Descricao.split(' ').slice(1).join(' '),
+      year: new Date().getFullYear(),
+      value: finalPrice,
+      isUsed: false,
+      groupId: selectedModel.LetraGrupo,
+    };
+    
+    const mappedGroup: VehicleGroup = {
+      id: selectedModel.LetraGrupo,
+      name: `Grupo ${selectedModel.LetraGrupo}`,
+      description: `Veículos do grupo ${selectedModel.LetraGrupo}`,
+      monthlyDepreciationRate: 0.015,
+      monthlyCostPerKm: 0.25
+    };
+    
+    onSelectVehicle(mappedVehicle, mappedGroup);
+    
+    toast({
+      title: "Veículo adicionado",
+      description: `${selectedModel.Descricao} foi adicionado à cotação.`,
+    });
+    
+    // Resetar seleção
+    setSelectedModel(null);
+    setCustomPrice(null);
   };
 
   const isVehicleSelected = (vehicleId: string) => {
@@ -427,47 +567,102 @@ DB_DATABASE=seu-banco-de-dados`}
       )}
 
       {vehicleType === 'new' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {vehicles
-            .filter(vehicle => vehicleType === 'new' ? !vehicle.isUsed : vehicle.isUsed)
-            .map((vehicle) => {
-            const group = vehicle.groupId ? getVehicleGroupById(vehicle.groupId) : null;
-            const isSelected = isVehicleSelected(vehicle.id);
-            
-            return (
-              <VehicleCard
-                key={vehicle.id}
-                vehicle={vehicle}
-                vehicleGroup={group || undefined}
-                isSelected={isSelected}
-                onClick={() => {
-                  if (!isSelected) {
-                    onSelectVehicle(vehicle, group || {} as VehicleGroup);
-                  }
-                }}
-                className={isSelected ? 'cursor-default' : ''}
+        <div className="space-y-6 border p-4 rounded-lg">
+          <h3 className="text-base font-medium">Selecionar veículo novo por grupo</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="group" className="mb-2 block">Grupo de Veículos</Label>
+              <Select 
+                onValueChange={(value) => setSelectedGroup(value)}
+                value={selectedGroup || undefined}
               >
-                {isSelected ? (
-                  <div className="absolute top-2 right-2">
-                    <Badge variant="secondary" className="flex items-center gap-1">
-                      <Check className="h-3 w-3" /> Selecionado
-                    </Badge>
-                  </div>
-                ) : (
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecione um grupo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {loadingGroups ? (
+                    <div className="flex items-center justify-center p-2">
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <span>Carregando grupos...</span>
+                    </div>
+                  ) : (
+                    vehicleGroups.map(group => (
+                      <SelectItem key={group.CodigoGrupo} value={group.Letra}>
+                        Grupo {group.Letra} - {group.Descricao}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="model" className="mb-2 block">Modelo de Veículo</Label>
+              <Select 
+                onValueChange={(value) => {
+                  const model = vehicleModels.find(m => m.CodigoModelo === value);
+                  setSelectedModel(model || null);
+                }}
+                value={selectedModel?.CodigoModelo || undefined}
+                disabled={!selectedGroup || loadingModels}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecione um modelo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {loadingModels ? (
+                    <div className="flex items-center justify-center p-2">
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <span>Carregando modelos...</span>
+                    </div>
+                  ) : (
+                    vehicleModels.map(model => (
+                      <SelectItem key={model.CodigoModelo} value={model.CodigoModelo}>
+                        {model.Descricao}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          {selectedModel && (
+            <div className="border rounded-lg p-4 bg-muted/20">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="font-medium">{selectedModel.Descricao}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Grupo {selectedModel.LetraGrupo} • {new Date().getFullYear()}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <Label htmlFor="custom-price" className="text-xs text-muted-foreground">Valor de compra (R$)</Label>
+                  <Input
+                    id="custom-price"
+                    type="number"
+                    value={customPrice || ''}
+                    onChange={(e) => setCustomPrice(parseFloat(e.target.value) || 0)}
+                    className="w-40 mt-1"
+                    placeholder="Valor de compra"
+                  />
                   <Button 
-                    size="sm" 
-                    className="absolute bottom-4 right-4"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectVehicle(vehicle, group || {} as VehicleGroup);
-                    }}
+                    onClick={handleSelectNewVehicle}
+                    className="mt-3"
+                    size="sm"
+                    disabled={!customPrice}
                   >
                     Adicionar <Plus className="ml-1 h-4 w-4" />
                   </Button>
-                )}
-              </VehicleCard>
-            );
-          })}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <p className="text-sm text-muted-foreground">
+            Selecione um grupo e depois um modelo de veículo para adicionar à cotação.
+          </p>
         </div>
       )}
     </div>

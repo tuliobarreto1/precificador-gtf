@@ -1,3 +1,4 @@
+
 // Este arquivo é usado para configurar um proxy de API local durante o desenvolvimento
 // para contornar limitações de CORS e segurança em requisições diretas do navegador
 // para o SQL Server
@@ -84,6 +85,7 @@ app.get('/api/vehicles/:plate', async (req, res) => {
           vm.Descricao AS DescricaoModelo,
           vm.CodigoGrupoVeiculo,
           vg.Letra AS LetraGrupo,
+          vg.Descricao AS DescricaoGrupo,
           v.AnoFabricacaoModelo,
           v.Cor,
           v.TipoCombustivel,
@@ -126,6 +128,143 @@ app.get('/api/vehicles/:plate', async (req, res) => {
     try {
       await sql.close();
       console.log('Conexão com o banco de dados fechada.');
+    } catch (err) {
+      console.error('Erro ao fechar conexão:', err);
+    }
+  }
+});
+
+// Endpoint para buscar todos os grupos de veículos
+app.get('/api/vehicle-groups', async (req, res) => {
+  try {
+    console.log('Buscando grupos de veículos...');
+    
+    let pool;
+    try {
+      pool = await sql.connect(config);
+      console.log('Conexão com o banco de dados estabelecida com sucesso.');
+    } catch (connError) {
+      console.error('Erro ao conectar ao banco de dados:', connError);
+      return res.status(500).json({
+        message: 'Erro ao conectar ao banco de dados',
+        error: connError.message
+      });
+    }
+    
+    const result = await pool.request().query(`
+      SELECT 
+        CodigoGrupo,
+        Letra,
+        Descricao
+      FROM 
+        VeiculosGrupos
+      ORDER BY 
+        Letra
+    `);
+    
+    console.log(`Grupos encontrados: ${result.recordset.length}`);
+    
+    res.json(result.recordset);
+  } catch (error) {
+    console.error('Erro na consulta SQL:', error);
+    res.status(500).json({
+      message: 'Erro ao buscar grupos de veículos',
+      error: error.message
+    });
+  } finally {
+    try {
+      await sql.close();
+    } catch (err) {
+      console.error('Erro ao fechar conexão:', err);
+    }
+  }
+});
+
+// Endpoint para buscar modelos de veículos por grupo
+app.get('/api/vehicle-models/:groupCode', async (req, res) => {
+  try {
+    const { groupCode } = req.params;
+    console.log(`Buscando modelos de veículos para o grupo: ${groupCode}`);
+    
+    let pool;
+    try {
+      pool = await sql.connect(config);
+    } catch (connError) {
+      console.error('Erro ao conectar ao banco de dados:', connError);
+      return res.status(500).json({
+        message: 'Erro ao conectar ao banco de dados',
+        error: connError.message
+      });
+    }
+    
+    // Verificar se o groupCode é uma letra ou código
+    const isLetter = /^[A-Za-z]$/.test(groupCode);
+    
+    let query;
+    if (isLetter) {
+      query = `
+        SELECT DISTINCT
+          vm.CodigoModelo,
+          vm.Descricao,
+          vm.CodigoGrupoVeiculo,
+          vg.Letra AS LetraGrupo,
+          (
+            SELECT MAX(v.ValorCompra) 
+            FROM Veiculos v 
+            WHERE v.CodigoModelo = vm.CodigoModelo AND v.Status = 1
+          ) AS MaiorValorCompra
+        FROM
+          VeiculosModelos vm
+        JOIN
+          VeiculosGrupos vg ON vm.CodigoGrupoVeiculo = vg.CodigoGrupo
+        WHERE
+          vg.Letra = @groupCode
+        GROUP BY
+          vm.CodigoModelo, vm.Descricao, vm.CodigoGrupoVeiculo, vg.Letra
+        ORDER BY
+          vm.Descricao
+      `;
+    } else {
+      query = `
+        SELECT DISTINCT
+          vm.CodigoModelo,
+          vm.Descricao,
+          vm.CodigoGrupoVeiculo,
+          vg.Letra AS LetraGrupo,
+          (
+            SELECT MAX(v.ValorCompra) 
+            FROM Veiculos v 
+            WHERE v.CodigoModelo = vm.CodigoModelo AND v.Status = 1
+          ) AS MaiorValorCompra
+        FROM
+          VeiculosModelos vm
+        JOIN
+          VeiculosGrupos vg ON vm.CodigoGrupoVeiculo = vg.CodigoGrupo
+        WHERE
+          vm.CodigoGrupoVeiculo = @groupCode
+        GROUP BY
+          vm.CodigoModelo, vm.Descricao, vm.CodigoGrupoVeiculo, vg.Letra
+        ORDER BY
+          vm.Descricao
+      `;
+    }
+    
+    const result = await pool.request()
+      .input('groupCode', sql.VarChar, groupCode)
+      .query(query);
+    
+    console.log(`Modelos encontrados: ${result.recordset.length}`);
+    
+    res.json(result.recordset);
+  } catch (error) {
+    console.error('Erro na consulta SQL:', error);
+    res.status(500).json({
+      message: 'Erro ao buscar modelos de veículos',
+      error: error.message
+    });
+  } finally {
+    try {
+      await sql.close();
     } catch (err) {
       console.error('Erro ao fechar conexão:', err);
     }

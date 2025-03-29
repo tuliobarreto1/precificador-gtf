@@ -1,4 +1,3 @@
-
 // Este arquivo é usado para fazer requisições à API que interage com o SQL Server
 
 export interface SqlVehicle {
@@ -10,6 +9,25 @@ export interface SqlVehicle {
   OdometroAtual: number;
   ValorCompra: number;
   LetraGrupo: string;
+  CodigoMVA?: string;
+  NumeroPassageiros?: number;
+  Status?: string;
+  DescricaoStatus?: string;
+  DataCompra?: Date;
+}
+
+export interface SqlVehicleGroup {
+  CodigoGrupo: string;
+  Letra: string;
+  Descricao: string;
+}
+
+export interface SqlVehicleModel {
+  CodigoModelo: string;
+  Descricao: string;
+  CodigoGrupoVeiculo: string;
+  LetraGrupo: string;
+  MaiorValorCompra: number;
 }
 
 /**
@@ -65,6 +83,87 @@ export async function getVehicleByPlate(plate: string): Promise<SqlVehicle | nul
     }
   } catch (error) {
     console.error('Erro ao buscar veículo:', error);
+    throw error;
+  }
+}
+
+/**
+ * Busca todos os grupos de veículos disponíveis
+ */
+export async function getVehicleGroups(): Promise<SqlVehicleGroup[]> {
+  try {
+    console.log('Iniciando busca de grupos de veículos');
+    
+    const response = await fetch('/api/vehicle-groups');
+    console.log(`Resposta recebida. Status: ${response.status}`);
+    
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (e) {
+        const errorText = await response.text();
+        console.error('Resposta de erro não é JSON válido:', errorText);
+        throw new Error(`Erro ao buscar grupos de veículos. Status: ${response.status}. Resposta: ${errorText}`);
+      }
+      
+      console.error('Erro ao buscar grupos de veículos:', errorData);
+      throw new Error(errorData.message || `Erro ao buscar grupos de veículos. Status: ${response.status}`);
+    }
+    
+    try {
+      const data = await response.json();
+      console.log(`${data.length} grupos de veículos recebidos`);
+      return data;
+    } catch (e) {
+      console.error('Erro ao analisar resposta JSON:', e);
+      const responseText = await response.text();
+      console.error('Texto da resposta:', responseText);
+      throw new Error(`Erro ao analisar resposta do servidor: ${responseText.substring(0, 200)}...`);
+    }
+  } catch (error) {
+    console.error('Erro ao buscar grupos de veículos:', error);
+    throw error;
+  }
+}
+
+/**
+ * Busca modelos de veículos disponíveis por grupo
+ * @param groupCode Código ou Letra do grupo de veículos
+ */
+export async function getVehicleModelsByGroup(groupCode: string): Promise<SqlVehicleModel[]> {
+  try {
+    console.log(`Iniciando busca de modelos de veículos para o grupo: ${groupCode}`);
+    
+    const response = await fetch(`/api/vehicle-models/${groupCode}`);
+    console.log(`Resposta recebida. Status: ${response.status}`);
+    
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (e) {
+        const errorText = await response.text();
+        console.error('Resposta de erro não é JSON válido:', errorText);
+        throw new Error(`Erro ao buscar modelos de veículos. Status: ${response.status}. Resposta: ${errorText}`);
+      }
+      
+      console.error('Erro ao buscar modelos de veículos:', errorData);
+      throw new Error(errorData.message || `Erro ao buscar modelos de veículos. Status: ${response.status}`);
+    }
+    
+    try {
+      const data = await response.json();
+      console.log(`${data.length} modelos de veículos recebidos`);
+      return data;
+    } catch (e) {
+      console.error('Erro ao analisar resposta JSON:', e);
+      const responseText = await response.text();
+      console.error('Texto da resposta:', responseText);
+      throw new Error(`Erro ao analisar resposta do servidor: ${responseText.substring(0, 200)}...`);
+    }
+  } catch (error) {
+    console.error('Erro ao buscar modelos de veículos:', error);
     throw error;
   }
 }
