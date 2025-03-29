@@ -95,7 +95,7 @@ export async function getVehicleGroups(): Promise<SqlVehicleGroup[]> {
   try {
     console.log('Iniciando busca de grupos de veículos');
     
-    // Usar a URL correta com a porta apropriada
+    // Usar a rota correta para o servidor proxy
     const apiUrl = '/api/vehicle-groups';
     console.log(`Enviando requisição para: ${apiUrl}`);
     
@@ -136,6 +136,12 @@ export async function getVehicleGroups(): Promise<SqlVehicleGroup[]> {
         try {
           const errorData = await response.json();
           errorText = errorData.message || `Erro ao buscar grupos de veículos. Status: ${response.status}`;
+          
+          // Se tem dados de fallback na resposta de erro, use-os
+          if (errorData.fallbackData && Array.isArray(errorData.fallbackData)) {
+            console.log('Usando dados de fallback recebidos da API');
+            return errorData.fallbackData;
+          }
         } catch (jsonError) {
           errorText = await response.text();
           errorText = `Erro ao buscar grupos de veículos. Status: ${response.status}. Resposta: ${errorText.substring(0, 100)}`;
@@ -151,12 +157,8 @@ export async function getVehicleGroups(): Promise<SqlVehicleGroup[]> {
         return data;
       } catch (e) {
         console.error('Erro ao analisar resposta JSON:', e);
-        // Tentar recuperar o texto da resposta para diagnóstico
-        const responseText = await response.text();
-        console.error('Texto da resposta:', responseText);
-        
-        // Usar dados padrão em caso de erro de parsing
-        console.log('Usando dados padrão devido ao erro na análise da resposta');
+        // Não tente ler o corpo da resposta novamente se já foi consumido
+        console.error('Usando dados padrão devido ao erro na análise da resposta');
         return [
           { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
           { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },

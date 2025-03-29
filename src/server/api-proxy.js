@@ -1,4 +1,3 @@
-
 // Este arquivo é usado para configurar um proxy de API local durante o desenvolvimento
 // para contornar limitações de CORS e segurança em requisições diretas do navegador
 // para o SQL Server
@@ -166,7 +165,7 @@ app.get('/api/vehicle-groups', async (req, res) => {
     }
     
     console.log('Executando consulta SQL para buscar grupos de veículos...');
-    // Tentativa com try-catch para a execução da consulta
+    
     try {
       const result = await pool.request().query(`
         SELECT 
@@ -215,7 +214,6 @@ app.get('/api/vehicle-groups', async (req, res) => {
     }
   }
 });
-
 
 // Endpoint para buscar modelos de veículos por grupo
 app.get('/api/vehicle-models/:groupCode', async (req, res) => {
