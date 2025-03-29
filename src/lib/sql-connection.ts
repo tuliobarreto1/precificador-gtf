@@ -103,6 +103,8 @@ export async function getVehicleGroups(): Promise<SqlVehicleGroup[]> {
     console.log(`Resposta recebida. Status: ${response.status}`);
     
     if (!response.ok) {
+      console.log('Resposta não ok, status:', response.status);
+      
       // Se não obtiver conexão com a API real, retornar alguns grupos padrão para teste
       if (response.status === 404) {
         console.log('API de grupos não encontrada, usando dados padrão para teste');
@@ -116,14 +118,13 @@ export async function getVehicleGroups(): Promise<SqlVehicleGroup[]> {
         ];
       }
       
-      // Tenta obter mensagem de erro
+      // Não tente ler o corpo da resposta duas vezes
       let errorMessage;
       try {
         const errorData = await response.json();
         errorMessage = errorData.message || `Erro ao buscar grupos de veículos. Status: ${response.status}`;
-      } catch {
-        const errorText = await response.text();
-        errorMessage = `Erro ao buscar grupos de veículos. Status: ${response.status}. Resposta: ${errorText.substring(0, 200)}`;
+      } catch (jsonError) {
+        errorMessage = `Erro ao buscar grupos de veículos. Status: ${response.status}`;
       }
       
       console.error('Erro ao buscar grupos de veículos:', errorMessage);
