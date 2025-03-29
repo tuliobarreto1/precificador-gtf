@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, Car, Search, Loader2, AlertTriangle, Database, RefreshCw, Plus, Check, X, Menu } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -62,7 +61,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   const [showDiagnosticInfo, setShowDiagnosticInfo] = useState(false);
   const [diagnosticInfo, setDiagnosticInfo] = useState<any>(null);
   
-  // Novos estados para seleção de veículos por grupo
   const [vehicleGroups, setVehicleGroups] = useState<SqlVehicleGroup[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [vehicleModels, setVehicleModels] = useState<SqlVehicleModel[]>([]);
@@ -92,7 +90,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     checkConnection();
   }, []);
 
-  // Carregar grupos de veículos quando a tela iniciar
   useEffect(() => {
     const loadVehicleGroups = async () => {
       if (vehicleType === 'new') {
@@ -117,7 +114,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     loadVehicleGroups();
   }, [vehicleType, toast]);
   
-  // Carregar modelos quando um grupo for selecionado
   useEffect(() => {
     const loadVehicleModels = async () => {
       if (selectedGroup) {
@@ -143,7 +139,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     loadVehicleModels();
   }, [selectedGroup, toast]);
   
-  // Atualizar preço quando um modelo for selecionado
   useEffect(() => {
     if (selectedModel) {
       setCustomPrice(selectedModel.MaiorValorCompra || 0);
@@ -278,7 +273,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     
     console.log('Selecionando veículo encontrado:', foundVehicle);
     
-    // Aqui corrigimos as propriedades para satisfazer o tipo Vehicle
     const mappedVehicle: Vehicle = {
       id: `used-${foundVehicle.Placa}`,
       brand: foundVehicle.DescricaoModelo.split(' ')[0],
@@ -289,18 +283,18 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       plateNumber: foundVehicle.Placa,
       color: foundVehicle.Cor,
       odometer: foundVehicle.OdometroAtual,
-      fuelType: foundVehicle.TipoCombustivel, // Propriedade corrigida
+      fuelType: foundVehicle.TipoCombustivel,
       groupId: foundVehicle.LetraGrupo,
     };
     
-    // Criando um grupo padrão baseado na informação disponível
     const mappedGroup: VehicleGroup = {
       id: foundVehicle.LetraGrupo,
       name: `Grupo ${foundVehicle.LetraGrupo}`,
       description: `Veículos do grupo ${foundVehicle.LetraGrupo}`,
-      // Usamos valores default para as taxas, já que não temos esses dados do SQL Server
-      depreciation: 0.015,
-      maintenance: 0.25
+      revisionKm: 10000,
+      revisionCost: 500,
+      tireKm: 40000,
+      tireCost: 2000
     };
     
     onSelectVehicle(mappedVehicle, mappedGroup);
@@ -325,7 +319,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     
     const finalPrice = customPrice !== null ? customPrice : selectedModel.MaiorValorCompra;
     
-    // Criando um veículo com as propriedades corretas
     const mappedVehicle: Vehicle = {
       id: `new-${selectedModel.CodigoModelo}`,
       brand: selectedModel.Descricao.split(' ')[0],
@@ -336,13 +329,14 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       groupId: selectedModel.LetraGrupo,
     };
     
-    // Criando um grupo padrão
     const mappedGroup: VehicleGroup = {
       id: selectedModel.LetraGrupo,
       name: `Grupo ${selectedModel.LetraGrupo}`,
       description: `Veículos do grupo ${selectedModel.LetraGrupo}`,
-      depreciation: 0.015,
-      maintenance: 0.25
+      revisionKm: 10000,
+      revisionCost: 500,
+      tireKm: 40000,
+      tireCost: 2000
     };
     
     onSelectVehicle(mappedVehicle, mappedGroup);
@@ -352,7 +346,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       description: `${selectedModel.Descricao} foi adicionado à cotação.`,
     });
     
-    // Resetar seleção
     setSelectedModel(null);
     setCustomPrice(null);
   };
