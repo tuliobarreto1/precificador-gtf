@@ -1,3 +1,4 @@
+
 // Este arquivo é usado para fazer requisições à API que interage com o SQL Server
 
 export interface SqlVehicle {
@@ -31,6 +32,19 @@ export interface SqlVehicleModel {
 }
 
 /**
+ * Obtém a URL base da API baseada no ambiente
+ */
+function getApiBaseUrl(): string {
+  // Em desenvolvimento, a API roda na porta 3002
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:3002';
+  }
+  
+  // Em produção, a API está no mesmo domínio
+  return '';
+}
+
+/**
  * Busca um veículo pelo número da placa
  * @param plate Número da placa do veículo
  * @returns Dados do veículo ou null se não encontrado
@@ -44,8 +58,11 @@ export async function getVehicleByPlate(plate: string): Promise<SqlVehicle | nul
     console.log(`Placa formatada: ${cleanPlate}`);
     
     // Faz a requisição para a API proxy local
-    console.log(`Enviando requisição para: /api/vehicles/${cleanPlate}`);
-    const response = await fetch(`/api/vehicles/${cleanPlate}`);
+    const baseUrl = getApiBaseUrl();
+    const apiUrl = `${baseUrl}/api/vehicles/${cleanPlate}`;
+    console.log(`Enviando requisição para: ${apiUrl}`);
+    
+    const response = await fetch(apiUrl);
     console.log(`Resposta recebida. Status: ${response.status}`);
     
     // Se a resposta não for ok (status 200-299), retorne null
@@ -94,8 +111,8 @@ export async function getVehicleGroups(): Promise<SqlVehicleGroup[]> {
   try {
     console.log('Iniciando busca de grupos de veículos');
     
-    // Usar a rota correta para o servidor proxy
-    const baseUrl = window.location.port === '3000' || window.location.port === '5173' ? 'http://localhost:3002' : '';
+    // Obter a URL base da API
+    const baseUrl = getApiBaseUrl();
     const apiUrl = `${baseUrl}/api/vehicle-groups`;
     console.log(`Enviando requisição para: ${apiUrl}`);
     
@@ -207,8 +224,8 @@ export async function getVehicleModelsByGroup(groupCode: string): Promise<SqlVeh
   try {
     console.log(`Iniciando busca de modelos de veículos para o grupo: ${groupCode}`);
     
-    // Usar a URL correta com o mesmo padrão que getVehicleGroups
-    const baseUrl = window.location.port === '3000' || window.location.port === '5173' ? 'http://localhost:3002' : '';
+    // Obter a URL base da API
+    const baseUrl = getApiBaseUrl();
     const apiUrl = `${baseUrl}/api/vehicle-models/${groupCode}`;
     console.log(`Enviando requisição para: ${apiUrl}`);
     
@@ -336,8 +353,8 @@ export async function testApiConnection(): Promise<{ status: string; environment
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos de timeout
     
-    // Usar a mesma lógica de URL baseada na porta
-    const baseUrl = window.location.port === '3000' || window.location.port === '5173' ? 'http://localhost:3002' : '';
+    // Obter a URL base da API
+    const baseUrl = getApiBaseUrl();
     const apiUrl = `${baseUrl}/api/status`;
     console.log(`Enviando requisição para: ${apiUrl}`);
     
@@ -399,3 +416,4 @@ export async function testApiConnection(): Promise<{ status: string; environment
     };
   }
 }
+

@@ -1,3 +1,4 @@
+
 // Este arquivo é usado para configurar um proxy de API local durante o desenvolvimento
 // para contornar limitações de CORS e segurança em requisições diretas do navegador
 // para o SQL Server
@@ -20,7 +21,11 @@ const app = express();
 const PORT = process.env.PORT || 3002;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:8080'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
 app.use(express.json());
 
 // Configurações do banco de dados
@@ -46,7 +51,30 @@ console.log('- Usuário:', process.env.DB_USER);
 console.log('- Banco de dados:', process.env.DB_DATABASE);
 console.log('- Senha configurada:', process.env.DB_PASSWORD ? 'Sim' : 'Não');
 console.log('- Comprimento da senha:', process.env.DB_PASSWORD ? process.env.DB_PASSWORD.length : 0);
+console.log('- Porta do API Proxy:', PORT);
 console.log('=========================================');
+
+// Função auxiliar para conectar ao banco de dados
+async function connectToDatabase() {
+  console.log('Tentando conectar ao banco de dados...');
+  try {
+    const pool = await sql.connect(config);
+    console.log('Conexão com o banco de dados estabelecida com sucesso.');
+    return pool;
+  } catch (connError) {
+    console.error('Erro ao conectar ao banco de dados:', connError);
+    throw {
+      message: 'Erro ao conectar ao banco de dados',
+      error: connError.message,
+      config: {
+        server: config.server,
+        user: config.user,
+        database: config.database,
+        port: config.port
+      }
+    };
+  }
+}
 
 // Endpoint para buscar veículo por placa
 app.get('/api/vehicles/:plate', async (req, res) => {
@@ -54,24 +82,7 @@ app.get('/api/vehicles/:plate', async (req, res) => {
     const { plate } = req.params;
     console.log(`Buscando veículo com placa: ${plate}`);
     
-    console.log('Tentando conectar ao banco de dados...');
-    let pool;
-    try {
-      pool = await sql.connect(config);
-      console.log('Conexão com o banco de dados estabelecida com sucesso.');
-    } catch (connError) {
-      console.error('Erro ao conectar ao banco de dados:', connError);
-      return res.status(500).json({ 
-        message: 'Erro ao conectar ao banco de dados', 
-        error: connError.message,
-        config: {
-          server: config.server,
-          user: config.user,
-          database: config.database,
-          port: config.port
-        }
-      });
-    }
+    const pool = await connectToDatabase();
     
     console.log('Executando consulta SQL...');
     const result = await pool.request()
@@ -140,18 +151,8 @@ app.get('/api/vehicle-groups', async (req, res) => {
     
     let pool;
     try {
-      console.log('Iniciando conexão com o banco de dados para buscar grupos...');
-      console.log('Configuração utilizada:', {
-        server: config.server,
-        user: config.user,
-        database: config.database,
-        port: config.port
-      });
-      
-      pool = await sql.connect(config);
-      console.log('Conexão com o banco de dados estabelecida com sucesso para buscar grupos.');
+      pool = await connectToDatabase();
     } catch (connError) {
-      console.error('Erro ao conectar ao banco de dados para buscar grupos:', connError);
       return res.status(500).json({
         message: 'Erro ao conectar ao banco de dados',
         error: connError.message,
@@ -203,7 +204,15 @@ app.get('/api/vehicle-groups', async (req, res) => {
     res.status(500).json({
       message: 'Erro ao buscar grupos de veículos',
       error: error.message,
-      stack: error.stack
+      stack: error.stack,
+      fallbackData: [
+        { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
+        { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
+        { CodigoGrupo: "3", Letra: "C", Descricao: "Intermediário" },
+        { CodigoGrupo: "4", Letra: "D", Descricao: "Executivo" },
+        { CodigoGrupo: "5", Letra: "E", Descricao: "SUV" },
+        { CodigoGrupo: "6", Letra: "F", Descricao: "Luxo" }
+      ]
     });
   } finally {
     try {
@@ -223,11 +232,8 @@ app.get('/api/vehicle-models/:groupCode', async (req, res) => {
     
     let pool;
     try {
-      console.log('Iniciando conexão com o banco de dados para buscar modelos...');
-      pool = await sql.connect(config);
-      console.log('Conexão com o banco de dados estabelecida com sucesso para buscar modelos.');
+      pool = await connectToDatabase();
     } catch (connError) {
-      console.error('Erro ao conectar ao banco de dados para buscar modelos:', connError);
       return res.status(500).json({
         message: 'Erro ao conectar ao banco de dados',
         error: connError.message,
@@ -411,7 +417,16 @@ app.get('/api/test-connection', async (req, res) => {
   }
 });
 
+// Iniciar o servidor com informações mais detalhadas
 app.listen(PORT, () => {
   console.log(`API proxy rodando em http://localhost:${PORT}`);
+  console.log(`Pronto para aceitar requisições dos clientes`);
+  console.log(`Rotas disponíveis:`);
+  console.log(`- GET /api/status`);
+  console.log(`- GET /api/test-connection`);
+  console.log(`- GET /api/vehicles/:plate`);
+  console.log(`- GET /api/vehicle-groups`);
+  console.log(`- GET /api/vehicle-models/:groupCode`);
   console.log(`Variáveis de ambiente carregadas do arquivo: ${path.resolve(__dirname, '../../.env')}`);
 });
+
