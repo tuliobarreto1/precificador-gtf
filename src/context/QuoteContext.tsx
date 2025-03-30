@@ -885,14 +885,64 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return false;
       }
       
+      // Precisamos reconstruir os objetos completos a partir dos dados salvos
+      // Buscar o cliente pelo ID
+      const client = getClientById(quote.clientId);
+      if (!client) {
+        console.error('Cliente não encontrado:', quote.clientId);
+        return false;
+      }
+      
+      // Reconstruir os itens de veículos
+      const vehicleItems: QuoteVehicleItem[] = [];
+      for (const savedVehicle of quote.vehicles) {
+        // Buscar o veículo e o grupo pelo ID
+        const vehicle = getVehicleById(savedVehicle.vehicleId);
+        const vehicleGroup = getVehicleGroupById(savedVehicle.groupId);
+        
+        if (!vehicle || !vehicleGroup) {
+          console.error('Veículo ou grupo não encontrado:', 
+            savedVehicle.vehicleId, savedVehicle.groupId);
+          continue;
+        }
+        
+        // Adicionar ao array de itens
+        vehicleItems.push({
+          vehicle,
+          vehicleGroup,
+          params: {
+            contractMonths: quote.contractMonths,
+            monthlyKm: quote.monthlyKm,
+            operationSeverity: quote.operationSeverity || 3,
+            hasTracking: quote.hasTracking || false
+          }
+        });
+      }
+      
+      // Se não conseguiu reconstruir nenhum veículo, retornar falso
+      if (vehicleItems.length === 0) {
+        console.error('Não foi possível reconstruir nenhum veículo do orçamento');
+        return false;
+      }
+      
       // Atualizar o estado com o orçamento carregado
       setQuoteForm({
-        client: quote.client,
-        vehicles: quote.vehicles,
-        useGlobalParams: quote.useGlobalParams,
-        globalParams: quote.globalParams
+        client,
+        vehicles: vehicleItems,
+        useGlobalParams: true, // Definir como true por padrão
+        globalParams: {
+          contractMonths: quote.contractMonths,
+          monthlyKm: quote.monthlyKm,
+          operationSeverity: quote.operationSeverity || 3,
+          hasTracking: quote.hasTracking || false
+        }
       });
       
+      // Definir modo de edição
+      setIsEditMode(true);
+      setCurrentEditingQuoteId(quoteId);
+      
+      console.log('✅ Orçamento carregado com sucesso:', quote);
       return true;
     } catch (error) {
       console.error('Erro ao carregar orçamento:', error);
