@@ -28,12 +28,18 @@ interface VehicleData {
     plate_number?: string;
     color?: string;
     is_used: boolean;
+    odometer?: number;
+    group_id?: string;
   };
   monthly_value: number;
   contract_months: number;
   monthly_km: number;
   operation_severity: number;
   has_tracking: boolean;
+  depreciation_cost?: number;
+  maintenance_cost?: number;
+  extra_km_rate?: number;
+  total_cost?: number;
 }
 
 const QuoteDetail = () => {
@@ -278,7 +284,7 @@ const QuoteDetail = () => {
                     {vehicles.map((item) => (
                       <VehicleCard 
                         key={item.id} 
-                        vehicle={item.vehicle} 
+                        vehicle={item} 
                         showDetailedInfo={true}
                       >
                         <div className="mt-3 pt-3 border-t">

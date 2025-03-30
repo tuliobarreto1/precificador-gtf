@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Car, Calendar, Gauge, Tag, DollarSign, Droplet } from 'lucide-react';
@@ -230,39 +231,37 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
             )}
             
             {showDetailedInfo && (
-              <>
-                {value !== undefined && (
-                  <div className="mt-2">
-                    <p className="text-sm text-muted-foreground">Valor do veículo:</p>
-                    <p className="font-medium">
-                      R$ {Number(value).toLocaleString('pt-BR')}
-                    </p>
-                  </div>
-                )}
+              <div className="mt-2 space-y-2">
+                <div>
+                  <p className="text-sm text-muted-foreground">Valor do veículo:</p>
+                  <p className="font-medium">
+                    R$ {Number(value || 0).toLocaleString('pt-BR')}
+                  </p>
+                </div>
                 
                 {color && (
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2">
+                    <Droplet className="h-3 w-3 text-muted-foreground" />
                     <span className="text-muted-foreground">Cor:</span>
                     <span>{color}</span>
                   </div>
                 )}
                 
                 {fuelType && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <Droplet className="h-3 w-3 text-muted-foreground" />
+                  <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">Combustível:</span>
                     <span>{fuelType}</span>
                   </div>
                 )}
                 
                 {(odometer !== undefined && odometer > 0) && (
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2">
                     <Gauge className="h-3 w-3 text-muted-foreground" />
                     <span className="text-muted-foreground">Odômetro:</span>
                     <span>{odometer.toLocaleString('pt-BR')} km</span>
                   </div>
                 )}
-              </>
+              </div>
             )}
             
             {showCosts && (
