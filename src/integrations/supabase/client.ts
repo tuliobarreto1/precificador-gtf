@@ -693,6 +693,9 @@ export const getQuoteVehicles = async (quoteId: string): Promise<{ success: bool
         };
       }
       
+      // Obter o objeto de veículo com segurança de tipo
+      const vehicleObj = vehicle.vehicle as any;
+      
       // Converter o formato do banco para o formato esperado pelo VehicleCard
       return {
         id: vehicle.vehicle_id,
@@ -706,21 +709,21 @@ export const getQuoteVehicles = async (quoteId: string): Promise<{ success: bool
         extra_km_rate: vehicle.extra_km_rate || 0,
         total_cost: vehicle.total_cost || vehicle.monthly_value || 0,
         vehicle: {
-          id: vehicle.vehicle?.id,
-          brand: vehicle.vehicle?.brand || '',
-          model: vehicle.vehicle?.model || '',
-          year: vehicle.vehicle?.year || new Date().getFullYear(),
-          value: vehicle.vehicle?.value || 0,
-          plateNumber: vehicle.vehicle?.plate_number,
-          plate_number: vehicle.vehicle?.plate_number,
-          color: vehicle.vehicle?.color,
-          isUsed: vehicle.vehicle?.is_used || false,
-          is_used: vehicle.vehicle?.is_used || false,
-          odometer: vehicle.vehicle?.odometer || 0,
-          groupId: vehicle.vehicle?.group_id,
-          group_id: vehicle.vehicle?.group_id,
-          fuelType: vehicle.vehicle?.fuel_type,
-          fuel_type: vehicle.vehicle?.fuel_type
+          id: vehicleObj?.id,
+          brand: vehicleObj?.brand || '',
+          model: vehicleObj?.model || '',
+          year: vehicleObj?.year || new Date().getFullYear(),
+          value: vehicleObj?.value || 0,
+          plateNumber: vehicleObj?.plate_number,
+          plate_number: vehicleObj?.plate_number,
+          color: vehicleObj?.color,
+          isUsed: vehicleObj?.is_used || false,
+          is_used: vehicleObj?.is_used || false,
+          odometer: vehicleObj?.odometer || 0,
+          groupId: vehicleObj?.group_id,
+          group_id: vehicleObj?.group_id,
+          fuelType: vehicleObj?.fuel_type,
+          fuel_type: vehicleObj?.fuel_type
         }
       };
     });
