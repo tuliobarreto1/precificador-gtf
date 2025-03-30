@@ -120,7 +120,14 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
                   monthlyKm: 0,
                   totalCost: quote.value,
                   createdAt: quote.createdAt,
-                  createdBy: quote.createdBy,
+                  createdBy: quote.createdBy ? {
+                    id: quote.createdBy.id,
+                    name: quote.createdBy.name,
+                    role: quote.createdBy.role,
+                    email: '',
+                    status: 'active',
+                    lastLogin: ''
+                  } : undefined,
                   vehicles: [],
                   source: quote.source,
                   status: quote.status

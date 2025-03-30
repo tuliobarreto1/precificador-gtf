@@ -12,10 +12,10 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
 const Index = () => {
-  const { getSavedQuotes } = useQuote();
+  const { savedQuotes } = useQuote();
   
   // Obter orçamentos recentes (5 mais recentes)
-  const recentQuotes = getSavedQuotes()
+  const recentQuotes = savedQuotes
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5)
     .map(quote => ({
@@ -25,12 +25,12 @@ const Index = () => {
       value: quote.totalCost,
       createdAt: quote.createdAt,
       status: quote.status || 'ORCAMENTO',
-      source: 'local' as const,
+      source: quote.source || 'local',
       createdBy: quote.createdBy
     }));
   
   // Estatísticas derivadas dos orçamentos
-  const allQuotes = getSavedQuotes();
+  const allQuotes = savedQuotes;
   const totalQuotes = allQuotes.length;
   const averageContractLength = totalQuotes > 0 
     ? allQuotes.reduce((acc, q) => acc + q.contractMonths, 0) / totalQuotes 
