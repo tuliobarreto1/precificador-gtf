@@ -12,10 +12,14 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
 const Index = () => {
+  // Garantir que temos acesso ao contexto de orçamentos
   const { savedQuotes } = useQuote();
   
+  // Garantir que savedQuotes é sempre um array antes de qualquer operação
+  const safeQuotes = Array.isArray(savedQuotes) ? savedQuotes : [];
+  
   // Obter orçamentos recentes (5 mais recentes)
-  const recentQuotes = (savedQuotes || [])
+  const recentQuotes = safeQuotes
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5)
     .map(quote => ({
@@ -30,15 +34,14 @@ const Index = () => {
     }));
   
   // Estatísticas derivadas dos orçamentos
-  const allQuotes = savedQuotes || [];
-  const totalQuotes = allQuotes.length;
+  const totalQuotes = safeQuotes.length;
   const averageContractLength = totalQuotes > 0 
-    ? allQuotes.reduce((acc, q) => acc + q.contractMonths, 0) / totalQuotes 
+    ? safeQuotes.reduce((acc, q) => acc + q.contractMonths, 0) / totalQuotes 
     : 0;
   const averageMonthlyValue = totalQuotes > 0 
-    ? allQuotes.reduce((acc, q) => acc + q.totalCost, 0) / totalQuotes 
+    ? safeQuotes.reduce((acc, q) => acc + q.totalCost, 0) / totalQuotes 
     : 0;
-  const activeQuotes = allQuotes.filter(q => q.status !== 'CONCLUIDO').length;
+  const activeQuotes = safeQuotes.filter(q => q.status !== 'CONCLUIDO').length;
 
   return (
     <MainLayout>

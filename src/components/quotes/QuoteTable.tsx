@@ -52,6 +52,9 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
   const { canEditQuote, canDeleteQuote, deleteQuote } = useQuote();
   const { toast } = useToast();
 
+  // Garantir que quotes é sempre um array
+  const safeQuotes = Array.isArray(quotes) ? quotes : [];
+
   const handleDeleteClick = (quoteId: string) => {
     setQuoteToDelete(quoteId);
     setDeleteDialogOpen(true);
@@ -100,26 +103,26 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {quotes.length === 0 ? (
+            {safeQuotes.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                   Nenhum orçamento encontrado
                 </TableCell>
               </TableRow>
             ) : (
-              quotes.map((quote) => {
-                // Conversão de QuoteItem para um formato compatível com as funções canEditQuote e canDeleteQuote
+              safeQuotes.map((quote) => {
+                // Converter o objeto quote para um formato compatível com as funções canEditQuote e canDeleteQuote
                 const quoteForPermissionCheck = {
                   id: quote.id,
                   clientId: '',
-                  clientName: quote.clientName,
+                  clientName: quote.clientName || '',
                   vehicleId: '',
                   vehicleBrand: '',
                   vehicleModel: '',
                   contractMonths: 0,
                   monthlyKm: 0,
-                  totalCost: quote.value,
-                  createdAt: quote.createdAt,
+                  totalCost: quote.value || 0,
+                  createdAt: quote.createdAt || '',
                   createdBy: quote.createdBy ? {
                     id: quote.createdBy.id,
                     name: quote.createdBy.name,
@@ -129,8 +132,8 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
                     lastLogin: ''
                   } : undefined,
                   vehicles: [],
-                  source: quote.source,
-                  status: quote.status
+                  source: quote.source || 'local',
+                  status: quote.status || 'ORCAMENTO'
                 };
                 
                 const canEdit = canEditQuote(quoteForPermissionCheck);
@@ -151,7 +154,7 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
                       R$ {Number(quote.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell>
-                      <StatusBadge status={quote.status as QuoteStatusFlow} size="sm" />
+                      <StatusBadge status={(quote.status || 'ORCAMENTO') as QuoteStatusFlow} size="sm" />
                     </TableCell>
                     <TableCell>
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
