@@ -113,7 +113,6 @@ export const getVehicleGroupsMap = async (): Promise<Record<string, { revisionCo
       
       cachedVehicleGroups = groupsMap;
       lastVehicleGroupsFetch = now;
-      console.log("Grupos de veículos carregados para cálculos:", cachedVehicleGroups);
       return { ...cachedVehicleGroups };
     }
   } catch (error) {
@@ -124,11 +123,7 @@ export const getVehicleGroupsMap = async (): Promise<Record<string, { revisionCo
   return {
     'A': { revisionCost: 300, revisionInterval: 10000, tireCost: 1200, tireInterval: 40000 },
     'B': { revisionCost: 350, revisionInterval: 15000, tireCost: 1400, tireInterval: 45000 },
-    'C': { revisionCost: 400, revisionInterval: 20000, tireCost: 1600, tireInterval: 50000 },
-    'D': { revisionCost: 450, revisionInterval: 15000, tireCost: 1800, tireInterval: 45000 },
-    'E': { revisionCost: 500, revisionInterval: 10000, tireCost: 2200, tireInterval: 40000 },
-    'F': { revisionCost: 600, revisionInterval: 10000, tireCost: 2500, tireInterval: 35000 },
-    'E+': { revisionCost: 550, revisionInterval: 10000, tireCost: 2300, tireInterval: 40000 }
+    'C': { revisionCost: 400, revisionInterval: 20000, tireCost: 1600, tireInterval: 50000 }
   };
 };
 
@@ -140,11 +135,7 @@ export const getVehicleGroupsMapSync = (): Record<string, { revisionCost: number
   return {
     'A': { revisionCost: 300, revisionInterval: 10000, tireCost: 1200, tireInterval: 40000 },
     'B': { revisionCost: 350, revisionInterval: 15000, tireCost: 1400, tireInterval: 45000 },
-    'C': { revisionCost: 400, revisionInterval: 20000, tireCost: 1600, tireInterval: 50000 },
-    'D': { revisionCost: 450, revisionInterval: 15000, tireCost: 1800, tireInterval: 45000 },
-    'E': { revisionCost: 500, revisionInterval: 10000, tireCost: 2200, tireInterval: 40000 },
-    'F': { revisionCost: 600, revisionInterval: 10000, tireCost: 2500, tireInterval: 35000 },
-    'E+': { revisionCost: 550, revisionInterval: 10000, tireCost: 2300, tireInterval: 40000 }
+    'C': { revisionCost: 400, revisionInterval: 20000, tireCost: 1600, tireInterval: 50000 }
   };
 };
 
@@ -205,26 +196,19 @@ export const calculateDepreciationSync = (params: DepreciationParams): number =>
 export const calculateMaintenance = async (params: MaintenanceParams): Promise<number> => {
   const { vehicleGroup, contractMonths, monthlyKm, hasTracking } = params;
   
-  console.log(`Calculando manutenção para grupo: ${vehicleGroup}, contrato: ${contractMonths} meses, km mensal: ${monthlyKm}`);
-  
   // Buscar grupos de veículos e parâmetros globais do banco de dados
   const [groupCosts, globalParams] = await Promise.all([
     getVehicleGroupsMap(),
     getGlobalParams()
   ]);
   
-  console.log("Grupos disponíveis para cálculo:", Object.keys(groupCosts));
-  
   // Default to group A if not found
   const costs = groupCosts[vehicleGroup] || groupCosts['A'];
-  console.log(`Custos do grupo ${vehicleGroup}:`, costs);
   
   // Calculate number of revisions and tire changes over contract
   const totalKm = monthlyKm * contractMonths;
   const revisions = Math.max(1, Math.ceil(totalKm / costs.revisionInterval));
   const tireChanges = Math.max(0, Math.ceil(totalKm / costs.tireInterval));
-  
-  console.log(`Total KM no período: ${totalKm}, Revisões: ${revisions}, Trocas de pneus: ${tireChanges}`);
   
   // Calculate monthly maintenance cost
   const totalMaintenanceCost = (costs.revisionCost * revisions) + (costs.tireCost * tireChanges);
@@ -232,8 +216,6 @@ export const calculateMaintenance = async (params: MaintenanceParams): Promise<n
   
   // Add tracking cost if selected (using global param)
   const trackingCost = hasTracking ? globalParams.trackingCost : 0;
-  
-  console.log(`Custo mensal de manutenção: ${monthlyMaintenanceCost}, Custo de rastreamento: ${trackingCost}`);
   
   return monthlyMaintenanceCost + trackingCost;
 };

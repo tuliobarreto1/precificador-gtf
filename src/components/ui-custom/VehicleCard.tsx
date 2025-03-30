@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Car, Calendar, Gauge, Tag, DollarSign, Droplet } from 'lucide-react';
@@ -177,8 +178,6 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
   const fuelType = getFuelType(vehicle);
   
   const costs = getVehicleCosts(vehicle);
-  
-  console.log("Custos calculados:", costs);
   
   return (
     <div 
