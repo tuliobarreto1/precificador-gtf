@@ -128,9 +128,16 @@ export const useQuotes = () => {
       // Usar o primeiro veículo para exibição na lista
       const firstVehicle = quote.vehicles[0];
       
+      // Verificar se o veículo tem informações completas
       if (firstVehicle.vehicle) {
         return { 
           name: `${firstVehicle.vehicle.brand} ${firstVehicle.vehicle.model}`, 
+          value: firstVehicle.monthly_value || quote.total_value || 0
+        };
+      } else if (firstVehicle.brand && firstVehicle.model) {
+        // Caso o veículo não tenha o objeto vehicle aninhado, mas tenha informações diretas
+        return {
+          name: `${firstVehicle.brand} ${firstVehicle.model}`,
           value: firstVehicle.monthly_value || quote.total_value || 0
         };
       } else {

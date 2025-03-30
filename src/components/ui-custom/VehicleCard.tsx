@@ -39,78 +39,113 @@ interface VehicleCardProps {
 }
 
 const getPlateNumber = (vehicle: any): string | undefined => {
+  // Se o veículo tem uma propriedade vehicle, obtenha o plate_number daí
   if (vehicle.vehicle) {
     return vehicle.vehicle.plateNumber || vehicle.vehicle.plate_number;
   }
   
+  // Caso contrário, tente obter diretamente
   return vehicle.plateNumber || vehicle.plate_number;
 };
 
 const getBrand = (vehicle: any): string => {
+  // Se o veículo tem uma propriedade vehicle, obtenha a brand daí
   if (vehicle.vehicle) {
     return vehicle.vehicle.brand || 'Marca não especificada';
   }
+  
+  // Caso contrário, tente obter diretamente
   return vehicle.brand || 'Marca não especificada';
 };
 
 const getModel = (vehicle: any): string => {
+  // Se o veículo tem uma propriedade vehicle, obtenha o model daí
   if (vehicle.vehicle) {
     return vehicle.vehicle.model || 'Modelo não especificado';
   }
+  
+  // Caso contrário, tente obter diretamente
   return vehicle.model || 'Modelo não especificado';
 };
 
 const getYear = (vehicle: any): number => {
+  // Se o veículo tem uma propriedade vehicle, obtenha o year daí
   if (vehicle.vehicle) {
     return vehicle.vehicle.year || new Date().getFullYear();
   }
+  
+  // Caso contrário, tente obter diretamente
   return vehicle.year || new Date().getFullYear();
 };
 
 const getColor = (vehicle: any): string | undefined => {
+  // Se o veículo tem uma propriedade vehicle, obtenha a color daí
   if (vehicle.vehicle) {
     return vehicle.vehicle.color;
   }
+  
+  // Caso contrário, tente obter diretamente
   return vehicle.color;
 };
 
 const getValue = (vehicle: any): number | undefined => {
+  // Se o veículo tem monthly_value, use-o
   if (vehicle.monthly_value !== undefined) {
     return vehicle.monthly_value;
   }
   
+  // Se o veículo tem uma propriedade vehicle, obtenha o value daí
   if (vehicle.vehicle) {
     return vehicle.vehicle.value;
   }
   
+  // Caso contrário, tente obter diretamente
   return vehicle.value;
 };
 
 const getOdometer = (vehicle: any): number | undefined => {
+  // Se o veículo tem uma propriedade vehicle, obtenha o odometer daí
   if (vehicle.vehicle) {
     return vehicle.vehicle.odometer;
   }
+  
+  // Caso contrário, tente obter diretamente
   return vehicle.odometer;
 };
 
 const getFuelType = (vehicle: any): string | undefined => {
+  // Se o veículo tem uma propriedade vehicle, obtenha o fuelType daí
   if (vehicle.vehicle) {
     return vehicle.vehicle.fuelType || vehicle.vehicle.fuel_type;
   }
+  
+  // Caso contrário, tente obter diretamente
   return vehicle.fuelType || vehicle.fuel_type || vehicle.tipoCombustivel;
 };
 
 const getIsUsed = (vehicle: any): boolean => {
+  // Se o veículo tem uma propriedade vehicle, obtenha o isUsed daí
   if (vehicle.vehicle) {
     return vehicle.vehicle.isUsed || vehicle.vehicle.is_used || false;
   }
+  
+  // Caso contrário, tente obter diretamente
+  // Verifica se tem placa - veículos com placa são considerados usados
+  if (getPlateNumber(vehicle)) {
+    return true;
+  }
+  
+  // Verifica o valor explícito do campo isUsed/is_used
   return vehicle.isUsed || vehicle.is_used || false;
 };
 
 const getGroupId = (vehicle: any): string | undefined => {
+  // Se o veículo tem uma propriedade vehicle, obtenha o groupId daí
   if (vehicle.vehicle) {
     return vehicle.vehicle.groupId || vehicle.vehicle.group_id;
   }
+  
+  // Caso contrário, tente obter diretamente
   return vehicle.groupId || vehicle.group_id;
 };
 
@@ -208,6 +243,12 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
                   <span className="text-muted-foreground">•</span>
                   <span>{plateNumber}</span>
                 </>
+              )}
+              
+              {!plateNumber && !isUsed && (
+                <span className="bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full text-xs">
+                  Novo
+                </span>
               )}
               
               {isUsed && (
