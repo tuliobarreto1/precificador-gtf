@@ -327,19 +327,45 @@ export async function saveQuoteToSupabase(quote: any) {
           
           console.log("Dados formatados do veículo para inserção:", vehicleData);
           
-          const { data: newVehicle, error: vehicleError } = await supabase
-            .from('vehicles')
-            .insert(vehicleData)
-            .select()
-            .single();
-            
-          if (vehicleError) {
-            console.error("Erro ao criar veículo:", vehicleError);
+          // CORREÇÃO: Adicionando logging mais detalhado para depuração
+          console.log("Tentativa de inserção de novo veículo na tabela vehicles:", JSON.stringify(vehicleData, null, 2));
+          
+          try {
+            const { data: newVehicle, error: vehicleError } = await supabase
+              .from('vehicles')
+              .insert(vehicleData)
+              .select()
+              .single();
+              
+            if (vehicleError) {
+              console.error("Erro ao criar veículo:", vehicleError);
+              // Tentativa alternativa de inserção sem usar single()
+              const { data: fallbackInsert, error: fallbackError } = await supabase
+                .from('vehicles')
+                .insert(vehicleData)
+                .select();
+                
+              if (fallbackError) {
+                console.error("Erro na tentativa alternativa de criar veículo:", fallbackError);
+                continue;
+              } else if (fallbackInsert && Array.isArray(fallbackInsert) && fallbackInsert.length > 0) {
+                vehicleId = fallbackInsert[0].id;
+                console.log("Veículo criado com sucesso na tentativa alternativa. ID:", vehicleId);
+              } else {
+                console.error("Nenhum veículo retornado após inserção alternativa");
+                continue;
+              }
+            } else if (newVehicle) {
+              vehicleId = newVehicle.id;
+              console.log("Novo veículo criado com ID:", vehicleId);
+            } else {
+              console.error("Nenhum veículo retornado após inserção");
+              continue;
+            }
+          } catch (insertError) {
+            console.error("Exceção ao tentar inserir veículo:", insertError);
             continue;
           }
-          
-          vehicleId = newVehicle.id;
-          console.log("Novo veículo criado com ID:", vehicleId);
         }
         
         // Obter parâmetros do veículo
