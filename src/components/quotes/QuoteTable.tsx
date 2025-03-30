@@ -49,11 +49,17 @@ interface QuoteTableProps {
 const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [quoteToDelete, setQuoteToDelete] = useState<string | null>(null);
-  const { canEditQuote, canDeleteQuote, deleteQuote } = useQuote();
+  const quoteContext = useQuote();
+  const { canEditQuote, canDeleteQuote, deleteQuote } = quoteContext || {};
   const { toast } = useToast();
 
   // Garantir que quotes é sempre um array
   const safeQuotes = Array.isArray(quotes) ? quotes : [];
+
+  // Verificar se as funções necessárias estão disponíveis
+  const isQuoteContextAvailable = typeof canEditQuote === 'function' && 
+                                 typeof canDeleteQuote === 'function' &&
+                                 typeof deleteQuote === 'function';
 
   const handleDeleteClick = (quoteId: string) => {
     setQuoteToDelete(quoteId);
@@ -61,7 +67,7 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
   };
 
   const confirmDelete = () => {
-    if (quoteToDelete) {
+    if (quoteToDelete && isQuoteContextAvailable) {
       const success = deleteQuote(quoteToDelete);
       if (success) {
         toast({
@@ -136,8 +142,15 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
                   status: quote.status || 'ORCAMENTO'
                 };
                 
-                const canEdit = canEditQuote(quoteForPermissionCheck);
-                const canDelete = canDeleteQuote(quoteForPermissionCheck);
+                // Valores padrão caso o contexto não esteja disponível
+                let canEdit = false;
+                let canDelete = false;
+                
+                if (isQuoteContextAvailable) {
+                  canEdit = canEditQuote(quoteForPermissionCheck);
+                  canDelete = canDeleteQuote(quoteForPermissionCheck);
+                }
+                
                 const isEditable = quote.status === 'ORCAMENTO' || quote.status === 'draft';
                 
                 return (

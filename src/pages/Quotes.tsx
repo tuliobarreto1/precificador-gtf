@@ -18,6 +18,9 @@ const Quotes = () => {
     handleRefresh 
   } = useQuotes();
 
+  // Garantir que allQuotes é sempre um array
+  const safeQuotes = Array.isArray(allQuotes) ? allQuotes : [];
+
   return (
     <MainLayout>
       <div className="py-8">
@@ -35,11 +38,11 @@ const Quotes = () => {
             onRefresh={handleRefresh} 
           />
           
-          {allQuotes.length === 0 ? (
+          {safeQuotes.length === 0 ? (
             <QuoteEmpty />
           ) : (
             <QuoteTable 
-              quotes={allQuotes} 
+              quotes={safeQuotes} 
               onRefresh={handleRefresh}
             />
           )}

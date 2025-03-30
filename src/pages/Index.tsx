@@ -13,7 +13,8 @@ import { Button } from '@/components/ui/button';
 
 const Index = () => {
   // Garantir que temos acesso ao contexto de orçamentos
-  const { savedQuotes } = useQuote();
+  const quoteContext = useQuote();
+  const { savedQuotes } = quoteContext || {};
   
   // Garantir que savedQuotes é sempre um array antes de qualquer operação
   const safeQuotes = Array.isArray(savedQuotes) ? savedQuotes : [];
