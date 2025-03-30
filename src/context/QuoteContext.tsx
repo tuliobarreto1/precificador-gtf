@@ -533,7 +533,10 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     
     if (vehicles.length === 0) return null;
     
-    const vehicleResults: VehicleQuoteResult[] = vehicles.map(item => {
+    // Precisamos garantir que não retornamos Promises para os cálculos
+    const vehicleResults: VehicleQuoteResult[] = [];
+    
+    for (const item of vehicles) {
       // Usar parâmetros globais ou específicos do veículo
       const params = useGlobalParams ? globalParams : (item.params || globalParams);
       
@@ -551,15 +554,16 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         hasTracking: params.hasTracking,
       };
       
+      // Calculamos de forma síncrona para evitar Promises
       const result = calculateLeaseCost(depreciationParams, maintenanceParams);
       const extraKmRate = calculateExtraKmRate(item.vehicle.value);
       
-      return {
+      vehicleResults.push({
         vehicleId: item.vehicle.id,
         ...result,
         extraKmRate
-      };
-    });
+      });
+    }
     
     // Calcular custo total de todos os veículos
     const totalCost = vehicleResults.reduce((sum, result) => sum + result.totalCost, 0);

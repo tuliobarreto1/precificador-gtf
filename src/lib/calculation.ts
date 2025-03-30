@@ -1,4 +1,3 @@
-
 // Calculation service for lease pricing
 import { supabase } from '@/integrations/supabase/client';
 import { fetchCalculationParams, fetchVehicleGroups } from './settings';
@@ -248,9 +247,12 @@ export const calculateMaintenanceSync = (params: MaintenanceParams): number => {
 };
 
 // Calculate extra km rate
-export const calculateExtraKmRate = async (vehicleValue: number): Promise<number> => {
-  const globalParams = await getGlobalParams();
-  return vehicleValue * globalParams.extraKmPercentage;
+export const calculateExtraKmRate = (vehicleValue: number): number => {
+  // Percentual do valor do veículo para cobrar por KM extra
+  // Este valor poderia vir do banco de dados ou configurações
+  // Por exemplo, 0,00075% do valor do veículo por KM
+  const DEFAULT_RATE = 0.0000075;
+  return vehicleValue * DEFAULT_RATE;
 };
 
 // Versão síncrona para retrocompatibilidade

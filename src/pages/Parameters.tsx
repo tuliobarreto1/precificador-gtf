@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import MainLayout from '@/components/layout/MainLayout';
@@ -25,7 +24,6 @@ import {
   CalculationParams
 } from '@/lib/settings';
 
-// Form schema for vehicle groups
 const vehicleGroupSchema = z.object({
   code: z.string().min(1, { message: 'Código do grupo é obrigatório' }).max(3, { message: 'Código deve ter no máximo 3 caracteres' }),
   name: z.string().min(1, { message: 'Nome do grupo é obrigatório' }),
@@ -36,7 +34,6 @@ const vehicleGroupSchema = z.object({
   tire_cost: z.number().min(1, { message: 'Custo de troca de pneus é obrigatório' }),
 });
 
-// Form schema for global params
 const globalParamsSchema = z.object({
   tracking_cost: z.number().min(0, { message: 'Valor de rastreamento deve ser positivo' }),
   depreciation_base: z.number().min(0.001, { message: 'Taxa base de depreciação deve ser positiva' }),
@@ -61,7 +58,6 @@ const Parameters = () => {
   const [calculationParamsId, setCalculationParamsId] = useState<string | undefined>();
   const { toast } = useToast();
 
-  // Form for vehicle groups
   const groupForm = useForm<VehicleGroupFormValues>({
     resolver: zodResolver(vehicleGroupSchema),
     defaultValues: {
@@ -75,7 +71,6 @@ const Parameters = () => {
     },
   });
 
-  // Form for global parameters
   const globalForm = useForm<GlobalFormValues>({
     resolver: zodResolver(globalParamsSchema),
     defaultValues: {
@@ -87,13 +82,11 @@ const Parameters = () => {
     },
   });
 
-  // Carregar dados ao iniciar
   useEffect(() => {
     loadVehicleGroups();
     loadCalculationParams();
   }, []);
 
-  // Função para carregar grupos de veículos
   const loadVehicleGroups = async () => {
     setLoadingGroups(true);
     try {
@@ -111,7 +104,6 @@ const Parameters = () => {
     }
   };
 
-  // Função para carregar parâmetros de cálculo
   const loadCalculationParams = async () => {
     setLoadingParams(true);
     try {
@@ -140,7 +132,6 @@ const Parameters = () => {
     }
   };
 
-  // Handle opening the dialog for adding/editing
   const handleAddGroup = () => {
     groupForm.reset({
       code: '',
@@ -199,14 +190,12 @@ const Parameters = () => {
     }
   };
 
-  // Form submission for vehicle groups
   const onSubmitGroup = async (values: VehicleGroupFormValues) => {
     setSavingGroup(true);
     try {
       if (editMode) {
         const success = await updateVehicleGroup(currentGroupId, values);
         if (success) {
-          // Atualizar a lista de grupos
           setGroups(prev => prev.map(group => 
             group.id === currentGroupId ? { ...group, ...values } : group
           ));
@@ -224,7 +213,6 @@ const Parameters = () => {
           });
         }
       } else {
-        // Verificar se o código já existe
         if (groups.some(group => group.code === values.code)) {
           toast({
             title: 'Erro',
@@ -234,7 +222,17 @@ const Parameters = () => {
           return;
         }
         
-        const newGroup = await addVehicleGroup(values);
+        const newGroupData: Omit<VehicleGroup, 'id' | 'created_at' | 'updated_at'> = {
+          code: values.code,
+          name: values.name,
+          description: values.description || '',
+          revision_km: values.revision_km,
+          revision_cost: values.revision_cost,
+          tire_km: values.tire_km,
+          tire_cost: values.tire_cost
+        };
+        
+        const newGroup = await addVehicleGroup(newGroupData);
         if (newGroup) {
           setGroups(prev => [...prev, newGroup]);
           toast({
@@ -262,13 +260,16 @@ const Parameters = () => {
     }
   };
 
-  // Form submission for global parameters
   const onGlobalParamsSubmit = async (values: GlobalFormValues) => {
     setSavingParams(true);
     try {
       const params: CalculationParams = {
-        ...values,
-        id: calculationParamsId
+        id: calculationParamsId,
+        tracking_cost: values.tracking_cost,
+        depreciation_base: values.depreciation_base,
+        depreciation_mileage_multiplier: values.depreciation_mileage_multiplier,
+        depreciation_severity_multiplier: values.depreciation_severity_multiplier,
+        extra_km_percentage: values.extra_km_percentage
       };
       
       const success = await updateCalculationParams(params);
@@ -279,7 +280,6 @@ const Parameters = () => {
           description: "Parâmetros globais atualizados com sucesso",
         });
         
-        // Recarregar os parâmetros para ter certeza de que temos os dados mais recentes
         loadCalculationParams();
       } else {
         toast({
@@ -507,7 +507,6 @@ const Parameters = () => {
         </Tabs>
       </div>
       
-      {/* Dialog for adding/editing vehicle groups */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
