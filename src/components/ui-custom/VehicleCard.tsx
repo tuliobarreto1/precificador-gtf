@@ -173,7 +173,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
   const isUsed = getIsUsed(vehicle);
   const group = vehicleGroup?.id || getGroupId(vehicle) || '?';
   const color = getColor(vehicle);
-  const value = getValue(vehicle);
+  const value = vehicle.vehicle?.value || vehicle.value;
   const odometer = getOdometer(vehicle);
   const fuelType = getFuelType(vehicle);
   

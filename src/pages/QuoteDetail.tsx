@@ -30,6 +30,7 @@ interface VehicleData {
     is_used: boolean;
     odometer?: number;
     group_id?: string;
+    fuel_type?: string;
   };
   monthly_value: number;
   contract_months: number;
@@ -286,6 +287,7 @@ const QuoteDetail = () => {
                         key={item.id} 
                         vehicle={item} 
                         showDetailedInfo={true}
+                        showCosts={true}
                       >
                         <div className="mt-3 pt-3 border-t">
                           <div className="flex justify-between">
