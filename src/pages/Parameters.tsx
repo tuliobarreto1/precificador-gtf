@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
@@ -13,52 +13,65 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { vehicleGroups, VehicleGroup } from '@/lib/mock-data';
-import { getGlobalParams, updateGlobalParams, GlobalParams } from '@/lib/calculation';
+import { Loader2, AlertCircle } from 'lucide-react';
+import { 
+  fetchVehicleGroups, 
+  addVehicleGroup, 
+  updateVehicleGroup, 
+  deleteVehicleGroup,
+  fetchCalculationParams,
+  updateCalculationParams,
+  VehicleGroup,
+  CalculationParams
+} from '@/lib/settings';
 
 // Form schema for vehicle groups
 const vehicleGroupSchema = z.object({
-  id: z.string().min(1, { message: 'ID do grupo é obrigatório' }),
+  code: z.string().min(1, { message: 'Código do grupo é obrigatório' }).max(3, { message: 'Código deve ter no máximo 3 caracteres' }),
   name: z.string().min(1, { message: 'Nome do grupo é obrigatório' }),
   description: z.string().optional(),
-  revisionKm: z.number().min(1, { message: 'Intervalo de revisão é obrigatório' }),
-  revisionCost: z.number().min(1, { message: 'Custo de revisão é obrigatório' }),
-  tireKm: z.number().min(1, { message: 'Intervalo de troca de pneus é obrigatório' }),
-  tireCost: z.number().min(1, { message: 'Custo de troca de pneus é obrigatório' }),
+  revision_km: z.number().min(1, { message: 'Intervalo de revisão é obrigatório' }),
+  revision_cost: z.number().min(1, { message: 'Custo de revisão é obrigatório' }),
+  tire_km: z.number().min(1, { message: 'Intervalo de troca de pneus é obrigatório' }),
+  tire_cost: z.number().min(1, { message: 'Custo de troca de pneus é obrigatório' }),
 });
 
 // Form schema for global params
 const globalParamsSchema = z.object({
-  trackingCost: z.number().min(0, { message: 'Valor de rastreamento deve ser positivo' }),
-  depreciationBase: z.number().min(0.001, { message: 'Taxa base de depreciação deve ser positiva' }),
-  depreciationMileageMultiplier: z.number().min(0, { message: 'Multiplicador de quilometragem deve ser positivo' }),
-  depreciationSeverityMultiplier: z.number().min(0, { message: 'Multiplicador de severidade deve ser positivo' }),
-  extraKmPercentage: z.number().min(0, { message: 'Percentual de km extra deve ser positivo' }),
+  tracking_cost: z.number().min(0, { message: 'Valor de rastreamento deve ser positivo' }),
+  depreciation_base: z.number().min(0.001, { message: 'Taxa base de depreciação deve ser positiva' }),
+  depreciation_mileage_multiplier: z.number().min(0, { message: 'Multiplicador de quilometragem deve ser positivo' }),
+  depreciation_severity_multiplier: z.number().min(0, { message: 'Multiplicador de severidade deve ser positivo' }),
+  extra_km_percentage: z.number().min(0, { message: 'Percentual de km extra deve ser positivo' }),
 });
 
-type FormValues = z.infer<typeof vehicleGroupSchema>;
+type VehicleGroupFormValues = z.infer<typeof vehicleGroupSchema>;
 type GlobalFormValues = z.infer<typeof globalParamsSchema>;
 
 const Parameters = () => {
-  const [groups, setGroups] = useState<VehicleGroup[]>(vehicleGroups);
+  const [groups, setGroups] = useState<VehicleGroup[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentGroupId, setCurrentGroupId] = useState('');
   const [currentTab, setCurrentTab] = useState<string>('vehicle-groups');
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [loadingParams, setLoadingParams] = useState(false);
+  const [savingGroup, setSavingGroup] = useState(false);
+  const [savingParams, setSavingParams] = useState(false);
+  const [calculationParamsId, setCalculationParamsId] = useState<string | undefined>();
   const { toast } = useToast();
-  const globalParams = getGlobalParams();
 
   // Form for vehicle groups
-  const form = useForm<FormValues>({
+  const groupForm = useForm<VehicleGroupFormValues>({
     resolver: zodResolver(vehicleGroupSchema),
     defaultValues: {
-      id: '',
+      code: '',
       name: '',
       description: '',
-      revisionKm: 10000,
-      revisionCost: 300,
-      tireKm: 40000,
-      tireCost: 1200,
+      revision_km: 10000,
+      revision_cost: 300,
+      tire_km: 40000,
+      tire_cost: 1200,
     },
   });
 
@@ -66,24 +79,77 @@ const Parameters = () => {
   const globalForm = useForm<GlobalFormValues>({
     resolver: zodResolver(globalParamsSchema),
     defaultValues: {
-      trackingCost: globalParams.trackingCost,
-      depreciationBase: globalParams.depreciationRates.base,
-      depreciationMileageMultiplier: globalParams.depreciationRates.mileageMultiplier,
-      depreciationSeverityMultiplier: globalParams.depreciationRates.severityMultiplier,
-      extraKmPercentage: globalParams.extraKmPercentage,
+      tracking_cost: 50,
+      depreciation_base: 0.015,
+      depreciation_mileage_multiplier: 0.05,
+      depreciation_severity_multiplier: 0.1,
+      extra_km_percentage: 0.0000075,
     },
   });
 
+  // Carregar dados ao iniciar
+  useEffect(() => {
+    loadVehicleGroups();
+    loadCalculationParams();
+  }, []);
+
+  // Função para carregar grupos de veículos
+  const loadVehicleGroups = async () => {
+    setLoadingGroups(true);
+    try {
+      const data = await fetchVehicleGroups();
+      setGroups(data);
+    } catch (error) {
+      console.error('Erro ao carregar grupos de veículos:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar os grupos de veículos',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingGroups(false);
+    }
+  };
+
+  // Função para carregar parâmetros de cálculo
+  const loadCalculationParams = async () => {
+    setLoadingParams(true);
+    try {
+      const params = await fetchCalculationParams();
+      
+      if (params) {
+        setCalculationParamsId(params.id);
+        
+        globalForm.reset({
+          tracking_cost: params.tracking_cost,
+          depreciation_base: params.depreciation_base,
+          depreciation_mileage_multiplier: params.depreciation_mileage_multiplier,
+          depreciation_severity_multiplier: params.depreciation_severity_multiplier,
+          extra_km_percentage: params.extra_km_percentage,
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar parâmetros de cálculo:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar os parâmetros de cálculo',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingParams(false);
+    }
+  };
+
   // Handle opening the dialog for adding/editing
   const handleAddGroup = () => {
-    form.reset({
-      id: '',
+    groupForm.reset({
+      code: '',
       name: '',
       description: '',
-      revisionKm: 10000,
-      revisionCost: 300,
-      tireKm: 40000,
-      tireCost: 1200,
+      revision_km: 10000,
+      revision_cost: 300,
+      tire_km: 40000,
+      tire_cost: 1200,
     });
     setEditMode(false);
     setIsDialogOpen(true);
@@ -92,14 +158,14 @@ const Parameters = () => {
   const handleEditGroup = (groupId: string) => {
     const group = groups.find(g => g.id === groupId);
     if (group) {
-      form.reset({
-        id: group.id,
+      groupForm.reset({
+        code: group.code,
         name: group.name,
         description: group.description,
-        revisionKm: group.revisionKm,
-        revisionCost: group.revisionCost,
-        tireKm: group.tireKm,
-        tireCost: group.tireCost,
+        revision_km: group.revision_km,
+        revision_cost: group.revision_cost,
+        tire_km: group.tire_km,
+        tire_cost: group.tire_cost,
       });
       setCurrentGroupId(groupId);
       setEditMode(true);
@@ -107,78 +173,131 @@ const Parameters = () => {
     }
   };
 
-  const handleDeleteGroup = (groupId: string) => {
-    setGroups(groups.filter(group => group.id !== groupId));
-    toast({
-      title: "Sucesso",
-      description: "Grupo de veículo excluído com sucesso",
-    });
+  const handleDeleteGroup = async (groupId: string) => {
+    try {
+      const success = await deleteVehicleGroup(groupId);
+      if (success) {
+        setGroups(groups.filter(group => group.id !== groupId));
+        toast({
+          title: "Sucesso",
+          description: "Grupo de veículo excluído com sucesso",
+        });
+      } else {
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir o grupo de veículo",
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao excluir grupo:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao excluir o grupo de veículo",
+        variant: 'destructive',
+      });
+    }
   };
 
   // Form submission for vehicle groups
-  const onSubmit = (values: FormValues) => {
-    if (editMode) {
-      setGroups(groups.map(group => 
-        group.id === currentGroupId ? {
-          id: values.id,
-          name: values.name,
-          description: values.description || '', // Ensure description is not undefined
-          revisionKm: values.revisionKm,
-          revisionCost: values.revisionCost,
-          tireKm: values.tireKm,
-          tireCost: values.tireCost,
-        } : group
-      ));
-      toast({
-        title: "Sucesso",
-        description: "Grupo de veículo atualizado com sucesso",
-      });
-    } else {
-      // Check if the ID is already in use
-      if (groups.some(group => group.id === values.id)) {
-        toast({
-          title: 'Erro ao adicionar grupo',
-          description: 'Este ID já está em uso. Por favor, escolha outro ID para o grupo.',
-          variant: 'destructive',
-        });
-        return;
+  const onSubmitGroup = async (values: VehicleGroupFormValues) => {
+    setSavingGroup(true);
+    try {
+      if (editMode) {
+        const success = await updateVehicleGroup(currentGroupId, values);
+        if (success) {
+          // Atualizar a lista de grupos
+          setGroups(prev => prev.map(group => 
+            group.id === currentGroupId ? { ...group, ...values } : group
+          ));
+          
+          toast({
+            title: "Sucesso",
+            description: "Grupo de veículo atualizado com sucesso",
+          });
+          setIsDialogOpen(false);
+        } else {
+          toast({
+            title: "Erro",
+            description: "Não foi possível atualizar o grupo de veículo",
+            variant: 'destructive',
+          });
+        }
+      } else {
+        // Verificar se o código já existe
+        if (groups.some(group => group.code === values.code)) {
+          toast({
+            title: 'Erro',
+            description: 'Este código já está em uso. Por favor, escolha outro código para o grupo.',
+            variant: 'destructive',
+          });
+          return;
+        }
+        
+        const newGroup = await addVehicleGroup(values);
+        if (newGroup) {
+          setGroups(prev => [...prev, newGroup]);
+          toast({
+            title: "Sucesso",
+            description: "Grupo de veículo adicionado com sucesso",
+          });
+          setIsDialogOpen(false);
+        } else {
+          toast({
+            title: "Erro",
+            description: "Não foi possível adicionar o grupo de veículo",
+            variant: 'destructive',
+          });
+        }
       }
-      
-      // Ensure the new vehicle group has all required properties
-      const newGroup: VehicleGroup = {
-        id: values.id,
-        name: values.name,
-        description: values.description || '', // Ensure description is not undefined
-        revisionKm: values.revisionKm,
-        revisionCost: values.revisionCost,
-        tireKm: values.tireKm,
-        tireCost: values.tireCost,
-      };
-      
-      setGroups([...groups, newGroup]);
+    } catch (error) {
+      console.error('Erro ao salvar grupo de veículo:', error);
       toast({
-        title: "Sucesso",
-        description: "Grupo de veículo adicionado com sucesso",
+        title: "Erro",
+        description: "Ocorreu um erro ao salvar o grupo de veículo",
+        variant: 'destructive',
       });
+    } finally {
+      setSavingGroup(false);
     }
-    setIsDialogOpen(false);
   };
 
   // Form submission for global parameters
-  const onGlobalParamsSubmit = (values: GlobalFormValues) => {
-    updateGlobalParams({
-      trackingCost: values.trackingCost,
-      depreciationRates: {
-        base: values.depreciationBase,
-        mileageMultiplier: values.depreciationMileageMultiplier,
-        severityMultiplier: values.depreciationSeverityMultiplier,
-      },
-      extraKmPercentage: values.extraKmPercentage,
-    });
-    toast({
-      title: "Sucesso",
-      description: "Parâmetros globais atualizados com sucesso",
-    });
+  const onGlobalParamsSubmit = async (values: GlobalFormValues) => {
+    setSavingParams(true);
+    try {
+      const params: CalculationParams = {
+        ...values,
+        id: calculationParamsId
+      };
+      
+      const success = await updateCalculationParams(params);
+      
+      if (success) {
+        toast({
+          title: "Sucesso",
+          description: "Parâmetros globais atualizados com sucesso",
+        });
+        
+        // Recarregar os parâmetros para ter certeza de que temos os dados mais recentes
+        loadCalculationParams();
+      } else {
+        toast({
+          title: "Erro",
+          description: "Não foi possível atualizar os parâmetros globais",
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao salvar parâmetros globais:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao salvar os parâmetros globais",
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingParams(false);
+    }
   };
 
   return (
@@ -198,27 +317,43 @@ const Parameters = () => {
           <TabsContent value="vehicle-groups" className="space-y-4">
             <Card>
               <CardHeader title="Grupos de Veículos" />
-              <div className="space-y-2">
-                {groups.map((group) => (
-                  <div key={group.id} className="flex justify-between items-center p-4 border rounded-md">
-                    <div>
-                      <h3 className="font-medium">{group.name} ({group.id})</h3>
-                      <p className="text-sm text-muted-foreground">{group.description}</p>
-                      <div className="mt-1 flex space-x-4 text-xs text-muted-foreground">
-                        <span>Revisão: {group.revisionKm.toLocaleString()} km (R$ {group.revisionCost})</span>
-                        <span>Pneus: {group.tireKm.toLocaleString()} km (R$ {group.tireCost})</span>
+              {loadingGroups ? (
+                <div className="flex justify-center items-center p-6">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+                  <span>Carregando grupos de veículos...</span>
+                </div>
+              ) : groups.length === 0 ? (
+                <div className="p-6 text-center">
+                  <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground mb-2" />
+                  <h3 className="text-lg font-medium">Nenhum grupo encontrado</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Você ainda não possui grupos de veículos cadastrados.
+                  </p>
+                  <Button onClick={handleAddGroup}>Adicionar Grupo</Button>
+                </div>
+              ) : (
+                <div className="space-y-2 p-4">
+                  {groups.map((group) => (
+                    <div key={group.id} className="flex justify-between items-center p-4 border rounded-md">
+                      <div>
+                        <h3 className="font-medium">{group.name} ({group.code})</h3>
+                        <p className="text-sm text-muted-foreground">{group.description}</p>
+                        <div className="mt-1 flex space-x-4 text-xs text-muted-foreground">
+                          <span>Revisão: {group.revision_km.toLocaleString()} km (R$ {group.revision_cost})</span>
+                          <span>Pneus: {group.tire_km.toLocaleString()} km (R$ {group.tire_cost})</span>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button variant="outline" size="sm" onClick={() => handleEditGroup(group.id)}>Editar</Button>
+                        <Button variant="destructive" size="sm" onClick={() => handleDeleteGroup(group.id)}>Excluir</Button>
                       </div>
                     </div>
-                    <div className="flex space-x-2">
-                      <Button variant="outline" size="sm" onClick={() => handleEditGroup(group.id)}>Editar</Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDeleteGroup(group.id)}>Excluir</Button>
-                    </div>
+                  ))}
+                  <div className="flex justify-end p-4">
+                    <Button onClick={handleAddGroup}>Adicionar Grupo</Button>
                   </div>
-                ))}
-              </div>
-              <div className="flex justify-end p-4">
-                <Button onClick={handleAddGroup}>Adicionar Grupo</Button>
-              </div>
+                </div>
+              )}
             </Card>
           </TabsContent>
           
@@ -226,84 +361,40 @@ const Parameters = () => {
             <Card>
               <CardHeader title="Parâmetros Globais de Cálculo" />
               <div className="p-4">
-                <Form {...globalForm}>
-                  <form onSubmit={globalForm.handleSubmit(onGlobalParamsSubmit)} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <FormField
-                        control={globalForm.control}
-                        name="trackingCost"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Custo Mensal de Rastreamento (R$)</FormLabel>
-                            <FormControl>
-                              <Input type="number" step="0.01" min="0" {...field} 
-                                onChange={e => field.onChange(Number(e.target.value))} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={globalForm.control}
-                        name="extraKmPercentage"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Percentual do Valor do Veículo para KM Extra (%)</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="number" 
-                                step="0.0000001" 
-                                min="0" 
-                                {...field} 
-                                onChange={e => field.onChange(Number(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                            <p className="text-xs text-muted-foreground">
-                              Ex: 0.0000075 = 0,00075% do valor do veículo será cobrado por quilômetro excedente
-                            </p>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    
-                    <div className="border-t pt-6">
-                      <h3 className="font-medium mb-4">Taxas de Depreciação</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {loadingParams ? (
+                  <div className="flex justify-center items-center p-6">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+                    <span>Carregando parâmetros globais...</span>
+                  </div>
+                ) : (
+                  <Form {...globalForm}>
+                    <form onSubmit={globalForm.handleSubmit(onGlobalParamsSubmit)} className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <FormField
                           control={globalForm.control}
-                          name="depreciationBase"
+                          name="tracking_cost"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Taxa Base</FormLabel>
+                              <FormLabel>Custo Mensal de Rastreamento (R$)</FormLabel>
                               <FormControl>
-                                <Input 
-                                  type="number" 
-                                  step="0.001" 
-                                  min="0.001" 
-                                  {...field} 
-                                  onChange={e => field.onChange(Number(e.target.value))}
-                                />
+                                <Input type="number" step="0.01" min="0" {...field} 
+                                  onChange={e => field.onChange(Number(e.target.value))} />
                               </FormControl>
                               <FormMessage />
-                              <p className="text-xs text-muted-foreground">
-                                Taxa base de depreciação mensal
-                              </p>
                             </FormItem>
                           )}
                         />
                         
                         <FormField
                           control={globalForm.control}
-                          name="depreciationMileageMultiplier"
+                          name="extra_km_percentage"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Multiplicador de Quilometragem</FormLabel>
+                              <FormLabel>Percentual do Valor do Veículo para KM Extra</FormLabel>
                               <FormControl>
                                 <Input 
                                   type="number" 
-                                  step="0.01" 
+                                  step="0.0000001" 
                                   min="0" 
                                   {...field} 
                                   onChange={e => field.onChange(Number(e.target.value))}
@@ -311,42 +402,105 @@ const Parameters = () => {
                               </FormControl>
                               <FormMessage />
                               <p className="text-xs text-muted-foreground">
-                                Impacto da quilometragem na depreciação
-                              </p>
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={globalForm.control}
-                          name="depreciationSeverityMultiplier"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Multiplicador de Severidade</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  step="0.01" 
-                                  min="0" 
-                                  {...field} 
-                                  onChange={e => field.onChange(Number(e.target.value))}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                              <p className="text-xs text-muted-foreground">
-                                Impacto da severidade de uso na depreciação
+                                Ex: 0.0000075 = 0,00075% do valor do veículo será cobrado por quilômetro excedente
                               </p>
                             </FormItem>
                           )}
                         />
                       </div>
-                    </div>
-                    
-                    <div className="flex justify-end">
-                      <Button type="submit">Salvar Parâmetros</Button>
-                    </div>
-                  </form>
-                </Form>
+                      
+                      <div className="border-t pt-6">
+                        <h3 className="font-medium mb-4">Taxas de Depreciação</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <FormField
+                            control={globalForm.control}
+                            name="depreciation_base"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Taxa Base</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    step="0.001" 
+                                    min="0.001" 
+                                    {...field} 
+                                    onChange={e => field.onChange(Number(e.target.value))}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                                <p className="text-xs text-muted-foreground">
+                                  Taxa base de depreciação mensal
+                                </p>
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={globalForm.control}
+                            name="depreciation_mileage_multiplier"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Multiplicador de Quilometragem</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    step="0.01" 
+                                    min="0" 
+                                    {...field} 
+                                    onChange={e => field.onChange(Number(e.target.value))}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                                <p className="text-xs text-muted-foreground">
+                                  Impacto da quilometragem na depreciação
+                                </p>
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={globalForm.control}
+                            name="depreciation_severity_multiplier"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Multiplicador de Severidade</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    step="0.01" 
+                                    min="0" 
+                                    {...field} 
+                                    onChange={e => field.onChange(Number(e.target.value))}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                                <p className="text-xs text-muted-foreground">
+                                  Impacto da severidade de uso na depreciação
+                                </p>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-end">
+                        <Button 
+                          type="submit" 
+                          disabled={savingParams}
+                        >
+                          {savingParams ? (
+                            <>
+                              <Loader2 size={16} className="mr-2 animate-spin" />
+                              Salvando Parâmetros...
+                            </>
+                          ) : (
+                            <>Salvar Parâmetros</>
+                          )}
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                )}
               </div>
             </Card>
           </TabsContent>
@@ -360,16 +514,16 @@ const Parameters = () => {
             <DialogTitle>{editMode ? 'Editar Grupo de Veículo' : 'Adicionar Grupo de Veículo'}</DialogTitle>
           </DialogHeader>
           
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <Form {...groupForm}>
+            <form onSubmit={groupForm.handleSubmit(onSubmitGroup)} className="space-y-4">
               <FormField
-                control={form.control}
-                name="id"
+                control={groupForm.control}
+                name="code"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>ID do Grupo</FormLabel>
+                    <FormLabel>Código do Grupo</FormLabel>
                     <FormControl>
-                      <Input {...field} disabled={editMode} />
+                      <Input {...field} disabled={editMode} maxLength={3} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -377,7 +531,7 @@ const Parameters = () => {
               />
               
               <FormField
-                control={form.control}
+                control={groupForm.control}
                 name="name"
                 render={({ field }) => (
                   <FormItem>
@@ -391,7 +545,7 @@ const Parameters = () => {
               />
               
               <FormField
-                control={form.control}
+                control={groupForm.control}
                 name="description"
                 render={({ field }) => (
                   <FormItem>
@@ -406,8 +560,8 @@ const Parameters = () => {
               
               <div className="grid grid-cols-2 gap-4">
                 <FormField
-                  control={form.control}
-                  name="revisionKm"
+                  control={groupForm.control}
+                  name="revision_km"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Intervalo de Revisão (km)</FormLabel>
@@ -425,8 +579,8 @@ const Parameters = () => {
                 />
                 
                 <FormField
-                  control={form.control}
-                  name="revisionCost"
+                  control={groupForm.control}
+                  name="revision_cost"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Custo de Revisão (R$)</FormLabel>
@@ -447,8 +601,8 @@ const Parameters = () => {
               
               <div className="grid grid-cols-2 gap-4">
                 <FormField
-                  control={form.control}
-                  name="tireKm"
+                  control={groupForm.control}
+                  name="tire_km"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Intervalo de Troca de Pneus (km)</FormLabel>
@@ -466,8 +620,8 @@ const Parameters = () => {
                 />
                 
                 <FormField
-                  control={form.control}
-                  name="tireCost"
+                  control={groupForm.control}
+                  name="tire_cost"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Custo de Troca de Pneus (R$)</FormLabel>
@@ -487,11 +641,26 @@ const Parameters = () => {
               </div>
               
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsDialogOpen(false)}
+                  disabled={savingGroup}
+                >
                   Cancelar
                 </Button>
-                <Button type="submit">
-                  {editMode ? 'Salvar Alterações' : 'Adicionar Grupo'}
+                <Button 
+                  type="submit"
+                  disabled={savingGroup}
+                >
+                  {savingGroup ? (
+                    <>
+                      <Loader2 size={16} className="mr-2 animate-spin" />
+                      {editMode ? 'Salvando...' : 'Adicionando...'}
+                    </>
+                  ) : (
+                    editMode ? 'Salvar Alterações' : 'Adicionar Grupo'
+                  )}
                 </Button>
               </DialogFooter>
             </form>

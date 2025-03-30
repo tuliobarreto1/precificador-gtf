@@ -9,6 +9,39 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      calculation_params: {
+        Row: {
+          created_at: string
+          depreciation_base: number
+          depreciation_mileage_multiplier: number
+          depreciation_severity_multiplier: number
+          extra_km_percentage: number
+          id: string
+          tracking_cost: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          depreciation_base: number
+          depreciation_mileage_multiplier: number
+          depreciation_severity_multiplier: number
+          extra_km_percentage: number
+          id?: string
+          tracking_cost: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          depreciation_base?: number
+          depreciation_mileage_multiplier?: number
+          depreciation_severity_multiplier?: number
+          extra_km_percentage?: number
+          id?: string
+          tracking_cost?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           address: string | null
@@ -251,6 +284,33 @@ export type Database = {
           },
         ]
       }
+      system_settings: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       system_users: {
         Row: {
           created_at: string
@@ -283,6 +343,45 @@ export type Database = {
           password?: string
           role?: string
           status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      vehicle_groups: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          revision_cost: number
+          revision_km: number
+          tire_cost: number
+          tire_km: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          revision_cost: number
+          revision_km: number
+          tire_cost: number
+          tire_km: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          revision_cost?: number
+          revision_km?: number
+          tire_cost?: number
+          tire_km?: number
           updated_at?: string
         }
         Relationships: []

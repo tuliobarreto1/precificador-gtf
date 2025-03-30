@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FileText, List, Settings, PieChart, TrendingUp, Clock, Calendar } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
@@ -10,14 +10,37 @@ import QuoteTable from '@/components/quotes/QuoteTable';
 import { useQuote } from '@/context/QuoteContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { fetchSystemSettings } from '@/lib/settings';
 
 const Index = () => {
+  const [companyName, setCompanyName] = useState('Car Lease Master');
+  const [loading, setLoading] = useState(true);
+  
   // Garantir que temos acesso ao contexto de orçamentos
   const quoteContext = useQuote();
   const { savedQuotes } = quoteContext || {};
   
   // Garantir que savedQuotes é sempre um array antes de qualquer operação
   const safeQuotes = Array.isArray(savedQuotes) ? savedQuotes : [];
+  
+  // Carregar configurações básicas
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settings = await fetchSystemSettings();
+        const companyNameSetting = settings.find(s => s.key === 'company_name');
+        if (companyNameSetting) {
+          setCompanyName(companyNameSetting.value);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar configurações:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadSettings();
+  }, []);
   
   // Obter orçamentos recentes (5 mais recentes)
   const recentQuotes = safeQuotes
@@ -48,7 +71,7 @@ const Index = () => {
     <MainLayout>
       <div className="pt-8">
         <PageTitle 
-          title="Bem-vindo ao Precificador GTF" 
+          title={`Bem-vindo ao ${companyName}`} 
           subtitle="Gerencie seus orçamentos de locação de veículos" 
         />
         
@@ -113,7 +136,7 @@ const Index = () => {
                   { name: 'Novo Orçamento', icon: <FileText size={18} />, path: '/orcamento/novo' },
                   { name: 'Lista de Orçamentos', icon: <List size={18} />, path: '/orcamentos' },
                   { name: 'Configurações', icon: <Settings size={18} />, path: '/configuracoes' },
-                  { name: 'Resultados', icon: <PieChart size={18} />, path: '/resultados' },
+                  { name: 'Parâmetros', icon: <PieChart size={18} />, path: '/parametros' },
                 ].map((item) => (
                   <Link key={item.name} to={item.path}>
                     <div className={cn(
