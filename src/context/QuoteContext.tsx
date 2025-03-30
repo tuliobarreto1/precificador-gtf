@@ -172,7 +172,7 @@ const initialQuoteForm: QuoteFormData = {
 const QuoteContext = createContext<QuoteContextType>({} as QuoteContextType);
 
 // Provider component
-export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
   const [quoteForm, setQuoteForm] = useState<QuoteFormData>(initialQuoteForm);
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
   const [user, setUser] = useState<User>(defaultUser);
@@ -291,112 +291,123 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     console.log('Verificando se o veículo está no banco de dados:', vehicle);
     
-    // Se for um veículo com placa, verificar se ele já existe no banco de dados
-    if (vehicle.plateNumber) {
-      supabase
-        .from('vehicles')
-        .select()
-        .eq('plate_number', vehicle.plateNumber)
-        .maybeSingle()
-        .then(({ data, error }) => {
-          if (error) {
-            console.error('Erro ao verificar veículo no banco de dados:', error);
-            return;
-          }
-          
-          if (!data) {
-            console.log('Veículo não encontrado no banco de dados, vamos inserir:', vehicle);
-            
-            // O veículo não existe no banco de dados, vamos inseri-lo
-            supabase
-              .from('vehicles')
-              .insert({
-                brand: vehicle.brand,
-                model: vehicle.model,
-                year: vehicle.year,
-                value: vehicle.value,
-                is_used: true, // Explicitamente definir como usado
-                plate_number: vehicle.plateNumber,
-                color: vehicle.color || '',
-                odometer: vehicle.odometer || 0,
-                group_id: vehicle.groupId || vehicleGroup.id
-              })
-              .then(({ error: insertError }) => {
-                if (insertError) {
-                  console.error('Erro ao inserir veículo no banco de dados:', insertError);
-                } else {
-                  console.log('Veículo inserido com sucesso no banco de dados!');
-                }
-              });
-          } else {
-            console.log('Veículo já existe no banco de dados, verificando atualização:', data);
-            
-            // O veículo existe, mas vamos atualizar se necessrio
-            const updates: any = {};
-            let needsUpdate = false;
-            
-            // Verificar cada campo para ver se precisa ser atualizado
-            if (vehicle.brand && vehicle.brand !== data.brand) {
-              updates.brand = vehicle.brand;
-              needsUpdate = true;
-            }
-            
-            if (vehicle.model && vehicle.model !== data.model) {
-              updates.model = vehicle.model;
-              needsUpdate = true;
-            }
-            
-            if (vehicle.year && vehicle.year !== data.year) {
-              updates.year = vehicle.year;
-              needsUpdate = true;
-            }
-            
-            if (vehicle.value && vehicle.value !== data.value) {
-              updates.value = vehicle.value;
-              needsUpdate = true;
-            }
-            
-            if (vehicle.color && vehicle.color !== data.color) {
-              updates.color = vehicle.color;
-              needsUpdate = true;
-            }
-            
-            if (vehicle.odometer && vehicle.odometer !== data.odometer) {
-              updates.odometer = vehicle.odometer;
-              needsUpdate = true;
-            }
-            
-            if (vehicle.groupId && vehicle.groupId !== data.group_id) {
-              updates.group_id = vehicle.groupId;
-              needsUpdate = true;
-            }
-            
-            // Certifique-se de que is_used é true para veículos com placa
-            if (data.is_used !== true) {
-              updates.is_used = true;
-              needsUpdate = true;
-            }
-            
-            if (needsUpdate) {
-              console.log('Atualizando veículo no banco de dados com:', updates);
-              
-              supabase
-                .from('vehicles')
-                .update(updates)
-                .eq('id', data.id)
-                .then(({ error: updateError }) => {
-                  if (updateError) {
-                    console.error('Erro ao atualizar veículo no banco de dados:', updateError);
-                  } else {
-                    console.log('Veículo atualizado com sucesso no banco de dados!');
-                  }
-                });
+    // Verificar se o veículo existe no banco de dados usando placa (se tiver) ou combinação de marca/modelo
+    const checkVehicle = () => {
+      if (vehicle.plateNumber) {
+        return supabase
+          .from('vehicles')
+          .select()
+          .eq('plate_number', vehicle.plateNumber)
+          .maybeSingle();
+      } else {
+        return supabase
+          .from('vehicles')
+          .select()
+          .eq('brand', vehicle.brand)
+          .eq('model', vehicle.model)
+          .eq('year', vehicle.year)
+          .maybeSingle();
+      }
+    };
+
+    checkVehicle().then(({ data, error }) => {
+      if (error) {
+        console.error('Erro ao verificar veículo no banco de dados:', error);
+        return;
+      }
+      
+      if (!data) {
+        console.log('Veículo não encontrado no banco de dados, vamos inserir:', vehicle);
+        
+        // O veículo não existe no banco de dados, vamos inseri-lo
+        supabase
+          .from('vehicles')
+          .insert({
+            brand: vehicle.brand,
+            model: vehicle.model,
+            year: vehicle.year,
+            value: vehicle.value,
+            is_used: vehicle.plateNumber ? true : false, // Define como usado apenas se tiver placa
+            plate_number: vehicle.plateNumber || null,
+            color: vehicle.color || '',
+            odometer: vehicle.odometer || 0,
+            group_id: vehicle.groupId || vehicleGroup.id
+          })
+          .then(({ error: insertError }) => {
+            if (insertError) {
+              console.error('Erro ao inserir veículo no banco de dados:', insertError);
             } else {
-              console.log('Nenhuma atualização necessária para o veículo.');
+              console.log('Veículo inserido com sucesso no banco de dados!');
             }
-          }
-        });
-    }
+          });
+      } else {
+        console.log('Veículo já existe no banco de dados, verificando atualização:', data);
+        
+        // O veículo existe, mas vamos atualizar se necessário
+        const updates: any = {};
+        let needsUpdate = false;
+        
+        // Verificar cada campo para ver se precisa ser atualizado
+        if (vehicle.brand && vehicle.brand !== data.brand) {
+          updates.brand = vehicle.brand;
+          needsUpdate = true;
+        }
+        
+        if (vehicle.model && vehicle.model !== data.model) {
+          updates.model = vehicle.model;
+          needsUpdate = true;
+        }
+        
+        if (vehicle.year && vehicle.year !== data.year) {
+          updates.year = vehicle.year;
+          needsUpdate = true;
+        }
+        
+        if (vehicle.value && vehicle.value !== data.value) {
+          updates.value = vehicle.value;
+          needsUpdate = true;
+        }
+        
+        if (vehicle.color && vehicle.color !== data.color) {
+          updates.color = vehicle.color;
+          needsUpdate = true;
+        }
+        
+        if (vehicle.odometer && vehicle.odometer !== data.odometer) {
+          updates.odometer = vehicle.odometer;
+          needsUpdate = true;
+        }
+        
+        if (vehicle.groupId && vehicle.groupId !== data.group_id) {
+          updates.group_id = vehicle.groupId;
+          needsUpdate = true;
+        }
+        
+        // Certifique-se de que is_used é true para veículos com placa
+        if (data.is_used !== true && vehicle.plateNumber) {
+          updates.is_used = true;
+          needsUpdate = true;
+        }
+        
+        if (needsUpdate) {
+          console.log('Atualizando veículo no banco de dados com:', updates);
+          
+          supabase
+            .from('vehicles')
+            .update(updates)
+            .eq('id', data.id)
+            .then(({ error: updateError }) => {
+              if (updateError) {
+                console.error('Erro ao atualizar veículo no banco de dados:', updateError);
+              } else {
+                console.log('Veículo atualizado com sucesso no banco de dados!');
+              }
+            });
+        } else {
+          console.log('Nenhuma atualização necessária para o veículo.');
+        }
+      }
+    });
   };
 
   const removeVehicle = (vehicleId: string) => {
