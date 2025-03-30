@@ -173,7 +173,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
   const isUsed = getIsUsed(vehicle);
   const group = vehicleGroup?.id || getGroupId(vehicle) || '?';
   const color = getColor(vehicle);
-  const value = vehicle.vehicle?.value || vehicle.value;
+  const value = getValue(vehicle);
   const odometer = getOdometer(vehicle);
   const fuelType = getFuelType(vehicle);
   
@@ -232,12 +232,14 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
             
             {showDetailedInfo && (
               <div className="mt-2 space-y-2">
-                <div>
-                  <p className="text-sm text-muted-foreground">Valor do veículo:</p>
-                  <p className="font-medium">
-                    R$ {Number(value || 0).toLocaleString('pt-BR')}
-                  </p>
-                </div>
+                {value !== undefined && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Valor do veículo:</p>
+                    <p className="font-medium">
+                      R$ {Number(value || 0).toLocaleString('pt-BR')}
+                    </p>
+                  </div>
+                )}
                 
                 {color && (
                   <div className="flex items-center gap-2">

@@ -75,7 +75,7 @@ export const getVehicleByPlate = async (plate: string): Promise<SqlVehicle | nul
         DescricaoGrupo: `Grupo ${supabaseVehicle.group_id || 'A'}`,
         AnoFabricacaoModelo: supabaseVehicle.year.toString(),
         Cor: supabaseVehicle.color || '',
-        TipoCombustivel: '',
+        TipoCombustivel: supabaseVehicle.fuel_type || '',
         NumeroPassageiros: 5,
         OdometroAtual: supabaseVehicle.odometer || 0,
         Status: 'Ativo',
@@ -116,6 +116,7 @@ export const getVehicleByPlate = async (plate: string): Promise<SqlVehicle | nul
           plate_number: vehicle.Placa,
           color: vehicle.Cor || '',
           odometer: vehicle.OdometroAtual || 0,
+          fuel_type: vehicle.TipoCombustivel || '',
           group_id: vehicle.LetraGrupo || 'A'
         });
       
