@@ -92,6 +92,8 @@ export type SavedQuote = {
   operationSeverity?: 1 | 2 | 3 | 4 | 5 | 6;
   hasTracking?: boolean;
   trackingCost?: number;
+  status?: string;
+  source?: 'local' | 'supabase' | 'demo';
 };
 
 // Usuários do sistema (alinhados com a página de Usuários)
@@ -329,7 +331,7 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           } else {
             console.log('Veículo já existe no banco de dados, verificando atualização:', data);
             
-            // O veículo existe, mas vamos atualizar se necessário
+            // O veículo existe, mas vamos atualizar se necess��rio
             const updates: any = {};
             let needsUpdate = false;
             
@@ -654,6 +656,8 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       operationSeverity: quoteForm.globalParams.operationSeverity,
       hasTracking: quoteForm.globalParams.hasTracking,
       trackingCost: quoteResult.vehicleResults[0].trackingCost,
+      status: 'active',
+      source: 'local'
     };
 
     console.log('📝 Tentando salvar novo orçamento:', {

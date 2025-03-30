@@ -108,8 +108,26 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
               </TableRow>
             ) : (
               quotes.map((quote) => {
-                const canEdit = canEditQuote(quote);
-                const canDelete = canDeleteQuote(quote);
+                // Conversão de QuoteItem para um formato compatível com as funções canEditQuote e canDeleteQuote
+                const quoteForPermissionCheck = {
+                  id: quote.id,
+                  clientId: '',
+                  clientName: quote.clientName,
+                  vehicleId: '',
+                  vehicleBrand: '',
+                  vehicleModel: '',
+                  contractMonths: 0,
+                  monthlyKm: 0,
+                  totalCost: quote.value,
+                  createdAt: quote.createdAt,
+                  createdBy: quote.createdBy,
+                  vehicles: [],
+                  source: quote.source,
+                  status: quote.status
+                };
+                
+                const canEdit = canEditQuote(quoteForPermissionCheck);
+                const canDelete = canDeleteQuote(quoteForPermissionCheck);
                 const isEditable = quote.status === 'ORCAMENTO' || quote.status === 'draft';
                 
                 return (

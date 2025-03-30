@@ -9,6 +9,7 @@ import StatsCard from '@/components/ui-custom/StatsCard';
 import QuoteTable from '@/components/quotes/QuoteTable';
 import { useQuote } from '@/context/QuoteContext';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 const Index = () => {
   const { getSavedQuotes } = useQuote();
