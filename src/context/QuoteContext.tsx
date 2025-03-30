@@ -149,7 +149,7 @@ type QuoteContextType = {
   availableUsers: User[];
   authenticateUser: (userId: number, password?: string) => boolean;
   mockUsers: User[];
-  loadQuoteForEditing: (quoteId: string) => boolean;
+  loadQuoteForEditing: (quoteId: string) => Promise<boolean>;
   isEditMode: boolean;
   currentEditingQuoteId: string | null;
   sendQuoteByEmail: (quoteId: string, recipientEmail: string, message: string) => Promise<boolean>;
@@ -885,7 +885,7 @@ export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
   }, [savedQuotes]);
 
   // Função melhorada para carregar um orçamento para edição
-  const loadQuoteForEditing = useCallback((quoteId: string): boolean => {
+  const loadQuoteForEditing = useCallback(async (quoteId: string): Promise<boolean> => {
     console.log("⏳ Iniciando carregamento de orçamento:", quoteId);
     
     try {
@@ -906,11 +906,37 @@ export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
       
       // Reconstruir os itens de veículos
       const vehicleItems: QuoteVehicleItem[] = [];
+      
       for (const savedVehicle of quote.vehicles) {
-        // Buscar o veículo e o grupo pelo ID
-        const vehicle = getVehicleById(savedVehicle.vehicleId);
+        // Tentar buscar o veículo primeiro no mock-data
+        let vehicle = getVehicleById(savedVehicle.vehicleId);
         const vehicleGroup = getVehicleGroupById(savedVehicle.groupId);
         
+        // Se não encontrou no mock-data e tem as informações do veículo salvo
+        if (!vehicle && savedVehicle.vehicleBrand && savedVehicle.vehicleModel) {
+          // Buscar no Supabase pelo brand/model/plate
+          const { data, error } = await supabase
+            .from('vehicles')
+            .select()
+            .eq('brand', savedVehicle.vehicleBrand)
+            .eq('model', savedVehicle.vehicleModel);
+
+          if (!error && data && data.length > 0) {
+            // Converter o formato do Supabase para o formato Vehicle
+            vehicle = {
+              id: savedVehicle.vehicleId,
+              brand: data[0].brand,
+              model: data[0].model,
+              year: data[0].year,
+              value: data[0].value,
+              plateNumber: data[0].plate_number,
+              color: data[0].color,
+              odometer: data[0].odometer,
+              groupId: data[0].group_id
+            };
+          }
+        }
+
         if (!vehicle || !vehicleGroup) {
           console.error('Veículo ou grupo não encontrado:', 
             savedVehicle.vehicleId, savedVehicle.groupId);

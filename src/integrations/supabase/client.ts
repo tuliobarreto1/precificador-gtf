@@ -667,18 +667,30 @@ export const getQuoteVehicles = async (quoteId: string): Promise<{ success: bool
     
     // Processar os veículos para garantir que todos os campos necessários estejam presentes
     const processedVehicles = vehicles.map(vehicle => {
-      // Se temos um resultado de cálculo, vamos usá-lo
-      const result = {
-        depreciationCost: vehicle.depreciation_cost || 0,
-        maintenanceCost: vehicle.maintenance_cost || 0,
-        extraKmRate: vehicle.extra_km_rate || 0,
-        totalCost: vehicle.total_cost || vehicle.monthly_value || 0
-      };
-      
+      // Converter o formato do banco para o formato esperado pelo VehicleCard
       return {
-        ...vehicle,
-        result,
-        monthly_value: vehicle.monthly_value || vehicle.total_cost || 0
+        id: vehicle.vehicle_id,
+        monthly_value: vehicle.monthly_value || vehicle.total_cost || 0,
+        contract_months: vehicle.contract_months,
+        monthly_km: vehicle.monthly_km,
+        operation_severity: vehicle.operation_severity,
+        has_tracking: vehicle.has_tracking,
+        depreciation_cost: vehicle.depreciation_cost || 0,
+        maintenance_cost: vehicle.maintenance_cost || 0,
+        extra_km_rate: vehicle.extra_km_rate || 0,
+        total_cost: vehicle.total_cost || vehicle.monthly_value || 0,
+        vehicle: {
+          id: vehicle.vehicle?.id,
+          brand: vehicle.vehicle?.brand || '',
+          model: vehicle.vehicle?.model || '',
+          year: vehicle.vehicle?.year || new Date().getFullYear(),
+          value: vehicle.vehicle?.value || 0,
+          plateNumber: vehicle.vehicle?.plate_number,
+          color: vehicle.vehicle?.color,
+          is_used: vehicle.vehicle?.is_used || false,
+          odometer: vehicle.vehicle?.odometer || 0,
+          groupId: vehicle.vehicle?.group_id
+        }
       };
     });
     
