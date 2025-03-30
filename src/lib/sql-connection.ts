@@ -82,23 +82,26 @@ export const getVehicleByPlate = async (plate: string): Promise<SqlVehicle | nul
     if (supabaseVehicle && !supabaseError) {
       console.log('Veículo encontrado no Supabase:', supabaseVehicle);
       
+      // Convertemos explicitamente para o tipo SupabaseVehicle
+      const typedVehicle = supabaseVehicle as SupabaseVehicle;
+      
       // Converter o formato do Supabase para o formato SqlVehicle
       return {
         CodigoMVA: 0,
-        Placa: supabaseVehicle.plate_number,
+        Placa: typedVehicle.plate_number,
         CodigoModelo: '0',
-        DescricaoModelo: `${supabaseVehicle.brand} ${supabaseVehicle.model}`,
-        CodigoGrupoVeiculo: supabaseVehicle.group_id || 'A',
-        LetraGrupo: supabaseVehicle.group_id || 'A',
-        DescricaoGrupo: `Grupo ${supabaseVehicle.group_id || 'A'}`,
-        AnoFabricacaoModelo: supabaseVehicle.year.toString(),
-        Cor: supabaseVehicle.color || '',
-        TipoCombustivel: supabaseVehicle.fuel_type || '',
+        DescricaoModelo: `${typedVehicle.brand} ${typedVehicle.model}`,
+        CodigoGrupoVeiculo: typedVehicle.group_id || 'A',
+        LetraGrupo: typedVehicle.group_id || 'A',
+        DescricaoGrupo: `Grupo ${typedVehicle.group_id || 'A'}`,
+        AnoFabricacaoModelo: typedVehicle.year.toString(),
+        Cor: typedVehicle.color || '',
+        TipoCombustivel: typedVehicle.fuel_type || '',
         NumeroPassageiros: 5,
-        OdometroAtual: supabaseVehicle.odometer || 0,
+        OdometroAtual: typedVehicle.odometer || 0,
         Status: 'Ativo',
         DescricaoStatus: 'Veículo Ativo',
-        ValorCompra: supabaseVehicle.value || 0,
+        ValorCompra: typedVehicle.value || 0,
         DataCompra: new Date().toISOString()
       };
     }
