@@ -287,12 +287,12 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       groupId: foundVehicle.LetraGrupo || 'A',
     };
     
-    console.log('Veículo mapeado para adicionar (após correção):', mappedVehicle);
+    console.log('Veículo mapeado para adicionar:', mappedVehicle);
     
     const mappedGroup: VehicleGroup = {
       id: foundVehicle.LetraGrupo || 'A',
       name: `Grupo ${foundVehicle.LetraGrupo || 'A'}`,
-      description: `Veículos do grupo ${foundVehicle.LetraGrupo || 'A'}`,
+      description: foundVehicle.DescricaoGrupo || `Veículos do grupo ${foundVehicle.LetraGrupo || 'A'}`,
       revisionKm: 10000,
       revisionCost: 500,
       tireKm: 40000,

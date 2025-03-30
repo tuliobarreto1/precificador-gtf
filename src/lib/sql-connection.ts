@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 // Definição das interfaces
@@ -50,7 +49,7 @@ export interface SupabaseVehicle {
   updated_at: string;
   value: number;
   year: number;
-  fuel_type?: string | null; // Adicionado a propriedade fuel_type como opcional
+  fuel_type?: string | null; // Propriedade fuel_type como opcional
 }
 
 // Função para testar conexão com a API
@@ -88,7 +87,7 @@ export const getVehicleByPlate = async (plate: string): Promise<SqlVehicle | nul
       // Converter o formato do Supabase para o formato SqlVehicle
       return {
         CodigoMVA: 0,
-        Placa: typedVehicle.plate_number,
+        Placa: typedVehicle.plate_number || '',
         CodigoModelo: '0',
         DescricaoModelo: `${typedVehicle.brand} ${typedVehicle.model}`,
         CodigoGrupoVeiculo: typedVehicle.group_id || 'A',
