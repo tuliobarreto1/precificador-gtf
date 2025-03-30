@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { Vehicle, Client, VehicleGroup, getVehicleGroupById, getClientById, getVehicleById } from '@/lib/mock-data';
-import { DepreciationParams, MaintenanceParams, calculateLeaseCost, calculateExtraKmRate, calculateLeaseCostSync, calculateExtraKmRateSync } from '@/lib/calculation';
+import { DepreciationParams, MaintenanceParams, calculateDepreciation, calculateMaintenance, calculateExtraKmRate, calculateDepreciationSync, calculateMaintenanceSync, calculateExtraKmRateSync } from '@/lib/calculation';
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from '@/integrations/supabase/client';
 
@@ -313,6 +313,7 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           supabase
             .from('vehicles')
             .insert({
+              id: vehicle.id,
               brand: vehicle.brand,
               model: vehicle.model,
               year: vehicle.year,
@@ -544,7 +545,7 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         : (item.params || quoteForm.globalParams);
       
       const vehicleValue = item.vehicle.value || 0;
-      const groupId = item.vehicle.groupId || item.vehicle.group_id || 'A';
+      const groupId = item.vehicle.groupId || item.vehicleGroup.id;
       
       console.log(`Calculando orçamento para veículo ${item.vehicle.brand} ${item.vehicle.model}`, {
         valor: vehicleValue,

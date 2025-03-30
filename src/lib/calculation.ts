@@ -2,14 +2,14 @@
 import { supabase } from '@/integrations/supabase/client';
 
 // Interfaces
-interface DepreciationParams {
+export interface DepreciationParams {
   vehicleValue: number;
   contractMonths: number;
   monthlyKm: number;
   operationSeverity: 1|2|3|4|5|6;
 }
 
-interface MaintenanceParams {
+export interface MaintenanceParams {
   vehicleGroup: string;
   contractMonths: number;
   monthlyKm: number;
@@ -34,7 +34,7 @@ let vehicleGroups: Record<string, {
 }> = {};
 
 // Inicializar parâmetros de cálculo a partir do banco de dados
-async function initCalculationParams() {
+export async function initCalculationParams() {
   try {
     // Buscar parâmetros de cálculo
     const { data: calculationParams, error: paramsError } = await supabase
