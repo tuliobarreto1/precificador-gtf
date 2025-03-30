@@ -15,6 +15,11 @@ import { getQuoteByIdFromSupabase, getQuoteVehicles } from '@/integrations/supab
 import { useToast } from '@/hooks/use-toast';
 import { QuoteStatusFlow } from '@/lib/status-flow';
 import { fetchStatusHistory } from '@/lib/status-api';
+import { 
+  calculateDepreciationSync, 
+  calculateMaintenanceSync, 
+  calculateExtraKmRateSync 
+} from '@/lib/calculation';
 
 // Interface para os dados do veículo
 interface VehicleData {
@@ -52,6 +57,48 @@ const QuoteDetail = () => {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Função para calcular os custos para cada veículo
+  const calculateCosts = (vehicles: VehicleData[]): VehicleData[] => {
+    return vehicles.map(vehicle => {
+      const vehicleValue = vehicle.vehicle.value || 0;
+      const contractMonths = vehicle.contract_months || 12;
+      const monthlyKm = vehicle.monthly_km || 2000;
+      const operationSeverity = vehicle.operation_severity || 3;
+      const hasTracking = vehicle.has_tracking || false;
+      const vehicleGroup = vehicle.vehicle.group_id || 'A';
+      
+      // Calcular depreciação
+      const depreciationCost = calculateDepreciationSync({
+        vehicleValue,
+        contractMonths,
+        monthlyKm,
+        operationSeverity: operationSeverity as 1|2|3|4|5|6
+      });
+      
+      // Calcular manutenção
+      const maintenanceCost = calculateMaintenanceSync({
+        vehicleGroup,
+        contractMonths,
+        monthlyKm,
+        hasTracking
+      });
+      
+      // Calcular taxa de km excedente
+      const extraKmRate = calculateExtraKmRateSync(vehicleValue);
+      
+      // Calcular custo total
+      const totalCost = depreciationCost + maintenanceCost;
+      
+      return {
+        ...vehicle,
+        depreciation_cost: depreciationCost,
+        maintenance_cost: maintenanceCost,
+        extra_km_rate: extraKmRate,
+        total_cost: totalCost
+      };
+    });
+  };
+
   useEffect(() => {
     const fetchQuoteData = async () => {
       if (!id) return;
@@ -70,7 +117,10 @@ const QuoteDetail = () => {
           
           if (vehiclesSuccess && vehiclesData && Array.isArray(vehiclesData)) {
             console.log("Veículos do orçamento carregados:", vehiclesData);
-            setVehicles(vehiclesData);
+            
+            // Calcular os custos para cada veículo
+            const vehiclesWithCosts = calculateCosts(vehiclesData);
+            setVehicles(vehiclesWithCosts);
           } else {
             console.log("Nenhum veículo encontrado para o orçamento:", id);
             setVehicles([]);
@@ -144,10 +194,10 @@ const QuoteDetail = () => {
   }
 
   // Obter informações do cliente
-  const client = quote.client || {};
+  const client = quote?.client || {};
   
   // Obter status
-  const status = quote.status_flow || 'ORCAMENTO';
+  const status = quote?.status_flow || 'ORCAMENTO';
   
   // Função para atualizar quando o status for alterado
   const handleStatusChange = (newStatus: QuoteStatusFlow) => {
@@ -233,10 +283,10 @@ const QuoteDetail = () => {
                       Parâmetros
                     </h3>
                     <div className="mt-1 space-y-1">
-                      <p>Prazo: {quote.contract_months} meses</p>
-                      <p>Quilometragem: {quote.monthly_km.toLocaleString('pt-BR')} km/mês</p>
-                      <p>Severidade: Nível {quote.operation_severity}</p>
-                      <p>Rastreamento: {quote.has_tracking ? 'Sim' : 'Não'}</p>
+                      <p>Prazo: {quote?.contract_months} meses</p>
+                      <p>Quilometragem: {quote?.monthly_km?.toLocaleString('pt-BR')} km/mês</p>
+                      <p>Severidade: Nível {quote?.operation_severity}</p>
+                      <p>Rastreamento: {quote?.has_tracking ? 'Sim' : 'Não'}</p>
                     </div>
                   </div>
                   
@@ -247,7 +297,7 @@ const QuoteDetail = () => {
                     </h3>
                     <div className="mt-1">
                       <p className="text-lg font-semibold">
-                        R$ {Number(quote.total_value).toLocaleString('pt-BR')}
+                        R$ {Number(quote?.total_value || 0).toLocaleString('pt-BR')}
                       </p>
                       <p className="text-sm text-muted-foreground">Valor mensal total</p>
                     </div>
@@ -259,8 +309,8 @@ const QuoteDetail = () => {
                       Datas
                     </h3>
                     <div className="mt-1 space-y-1 text-sm">
-                      <p>Criado em: {new Date(quote.created_at).toLocaleDateString('pt-BR')}</p>
-                      <p>Atualizado em: {new Date(quote.updated_at).toLocaleDateString('pt-BR')}</p>
+                      <p>Criado em: {quote?.created_at ? new Date(quote.created_at).toLocaleDateString('pt-BR') : '-'}</p>
+                      <p>Atualizado em: {quote?.updated_at ? new Date(quote.updated_at).toLocaleDateString('pt-BR') : '-'}</p>
                     </div>
                   </div>
                 </div>
