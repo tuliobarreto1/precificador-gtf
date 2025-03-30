@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 // Definição das interfaces
@@ -91,7 +92,7 @@ export const getVehicleByPlate = async (plate: string): Promise<SqlVehicle | nul
         CodigoModelo: '0',
         DescricaoModelo: `${typedVehicle.brand} ${typedVehicle.model}`,
         CodigoGrupoVeiculo: typedVehicle.group_id || 'A',
-        LetraGrupo: typedVehicle.group_id || 'A',
+        LetraGrupo: typedVehicle.group_id || 'A',  // Certifica que LetraGrupo é o código usado para relação
         DescricaoGrupo: `Grupo ${typedVehicle.group_id || 'A'}`,
         AnoFabricacaoModelo: typedVehicle.year.toString(),
         Cor: typedVehicle.color || '',
@@ -137,7 +138,7 @@ export const getVehicleByPlate = async (plate: string): Promise<SqlVehicle | nul
           color: vehicle.Cor || '',
           odometer: vehicle.OdometroAtual || 0,
           fuel_type: vehicle.TipoCombustivel || '',
-          group_id: vehicle.LetraGrupo || 'A'
+          group_id: vehicle.LetraGrupo || 'A'  // Salva o código do grupo corretamente
         });
       
       if (insertError) {

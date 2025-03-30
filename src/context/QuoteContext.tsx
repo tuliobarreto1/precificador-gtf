@@ -534,41 +534,53 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (vehicles.length === 0) return null;
     
     // Precisamos garantir que não retornamos Promises para os cálculos
-    const vehicleResults: VehicleQuoteResult[] = [];
-    
-    for (const item of vehicles) {
-      // Usar parâmetros globais ou específicos do veículo
-      const params = useGlobalParams ? globalParams : (item.params || globalParams);
+    const vehicleResults = quoteForm.vehicles.map((vehicleItem) => {
+      const params = quoteForm.useGlobalParams 
+        ? quoteForm.globalParams 
+        : (vehicleItem.params || quoteForm.globalParams);
       
+      console.log(`Calculando cotação para veículo: ${vehicleItem.vehicle.id}, grupo: ${vehicleItem.vehicle.groupId || 'A'}`);
+      
+      // Parâmetros para depreciação
       const depreciationParams: DepreciationParams = {
-        vehicleValue: item.vehicle.value,
+        vehicleValue: vehicleItem.vehicle.value || 0,
         contractMonths: params.contractMonths,
         monthlyKm: params.monthlyKm,
-        operationSeverity: params.operationSeverity,
+        operationSeverity: params.operationSeverity
       };
       
+      // Parâmetros para manutenção
       const maintenanceParams: MaintenanceParams = {
-        vehicleGroup: item.vehicleGroup.id,
+        vehicleGroup: vehicleItem.vehicle.groupId || 'A',  // Usar groupId como código do grupo
         contractMonths: params.contractMonths,
         monthlyKm: params.monthlyKm,
-        hasTracking: params.hasTracking,
+        hasTracking: params.hasTracking
       };
-    
-      // Calculamos de forma síncrona para evitar Promises
+      
+      console.log("Parâmetros de cálculo:", { depreciationParams, maintenanceParams });
+      
+      // Cálculo dos valores
       const result = calculateLeaseCostSync(depreciationParams, maintenanceParams);
-      const extraKmRate = calculateExtraKmRateSync(item.vehicle.value);
-    
-      // Construímos um objeto VehicleQuoteResult completo
-      vehicleResults.push({
-        vehicleId: item.vehicle.id,
+      const extraKmRate = calculateExtraKmRateSync(vehicleItem.vehicle.value || 0);
+      
+      // Totalizar
+      const totalCost = result.depreciationCost + result.maintenanceCost + (params.hasTracking ? result.trackingCost : 0);
+      
+      console.log("Resultado do cálculo:", { 
+        ...result, 
+        extraKmRate, 
+        totalCost 
+      });
+      
+      return {
+        vehicleId: vehicleItem.vehicle.id,
         depreciationCost: result.depreciationCost,
         maintenanceCost: result.maintenanceCost,
         trackingCost: result.trackingCost,
-        totalCost: result.totalCost,
-        costPerKm: result.costPerKm,
-        extraKmRate
-      });
-    }
+        extraKmRate: extraKmRate,
+        totalCost: totalCost
+      };
+    });
     
     // Calcular custo total de todos os veículos
     const totalCost = vehicleResults.reduce((sum, result) => sum + result.totalCost, 0);
