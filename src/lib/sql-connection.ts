@@ -35,6 +35,24 @@ export interface SqlVehicleModel {
   MaiorValorCompra: number;
 }
 
+// Interface para o veículo do Supabase (para correção do erro de tipo)
+export interface SupabaseVehicle {
+  brand: string;
+  color: string | null;
+  created_at: string;
+  created_by: string | null;
+  group_id: string | null;
+  id: string;
+  is_used: boolean;
+  model: string;
+  odometer: number | null;
+  plate_number: string | null;
+  updated_at: string;
+  value: number;
+  year: number;
+  fuel_type?: string | null; // Adicionado a propriedade fuel_type como opcional
+}
+
 // Função para testar conexão com a API
 export const testApiConnection = async () => {
   try {
