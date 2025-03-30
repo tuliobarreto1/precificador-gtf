@@ -539,7 +539,7 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         ? quoteForm.globalParams 
         : (vehicleItem.params || quoteForm.globalParams);
       
-      console.log(`Calculando cotação para veículo: ${vehicleItem.vehicle.id}, grupo: ${vehicleItem.vehicle.groupId || 'A'}`);
+      console.log(`Calculando cotação para veículo: ${vehicleItem.vehicle.id}, grupo: ${vehicleItem.vehicleGroup.id || 'A'}`);
       
       // Parâmetros para depreciação
       const depreciationParams: DepreciationParams = {
@@ -551,7 +551,7 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       // Parâmetros para manutenção
       const maintenanceParams: MaintenanceParams = {
-        vehicleGroup: vehicleItem.vehicle.groupId || 'A',  // Usar groupId como código do grupo
+        vehicleGroup: vehicleItem.vehicle.groupId || vehicleItem.vehicleGroup.id || 'A',  // Usar groupId como código do grupo
         contractMonths: params.contractMonths,
         monthlyKm: params.monthlyKm,
         hasTracking: params.hasTracking
@@ -566,10 +566,15 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Totalizar
       const totalCost = result.depreciationCost + result.maintenanceCost + (params.hasTracking ? result.trackingCost : 0);
       
+      // Calcular custo por km (totalCost / quilometragem mensal * meses de contrato)
+      const totalKm = params.monthlyKm * params.contractMonths;
+      const costPerKm = totalKm > 0 ? totalCost / totalKm : 0;
+      
       console.log("Resultado do cálculo:", { 
         ...result, 
         extraKmRate, 
-        totalCost 
+        totalCost,
+        costPerKm 
       });
       
       return {
@@ -578,7 +583,8 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         maintenanceCost: result.maintenanceCost,
         trackingCost: result.trackingCost,
         extraKmRate: extraKmRate,
-        totalCost: totalCost
+        totalCost: totalCost,
+        costPerKm: costPerKm
       };
     });
     
