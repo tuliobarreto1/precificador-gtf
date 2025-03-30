@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { Vehicle, Client, VehicleGroup, getVehicleGroupById, getClientById, getVehicleById } from '@/lib/mock-data';
-import { DepreciationParams, MaintenanceParams, calculateDepreciation, calculateMaintenance, calculateExtraKmRate, calculateDepreciationSync, calculateMaintenanceSync, calculateExtraKmRateSync } from '@/lib/calculation';
+import { DepreciationParams, MaintenanceParams, calculateLeaseCost, calculateExtraKmRate, calculateLeaseCostSync, calculateExtraKmRateSync } from '@/lib/calculation';
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from '@/integrations/supabase/client';
 
@@ -291,115 +291,112 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     console.log('Verificando se o veículo está no banco de dados:', vehicle);
     
-    // Independente de ter placa ou não, vamos verificar e salvar no Supabase
-    supabase
-      .from('vehicles')
-      .select()
-      .eq('id', vehicle.id)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (error) {
-          console.error('Erro ao verificar veículo no banco de dados:', error);
-          return;
-        }
-        
-        if (!data) {
-          console.log('Veículo não encontrado no banco de dados, vamos inserir:', vehicle);
-          
-          // Determinar se o veículo é usado baseando-se na presença de uma placa
-          const isUsed = !!vehicle.plateNumber;
-          
-          // O veículo não existe no banco de dados, vamos inseri-lo
-          supabase
-            .from('vehicles')
-            .insert({
-              id: vehicle.id,
-              brand: vehicle.brand,
-              model: vehicle.model,
-              year: vehicle.year,
-              value: vehicle.value,
-              is_used: isUsed,
-              plate_number: vehicle.plateNumber || null,
-              color: vehicle.color || '',
-              odometer: vehicle.odometer || 0,
-              group_id: vehicle.groupId || vehicleGroup.id
-            })
-            .then(({ error: insertError }) => {
-              if (insertError) {
-                console.error('Erro ao inserir veículo no banco de dados:', insertError);
-              } else {
-                console.log('Veículo inserido com sucesso no banco de dados!');
-              }
-            });
-        } else {
-          console.log('Veículo já existe no banco de dados, verificando atualização:', data);
-          
-          // O veículo existe, mas vamos atualizar se necessário
-          const updates: any = {};
-          let needsUpdate = false;
-          
-          // Verificar cada campo para ver se precisa ser atualizado
-          if (vehicle.brand && vehicle.brand !== data.brand) {
-            updates.brand = vehicle.brand;
-            needsUpdate = true;
+    // Se for um veículo com placa, verificar se ele já existe no banco de dados
+    if (vehicle.plateNumber) {
+      supabase
+        .from('vehicles')
+        .select()
+        .eq('plate_number', vehicle.plateNumber)
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Erro ao verificar veículo no banco de dados:', error);
+            return;
           }
           
-          if (vehicle.model && vehicle.model !== data.model) {
-            updates.model = vehicle.model;
-            needsUpdate = true;
-          }
-          
-          if (vehicle.year && vehicle.year !== data.year) {
-            updates.year = vehicle.year;
-            needsUpdate = true;
-          }
-          
-          if (vehicle.value && vehicle.value !== data.value) {
-            updates.value = vehicle.value;
-            needsUpdate = true;
-          }
-          
-          if (vehicle.color && vehicle.color !== data.color) {
-            updates.color = vehicle.color;
-            needsUpdate = true;
-          }
-          
-          if (vehicle.odometer && vehicle.odometer !== data.odometer) {
-            updates.odometer = vehicle.odometer;
-            needsUpdate = true;
-          }
-          
-          if (vehicle.groupId && vehicle.groupId !== data.group_id) {
-            updates.group_id = vehicle.groupId;
-            needsUpdate = true;
-          }
-          
-          // Certifique-se de que is_used está corretamente definido
-          const shouldBeUsed = !!vehicle.plateNumber;
-          if (data.is_used !== shouldBeUsed) {
-            updates.is_used = shouldBeUsed;
-            needsUpdate = true;
-          }
-          
-          if (needsUpdate) {
-            console.log('Atualizando veículo no banco de dados com:', updates);
+          if (!data) {
+            console.log('Veículo não encontrado no banco de dados, vamos inserir:', vehicle);
             
+            // O veículo não existe no banco de dados, vamos inseri-lo
             supabase
               .from('vehicles')
-              .update(updates)
-              .eq('id', data.id)
-              .then(({ error: updateError }) => {
-                if (updateError) {
-                  console.error('Erro ao atualizar veículo no banco de dados:', updateError);
+              .insert({
+                brand: vehicle.brand,
+                model: vehicle.model,
+                year: vehicle.year,
+                value: vehicle.value,
+                is_used: true, // Explicitamente definir como usado
+                plate_number: vehicle.plateNumber,
+                color: vehicle.color || '',
+                odometer: vehicle.odometer || 0,
+                group_id: vehicle.groupId || vehicleGroup.id
+              })
+              .then(({ error: insertError }) => {
+                if (insertError) {
+                  console.error('Erro ao inserir veículo no banco de dados:', insertError);
                 } else {
-                  console.log('Veículo atualizado com sucesso no banco de dados!');
+                  console.log('Veículo inserido com sucesso no banco de dados!');
                 }
               });
           } else {
-            console.log('Nenhuma atualização necessária para o veículo.');
+            console.log('Veículo já existe no banco de dados, verificando atualização:', data);
+            
+            // O veículo existe, mas vamos atualizar se necessrio
+            const updates: any = {};
+            let needsUpdate = false;
+            
+            // Verificar cada campo para ver se precisa ser atualizado
+            if (vehicle.brand && vehicle.brand !== data.brand) {
+              updates.brand = vehicle.brand;
+              needsUpdate = true;
+            }
+            
+            if (vehicle.model && vehicle.model !== data.model) {
+              updates.model = vehicle.model;
+              needsUpdate = true;
+            }
+            
+            if (vehicle.year && vehicle.year !== data.year) {
+              updates.year = vehicle.year;
+              needsUpdate = true;
+            }
+            
+            if (vehicle.value && vehicle.value !== data.value) {
+              updates.value = vehicle.value;
+              needsUpdate = true;
+            }
+            
+            if (vehicle.color && vehicle.color !== data.color) {
+              updates.color = vehicle.color;
+              needsUpdate = true;
+            }
+            
+            if (vehicle.odometer && vehicle.odometer !== data.odometer) {
+              updates.odometer = vehicle.odometer;
+              needsUpdate = true;
+            }
+            
+            if (vehicle.groupId && vehicle.groupId !== data.group_id) {
+              updates.group_id = vehicle.groupId;
+              needsUpdate = true;
+            }
+            
+            // Certifique-se de que is_used é true para veículos com placa
+            if (data.is_used !== true) {
+              updates.is_used = true;
+              needsUpdate = true;
+            }
+            
+            if (needsUpdate) {
+              console.log('Atualizando veículo no banco de dados com:', updates);
+              
+              supabase
+                .from('vehicles')
+                .update(updates)
+                .eq('id', data.id)
+                .then(({ error: updateError }) => {
+                  if (updateError) {
+                    console.error('Erro ao atualizar veículo no banco de dados:', updateError);
+                  } else {
+                    console.log('Veículo atualizado com sucesso no banco de dados!');
+                  }
+                });
+            } else {
+              console.log('Nenhuma atualização necessária para o veículo.');
+            }
           }
-        }
-      });
+        });
+    }
   };
 
   const removeVehicle = (vehicleId: string) => {
@@ -532,76 +529,54 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Calculate quote
   const calculateQuote = () => {
-    if (!quoteForm.client || quoteForm.vehicles.length === 0) {
-      return null;
-    }
-
+    const { vehicles, globalParams, useGlobalParams } = quoteForm;
+    
+    if (vehicles.length === 0) return null;
+    
+    // Precisamos garantir que não retornamos Promises para os cálculos
     const vehicleResults: VehicleQuoteResult[] = [];
     
-    // Processar cada veículo
-    quoteForm.vehicles.forEach(item => {
-      const params = quoteForm.useGlobalParams 
-        ? quoteForm.globalParams 
-        : (item.params || quoteForm.globalParams);
+    for (const item of vehicles) {
+      // Usar parâmetros globais ou específicos do veículo
+      const params = useGlobalParams ? globalParams : (item.params || globalParams);
       
-      const vehicleValue = item.vehicle.value || 0;
-      const groupId = item.vehicle.groupId || item.vehicleGroup.id;
-      
-      console.log(`Calculando orçamento para veículo ${item.vehicle.brand} ${item.vehicle.model}`, {
-        valor: vehicleValue,
-        grupo: groupId,
-        meses: params.contractMonths,
-        km: params.monthlyKm,
-        severidade: params.operationSeverity,
-        rastreamento: params.hasTracking
-      });
-      
-      // Calcular depreciação
-      const depreciationCost = calculateDepreciationSync({
-        vehicleValue,
+      const depreciationParams: DepreciationParams = {
+        vehicleValue: item.vehicle.value,
         contractMonths: params.contractMonths,
         monthlyKm: params.monthlyKm,
-        operationSeverity: params.operationSeverity as 1|2|3|4|5|6
-      });
+        operationSeverity: params.operationSeverity,
+      };
       
-      // Calcular manutenção
-      const maintenanceCost = calculateMaintenanceSync({
-        vehicleGroup: groupId,
+      const maintenanceParams: MaintenanceParams = {
+        vehicleGroup: item.vehicleGroup.id,
         contractMonths: params.contractMonths,
         monthlyKm: params.monthlyKm,
-        hasTracking: params.hasTracking
-      });
-      
-      // Calcular taxa de km excedente
-      const extraKmRate = calculateExtraKmRateSync(vehicleValue);
-      
-      // Calcular custo de rastreamento
-      const trackingCost = params.hasTracking ? 150 : 0;
-      
-      // Calcular custo total
-      const totalCost = depreciationCost + maintenanceCost;
-
-      // Calcular custo por km
-      const totalKm = params.contractMonths * params.monthlyKm;
-      const costPerKm = totalKm > 0 ? totalCost / totalKm : 0;
-      
-      // Adicionar resultado ao array
+        hasTracking: params.hasTracking,
+      };
+    
+      // Calculamos de forma síncrona para evitar Promises
+      const result = calculateLeaseCostSync(depreciationParams, maintenanceParams);
+      const extraKmRate = calculateExtraKmRateSync(item.vehicle.value);
+    
+      // Construímos um objeto VehicleQuoteResult completo
       vehicleResults.push({
         vehicleId: item.vehicle.id,
-        depreciationCost,
-        maintenanceCost,
-        trackingCost,
-        extraKmRate,
-        totalCost,
-        costPerKm
+        depreciationCost: result.depreciationCost,
+        maintenanceCost: result.maintenanceCost,
+        trackingCost: result.trackingCost,
+        totalCost: result.totalCost,
+        costPerKm: result.costPerKm,
+        extraKmRate
       });
-    });
+    }
     
-    // Calcular custo total do orçamento
+    // Calcular custo total de todos os veículos
     const totalCost = vehicleResults.reduce((sum, result) => sum + result.totalCost, 0);
     
-    // Retornar os resultados
-    return { vehicleResults, totalCost };
+    return {
+      vehicleResults,
+      totalCost
+    };
   };
 
   // Função para salvar um orçamento
