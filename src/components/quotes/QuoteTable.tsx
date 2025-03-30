@@ -13,7 +13,7 @@ import {
   TableRow
 } from '@/components/ui/table';
 import { Edit, Trash2 } from 'lucide-react';
-import { useQuote } from '@/context/QuoteContext';
+import { useQuote, UserRole } from '@/context/QuoteContext';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -123,7 +123,7 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
                   createdBy: quote.createdBy ? {
                     id: quote.createdBy.id,
                     name: quote.createdBy.name,
-                    role: quote.createdBy.role,
+                    role: quote.createdBy.role as UserRole, // Convertendo explicitamente para UserRole
                     email: '',
                     status: 'active',
                     lastLogin: ''
