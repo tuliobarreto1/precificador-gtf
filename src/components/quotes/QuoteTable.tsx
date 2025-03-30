@@ -125,7 +125,7 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
                     name: quote.createdBy.name,
                     role: quote.createdBy.role as UserRole, // Convertendo explicitamente para UserRole
                     email: '',
-                    status: 'active',
+                    status: 'active' as 'active' | 'inactive', // Definindo o status explicitamente
                     lastLogin: ''
                   } : undefined,
                   vehicles: [],

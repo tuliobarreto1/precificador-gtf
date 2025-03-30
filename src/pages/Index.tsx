@@ -15,7 +15,7 @@ const Index = () => {
   const { savedQuotes } = useQuote();
   
   // Obter orçamentos recentes (5 mais recentes)
-  const recentQuotes = savedQuotes
+  const recentQuotes = (savedQuotes || [])
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5)
     .map(quote => ({
@@ -30,7 +30,7 @@ const Index = () => {
     }));
   
   // Estatísticas derivadas dos orçamentos
-  const allQuotes = savedQuotes;
+  const allQuotes = savedQuotes || [];
   const totalQuotes = allQuotes.length;
   const averageContractLength = totalQuotes > 0 
     ? allQuotes.reduce((acc, q) => acc + q.contractMonths, 0) / totalQuotes 
