@@ -118,9 +118,15 @@ const QuoteDetail = () => {
           if (vehiclesSuccess && vehiclesData && Array.isArray(vehiclesData)) {
             console.log("Veículos do orçamento carregados:", vehiclesData);
             
-            // Calcular os custos para cada veículo
-            const vehiclesWithCosts = calculateCosts(vehiclesData);
-            setVehicles(vehiclesWithCosts);
+            // Verificar se algum veículo foi encontrado
+            if (vehiclesData.length > 0) {
+              // Calcular os custos para cada veículo
+              const vehiclesWithCosts = calculateCosts(vehiclesData);
+              setVehicles(vehiclesWithCosts);
+            } else {
+              console.log("Nenhum veículo encontrado para o orçamento:", id);
+              setVehicles([]);
+            }
           } else {
             console.log("Nenhum veículo encontrado para o orçamento:", id);
             setVehicles([]);

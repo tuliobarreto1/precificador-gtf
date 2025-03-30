@@ -667,6 +667,32 @@ export const getQuoteVehicles = async (quoteId: string): Promise<{ success: bool
     
     // Processar os veículos para garantir que todos os campos necessários estejam presentes
     const processedVehicles = vehicles.map(vehicle => {
+      // Verificar se o veículo existe
+      if (!vehicle.vehicle) {
+        console.log(`Veículo com ID ${vehicle.vehicle_id} não encontrado na base de dados`);
+        // Criar um objeto de veículo vazio para evitar erros
+        return {
+          id: vehicle.vehicle_id,
+          monthly_value: vehicle.monthly_value || vehicle.total_cost || 0,
+          contract_months: vehicle.contract_months,
+          monthly_km: vehicle.monthly_km,
+          operation_severity: vehicle.operation_severity,
+          has_tracking: vehicle.has_tracking,
+          depreciation_cost: vehicle.depreciation_cost || 0,
+          maintenance_cost: vehicle.maintenance_cost || 0,
+          extra_km_rate: vehicle.extra_km_rate || 0,
+          total_cost: vehicle.total_cost || vehicle.monthly_value || 0,
+          vehicle: {
+            id: vehicle.vehicle_id,
+            brand: 'Veículo não encontrado',
+            model: '',
+            year: new Date().getFullYear(),
+            value: 0,
+            is_used: false
+          }
+        };
+      }
+      
       // Converter o formato do banco para o formato esperado pelo VehicleCard
       return {
         id: vehicle.vehicle_id,
@@ -686,13 +712,20 @@ export const getQuoteVehicles = async (quoteId: string): Promise<{ success: bool
           year: vehicle.vehicle?.year || new Date().getFullYear(),
           value: vehicle.vehicle?.value || 0,
           plateNumber: vehicle.vehicle?.plate_number,
+          plate_number: vehicle.vehicle?.plate_number,
           color: vehicle.vehicle?.color,
+          isUsed: vehicle.vehicle?.is_used || false,
           is_used: vehicle.vehicle?.is_used || false,
           odometer: vehicle.vehicle?.odometer || 0,
-          groupId: vehicle.vehicle?.group_id
+          groupId: vehicle.vehicle?.group_id,
+          group_id: vehicle.vehicle?.group_id,
+          fuelType: vehicle.vehicle?.fuel_type,
+          fuel_type: vehicle.vehicle?.fuel_type
         }
       };
     });
+    
+    console.log('Veículos processados para exibição:', processedVehicles);
     
     return { success: true, vehicles: processedVehicles };
   } catch (error) {
