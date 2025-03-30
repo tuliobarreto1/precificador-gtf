@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { Vehicle, Client, VehicleGroup, getVehicleGroupById, getClientById, getVehicleById } from '@/lib/mock-data';
 import { DepreciationParams, MaintenanceParams, calculateLeaseCost, calculateExtraKmRate } from '@/lib/calculation';
 import { toast } from "@/components/ui/use-toast";
@@ -806,19 +806,43 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return true;
   };
 
-  // Implementação da função deleteQuote que estava faltando
-  const deleteQuote = (quoteId: string): boolean => {
+  // Delete quote implementation
+  const deleteQuote = useCallback((quoteId: string): boolean => {
+    console.log("🗑️ Tentando excluir orçamento:", quoteId);
+    
     // Verificar se o orçamento existe
     const quoteToDelete = savedQuotes.find(q => q.id === quoteId);
     if (!quoteToDelete) {
-      console.error('Orçamento não encontrado:', quoteId);
+      console.error('❌ Orçamento não encontrado:', quoteId);
       return false;
     }
     
     // Verificar permissão
     if (!canDeleteQuote(quoteToDelete)) {
-      console.error('Permissão de exclusão negada para o usuário:', getCurrentUser());
+      console.error('❌ Permissão de exclusão negada para o usuário:', getCurrentUser());
       return false;
+    }
+    
+    // Também excluir do Supabase se for um orçamento armazenado lá
+    try {
+      if (quoteToDelete.source === 'supabase') {
+        console.log("🔄 Excluindo orçamento do Supabase...");
+        
+        supabase
+          .from('quotes')
+          .delete()
+          .eq('id', quoteId)
+          .then(({ error }) => {
+            if (error) {
+              console.error('❌ Erro ao excluir orçamento do Supabase:', error);
+            } else {
+              console.log('✅ Orçamento excluído do Supabase com sucesso');
+            }
+          });
+      }
+    } catch (error) {
+      console.error('❌ Erro ao tentar excluir do Supabase:', error);
+      // Continuar excluindo localmente mesmo se falhar no Supabase
     }
     
     // Remover o orçamento
@@ -828,26 +852,17 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Atualizar o localStorage
     try {
       localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
-      console.log('Orçamento excluído com sucesso:', quoteId);
+      console.log('✅ Orçamento excluído com sucesso:', quoteId);
       return true;
     } catch (error) {
-      console.error('Erro ao atualizar localStorage após exclusão:', error);
+      console.error('❌ Erro ao atualizar localStorage após exclusão:', error);
       return false;
     }
-  };
+  }, [savedQuotes]);
 
-  // Função para carregar um orçamento para edição (melhorada)
-  const loadQuoteForEditing = (quoteId: string): boolean => {
+  // Função melhorada para carregar um orçamento para edição
+  const loadQuoteForEditing = useCallback((quoteId: string): boolean => {
     console.log("⏳ Iniciando carregamento de orçamento:", quoteId);
-    
-    // Verificar se já estamos carregando ou se já estamos editando este orçamento
-    if (loadingLock || (isEditMode && currentEditingQuoteId === quoteId)) {
-      console.log("⚠️ Ignorando requisição de carregamento - já está em andamento ou o orçamento já está carregado");
-      return false;
-    }
-    
-    // Ativar trava de carregamento
-    setLoadingLock(true);
     
     try {
       // Garantir que temos os dados mais recentes dos orçamentos salvos
@@ -867,11 +882,11 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const allQuotes = retrieveLocalQuotes();
       console.log(`📋 Total de orçamentos disponíveis: ${allQuotes.length}`);
       
+      // Encontrar o orçamento pelo ID
       const quoteToEdit = allQuotes.find(q => q.id === quoteId);
       
       if (!quoteToEdit) {
         console.error(`❌ Orçamento com ID ${quoteId} não encontrado`);
-        setLoadingLock(false);
         return false;
       }
       
@@ -880,17 +895,17 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Verificar permissões de edição
       if (!canEditQuote(quoteToEdit)) {
         console.error("❌ Usuário não tem permissão para editar este orçamento");
-        setLoadingLock(false);
         return false;
       }
       
       // Resetar o formulário antes de carregar os novos dados
-      console.log("🔄 Resetando formulário antes do carregamento");
-      setQuoteForm(initialQuoteForm);
+      resetForm();
+      console.log("🔄 Formulário resetado");
       
       // Carregar cliente
+      console.log("👤 Buscando cliente:", quoteToEdit.clientId);
+      
       const client = getClientById(quoteToEdit.clientId);
-      console.log("👤 Tentando carregar cliente:", quoteToEdit.clientId);
       
       if (client) {
         console.log("✅ Cliente encontrado:", client);
@@ -908,7 +923,6 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setClient(tempClient);
       } else {
         console.error("❌ Dados do cliente insuficientes");
-        setLoadingLock(false);
         return false;
       }
       
@@ -925,71 +939,56 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setGlobalHasTracking(quoteToEdit.hasTracking);
       }
       
-      // Verificar se existem veículos para carregar
+      // Carregar veículos
       if (!quoteToEdit.vehicles || quoteToEdit.vehicles.length === 0) {
         console.error("❌ Orçamento não possui veículos para carregar");
-        setLoadingLock(false);
         return false;
       }
       
-      // Carregar veículos de forma síncrona
-      console.log(`🚗 Tentando carregar ${quoteToEdit.vehicles.length} veículos`);
-      let loadedVehicles = 0;
-      const tempVehicles: QuoteVehicleItem[] = [];
+      // Adicionar cada veículo ao orçamento
+      console.log(`🚗 Carregando ${quoteToEdit.vehicles.length} veículos`);
       
+      let allVehiclesLoaded = true;
       for (const vehicleItem of quoteToEdit.vehicles) {
-        console.log(`🚗 Carregando veículo ID: ${vehicleItem.vehicleId}, Grupo: ${vehicleItem.groupId}`);
+        console.log(`🔍 Buscando veículo: ${vehicleItem.vehicleId}`);
         
-        const vehicleFromDB = getVehicleById(vehicleItem.vehicleId);
-        if (!vehicleFromDB) {
-          console.warn(`⚠️ Veículo não encontrado: ${vehicleItem.vehicleId}`);
+        const vehicle = getVehicleById(vehicleItem.vehicleId);
+        if (!vehicle) {
+          console.error(`❌ Veículo não encontrado: ${vehicleItem.vehicleId}`);
+          allVehiclesLoaded = false;
           continue;
         }
         
+        console.log(`🔍 Buscando grupo de veículo: ${vehicleItem.groupId}`);
         const vehicleGroup = getVehicleGroupById(vehicleItem.groupId);
         if (!vehicleGroup) {
-          console.warn(`⚠️ Grupo de ve��culo não encontrado: ${vehicleItem.groupId}`);
+          console.error(`❌ Grupo de veículo não encontrado: ${vehicleItem.groupId}`);
+          allVehiclesLoaded = false;
           continue;
         }
         
-        console.log(`✅ Adicionando veículo: ${vehicleFromDB.brand} ${vehicleFromDB.model}`);
-        tempVehicles.push({
-          vehicle: vehicleFromDB,
-          vehicleGroup: vehicleGroup,
-          params: !quoteForm.useGlobalParams ? { ...quoteForm.globalParams } : undefined
-        });
-        loadedVehicles++;
+        console.log(`✅ Adicionando veículo ao orçamento: ${vehicle.brand} ${vehicle.model}`);
+        addVehicle(vehicle, vehicleGroup);
       }
       
-      if (loadedVehicles === 0) {
-        console.error("❌ Nenhum veículo foi carregado com sucesso");
-        setLoadingLock(false);
-        return false;
+      if (!allVehiclesLoaded) {
+        console.warn("⚠️ Alguns veículos não puderam ser carregados");
       }
-      
-      // Atualizar os veículos de uma só vez
-      setQuoteForm(prev => ({
-        ...prev,
-        vehicles: tempVehicles
-      }));
       
       // Marcar como modo de edição
-      console.log("✏️ Ativando modo de edição");
       setIsEditMode(true);
       setCurrentEditingQuoteId(quoteId);
       
-      console.log("✅ Orçamento carregado com sucesso para edição:", quoteId);
-      setLoadingLock(false);
+      console.log("✅ Orçamento carregado com sucesso para edição!");
       return true;
     } catch (error) {
       console.error("❌ Erro ao carregar orçamento para edição:", error);
-      // Resetar o estado em caso de erro
+      resetForm();
       setIsEditMode(false);
       setCurrentEditingQuoteId(null);
-      setLoadingLock(false);
       return false;
     }
-  };
+  }, [resetForm, setClient, setGlobalContractMonths, setGlobalMonthlyKm, setGlobalOperationSeverity, setGlobalHasTracking, addVehicle, canEditQuote]);
 
   // Função para obter orçamentos salvos
   const getSavedQuotes = () => {

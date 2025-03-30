@@ -38,7 +38,10 @@ const Quotes = () => {
           {allQuotes.length === 0 ? (
             <QuoteEmpty />
           ) : (
-            <QuoteTable quotes={allQuotes} />
+            <QuoteTable 
+              quotes={allQuotes} 
+              onRefresh={handleRefresh}
+            />
           )}
         </div>
       </div>

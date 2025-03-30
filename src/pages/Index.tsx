@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { FileText, List, Settings, PieChart, TrendingUp, Clock, Calendar } from 'lucide-react';
@@ -5,19 +6,38 @@ import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
 import StatsCard from '@/components/ui-custom/StatsCard';
-import { quotes } from '@/lib/mock-data';
+import QuoteTable from '@/components/quotes/QuoteTable';
+import { useQuote } from '@/context/QuoteContext';
 import { cn } from '@/lib/utils';
 
 const Index = () => {
-  // Stats derived from mock data
-  const totalQuotes = quotes.length;
-  const averageContractLength = quotes.reduce((acc, q) => acc + q.contractMonths, 0) / totalQuotes;
-  const averageMonthlyValue = quotes.reduce((acc, q) => acc + q.totalCost, 0) / totalQuotes;
+  const { getSavedQuotes } = useQuote();
   
-  // Recent quotes from mock data
-  const recentQuotes = [...quotes].sort((a, b) => 
-    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  ).slice(0, 5);
+  // Obter orçamentos recentes (5 mais recentes)
+  const recentQuotes = getSavedQuotes()
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 5)
+    .map(quote => ({
+      id: quote.id,
+      clientName: quote.clientName,
+      vehicleName: `${quote.vehicleBrand} ${quote.vehicleModel}`,
+      value: quote.totalCost,
+      createdAt: quote.createdAt,
+      status: quote.status || 'ORCAMENTO',
+      source: 'local' as const,
+      createdBy: quote.createdBy
+    }));
+  
+  // Estatísticas derivadas dos orçamentos
+  const allQuotes = getSavedQuotes();
+  const totalQuotes = allQuotes.length;
+  const averageContractLength = totalQuotes > 0 
+    ? allQuotes.reduce((acc, q) => acc + q.contractMonths, 0) / totalQuotes 
+    : 0;
+  const averageMonthlyValue = totalQuotes > 0 
+    ? allQuotes.reduce((acc, q) => acc + q.totalCost, 0) / totalQuotes 
+    : 0;
+  const activeQuotes = allQuotes.filter(q => q.status !== 'CONCLUIDO').length;
 
   return (
     <MainLayout>
@@ -48,7 +68,7 @@ const Index = () => {
           />
           <StatsCard 
             title="Orçamentos Ativos" 
-            value={totalQuotes - 1} 
+            value={activeQuotes} 
             icon={<Clock size={20} />}
             trend={{ value: 8, isPositive: true }}
           />
@@ -66,32 +86,16 @@ const Index = () => {
                 }
               />
               
-              <div className="space-y-4">
-                {recentQuotes.map((quote) => (
-                  <Link 
-                    key={quote.id}
-                    to={`/orcamento/${quote.id}`}
-                    className="block"
-                  >
-                    <div className="flex items-center p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                      <div className="flex-1">
-                        <p className="font-medium">Orçamento #{quote.id}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(quote.createdAt).toLocaleDateString('pt-BR')}
-                          {' • '}
-                          {quote.contractMonths} meses
-                          {' • '}
-                          {quote.monthlyKm} km/mês
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">R$ {quote.totalCost.toLocaleString('pt-BR')}</p>
-                        <p className="text-sm text-muted-foreground">por mês</p>
-                      </div>
-                    </div>
+              {recentQuotes.length === 0 ? (
+                <div className="p-6 text-center text-muted-foreground">
+                  <p>Nenhum orçamento encontrado</p>
+                  <Link to="/orcamento/novo" className="mt-4 inline-block">
+                    <Button variant="default" size="sm">Criar primeiro orçamento</Button>
                   </Link>
-                ))}
-              </div>
+                </div>
+              ) : (
+                <QuoteTable quotes={recentQuotes} />
+              )}
             </Card>
           </div>
           
@@ -99,7 +103,7 @@ const Index = () => {
             <Card>
               <CardHeader title="Acesso Rápido" />
               
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 gap-3 p-4">
                 {[
                   { name: 'Novo Orçamento', icon: <FileText size={18} />, path: '/orcamento/novo' },
                   { name: 'Lista de Orçamentos', icon: <List size={18} />, path: '/orcamentos' },
