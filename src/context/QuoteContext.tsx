@@ -878,3 +878,106 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     console.log("⏳ Iniciando carregamento de orçamento:", quoteId);
     
     try {
+      // Buscar o orçamento pelo ID
+      const quote = savedQuotes.find(q => q.id === quoteId);
+      if (!quote) {
+        console.error('Orçamento não encontrado:', quoteId);
+        return false;
+      }
+      
+      // Atualizar o estado com o orçamento carregado
+      setQuoteForm({
+        client: quote.client,
+        vehicles: quote.vehicles,
+        useGlobalParams: quote.useGlobalParams,
+        globalParams: quote.globalParams
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Erro ao carregar orçamento:', error);
+      return false;
+    }
+  }, [savedQuotes]);
+
+  // Implementação da função para enviar orçamento por e-mail
+  const sendQuoteByEmail = async (quoteId: string, recipientEmail: string, message: string): Promise<boolean> => {
+    try {
+      // Buscar o orçamento pelo ID
+      const quote = savedQuotes.find(q => q.id === quoteId);
+      if (!quote) {
+        console.error('Orçamento não encontrado:', quoteId);
+        return false;
+      }
+      
+      // Aqui implementaríamos o envio real de e-mail via Supabase Functions ou outro serviço
+      // Para simular, vamos apenas logar as informações
+      console.log('📧 Simulando envio de e-mail:', {
+        para: recipientEmail,
+        assunto: `Orçamento de Locação - ${quote.clientName}`,
+        mensagem: message,
+        orçamento: quote
+      });
+      
+      // Simular um envio bem-sucedido após 1 segundo
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      return true;
+    } catch (error) {
+      console.error('Erro ao enviar e-mail:', error);
+      return false;
+    }
+  };
+
+  // Selecionar as cotações do estado atual
+  const getSavedQuotes = () => {
+    return savedQuotes;
+  };
+
+  // Declaração de valores para o provider
+  const value: QuoteContextType = {
+    quoteForm,
+    setClient,
+    addVehicle,
+    removeVehicle,
+    setGlobalContractMonths,
+    setGlobalMonthlyKm,
+    setGlobalOperationSeverity,
+    setGlobalHasTracking,
+    setUseGlobalParams,
+    setVehicleParams,
+    resetForm,
+    calculateQuote,
+    savedQuotes,
+    saveQuote,
+    getSavedQuotes,
+    deleteQuote,
+    getCurrentUser,
+    setCurrentUser,
+    canEditQuote,
+    canDeleteQuote,
+    updateQuote,
+    availableUsers,
+    authenticateUser,
+    mockUsers,
+    loadQuoteForEditing,
+    isEditMode,
+    currentEditingQuoteId,
+    sendQuoteByEmail,
+  };
+
+  return (
+    <QuoteContext.Provider value={value}>
+      {children}
+    </QuoteContext.Provider>
+  );
+};
+
+// Custom hook
+export const useQuote = () => {
+  const context = useContext(QuoteContext);
+  if (!context) {
+    throw new Error('useQuote must be used within a QuoteProvider');
+  }
+  return context;
+};
