@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { Vehicle, Client, VehicleGroup, getVehicleGroupById, getClientById, getVehicleById } from '@/lib/mock-data';
-import { DepreciationParams, MaintenanceParams, calculateLeaseCost, calculateExtraKmRate } from '@/lib/calculation';
+import { DepreciationParams, MaintenanceParams, calculateLeaseCost, calculateExtraKmRate, calculateLeaseCostSync, calculateExtraKmRateSync } from '@/lib/calculation';
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from '@/integrations/supabase/client';
 
@@ -331,7 +331,7 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           } else {
             console.log('Veículo já existe no banco de dados, verificando atualização:', data);
             
-            // O veículo existe, mas vamos atualizar se necess��rio
+            // O veículo existe, mas vamos atualizar se necessrio
             const updates: any = {};
             let needsUpdate = false;
             
@@ -553,14 +553,19 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         monthlyKm: params.monthlyKm,
         hasTracking: params.hasTracking,
       };
-      
+    
       // Calculamos de forma síncrona para evitar Promises
-      const result = calculateLeaseCost(depreciationParams, maintenanceParams);
-      const extraKmRate = calculateExtraKmRate(item.vehicle.value);
-      
+      const result = calculateLeaseCostSync(depreciationParams, maintenanceParams);
+      const extraKmRate = calculateExtraKmRateSync(item.vehicle.value);
+    
+      // Construímos um objeto VehicleQuoteResult completo
       vehicleResults.push({
         vehicleId: item.vehicle.id,
-        ...result,
+        depreciationCost: result.depreciationCost,
+        maintenanceCost: result.maintenanceCost,
+        trackingCost: result.trackingCost,
+        totalCost: result.totalCost,
+        costPerKm: result.costPerKm,
         extraKmRate
       });
     }
@@ -759,7 +764,7 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Calcular os novos valores do orçamento
     const quoteResult = calculateQuote();
     if (!quoteResult) {
-      console.error('Erro ao calcular o or��amento atualizado');
+      console.error('Erro ao calcular o oramento atualizado');
       return false;
     }
     
@@ -873,233 +878,3 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     console.log("⏳ Iniciando carregamento de orçamento:", quoteId);
     
     try {
-      // Garantir que temos os dados mais recentes dos orçamentos salvos
-      const retrieveLocalQuotes = () => {
-        try {
-          const storedQuotes = localStorage.getItem(SAVED_QUOTES_KEY);
-          if (storedQuotes) {
-            return JSON.parse(storedQuotes);
-          }
-          return [];
-        } catch (error) {
-          console.error('❌ Erro ao recuperar orçamentos do localStorage:', error);
-          return [];
-        }
-      };
-      
-      const allQuotes = retrieveLocalQuotes();
-      console.log(`📋 Total de orçamentos disponíveis: ${allQuotes.length}`);
-      
-      // Encontrar o orçamento pelo ID
-      const quoteToEdit = allQuotes.find(q => q.id === quoteId);
-      
-      if (!quoteToEdit) {
-        console.error(`❌ Orçamento com ID ${quoteId} não encontrado`);
-        return false;
-      }
-      
-      console.log("✅ Orçamento encontrado:", quoteToEdit);
-      
-      // Verificar permissões de edição
-      if (!canEditQuote(quoteToEdit)) {
-        console.error("❌ Usuário não tem permissão para editar este orçamento");
-        return false;
-      }
-      
-      // Resetar o formulário antes de carregar os novos dados
-      resetForm();
-      console.log("🔄 Formulário resetado");
-      
-      // Carregar cliente
-      console.log("👤 Buscando cliente:", quoteToEdit.clientId);
-      
-      const client = getClientById(quoteToEdit.clientId);
-      
-      if (client) {
-        console.log("✅ Cliente encontrado:", client);
-        setClient(client);
-      } else if (quoteToEdit.clientName) {
-        // Se não encontrar o cliente pelo ID, criar um cliente temporário com os dados disponíveis
-        console.log("⚠️ Cliente não encontrado, criando temporário com nome:", quoteToEdit.clientName);
-        const tempClient: Client = {
-          id: quoteToEdit.clientId,
-          name: quoteToEdit.clientName,
-          document: '',
-          type: 'PJ',
-          email: ''
-        };
-        setClient(tempClient);
-      } else {
-        console.error("❌ Dados do cliente insuficientes");
-        return false;
-      }
-      
-      // Configurar os parâmetros globais
-      console.log("⚙️ Configurando parâmetros globais");
-      setGlobalContractMonths(quoteToEdit.contractMonths);
-      setGlobalMonthlyKm(quoteToEdit.monthlyKm);
-      
-      if (quoteToEdit.operationSeverity) {
-        setGlobalOperationSeverity(quoteToEdit.operationSeverity);
-      }
-      
-      if (quoteToEdit.hasTracking !== undefined) {
-        setGlobalHasTracking(quoteToEdit.hasTracking);
-      }
-      
-      // Carregar veículos
-      if (!quoteToEdit.vehicles || quoteToEdit.vehicles.length === 0) {
-        console.error("❌ Orçamento não possui veículos para carregar");
-        return false;
-      }
-      
-      // Adicionar cada veículo ao orçamento
-      console.log(`🚗 Carregando ${quoteToEdit.vehicles.length} veículos`);
-      
-      let allVehiclesLoaded = true;
-      for (const vehicleItem of quoteToEdit.vehicles) {
-        console.log(`🔍 Buscando veículo: ${vehicleItem.vehicleId}`);
-        
-        const vehicle = getVehicleById(vehicleItem.vehicleId);
-        if (!vehicle) {
-          console.error(`❌ Veículo não encontrado: ${vehicleItem.vehicleId}`);
-          allVehiclesLoaded = false;
-          continue;
-        }
-        
-        console.log(`🔍 Buscando grupo de veículo: ${vehicleItem.groupId}`);
-        const vehicleGroup = getVehicleGroupById(vehicleItem.groupId);
-        if (!vehicleGroup) {
-          console.error(`❌ Grupo de veículo não encontrado: ${vehicleItem.groupId}`);
-          allVehiclesLoaded = false;
-          continue;
-        }
-        
-        console.log(`✅ Adicionando veículo ao orçamento: ${vehicle.brand} ${vehicle.model}`);
-        addVehicle(vehicle, vehicleGroup);
-      }
-      
-      if (!allVehiclesLoaded) {
-        console.warn("⚠️ Alguns veículos não puderam ser carregados");
-      }
-      
-      // Marcar como modo de edição
-      setIsEditMode(true);
-      setCurrentEditingQuoteId(quoteId);
-      
-      console.log("✅ Orçamento carregado com sucesso para edição!");
-      return true;
-    } catch (error) {
-      console.error("❌ Erro ao carregar orçamento para edição:", error);
-      resetForm();
-      setIsEditMode(false);
-      setCurrentEditingQuoteId(null);
-      return false;
-    }
-  }, [resetForm, setClient, setGlobalContractMonths, setGlobalMonthlyKm, setGlobalOperationSeverity, setGlobalHasTracking, addVehicle, canEditQuote]);
-
-  // Função para obter orçamentos salvos
-  const getSavedQuotes = () => {
-    // Tentar recuperar diretamente do localStorage para garantir dados mais recentes
-    try {
-      const storedQuotes = localStorage.getItem(SAVED_QUOTES_KEY);
-      if (storedQuotes) {
-        const parsedQuotes = JSON.parse(storedQuotes);
-        return parsedQuotes;
-      }
-    } catch (error) {
-      console.error('Erro ao recuperar orçamentos do localStorage:', error);
-    }
-    
-    // Se não conseguir recuperar do localStorage, usar o estado
-    return savedQuotes;
-  };
-
-  // Nova função para enviar orçamento por e-mail
-  const sendQuoteByEmail = async (quoteId: string, recipientEmail: string, message: string): Promise<boolean> => {
-    try {
-      // Buscar o orçamento a ser enviado
-      const quoteToSend = savedQuotes.find(q => q.id === quoteId);
-      if (!quoteToSend) {
-        console.error('Orçamento não encontrado para envio de e-mail:', quoteId);
-        return false;
-      }
-
-      console.log(`Preparando para enviar orçamento ${quoteId} para ${recipientEmail}`);
-      
-      // Aqui estaria a integração real com serviço de e-mail
-      // Como estamos usando mock, simulamos o envio bem-sucedido
-      console.log('E-mail enviado com sucesso para:', recipientEmail);
-      
-      // Registrar o envio no histórico do orçamento
-      const updatedQuotes = savedQuotes.map(quote => {
-        if (quote.id === quoteId) {
-          const editRecord: EditRecord = {
-            editedAt: new Date().toISOString(),
-            editedBy: getCurrentUser(),
-            changes: `Orçamento enviado por e-mail para ${recipientEmail}`
-          };
-          
-          return {
-            ...quote,
-            editHistory: [...(quote.editHistory || []), editRecord]
-          };
-        }
-        return quote;
-      });
-      
-      // Atualizar o estado e o localStorage
-      setSavedQuotes(updatedQuotes);
-      localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
-      
-      return true;
-    } catch (error) {
-      console.error('Erro ao enviar orçamento por e-mail:', error);
-      return false;
-    }
-  };
-
-  return (
-    <QuoteContext.Provider value={{
-      quoteForm,
-      setClient,
-      addVehicle,
-      removeVehicle,
-      setGlobalContractMonths,
-      setGlobalMonthlyKm,
-      setGlobalOperationSeverity,
-      setGlobalHasTracking,
-      setUseGlobalParams,
-      setVehicleParams,
-      resetForm,
-      calculateQuote,
-      savedQuotes,
-      saveQuote,
-      getSavedQuotes,
-      deleteQuote,
-      getCurrentUser,
-      setCurrentUser,
-      canEditQuote,
-      canDeleteQuote,
-      updateQuote,
-      availableUsers,
-      authenticateUser,
-      mockUsers,
-      loadQuoteForEditing,
-      isEditMode,
-      currentEditingQuoteId,
-      sendQuoteByEmail
-    }}>
-      {children}
-    </QuoteContext.Provider>
-  );
-};
-
-// Hook to use the quote context
-export const useQuote = () => {
-  const context = useContext(QuoteContext);
-  if (context === undefined) {
-    throw new Error('useQuote must be used within a QuoteProvider');
-  }
-  return context;
-};
