@@ -1,5 +1,5 @@
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/core/client';
 import { QuoteStatusFlow, StatusHistoryItem } from './status-flow';
 
 /**

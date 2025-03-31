@@ -7,7 +7,7 @@ import {
   checkSupabaseConnection, 
   getQuotesFromSupabase, 
   getVehiclesFromSupabase 
-} from '@/integrations/supabase/client';
+} from '@/integrations/supabase';
 
 // Definindo o tipo com source restrito aos valores permitidos
 interface QuoteItem {
