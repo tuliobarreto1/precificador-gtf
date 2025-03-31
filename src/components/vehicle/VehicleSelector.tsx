@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Car, Search, Loader2, AlertTriangle, Database, RefreshCw, Plus, Check, X, Menu } from 'lucide-react';
+import { ArrowRight, Car, Search, Loader2, AlertTriangle, Database, RefreshCw, Plus, Check, X, Menu, Minus } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -68,6 +69,8 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   const [customPrice, setCustomPrice] = useState<number | null>(null);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [loadingModels, setLoadingModels] = useState(false);
+  const [quantity, setQuantity] = useState<number>(1);
+  const [selectedFuelType, setSelectedFuelType] = useState<string>('Flex');
   
   const { toast } = useToast();
 
@@ -154,6 +157,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     setSelectedGroup(null);
     setSelectedModel(null);
     setCustomPrice(null);
+    setQuantity(1);
   };
 
   const testDatabaseConnection = async () => {
@@ -314,46 +318,60 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       toast({
         title: "Modelo não selecionado",
         description: "Selecione um modelo de veículo para adicionar à cotação.",
-        variant: "destructive",
+        variant: "destructive"
       });
       return;
     }
     
     const finalPrice = customPrice !== null ? customPrice : selectedModel.MaiorValorCompra;
     
-    const mappedVehicle: Vehicle = {
-      id: `new-${selectedModel.CodigoModelo}`,
-      brand: selectedModel.Descricao.split(' ')[0],
-      model: selectedModel.Descricao.split(' ').slice(1).join(' '),
-      year: new Date().getFullYear(),
-      value: finalPrice,
-      isUsed: false,
-      groupId: selectedModel.LetraGrupo,
-    };
-    
-    const mappedGroup: VehicleGroup = {
-      id: selectedModel.LetraGrupo,
-      name: `Grupo ${selectedModel.LetraGrupo}`,
-      description: `Veículos do grupo ${selectedModel.LetraGrupo}`,
-      revisionKm: 10000,
-      revisionCost: 500,
-      tireKm: 40000,
-      tireCost: 2000
-    };
-    
-    onSelectVehicle(mappedVehicle, mappedGroup);
+    // Adicionar a quantidade de veículos selecionada
+    for (let i = 0; i < quantity; i++) {
+      const uniqueId = `new-${selectedModel.CodigoModelo}-${i}-${Date.now()}`;
+      
+      const mappedVehicle: Vehicle = {
+        id: uniqueId,
+        brand: selectedModel.Descricao.split(' ')[0],
+        model: selectedModel.Descricao.split(' ').slice(1).join(' '),
+        year: new Date().getFullYear(),
+        value: finalPrice,
+        isUsed: false,
+        groupId: selectedModel.LetraGrupo,
+        fuelType: selectedFuelType
+      };
+      
+      const mappedGroup: VehicleGroup = {
+        id: selectedModel.LetraGrupo,
+        name: `Grupo ${selectedModel.LetraGrupo}`,
+        description: `Veículos do grupo ${selectedModel.LetraGrupo}`,
+        revisionKm: 10000,
+        revisionCost: 500,
+        tireKm: 40000,
+        tireCost: 2000
+      };
+      
+      onSelectVehicle(mappedVehicle, mappedGroup);
+    }
     
     toast({
-      title: "Veículo adicionado",
-      description: `${selectedModel.Descricao} foi adicionado à cotação.`,
+      title: "Veículos adicionados",
+      description: `${quantity} ${quantity > 1 ? 'veículos' : 'veículo'} ${selectedModel.Descricao} ${quantity > 1 ? 'foram adicionados' : 'foi adicionado'} à cotação.`,
     });
     
     setSelectedModel(null);
     setCustomPrice(null);
+    setQuantity(1);
   };
 
   const isVehicleSelected = (vehicleId: string) => {
     return selectedVehicles.some(v => v.id === vehicleId);
+  };
+
+  const handleQuantityChange = (increment: boolean) => {
+    setQuantity(prev => {
+      const newValue = increment ? prev + 1 : prev - 1;
+      return Math.max(1, newValue); // Não permitir valores menores que 1
+    });
   };
 
   return (
@@ -636,6 +654,56 @@ DB_DATABASE=seu-banco-de-dados`}
                   <p className="text-sm text-muted-foreground">
                     Grupo {selectedModel.LetraGrupo} • {new Date().getFullYear()}
                   </p>
+                  
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="fuel-type" className="text-sm">Tipo de Combustível</Label>
+                      <Select 
+                        onValueChange={setSelectedFuelType}
+                        value={selectedFuelType}
+                      >
+                        <SelectTrigger className="w-full mt-1">
+                          <SelectValue placeholder="Selecione o combustível" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Flex">Flex</SelectItem>
+                          <SelectItem value="Gasolina">Gasolina</SelectItem>
+                          <SelectItem value="Diesel">Diesel</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="quantity" className="text-sm">Quantidade</Label>
+                      <div className="flex items-center mt-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleQuantityChange(false)}
+                          disabled={quantity <= 1}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <Input
+                          id="quantity"
+                          type="number"
+                          min="1"
+                          value={quantity}
+                          onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                          className="w-16 text-center mx-2"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleQuantityChange(true)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <div className="text-right">
                   <Label htmlFor="custom-price" className="text-xs text-muted-foreground">Valor de compra (R$)</Label>

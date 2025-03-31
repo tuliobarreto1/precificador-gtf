@@ -198,7 +198,8 @@ export async function saveQuoteToSupabase(quote: any) {
             isUsed: vehicleItem.isUsed || false,
             groupId: vehicleItem.groupId || "A",
             color: vehicleItem.color || null,
-            odometer: vehicleItem.odometer || 0
+            odometer: vehicleItem.odometer || 0,
+            fuelType: vehicleItem.fuelType || null
           };
           console.log("Construindo objeto vehicle a partir dos campos:", vehicle);
         }
@@ -250,7 +251,8 @@ export async function saveQuoteToSupabase(quote: any) {
                 is_used: true, // Veículos com placa são sempre usados
                 group_id: vehicle.groupId || vehicle.group_id || 'A',
                 color: vehicle.color || null,
-                odometer: parseInt(vehicle.odometer as any) || 0
+                odometer: parseInt(vehicle.odometer as any) || 0,
+                fuel_type: vehicle.fuelType || vehicle.fuel_type || 'Flex'
               };
               
               console.log("Atualizando veículo existente com dados:", updateData);
@@ -300,7 +302,8 @@ export async function saveQuoteToSupabase(quote: any) {
               is_used: vehicle.plateNumber || vehicle.plate_number ? true : (vehicle.isUsed === true || vehicle.is_used === true), 
               group_id: vehicle.groupId || vehicle.group_id || 'A',
               color: vehicle.color || null,
-              odometer: parseInt(vehicle.odometer as any) || 0
+              odometer: parseInt(vehicle.odometer as any) || 0,
+              fuel_type: vehicle.fuelType || vehicle.fuel_type || 'Flex'
             };
             
             console.log("Dados formatados do veículo para inserção:", vehicleData);
