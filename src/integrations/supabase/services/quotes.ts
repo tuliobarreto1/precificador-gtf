@@ -1,3 +1,4 @@
+
 import { supabase } from '../core/client';
 import { saveClientToSupabase } from './clients';
 import { v4 as uuidv4 } from 'uuid';
@@ -94,7 +95,7 @@ export async function saveQuoteToSupabase(quote: any) {
         const vehicleItem = quote.vehicles[i];
         console.log("Processando item do veículo:", vehicleItem);
         
-        // Determinar o veículo a partir do item
+        // CORREÇÃO: Lidar com diferentes estruturas de veículos
         let vehicle;
         
         // Se vehicleItem tem a propriedade 'vehicle', use-a diretamente
@@ -126,7 +127,7 @@ export async function saveQuoteToSupabase(quote: any) {
           console.log("Usando o próprio vehicleItem como veículo:", vehicle);
         }
         
-        // Se vehicleItem não tem estrutura reconhecida
+        // CORREÇÃO: Se vehicleItem não tem estrutura reconhecida
         if (!vehicle) {
           console.error("Veículo com estrutura não reconhecida:", vehicleItem);
           continue;
@@ -134,130 +135,253 @@ export async function saveQuoteToSupabase(quote: any) {
         
         console.log("Dados do veículo para processamento:", vehicle);
 
-        // CORREÇÃO IMPORTANTE: Cada veículo deve ser tratado como uma entidade separada
-        // Precisamos criar uma nova entrada na tabela vehicles para cada veículo
-        // mesmo que sejam do mesmo modelo
+        // Verificar se o veículo já existe no Supabase
+        let vehicleId = null;
         
-        console.log("Criando entrada para veículo na tabela vehicles...");
-        
-        // Preparar dados para inserção do veículo
-        const vehicleData = {
-          brand: vehicle.brand || 'Não especificado',
-          model: vehicle.model || 'Não especificado',
-          year: parseInt(vehicle.year as any) || new Date().getFullYear(),
-          value: parseFloat(vehicle.value as any) || 0,
-          plate_number: vehicle.plateNumber || vehicle.plate_number || null,
-          is_used: vehicle.plateNumber || vehicle.plate_number ? true : (vehicle.isUsed === true || vehicle.is_used === true),
-          group_id: vehicle.groupId || vehicle.group_id || 'A',
-          color: vehicle.color || null,
-          odometer: parseInt(vehicle.odometer as any) || 0,
-          fuel_type: vehicle.fuelType || vehicle.fuel_type || 'Flex'
-        };
-        
-        console.log("Dados formatados do veículo para inserção:", vehicleData);
-        
-        // SEMPRE criar um novo registro de veículo, mesmo para veículos novos do mesmo modelo
-        try {
-          const { data: newVehicle, error: vehicleError } = await supabase
-            .from('vehicles')
-            .insert(vehicleData)
-            .select();
-            
-          if (vehicleError) {
-            console.error("Erro ao criar veículo:", vehicleError);
-            continue;
-          } else if (newVehicle && Array.isArray(newVehicle) && newVehicle.length > 0) {
-            const vehicleId = newVehicle[0].id;
-            console.log("Veículo criado com sucesso. ID:", vehicleId);
-            
-            // Obter parâmetros do veículo
-            let params = quote.useGlobalParams 
-              ? quote.globalParams 
-              : (vehicleItem.params || quote.globalParams);
-            
-            if (!params) {
-              console.log("Parâmetros não encontrados, usando padrões");
-              params = {
-                contractMonths: quote.contractMonths || 12,
-                monthlyKm: quote.monthlyKm || 2000,
-                operationSeverity: quote.operationSeverity || 3,
-                hasTracking: quote.hasTracking || false
-              };
-            }
-            
-            // Determinar valores de custos
-            let monthlyValue = 0;
-            let depreciationCost = 0;
-            let maintenanceCost = 0;
-            let extraKmRate = 0;
-            let totalCost = 0;
-            
-            // Verificar se há resultados calculados disponíveis
-            if (quoteResults && Array.isArray(quoteResults)) {
-              // Para veículos do mesmo modelo, podemos usar o resultado do primeiro
-              // já que os cálculos seriam os mesmos
-              const vehicleResult = quoteResults.find(r => 
-                r.vehicleId === vehicle.id || 
-                (r.brand === vehicle.brand && r.model === vehicle.model)
-              );
-              
-              if (vehicleResult) {
-                depreciationCost = vehicleResult.depreciationCost || 0;
-                maintenanceCost = vehicleResult.maintenanceCost || 0;
-                extraKmRate = vehicleResult.extraKmRate || 0;
-                totalCost = vehicleResult.totalCost || vehicleResult.monthlyValue || 0;
-                monthlyValue = totalCost;
-                console.log("Valores calculados encontrados:", {depreciationCost, maintenanceCost, totalCost});
-              }
-            }
-            
-            // Se não temos valores calculados, verificar outros campos
-            if (totalCost === 0) {
-              if (vehicleItem.monthlyValue !== undefined) {
-                monthlyValue = vehicleItem.monthlyValue;
-                totalCost = monthlyValue;
-              } else if (vehicleItem.total_cost !== undefined) {
-                totalCost = vehicleItem.total_cost;
-                monthlyValue = totalCost;
-              } else if (quote.totalCost && quote.vehicles.length > 0) {
-                // Dividir o valor total pelo número de veículos como último recurso
-                totalCost = quote.totalCost / quote.vehicles.length;
-                monthlyValue = totalCost;
-              }
-              
-              console.log("Valor mensal atribuído:", monthlyValue);
-            }
-            
-            // Preparar os dados para inserção na tabela quote_vehicles
-            const quoteVehicleData = {
-              quote_id: quoteId,
-              vehicle_id: vehicleId,
-              monthly_value: monthlyValue,
-              monthly_km: params.monthlyKm,
-              contract_months: params.contractMonths,
-              operation_severity: params.operationSeverity,
-              has_tracking: params.hasTracking,
-              depreciation_cost: depreciationCost,
-              maintenance_cost: maintenanceCost,
-              extra_km_rate: extraKmRate,
-              total_cost: totalCost
-            };
-            
-            console.log("Inserindo veículo na tabela quote_vehicles:", quoteVehicleData);
-            
-            // Adicionar a promessa ao array
-            const insertPromise = supabase
-              .from('quote_vehicles')
-              .insert(quoteVehicleData)
+        // CORREÇÃO IMPORTANTE: Garantir que veículos do mesmo modelo (novos) tenham IDs diferentes
+        // Se o ID do veículo tem o formato temporário "new-XXX" e contém algum timestamp, mantemos ele como está
+        // pois isso garante que cada veículo do mesmo modelo terá um ID único
+        if (vehicle.id && typeof vehicle.id === 'string' && vehicle.id.includes('new-') && vehicle.id.includes('-')) {
+          vehicleId = vehicle.id; 
+          console.log("Usando ID temporário único para veículo novo:", vehicleId);
+          
+          // Vamos criar um novo veículo independentemente, já que veículos novos do mesmo modelo são separados
+          console.log("Criando veículo novo com dados:", vehicle);
+          
+          const vehicleData = {
+            brand: vehicle.brand || 'Não especificado',
+            model: vehicle.model || 'Não especificado',
+            year: parseInt(vehicle.year as any) || new Date().getFullYear(),
+            value: parseFloat(vehicle.value as any) || 0,
+            plate_number: vehicle.plateNumber || vehicle.plate_number || null,
+            is_used: vehicle.plateNumber || vehicle.plate_number ? true : (vehicle.isUsed === true || vehicle.is_used === true),
+            group_id: vehicle.groupId || vehicle.group_id || 'A',
+            color: vehicle.color || null,
+            odometer: parseInt(vehicle.odometer as any) || 0,
+            fuel_type: vehicle.fuelType || vehicle.fuel_type || 'Flex'
+          };
+          
+          console.log("Dados formatados do veículo para inserção:", vehicleData);
+          
+          try {
+            const { data: newVehicle, error: vehicleError } = await supabase
+              .from('vehicles')
+              .insert(vehicleData)
               .select();
               
-            vehicleInsertPromises.push(insertPromise);
-          } else {
-            console.error("Nenhum veículo retornado após inserção");
+            if (vehicleError) {
+              console.error("Erro ao criar veículo:", vehicleError);
+              continue;
+            } else if (newVehicle && Array.isArray(newVehicle) && newVehicle.length > 0) {
+              vehicleId = newVehicle[0].id;
+              console.log("Veículo criado com sucesso. ID:", vehicleId);
+            } else {
+              console.error("Nenhum veículo retornado após inserção");
+              continue;
+            }
+          } catch (insertError) {
+            console.error("Exceção ao tentar inserir veículo:", insertError);
+            continue;
           }
-        } catch (insertError) {
-          console.error("Exceção ao tentar inserir veículo:", insertError);
         }
+        // Se o ID do veículo já parece ser um UUID, usamos ele diretamente
+        else if (vehicle.id && typeof vehicle.id === 'string' && vehicle.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
+          vehicleId = vehicle.id;
+          console.log("Usando ID do veículo existente (parece ser UUID):", vehicleId);
+        }
+        // Se o ID não é um UUID (como 'new-123'), precisamos verificar ou criar o veículo
+        else {
+          // Primeiro, tenta pela placa (se disponível)
+          if (vehicle.plateNumber || vehicle.plate_number) {
+            const plateToSearch = vehicle.plateNumber || vehicle.plate_number;
+            console.log(`Buscando veículo pela placa: ${plateToSearch}`);
+            
+            const { data: existingVehicles } = await supabase
+              .from('vehicles')
+              .select('id')
+              .eq('plate_number', plateToSearch)
+              .limit(1);
+              
+            if (existingVehicles && Array.isArray(existingVehicles) && existingVehicles.length > 0) {
+              vehicleId = existingVehicles[0].id;
+              console.log("Veículo existente encontrado pela placa:", vehicleId);
+              
+              // CORREÇÃO: Atualizar os dados do veículo existente com as informações corretas
+              const updateData = {
+                brand: vehicle.brand || 'Não especificado',
+                model: vehicle.model || 'Não especificado',
+                year: parseInt(vehicle.year as any) || new Date().getFullYear(),
+                value: parseFloat(vehicle.value as any) || 0,
+                is_used: true, // Veículos com placa são sempre usados
+                group_id: vehicle.groupId || vehicle.group_id || 'A',
+                color: vehicle.color || null,
+                odometer: parseInt(vehicle.odometer as any) || 0,
+                fuel_type: vehicle.fuelType || vehicle.fuel_type || 'Flex'
+              };
+              
+              console.log("Atualizando veículo existente com dados:", updateData);
+              
+              const { error: updateError } = await supabase
+                .from('vehicles')
+                .update(updateData)
+                .eq('id', vehicleId);
+                
+              if (updateError) {
+                console.error("Erro ao atualizar dados do veículo:", updateError);
+              } else {
+                console.log("Dados do veículo atualizados com sucesso");
+              }
+            }
+          }
+          
+          // Se ainda não encontrou o veículo, tenta pela combinação marca/modelo
+          if (!vehicleId && vehicle.brand && vehicle.model) {
+            console.log(`Buscando veículo pela marca/modelo: ${vehicle.brand}/${vehicle.model}`);
+            
+            const { data: existingVehicles } = await supabase
+              .from('vehicles')
+              .select('id')
+              .eq('brand', vehicle.brand)
+              .eq('model', vehicle.model)
+              .limit(1);
+              
+            if (existingVehicles && Array.isArray(existingVehicles) && existingVehicles.length > 0) {
+              vehicleId = existingVehicles[0].id;
+              console.log("Veículo existente encontrado pela marca/modelo:", vehicleId);
+            }
+          }
+          
+          // Se ainda não encontrou o veículo, cria um novo
+          if (!vehicleId) {
+            console.log("Criando novo veículo com dados:", vehicle);
+            
+            // CORREÇÃO: Garantir que todos os tipos de veículos (novos ou usados) sejam salvos
+            const vehicleData = {
+              brand: vehicle.brand || 'Não especificado',
+              model: vehicle.model || 'Não especificado',
+              year: parseInt(vehicle.year as any) || new Date().getFullYear(),
+              value: parseFloat(vehicle.value as any) || 0,
+              plate_number: vehicle.plateNumber || vehicle.plate_number || null,
+              // Determinamos is_used explicitamente - veículos com placa são sempre usados
+              is_used: vehicle.plateNumber || vehicle.plate_number ? true : (vehicle.isUsed === true || vehicle.is_used === true), 
+              group_id: vehicle.groupId || vehicle.group_id || 'A',
+              color: vehicle.color || null,
+              odometer: parseInt(vehicle.odometer as any) || 0,
+              fuel_type: vehicle.fuelType || vehicle.fuel_type || 'Flex'
+            };
+            
+            console.log("Dados formatados do veículo para inserção:", vehicleData);
+            
+            try {
+              const { data: newVehicle, error: vehicleError } = await supabase
+                .from('vehicles')
+                .insert(vehicleData)
+                .select();
+                
+              if (vehicleError) {
+                console.error("Erro ao criar veículo:", vehicleError);
+                continue;
+              } else if (newVehicle && Array.isArray(newVehicle) && newVehicle.length > 0) {
+                vehicleId = newVehicle[0].id;
+                console.log("Veículo criado com sucesso. ID:", vehicleId);
+              } else {
+                console.error("Nenhum veículo retornado após inserção");
+                continue;
+              }
+            } catch (insertError) {
+              console.error("Exceção ao tentar inserir veículo:", insertError);
+              continue;
+            }
+          }
+        }
+        
+        // CORREÇÃO IMPORTANTE: Neste ponto, temos o ID do veículo independentemente de ser novo ou usado
+        // Devemos continuar com a inserção na tabela quote_vehicles para TODOS os veículos
+
+        // Vamos agora garantir que o veículo seja adicionado à tabela quote_vehicles
+        if (!vehicleId) {
+          console.error("VehicleId ainda não definido após todas as tentativas, pulando para o próximo veículo");
+          continue;
+        }
+        
+        console.log(`Prosseguindo com a inclusão do veículo ID ${vehicleId} na tabela quote_vehicles`);
+        
+        // Obter parâmetros do veículo
+        let params = quote.useGlobalParams 
+          ? quote.globalParams 
+          : (vehicleItem.params || quote.globalParams);
+        
+        if (!params) {
+          console.log("Parâmetros não encontrados, usando padrões");
+          params = {
+            contractMonths: quote.contractMonths || 12,
+            monthlyKm: quote.monthlyKm || 2000,
+            operationSeverity: quote.operationSeverity || 3,
+            hasTracking: quote.hasTracking || false
+          };
+        }
+        
+        // Determinar valores de custos
+        let monthlyValue = 0;
+        let depreciationCost = 0;
+        let maintenanceCost = 0;
+        let extraKmRate = 0;
+        let totalCost = 0;
+        
+        // Verificar se há resultados calculados disponíveis
+        if (quoteResults && Array.isArray(quoteResults)) {
+          const vehicleResult = quoteResults.find(r => r.vehicleId === vehicle.id);
+          if (vehicleResult) {
+            depreciationCost = vehicleResult.depreciationCost || 0;
+            maintenanceCost = vehicleResult.maintenanceCost || 0;
+            extraKmRate = vehicleResult.extraKmRate || 0;
+            totalCost = vehicleResult.totalCost || vehicleResult.monthlyValue || 0;
+            monthlyValue = totalCost;
+            console.log("Valores calculados encontrados:", {depreciationCost, maintenanceCost, totalCost});
+          }
+        }
+        
+        // Se não temos valores calculados, verificar outros campos
+        if (totalCost === 0) {
+          if (vehicleItem.monthlyValue !== undefined) {
+            monthlyValue = vehicleItem.monthlyValue;
+            totalCost = monthlyValue;
+          } else if (vehicleItem.total_cost !== undefined) {
+            totalCost = vehicleItem.total_cost;
+            monthlyValue = totalCost;
+          } else if (quote.totalCost && quote.vehicles.length > 0) {
+            // Dividir o valor total pelo número de veículos como último recurso
+            totalCost = quote.totalCost / quote.vehicles.length;
+            monthlyValue = totalCost;
+          }
+          
+          console.log("Valor mensal atribuído:", monthlyValue);
+        }
+        
+        // Preparar os dados para inserção
+        const quoteVehicleData = {
+          quote_id: quoteId,
+          vehicle_id: vehicleId,
+          monthly_value: monthlyValue,
+          monthly_km: params.monthlyKm,
+          contract_months: params.contractMonths,
+          operation_severity: params.operationSeverity,
+          has_tracking: params.hasTracking,
+          depreciation_cost: depreciationCost,
+          maintenance_cost: maintenanceCost,
+          extra_km_rate: extraKmRate,
+          total_cost: totalCost
+        };
+        
+        console.log("Inserindo veículo na tabela quote_vehicles:", quoteVehicleData);
+        
+        // Adicionar a promessa ao array
+        const insertPromise = supabase
+          .from('quote_vehicles')
+          .insert(quoteVehicleData)
+          .select();
+          
+        vehicleInsertPromises.push(insertPromise);
       }
       
       // Aguardar todas as inserções de veículos
