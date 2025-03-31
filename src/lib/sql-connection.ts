@@ -71,41 +71,7 @@ export const getVehicleByPlate = async (plate: string): Promise<SqlVehicle | nul
   try {
     console.log(`Buscando veículo com placa: ${plate}`);
     
-    // Primeiro, tentamos buscar no Supabase
-    const { data: supabaseVehicle, error: supabaseError } = await supabase
-      .from('vehicles')
-      .select('*')
-      .eq('plate_number', plate)
-      .single();
-    
-    if (supabaseVehicle && !supabaseError) {
-      console.log('Veículo encontrado no Supabase:', supabaseVehicle);
-      
-      // Convertemos explicitamente para o tipo SupabaseVehicle
-      const typedVehicle = supabaseVehicle as SupabaseVehicle;
-      
-      // Converter o formato do Supabase para o formato SqlVehicle
-      return {
-        CodigoMVA: 0,
-        Placa: typedVehicle.plate_number || '',
-        CodigoModelo: '0',
-        DescricaoModelo: `${typedVehicle.brand} ${typedVehicle.model}`,
-        CodigoGrupoVeiculo: typedVehicle.group_id || 'A',
-        LetraGrupo: typedVehicle.group_id || 'A',
-        DescricaoGrupo: `Grupo ${typedVehicle.group_id || 'A'}`,
-        AnoFabricacaoModelo: typedVehicle.year.toString(),
-        Cor: typedVehicle.color || '',
-        TipoCombustivel: typedVehicle.fuel_type || '',
-        NumeroPassageiros: 5,
-        OdometroAtual: typedVehicle.odometer || 0,
-        Status: 'Ativo',
-        DescricaoStatus: 'Veículo Ativo',
-        ValorCompra: typedVehicle.value || 0,
-        DataCompra: new Date().toISOString()
-      };
-    }
-    
-    // Se não encontrar no Supabase, busca na API externa
+  //busca na API externa
     console.log('Veículo não encontrado no Supabase, buscando na API externa...');
     const response = await fetch(`http://localhost:3002/api/vehicles/${plate}`);
     
