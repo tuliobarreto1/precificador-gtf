@@ -10,17 +10,12 @@ export interface Vehicle {
   model: string;
   year: number;
   value: number;
-  isUsed?: boolean; // Alterado para opcional para compatibilidade com a interface do mock-data
+  isUsed: boolean;
   plateNumber?: string;
   groupId?: string;
   color?: string;
   odometer?: number;
   fuelType?: string;
-  // Adicionando campos adicionais para os custos
-  monthly_value?: number;
-  depreciation_cost?: number;
-  maintenance_cost?: number;
-  extra_km_rate?: number;
 }
 
 export interface VehicleCardProps {

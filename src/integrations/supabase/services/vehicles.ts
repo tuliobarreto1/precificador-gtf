@@ -26,7 +26,7 @@ export interface VehicleData {
 }
 
 // Função para buscar veículos do Supabase
-export async function getVehiclesFromSupabase(options = {}) {
+export async function getVehiclesFromSupabase() {
   try {
     console.log("Buscando veículos do Supabase...");
     
