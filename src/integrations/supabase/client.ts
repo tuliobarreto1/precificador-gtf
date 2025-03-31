@@ -225,6 +225,19 @@ export async function saveQuoteToSupabase(quote: any) {
         if (vehicle.id && typeof vehicle.id === 'string' && vehicle.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
           vehicleId = vehicle.id;
           console.log("Usando ID do veículo existente (parece ser UUID):", vehicleId);
+          
+          // Mesmo para veículos existentes, podemos atualizar o tipo de combustível se fornecido
+          if (vehicle.fuelType) {
+            console.log("Atualizando tipo de combustível para veículo existente:", vehicle.fuelType);
+            const { error: updateFuelError } = await supabase
+              .from('vehicles')
+              .update({ fuel_type: vehicle.fuelType })
+              .eq('id', vehicleId);
+              
+            if (updateFuelError) {
+              console.error("Erro ao atualizar tipo de combustível:", updateFuelError);
+            }
+          }
         }
         // Se o ID não é um UUID (como 'new-123'), precisamos verificar ou criar o veículo
         else {
@@ -253,7 +266,7 @@ export async function saveQuoteToSupabase(quote: any) {
                 group_id: vehicle.groupId || vehicle.group_id || 'A',
                 color: vehicle.color || null,
                 odometer: parseInt(vehicle.odometer as any) || 0,
-                fuel_type: vehicle.fuelType || null
+                fuel_type: vehicle.fuelType || null  // Incluir tipo de combustível na atualização
               };
               
               console.log("Atualizando veículo existente com dados:", updateData);
@@ -285,6 +298,19 @@ export async function saveQuoteToSupabase(quote: any) {
             if (existingVehicles && Array.isArray(existingVehicles) && existingVehicles.length > 0) {
               vehicleId = existingVehicles[0].id;
               console.log("Veículo existente encontrado pela marca/modelo:", vehicleId);
+              
+              // Se o veículo foi encontrado pela marca/modelo, atualizar o tipo de combustível se fornecido
+              if (vehicle.fuelType) {
+                console.log("Atualizando tipo de combustível para veículo encontrado:", vehicle.fuelType);
+                const { error: updateFuelError } = await supabase
+                  .from('vehicles')
+                  .update({ fuel_type: vehicle.fuelType })
+                  .eq('id', vehicleId);
+                  
+                if (updateFuelError) {
+                  console.error("Erro ao atualizar tipo de combustível:", updateFuelError);
+                }
+              }
             }
           }
           
@@ -304,7 +330,7 @@ export async function saveQuoteToSupabase(quote: any) {
               group_id: vehicle.groupId || vehicle.group_id || 'A',
               color: vehicle.color || null,
               odometer: parseInt(vehicle.odometer as any) || 0,
-              fuel_type: vehicle.fuelType || null
+              fuel_type: vehicle.fuelType || null  // Incluir tipo de combustível ao criar veículo
             };
             
             console.log("Dados formatados do veículo para inserção:", vehicleData);

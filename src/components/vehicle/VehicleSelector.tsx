@@ -333,6 +333,8 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     
     const finalPrice = customPrice !== null ? customPrice : selectedModel.MaiorValorCompra;
     
+    console.log(`Adicionando veículo com combustível: ${selectedFuelType}`);
+    
     const mappedVehicle: Vehicle = {
       id: `new-${selectedModel.CodigoModelo}`,
       brand: selectedModel.Descricao.split(' ')[0],
