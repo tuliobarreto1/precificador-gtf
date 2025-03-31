@@ -20,7 +20,6 @@ import VehicleCard, { Vehicle } from '@/components/ui-custom/VehicleCard';
 import { getClients, Client } from '@/lib/mock-data';
 import { useQuote, QuoteProvider } from '@/context/QuoteContext';
 import { CustomClient } from '@/components/quote/ClientForm';
-import { getVehiclesFromSupabase } from '@/integrations/supabase';
 
 const STEPS = [
   { id: 'client', name: 'Cliente', icon: <Users size={18} /> },
@@ -132,9 +131,6 @@ const QuoteForm = () => {
   const [loadingQuote, setLoadingQuote] = useState<boolean>(!!id);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadAttempted, setLoadAttempted] = useState<boolean>(false);
-  const [isLoadingExisting, setIsLoadingExisting] = useState<boolean>(false);
-  const [existingVehicles, setExistingVehicles] = useState<Vehicle[]>([]);
-  const [filteredExisting, setFilteredExisting] = useState<Vehicle[]>([]);
   const loadAttemptedRef = useRef(false);
   const navigate = useNavigate();
   const { toast } = useToast();
