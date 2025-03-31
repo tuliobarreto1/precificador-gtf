@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Slider } from '@/components/ui/slider';
-import { Switch } from "@/components/ui/switch";
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -661,42 +661,6 @@ const QuoteForm = () => {
         </Card>
       </div>
     );
-  };
-
-  const loadExistingVehicles = async () => {
-    setIsLoadingExisting(true);
-    try {
-      const { success, vehicles } = await getVehiclesFromSupabase();
-      
-      if (success && vehicles) {
-        const mappedVehicles = vehicles.map(v => ({
-          id: v.id,
-          brand: v.brand,
-          model: v.model,
-          year: v.year,
-          value: v.value,
-          plateNumber: v.plate_number || undefined,
-          isUsed: v.is_used,
-          groupId: v.group_id,
-          color: v.color || undefined,
-          odometer: v.odometer || undefined,
-          fuelType: v.fuel_type || undefined
-        }));
-        
-        setExistingVehicles(mappedVehicles);
-        setFilteredExisting(mappedVehicles);
-      } else {
-        toast({
-          title: 'Aviso',
-          description: 'Não foi possível carregar os veículos existentes.',
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      console.error('Erro ao carregar veículos existentes:', error);
-    } finally {
-      setIsLoadingExisting(false);
-    }
   };
 
   const renderStepContent = () => {
