@@ -10,12 +10,13 @@ export interface Vehicle {
   model: string;
   year: number;
   value: number;
-  isUsed?: boolean;
+  isUsed?: boolean; // Tornando opcional para compatibilidade
   plateNumber?: string;
   groupId?: string;
   color?: string;
   odometer?: number;
   fuelType?: string;
+  // Adicionando campos adicionais para os custos
   monthly_value?: number;
   depreciation_cost?: number;
   maintenance_cost?: number;

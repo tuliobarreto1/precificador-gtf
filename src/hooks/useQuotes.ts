@@ -1,7 +1,7 @@
-
 import { useState, useEffect } from 'react';
 import { useQuote } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
+import { quotes, getClientById, getVehicleById } from '@/lib/mock-data';
 import { 
   checkSupabaseConnection, 
   getQuotesFromSupabase, 
@@ -15,7 +15,7 @@ interface QuoteItem {
   value: number;
   createdAt: string;
   status: string;
-  source: 'local' | 'supabase';
+  source: 'demo' | 'local' | 'supabase';
 }
 
 export const useQuotes = () => {
@@ -164,6 +164,16 @@ export const useQuotes = () => {
   };
 
   const allQuotes: QuoteItem[] = [
+    ...quotes.map(quote => ({
+      id: quote.id,
+      clientName: getClientById(quote.clientId)?.name || 'Cliente não encontrado',
+      vehicleName: getVehicleById(quote.vehicleId)?.brand + ' ' + getVehicleById(quote.vehicleId)?.model,
+      value: quote.totalCost,
+      createdAt: new Date().toISOString(),
+      status: 'ORCAMENTO',
+      source: 'demo' as const
+    })),
+    
     ...(savedQuotes || []).map(quote => ({
       id: quote.id,
       clientName: quote.clientName || 'Cliente não especificado',
