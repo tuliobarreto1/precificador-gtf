@@ -2,6 +2,7 @@
 import { supabase } from '../core/client';
 import { saveClientToSupabase } from './clients';
 import { v4 as uuidv4 } from 'uuid';
+import { getQuoteVehicles } from './quoteVehicles';
 
 // Função para salvar orçamento no Supabase
 export async function saveQuoteToSupabase(quote: any) {
