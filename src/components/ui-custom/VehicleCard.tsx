@@ -50,12 +50,12 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
     model: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).model : vehicle.model,
     year: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).year : vehicle.year,
     value: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).value : vehicle.value,
-    plateNumber: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).plateNumber || (vehicle.vehicle as any).plate_number : vehicle.plateNumber || vehicle.plate_number,
-    isUsed: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).isUsed || (vehicle.vehicle as any).is_used : vehicle.isUsed || vehicle.is_used,
+    plateNumber: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).plateNumber || (vehicle.vehicle as any).plate_number : vehicle.plateNumber,
+    isUsed: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).isUsed || (vehicle.vehicle as any).is_used : vehicle.isUsed,
     color: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).color : vehicle.color,
     odometer: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).odometer : vehicle.odometer,
-    fuelType: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).fuelType || (vehicle.vehicle as any).fuel_type : vehicle.fuelType || vehicle.fuel_type,
-    groupId: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).groupId || (vehicle.vehicle as any).group_id : vehicle.groupId || vehicle.group_id,
+    fuelType: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).fuelType || (vehicle.vehicle as any).fuel_type : vehicle.fuelType,
+    groupId: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).groupId || (vehicle.vehicle as any).group_id : vehicle.groupId,
   };
 
   return (
