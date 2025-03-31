@@ -51,18 +51,18 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
     }
   };
 
-  // Verifica se é um Vehicle ou VehicleData e adapta
+  // Verifica se é um Vehicle ou um objeto com propriedade 'vehicle'
   const vehicleData = {
-    brand: 'vehicle' in vehicle ? vehicle.vehicle.brand : vehicle.brand,
-    model: 'vehicle' in vehicle ? vehicle.vehicle.model : vehicle.model,
-    year: 'vehicle' in vehicle ? vehicle.vehicle.year : vehicle.year,
-    value: 'vehicle' in vehicle ? vehicle.vehicle.value : vehicle.value,
-    plateNumber: 'vehicle' in vehicle ? vehicle.vehicle.plate_number : vehicle.plateNumber,
-    isUsed: 'vehicle' in vehicle ? vehicle.vehicle.is_used : vehicle.isUsed,
-    color: 'vehicle' in vehicle ? vehicle.vehicle.color : vehicle.color,
-    odometer: 'vehicle' in vehicle ? vehicle.vehicle.odometer : vehicle.odometer,
-    fuelType: 'vehicle' in vehicle ? vehicle.vehicle.fuel_type : vehicle.fuelType,
-    groupId: 'vehicle' in vehicle ? vehicle.vehicle.group_id : vehicle.groupId,
+    brand: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).brand : vehicle.brand,
+    model: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).model : vehicle.model,
+    year: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).year : vehicle.year,
+    value: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).value : vehicle.value,
+    plateNumber: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).plateNumber || (vehicle.vehicle as any).plate_number : vehicle.plateNumber,
+    isUsed: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).isUsed || (vehicle.vehicle as any).is_used : vehicle.isUsed,
+    color: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).color : vehicle.color,
+    odometer: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).odometer : vehicle.odometer,
+    fuelType: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).fuelType || (vehicle.vehicle as any).fuel_type : vehicle.fuelType,
+    groupId: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).groupId || (vehicle.vehicle as any).group_id : vehicle.groupId,
   };
 
   return (

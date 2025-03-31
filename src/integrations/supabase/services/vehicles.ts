@@ -11,6 +11,20 @@ export const convertToValidUuid = (id: string | number): string => {
   return uuidv4();
 };
 
+export interface VehicleData {
+  id: string;
+  brand: string;
+  model: string;
+  year: number;
+  value: number;
+  plate_number?: string;
+  is_used: boolean;
+  group_id?: string;
+  color?: string;
+  odometer?: number;
+  fuel_type?: string;
+}
+
 // Função para buscar veículos do Supabase
 export async function getVehiclesFromSupabase() {
   try {
