@@ -670,7 +670,7 @@ const QuoteForm = () => {
   const loadExistingVehicles = async () => {
     setIsLoadingExisting(true);
     try {
-      const { success, vehicles } = await getVehiclesFromSupabase({});
+      const { success, vehicles } = await getVehiclesFromSupabase();
       
       if (success && vehicles) {
         const mappedVehicles = vehicles.map((v: VehicleData) => ({
@@ -684,8 +684,12 @@ const QuoteForm = () => {
           groupId: v.group_id,
           color: v.color,
           odometer: v.odometer,
-          fuelType: v.fuel_type
-        } as Vehicle));
+          fuelType: v.fuel_type,
+          monthly_value: v.monthly_value,
+          depreciation_cost: v.depreciation_cost,
+          maintenance_cost: v.maintenance_cost,
+          extra_km_rate: v.extra_km_rate
+        })) as Vehicle[];
         
         setExistingVehicles(mappedVehicles);
         setFilteredExisting(mappedVehicles);
