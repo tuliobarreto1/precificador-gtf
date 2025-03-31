@@ -5,7 +5,7 @@ import { ArrowLeft, FileEdit, Car, Calendar, User, Landmark, Gauge } from 'lucid
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
-import VehicleCard from '@/components/ui-custom/VehicleCard';
+import VehicleCard, { Vehicle } from '@/components/ui-custom/VehicleCard';
 import StatusUpdater from '@/components/status/StatusUpdater';
 import StatusBreadcrumb from '@/components/status/StatusBreadcrumb';
 import StatusHistory from '@/components/status/StatusHistory';
@@ -341,7 +341,7 @@ const QuoteDetail = () => {
                     {vehicles.map((item) => (
                       <VehicleCard 
                         key={item.id} 
-                        vehicle={item} 
+                        vehicle={item as unknown as Vehicle} 
                         showDetailedInfo={true}
                         showCosts={true}
                       >
