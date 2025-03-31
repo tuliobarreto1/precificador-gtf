@@ -1,5 +1,5 @@
 
-import { supabase } from '../core/client';
+import { supabase } from '../client';
 import { convertToValidUuid } from './vehicles';
 
 // Função para salvar cliente no Supabase

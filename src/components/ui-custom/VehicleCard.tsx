@@ -10,7 +10,7 @@ export interface Vehicle {
   model: string;
   year: number;
   value: number;
-  isUsed?: boolean;
+  isUsed: boolean; // Modificado para ser obrigatório
   plateNumber?: string;
   groupId?: string;
   color?: string;
@@ -51,7 +51,11 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
     year: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).year : vehicle.year,
     value: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).value : vehicle.value,
     plateNumber: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).plateNumber || (vehicle.vehicle as any).plate_number : vehicle.plateNumber || vehicle.plate_number,
-    isUsed: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).isUsed || (vehicle.vehicle as any).is_used : vehicle.isUsed || vehicle.is_used,
+    isUsed: 'vehicle' in vehicle 
+      ? (vehicle.vehicle as Vehicle).isUsed !== undefined 
+        ? (vehicle.vehicle as Vehicle).isUsed 
+        : (vehicle.vehicle as any).is_used || false 
+      : vehicle.isUsed !== undefined ? vehicle.isUsed : vehicle.is_used || false,
     color: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).color : vehicle.color,
     odometer: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).odometer : vehicle.odometer,
     fuelType: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).fuelType || (vehicle.vehicle as any).fuel_type : vehicle.fuelType || vehicle.fuel_type,
