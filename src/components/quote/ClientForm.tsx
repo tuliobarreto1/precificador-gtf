@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,9 +13,10 @@ export interface CustomClient extends Client {
 export interface ClientFormProps {
   onClientSelect?: (client: Client | CustomClient) => void;
   existingClients?: Client[];
+  isLoadingClients?: boolean;
 }
 
-export default function ClientForm({ onClientSelect, existingClients = [] }: ClientFormProps) {
+export default function ClientForm({ onClientSelect, existingClients = [], isLoadingClients = false }: ClientFormProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     document: '',
@@ -137,36 +139,42 @@ export default function ClientForm({ onClientSelect, existingClients = [] }: Cli
       {existingClients && existingClients.length > 0 && (
         <div className="space-y-4">
           <h3 className="text-lg font-medium">Selecione um Cliente Existente</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {existingClients.map((client) => (
-              <div
-                key={client.id}
-                className={`p-4 rounded-lg border cursor-pointer transition-all hover:border-primary/30 ${
-                  selectedClientId === client.id ? 'border-primary bg-primary/5' : ''
-                }`}
-                onClick={() => handleSelectClient(client)}
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h4 className="font-medium">{client.name}</h4>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {client.type === 'PJ' ? 'CNPJ' : 'CPF'}: {client.document}
-                    </p>
+          {isLoadingClients ? (
+            <div className="flex justify-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {existingClients.map((client) => (
+                <div
+                  key={client.id}
+                  className={`p-4 rounded-lg border cursor-pointer transition-all hover:border-primary/30 ${
+                    selectedClientId === client.id ? 'border-primary bg-primary/5' : ''
+                  }`}
+                  onClick={() => handleSelectClient(client)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="font-medium">{client.name}</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {client.type === 'PJ' ? 'CNPJ' : 'CPF'}: {client.document}
+                      </p>
+                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      client.type === 'PJ' 
+                        ? 'bg-blue-100 text-blue-800' 
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      {client.type === 'PJ' ? 'Pessoa Jurídica' : 'Pessoa Física'}
+                    </span>
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    client.type === 'PJ' 
-                      ? 'bg-blue-100 text-blue-800' 
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {client.type === 'PJ' ? 'Pessoa Jurídica' : 'Pessoa Física'}
-                  </span>
+                  {client.email && (
+                    <p className="text-sm mt-2">{client.email}</p>
+                  )}
                 </div>
-                {client.email && (
-                  <p className="text-sm mt-2">{client.email}</p>
-                )}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
