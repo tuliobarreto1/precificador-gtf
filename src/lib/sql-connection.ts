@@ -71,8 +71,8 @@ export const getVehicleByPlate = async (plate: string): Promise<SqlVehicle | nul
   try {
     console.log(`Buscando veículo com placa: ${plate}`);
     
-    // Busca na API externa
-    console.log('Buscando veículo na API externa...');
+  //busca na API externa
+    console.log('Veículo não encontrado no Supabase, buscando na API externa...');
     const response = await fetch(`http://localhost:3002/api/vehicles/${plate}`);
     
     if (!response.ok) {
@@ -89,8 +89,29 @@ export const getVehicleByPlate = async (plate: string): Promise<SqlVehicle | nul
     const vehicle = await response.json();
     console.log('Veículo encontrado na API externa:', vehicle);
     
-    // IMPORTANTE: Não vamos mais salvar o veículo no Supabase aqui
-    // Isso só deve acontecer quando o orçamento for salvo
+    // Após encontrar na API externa, armazenamos no Supabase para uso futuro
+    if (vehicle) {
+      const { error: insertError } = await supabase
+        .from('vehicles')
+        .insert({
+          brand: vehicle.DescricaoModelo.split(' ')[0],
+          model: vehicle.DescricaoModelo.split(' ').slice(1).join(' '),
+          year: parseInt(vehicle.AnoFabricacaoModelo) || new Date().getFullYear(),
+          value: vehicle.ValorCompra || 0,
+          is_used: true,
+          plate_number: vehicle.Placa,
+          color: vehicle.Cor || '',
+          odometer: vehicle.OdometroAtual || 0,
+          fuel_type: vehicle.TipoCombustivel || '',
+          group_id: vehicle.LetraGrupo || 'A'
+        });
+      
+      if (insertError) {
+        console.error('Erro ao salvar veículo no Supabase:', insertError);
+      } else {
+        console.log('Veículo salvo no Supabase com sucesso');
+      }
+    }
     
     return vehicle;
   } catch (error) {
