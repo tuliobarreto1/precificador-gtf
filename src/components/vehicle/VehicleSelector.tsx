@@ -327,6 +327,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     
     // Adicionar a quantidade de veículos selecionada
     for (let i = 0; i < quantity; i++) {
+      // Garantimos que cada veículo tenha um ID único usando timestamp + índice
       const uniqueId = `new-${selectedModel.CodigoModelo}-${i}-${Date.now()}`;
       
       const mappedVehicle: Vehicle = {

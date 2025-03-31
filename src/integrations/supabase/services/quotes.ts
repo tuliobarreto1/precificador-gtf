@@ -138,8 +138,54 @@ export async function saveQuoteToSupabase(quote: any) {
         // Verificar se o veículo já existe no Supabase
         let vehicleId = null;
         
+        // CORREÇÃO IMPORTANTE: Garantir que veículos do mesmo modelo (novos) tenham IDs diferentes
+        // Se o ID do veículo tem o formato temporário "new-XXX" e contém algum timestamp, mantemos ele como está
+        // pois isso garante que cada veículo do mesmo modelo terá um ID único
+        if (vehicle.id && typeof vehicle.id === 'string' && vehicle.id.includes('new-') && vehicle.id.includes('-')) {
+          vehicleId = vehicle.id; 
+          console.log("Usando ID temporário único para veículo novo:", vehicleId);
+          
+          // Vamos criar um novo veículo independentemente, já que veículos novos do mesmo modelo são separados
+          console.log("Criando veículo novo com dados:", vehicle);
+          
+          const vehicleData = {
+            brand: vehicle.brand || 'Não especificado',
+            model: vehicle.model || 'Não especificado',
+            year: parseInt(vehicle.year as any) || new Date().getFullYear(),
+            value: parseFloat(vehicle.value as any) || 0,
+            plate_number: vehicle.plateNumber || vehicle.plate_number || null,
+            is_used: vehicle.plateNumber || vehicle.plate_number ? true : (vehicle.isUsed === true || vehicle.is_used === true),
+            group_id: vehicle.groupId || vehicle.group_id || 'A',
+            color: vehicle.color || null,
+            odometer: parseInt(vehicle.odometer as any) || 0,
+            fuel_type: vehicle.fuelType || vehicle.fuel_type || 'Flex'
+          };
+          
+          console.log("Dados formatados do veículo para inserção:", vehicleData);
+          
+          try {
+            const { data: newVehicle, error: vehicleError } = await supabase
+              .from('vehicles')
+              .insert(vehicleData)
+              .select();
+              
+            if (vehicleError) {
+              console.error("Erro ao criar veículo:", vehicleError);
+              continue;
+            } else if (newVehicle && Array.isArray(newVehicle) && newVehicle.length > 0) {
+              vehicleId = newVehicle[0].id;
+              console.log("Veículo criado com sucesso. ID:", vehicleId);
+            } else {
+              console.error("Nenhum veículo retornado após inserção");
+              continue;
+            }
+          } catch (insertError) {
+            console.error("Exceção ao tentar inserir veículo:", insertError);
+            continue;
+          }
+        }
         // Se o ID do veículo já parece ser um UUID, usamos ele diretamente
-        if (vehicle.id && typeof vehicle.id === 'string' && vehicle.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
+        else if (vehicle.id && typeof vehicle.id === 'string' && vehicle.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
           vehicleId = vehicle.id;
           console.log("Usando ID do veículo existente (parece ser UUID):", vehicleId);
         }
@@ -230,30 +276,14 @@ export async function saveQuoteToSupabase(quote: any) {
               const { data: newVehicle, error: vehicleError } = await supabase
                 .from('vehicles')
                 .insert(vehicleData)
-                .select()
-                .single();
+                .select();
                 
               if (vehicleError) {
                 console.error("Erro ao criar veículo:", vehicleError);
-                // Tentativa alternativa de inserção sem usar single()
-                const { data: fallbackInsert, error: fallbackError } = await supabase
-                  .from('vehicles')
-                  .insert(vehicleData)
-                  .select();
-                  
-                if (fallbackError) {
-                  console.error("Erro na tentativa alternativa de criar veículo:", fallbackError);
-                  continue;
-                } else if (fallbackInsert && Array.isArray(fallbackInsert) && fallbackInsert.length > 0) {
-                  vehicleId = fallbackInsert[0].id;
-                  console.log("Veículo criado com sucesso na tentativa alternativa. ID:", vehicleId);
-                } else {
-                  console.error("Nenhum veículo retornado após inserção alternativa");
-                  continue;
-                }
-              } else if (newVehicle) {
-                vehicleId = newVehicle.id;
-                console.log("Novo veículo criado com ID:", vehicleId);
+                continue;
+              } else if (newVehicle && Array.isArray(newVehicle) && newVehicle.length > 0) {
+                vehicleId = newVehicle[0].id;
+                console.log("Veículo criado com sucesso. ID:", vehicleId);
               } else {
                 console.error("Nenhum veículo retornado após inserção");
                 continue;
