@@ -679,12 +679,12 @@ const QuoteForm = () => {
           model: v.model,
           year: v.year,
           value: v.value,
-          plateNumber: v.plate_number,
+          plateNumber: v.plate_number || undefined,
           isUsed: v.is_used,
           groupId: v.group_id,
-          color: v.color,
-          odometer: v.odometer,
-          fuelType: v.fuel_type
+          color: v.color || undefined,
+          odometer: v.odometer || undefined,
+          fuelType: v.fuel_type || undefined
         }));
         
         setExistingVehicles(mappedVehicles);
