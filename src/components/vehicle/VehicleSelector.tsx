@@ -14,6 +14,7 @@ import VehicleCard from '@/components/ui-custom/VehicleCard';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 
+// Tipos
 interface Vehicle {
   id: string;
   brand: string;
@@ -39,6 +40,7 @@ interface VehicleSelectorProps {
   selectedVehicles: Vehicle[];
 }
 
+// Componente principal
 const VehicleSelector: React.FC<VehicleSelectorProps> = ({ 
   onSelectVehicle, 
   onRemoveVehicle,
@@ -62,6 +64,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(false);
   const { toast } = useToast();
 
+  // Carregar grupos de veículos
   useEffect(() => {
     const loadVehicleGroups = async () => {
       setIsLoadingGroups(true);
@@ -91,6 +94,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     loadVehicleGroups();
   }, [toast]);
 
+  // Carregar modelos quando um grupo é selecionado
   useEffect(() => {
     const loadVehicleModels = async () => {
       if (!selectedGroup) return;
@@ -122,46 +126,48 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     }
   }, [selectedGroup, toast]);
 
-  const loadExistingVehicles = async () => {
-    setIsLoadingExisting(true);
-    try {
-      const { success, vehicles } = await getVehiclesFromSupabase(false);
-      
-      if (success && vehicles) {
-        const mappedVehicles = vehicles.map(v => ({
-          id: v.id,
-          brand: v.brand,
-          model: v.model,
-          year: v.year,
-          value: v.value,
-          plateNumber: v.plate_number || undefined,
-          isUsed: v.is_used,
-          groupId: v.group_id,
-          color: v.color || undefined,
-          odometer: v.odometer || undefined,
-          fuelType: v.fuel_type || undefined
-        }));
-        
-        setExistingVehicles(mappedVehicles);
-        setFilteredExisting(mappedVehicles);
-      } else {
-        toast({
-          title: 'Aviso',
-          description: 'Não foi possível carregar os veículos existentes.',
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      console.error('Erro ao carregar veículos existentes:', error);
-    } finally {
-      setIsLoadingExisting(false);
-    }
-  };
-
+  // Carregar veículos existentes
   useEffect(() => {
+    const loadExistingVehicles = async () => {
+      setIsLoadingExisting(true);
+      try {
+        const { success, vehicles } = await getVehiclesFromSupabase();
+        
+        if (success && vehicles) {
+          const mappedVehicles = vehicles.map(v => ({
+            id: v.id,
+            brand: v.brand,
+            model: v.model,
+            year: v.year,
+            value: v.value,
+            plateNumber: v.plate_number || undefined,
+            isUsed: v.is_used,
+            groupId: v.group_id,
+            color: v.color || undefined,
+            odometer: v.odometer || undefined,
+            fuelType: v.fuel_type || undefined
+          }));
+          
+          setExistingVehicles(mappedVehicles);
+          setFilteredExisting(mappedVehicles);
+        } else {
+          toast({
+            title: 'Aviso',
+            description: 'Não foi possível carregar os veículos existentes.',
+            variant: 'destructive',
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao carregar veículos existentes:', error);
+      } finally {
+        setIsLoadingExisting(false);
+      }
+    };
+
     loadExistingVehicles();
   }, [toast]);
 
+  // Filtrar veículos existentes quando o termo de busca muda
   useEffect(() => {
     if (searchTerm.trim() === '') {
       setFilteredExisting(existingVehicles);
@@ -178,12 +184,14 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     }
   }, [searchTerm, existingVehicles]);
 
+  // Filtrar apenas veículos disponíveis (não selecionados)
   useEffect(() => {
     if (showOnlyAvailable) {
       const selectedIds = selectedVehicles.map(v => v.id);
       const available = existingVehicles.filter(v => !selectedIds.includes(v.id));
       setFilteredExisting(available);
     } else {
+      // Aplicar apenas o filtro de busca
       if (searchTerm.trim() === '') {
         setFilteredExisting(existingVehicles);
       } else {
@@ -200,6 +208,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     }
   }, [showOnlyAvailable, existingVehicles, selectedVehicles, searchTerm]);
 
+  // Buscar veículo por placa
   const handlePlateSearch = async () => {
     if (!plateSearch.trim()) {
       toast({
@@ -236,6 +245,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     }
   };
 
+  // Selecionar veículo da busca por placa
   const handleSelectPlateVehicle = () => {
     if (!plateSearchResult) return;
 
@@ -257,6 +267,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       fuelType: plateSearchResult.TipoCombustivel
     };
 
+    // Para veículos usados (com placa), usamos o ID baseado na placa
     onSelectVehicle(selectedVehicle);
     setIsAddDialogOpen(false);
     setPlateSearch('');
@@ -268,6 +279,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     });
   };
 
+  // Selecionar veículo novo
   const handleSelectNewVehicle = () => {
     if (!selectedModel || !selectedGroup) {
       toast({
@@ -285,6 +297,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     const brand = brandModel[0];
     const modelName = brandModel.slice(1).join(' ');
 
+    // Para veículos novos (sem placa), gerar ID único com timestamp
     const timestamp = new Date().getTime();
     const idUnico = `new-${brand}-${modelName}-${timestamp}`;
 
@@ -307,7 +320,9 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     });
   };
 
+  // Selecionar veículo existente
   const handleSelectExistingVehicle = (vehicle: Vehicle) => {
+    // Para veículos novos (sem placa), gerar ID único com timestamp
     if (!vehicle.plateNumber) {
       const timestamp = new Date().getTime();
       const idUnico = `new-${vehicle.brand}-${vehicle.model}-${timestamp}`;
@@ -317,6 +332,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       };
       onSelectVehicle(vehicleWithUniqueId);
     } else {
+      // Veículos usados (com placa) já têm ID único (a placa)
       onSelectVehicle(vehicle);
     }
     
@@ -328,10 +344,12 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     });
   };
 
+  // Verificar se um veículo já está selecionado
   const isVehicleSelected = (vehicleId: string) => {
     return selectedVehicles.some(v => v.id === vehicleId);
   };
 
+  // Renderizar lista de veículos selecionados
   const renderSelectedVehicles = () => {
     if (selectedVehicles.length === 0) {
       return (
@@ -349,8 +367,8 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
           <VehicleCard
             key={vehicle.id}
             vehicle={vehicle}
-            onRemoveVehicle={() => onRemoveVehicle(vehicle.id)}
-            showRemoveButton={true}
+            onRemove={() => onRemoveVehicle(vehicle.id)}
+            showRemoveButton
           />
         ))}
       </div>

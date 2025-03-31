@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Info, Users, Car, Wrench, Calculator, Plus, Trash2, Settings, Mail } from 'lucide-react';
@@ -9,18 +10,17 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Slider } from '@/components/ui/slider';
-import { Switch } from "@/components/ui/switch";
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from '@/hooks/use-toast';
 import VehicleSelector from '@/components/vehicle/VehicleSelector';
-import VehicleCard, { Vehicle } from '@/components/ui-custom/VehicleCard';
+import VehicleCard from '@/components/ui-custom/VehicleCard';
+import { getClients, Client } from '@/lib/mock-data';
 import { useQuote, QuoteProvider } from '@/context/QuoteContext';
 import { CustomClient } from '@/components/quote/ClientForm';
-import { getVehiclesFromSupabase, VehicleData } from '@/integrations/supabase/services/vehicles';
-import { getClientsFromSupabase } from '@/integrations/supabase/services/clients';
 
 const STEPS = [
   { id: 'client', name: 'Cliente', icon: <Users size={18} /> },
@@ -132,11 +132,6 @@ const QuoteForm = () => {
   const [loadingQuote, setLoadingQuote] = useState<boolean>(!!id);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadAttempted, setLoadAttempted] = useState<boolean>(false);
-  const [isLoadingExisting, setIsLoadingExisting] = useState<boolean>(false);
-  const [existingVehicles, setExistingVehicles] = useState<Vehicle[]>([]);
-  const [filteredExisting, setFilteredExisting] = useState<Vehicle[]>([]);
-  const [clients, setClients] = useState<any[]>([]);
-  const [loadingClients, setLoadingClients] = useState<boolean>(false);
   const loadAttemptedRef = useRef(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -157,26 +152,6 @@ const QuoteForm = () => {
     isEditMode,
     currentEditingQuoteId
   } = useQuote();
-
-  useEffect(() => {
-    const loadClients = async () => {
-      setLoadingClients(true);
-      try {
-        const { success, clients, error } = await getClientsFromSupabase();
-        if (success && clients) {
-          setClients(clients);
-        } else {
-          console.error('Erro ao carregar clientes:', error);
-        }
-      } catch (error) {
-        console.error('Erro inesperado ao carregar clientes:', error);
-      } finally {
-        setLoadingClients(false);
-      }
-    };
-
-    loadClients();
-  }, []);
 
   const logState = () => {
     console.log("Estado atual do formulário:", {
@@ -322,7 +297,7 @@ const QuoteForm = () => {
     }
   };
 
-  const handleClientSelect = (client: CustomClient) => {
+  const handleClientSelect = (client: Client | CustomClient) => {
     console.log("Cliente selecionado:", client);
     setClient(client);
   };
@@ -331,15 +306,14 @@ const QuoteForm = () => {
     <div className="space-y-6 animate-fadeIn">
       <ClientForm 
         onClientSelect={handleClientSelect} 
-        existingClients={clients} 
-        isLoadingClients={loadingClients}
+        existingClients={getClients()} 
       />
     </div>
   );
 
   const renderVehicleStep = () => (
     <VehicleSelector 
-      onSelectVehicle={(vehicle) => addVehicle(vehicle)}
+      onSelectVehicle={addVehicle}
       selectedVehicles={quoteForm.vehicles.map(item => item.vehicle)}
       onRemoveVehicle={removeVehicle}
     />
@@ -690,46 +664,6 @@ const QuoteForm = () => {
     );
   };
 
-  const loadExistingVehicles = async () => {
-    setIsLoadingExisting(true);
-    try {
-      const { success, vehicles, error } = await getVehiclesFromSupabase(false);
-      
-      if (success && vehicles) {
-        const mappedVehicles = vehicles.map((v: VehicleData) => ({
-          id: v.id,
-          brand: v.brand,
-          model: v.model,
-          year: v.year,
-          value: v.value,
-          plateNumber: v.plate_number || undefined,
-          isUsed: v.is_used,
-          groupId: v.group_id,
-          color: v.color || undefined,
-          odometer: v.odometer || undefined,
-          fuelType: v.fuel_type || undefined,
-          monthly_value: v.monthly_value,
-          depreciation_cost: v.depreciation_cost,
-          maintenance_cost: v.maintenance_cost,
-          extra_km_rate: v.extra_km_rate
-        })) as Vehicle[];
-        
-        setExistingVehicles(mappedVehicles);
-        setFilteredExisting(mappedVehicles);
-      } else {
-        toast({
-          title: 'Aviso',
-          description: 'Não foi possível carregar os veículos existentes.',
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      console.error('Erro ao carregar veículos existentes:', error);
-    } finally {
-      setIsLoadingExisting(false);
-    }
-  };
-
   const renderStepContent = () => {
     switch (currentStep) {
       case 'client':
@@ -745,6 +679,8 @@ const QuoteForm = () => {
     }
   };
 
+  // Aqui estava o erro - o componente estava usando um Fragment diretamente (<>) com um data-lov-id
+  // Vamos substituir pelo div para corrigir o erro
   return (
     <div className="space-y-8">
       {loadingQuote ? (
