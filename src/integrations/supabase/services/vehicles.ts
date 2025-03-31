@@ -23,10 +23,6 @@ export interface VehicleData {
   color?: string;
   odometer?: number;
   fuel_type?: string;
-  monthly_value?: number;
-  depreciation_cost?: number;
-  maintenance_cost?: number;
-  extra_km_rate?: number;
 }
 
 // Função para buscar veículos do Supabase
