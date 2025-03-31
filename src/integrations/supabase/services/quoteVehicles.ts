@@ -1,9 +1,7 @@
 
 import { supabase } from '../core/client';
-import { createOrUpdateVehicle, findVehicleByPlate, findVehicleByBrandModel } from './vehicles';
 
-// Função para adicionar veículo ao orçamento
-export async function addVehicleToQuote(quoteId: string, vehicleData: any) {
+export const addVehicleToQuote = async (quoteId: string, vehicleData: any): Promise<{ success: boolean; data?: any; error?: any }> => {
   try {
     // Verificar se o veículo já existe
     let vehicleId = vehicleData.vehicle_id;
@@ -13,22 +11,39 @@ export async function addVehicleToQuote(quoteId: string, vehicleData: any) {
       const vehicle = vehicleData.vehicle;
       
       if (vehicle.plateNumber) {
-        const existingVehicle = await findVehicleByPlate(vehicle.plateNumber);
-        if (existingVehicle) {
-          vehicleId = existingVehicle.id;
+        const { data: existingVehicles } = await supabase
+          .from('vehicles')
+          .select('id')
+          .eq('plate_number', vehicle.plateNumber)
+          .limit(1);
+          
+        if (existingVehicles && Array.isArray(existingVehicles) && existingVehicles.length > 0) {
+          vehicleId = existingVehicles[0].id;
         }
       }
       
       // Se ainda não tiver ID, criar veículo
       if (!vehicleId) {
-        const { success, id, error } = await createOrUpdateVehicle(vehicle);
-        
-        if (!success) {
-          console.error('Erro ao criar veículo:', error);
-          return { success: false, error };
+        const { data: newVehicle, error: vehicleError } = await supabase
+          .from('vehicles')
+          .insert({
+            brand: vehicle.brand || 'Não especificado',
+            model: vehicle.model || 'Não especificado',
+            year: vehicle.year || new Date().getFullYear(),
+            value: vehicle.value || 0,
+            plate_number: vehicle.plateNumber || null,
+            is_used: vehicle.isUsed || false,
+            group_id: vehicle.groupId || null
+          })
+          .select()
+          .single();
+          
+        if (vehicleError) {
+          console.error('Erro ao criar veículo:', vehicleError);
+          return { success: false, error: vehicleError };
         }
         
-        vehicleId = id;
+        vehicleId = newVehicle.id;
       }
     }
     
@@ -60,10 +75,10 @@ export async function addVehicleToQuote(quoteId: string, vehicleData: any) {
     console.error('Erro inesperado ao adicionar veículo ao orçamento:', error);
     return { success: false, error };
   }
-}
+};
 
 // Modificar a função getQuoteVehicles para retornar mais detalhes
-export async function getQuoteVehicles(quoteId: string) {
+export const getQuoteVehicles = async (quoteId: string): Promise<{ success: boolean; vehicles?: any[]; error?: any }> => {
   try {
     console.log(`Buscando veículos para o orçamento ${quoteId}...`);
     
@@ -164,4 +179,4 @@ export async function getQuoteVehicles(quoteId: string) {
     console.error('Erro inesperado ao buscar veículos do orçamento:', error);
     return { success: false, error, vehicles: [] };
   }
-}
+};

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, FileEdit, Car, Calendar, User, Landmark, Gauge } from 'lucide-react';
@@ -10,7 +11,7 @@ import StatusBreadcrumb from '@/components/status/StatusBreadcrumb';
 import StatusHistory from '@/components/status/StatusHistory';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { getQuoteByIdFromSupabase, getQuoteVehicles } from '@/integrations/supabase/client';
+import { getQuoteByIdFromSupabase, getQuoteVehicles } from '@/integrations/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { QuoteStatusFlow } from '@/lib/status-flow';
 import { fetchStatusHistory } from '@/lib/status-api';

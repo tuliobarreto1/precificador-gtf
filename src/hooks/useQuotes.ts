@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuote } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
@@ -9,7 +8,6 @@ import {
   getVehiclesFromSupabase 
 } from '@/integrations/supabase';
 
-// Definindo o tipo com source restrito aos valores permitidos
 interface QuoteItem {
   id: string;
   clientName: string;
@@ -31,7 +29,6 @@ export const useQuotes = () => {
   const { savedQuotes } = useQuote();
   const { toast } = useToast();
 
-  // Verificar conexão com o Supabase e carregar orçamentos
   useEffect(() => {
     console.log('Hook useQuotes montado, verificando conexão e carregando orçamentos');
     
@@ -118,24 +115,19 @@ export const useQuotes = () => {
     }, 1000);
   };
 
-  // Função auxiliar para obter informações do veículo para orçamentos do Supabase
   const getVehicleInfo = (quote: any) => {
     console.log('Processando informações de veículo para orçamento:', quote.id);
     
-    // Verificar se há veículos no array de quote.vehicles
     if (quote.vehicles && Array.isArray(quote.vehicles) && quote.vehicles.length > 0) {
       console.log('Veículos encontrados no array vehicles:', quote.vehicles.length);
-      // Usar o primeiro veículo para exibição na lista
       const firstVehicle = quote.vehicles[0];
       
-      // Verificar se o veículo tem informações completas
       if (firstVehicle.vehicle) {
         return { 
           name: `${firstVehicle.vehicle.brand} ${firstVehicle.vehicle.model}`, 
           value: firstVehicle.monthly_value || quote.total_value || 0
         };
       } else if (firstVehicle.brand && firstVehicle.model) {
-        // Caso o veículo não tenha o objeto vehicle aninhado, mas tenha informações diretas
         return {
           name: `${firstVehicle.brand} ${firstVehicle.model}`,
           value: firstVehicle.monthly_value || quote.total_value || 0
@@ -148,7 +140,6 @@ export const useQuotes = () => {
       }
     }
     
-    // Compatibilidade com o formato antigo de veículo
     if (quote.vehicle) {
       console.log('Veículo encontrado diretamente no orçamento:', quote.vehicle);
       return { 
@@ -157,7 +148,6 @@ export const useQuotes = () => {
       };
     }
     
-    // Verificar o vehicle_id e usar o array de veículos já carregados
     if (quote.vehicle_id && supabaseVehicles.length > 0) {
       console.log('Buscando veículo pelo ID:', quote.vehicle_id);
       const vehicle = supabaseVehicles.find(v => v.id === quote.vehicle_id);
@@ -170,11 +160,9 @@ export const useQuotes = () => {
       }
     }
     
-    // Se não conseguiu encontrar informações do veículo de nenhuma forma
     return { name: 'Veículo não especificado', value: quote.total_value || 0 };
   };
 
-  // Combinação dos orçamentos locais (mock) e do Supabase
   const allQuotes: QuoteItem[] = [
     ...quotes.map(quote => ({
       id: quote.id,
