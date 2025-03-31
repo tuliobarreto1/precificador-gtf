@@ -1,355 +1,89 @@
 
 import React from 'react';
-import { cn } from '@/lib/utils';
-import { Car, Calendar, Gauge, Tag, DollarSign, Droplet } from 'lucide-react';
+import { Car } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
-interface Vehicle {
+export interface Vehicle {
   id: string;
   brand: string;
   model: string;
   year: number;
-  value?: number;
+  value: number;
   plateNumber?: string;
-  plate_number?: string; // Formato do Supabase
+  isUsed: boolean;
+  groupId?: string;
   color?: string;
-  isUsed?: boolean;
-  is_used?: boolean; // Formato do Supabase
   odometer?: number;
   fuelType?: string;
-  fuel_type?: string; // Formato do Supabase
-  groupId?: string;
-  group_id?: string; // Formato do Supabase
 }
 
-interface VehicleGroup {
-  id: string;
-  name?: string;
-  description?: string;
+export interface VehicleCardProps {
+  vehicle: Vehicle;
+  showRemoveButton?: boolean;
+  onRemoveVehicle?: (id: string) => void;
 }
 
-interface VehicleCardProps {
-  vehicle: Vehicle | any; // Permitir que vehicle seja do formato do Supabase também
-  vehicleGroup?: VehicleGroup;
-  className?: string;
-  children?: React.ReactNode;
-  isSelected?: boolean;
-  onClick?: () => void;
-  showDetailedInfo?: boolean;
-  showCosts?: boolean; // Nova propriedade para exibir informações de custos
-}
-
-const getPlateNumber = (vehicle: any): string | undefined => {
-  // Se o veículo tem uma propriedade vehicle, obtenha o plate_number daí
-  if (vehicle.vehicle) {
-    return vehicle.vehicle.plateNumber || vehicle.vehicle.plate_number;
-  }
-  
-  // Caso contrário, tente obter diretamente
-  return vehicle.plateNumber || vehicle.plate_number;
-};
-
-const getBrand = (vehicle: any): string => {
-  // Se o veículo tem uma propriedade vehicle, obtenha a brand daí
-  if (vehicle.vehicle) {
-    return vehicle.vehicle.brand || 'Marca não especificada';
-  }
-  
-  // Caso contrário, tente obter diretamente
-  return vehicle.brand || 'Marca não especificada';
-};
-
-const getModel = (vehicle: any): string => {
-  // Se o veículo tem uma propriedade vehicle, obtenha o model daí
-  if (vehicle.vehicle) {
-    return vehicle.vehicle.model || 'Modelo não especificado';
-  }
-  
-  // Caso contrário, tente obter diretamente
-  return vehicle.model || 'Modelo não especificado';
-};
-
-const getYear = (vehicle: any): number => {
-  // Se o veículo tem uma propriedade vehicle, obtenha o year daí
-  if (vehicle.vehicle) {
-    return vehicle.vehicle.year || new Date().getFullYear();
-  }
-  
-  // Caso contrário, tente obter diretamente
-  return vehicle.year || new Date().getFullYear();
-};
-
-const getColor = (vehicle: any): string | undefined => {
-  // Se o veículo tem uma propriedade vehicle, obtenha a color daí
-  if (vehicle.vehicle) {
-    return vehicle.vehicle.color;
-  }
-  
-  // Caso contrário, tente obter diretamente
-  return vehicle.color;
-};
-
-const getValue = (vehicle: any): number | undefined => {
-  // Se o veículo tem monthly_value, use-o
-  if (vehicle.monthly_value !== undefined) {
-    return vehicle.monthly_value;
-  }
-  
-  // Se o veículo tem uma propriedade vehicle, obtenha o value daí
-  if (vehicle.vehicle) {
-    return vehicle.vehicle.value;
-  }
-  
-  // Caso contrário, tente obter diretamente
-  return vehicle.value;
-};
-
-const getOdometer = (vehicle: any): number | undefined => {
-  // Se o veículo tem uma propriedade vehicle, obtenha o odometer daí
-  if (vehicle.vehicle) {
-    return vehicle.vehicle.odometer;
-  }
-  
-  // Caso contrário, tente obter diretamente
-  return vehicle.odometer;
-};
-
-const getFuelType = (vehicle: any): string | undefined => {
-  // Se o veículo tem uma propriedade vehicle, obtenha o fuelType daí
-  if (vehicle.vehicle) {
-    return vehicle.vehicle.fuelType || vehicle.vehicle.fuel_type;
-  }
-  
-  // Caso contrário, tente obter diretamente
-  return vehicle.fuelType || vehicle.fuel_type || vehicle.tipoCombustivel;
-};
-
-const getIsUsed = (vehicle: any): boolean => {
-  // Se o veículo tem uma propriedade vehicle, obtenha o isUsed daí
-  if (vehicle.vehicle) {
-    return vehicle.vehicle.isUsed || vehicle.vehicle.is_used || false;
-  }
-  
-  // Caso contrário, tente obter diretamente
-  // Verifica se tem placa - veículos com placa são considerados usados
-  if (getPlateNumber(vehicle)) {
-    return true;
-  }
-  
-  // Verifica o valor explícito do campo isUsed/is_used
-  return vehicle.isUsed || vehicle.is_used || false;
-};
-
-const getGroupId = (vehicle: any): string | undefined => {
-  // Se o veículo tem uma propriedade vehicle, obtenha o groupId daí
-  if (vehicle.vehicle) {
-    return vehicle.vehicle.groupId || vehicle.vehicle.group_id;
-  }
-  
-  // Caso contrário, tente obter diretamente
-  return vehicle.groupId || vehicle.group_id;
-};
-
-const getVehicleCosts = (vehicle: any) => {
-  if (vehicle.result) {
-    return {
-      depreciationCost: vehicle.result.depreciationCost || 0,
-      maintenanceCost: vehicle.result.maintenanceCost || 0,
-      extraKmRate: vehicle.result.extraKmRate || 0,
-      totalCost: vehicle.result.totalCost || 0
-    };
-  }
-  
-  if (vehicle.depreciation_cost !== undefined || 
-      vehicle.maintenance_cost !== undefined || 
-      vehicle.total_cost !== undefined) {
-    return {
-      depreciationCost: vehicle.depreciation_cost || 0,
-      maintenanceCost: vehicle.maintenance_cost || 0,
-      extraKmRate: vehicle.extra_km_rate || 0,
-      totalCost: vehicle.total_cost || vehicle.monthly_value || 0
-    };
-  }
-  
-  return {
-    depreciationCost: 0,
-    maintenanceCost: 0,
-    extraKmRate: 0,
-    totalCost: getValue(vehicle) || 0
-  };
-};
-
-const VehicleCard: React.FC<VehicleCardProps> = ({
-  vehicle,
-  vehicleGroup,
-  className,
-  children,
-  isSelected = false,
-  onClick,
-  showDetailedInfo = false,
-  showCosts = false
+const VehicleCard: React.FC<VehicleCardProps> = ({ 
+  vehicle, 
+  showRemoveButton = false, 
+  onRemoveVehicle 
 }) => {
-  if (!vehicle) {
-    return (
-      <div className={cn(
-        "border rounded-lg p-4 bg-muted/20 flex items-center justify-center",
-        className
-      )}>
-        <p className="text-muted-foreground">Dados do veículo não disponíveis</p>
-      </div>
-    );
-  }
+  const handleRemove = () => {
+    if (onRemoveVehicle) {
+      onRemoveVehicle(vehicle.id);
+    }
+  };
 
-  console.log("Renderizando VehicleCard com dados:", vehicle);
-
-  const brand = getBrand(vehicle);
-  const model = getModel(vehicle);
-  const year = getYear(vehicle);
-  const plateNumber = getPlateNumber(vehicle);
-  const isUsed = getIsUsed(vehicle);
-  const group = vehicleGroup?.id || getGroupId(vehicle) || '?';
-  const color = getColor(vehicle);
-  const value = getValue(vehicle);
-  const odometer = getOdometer(vehicle);
-  const fuelType = getFuelType(vehicle);
-  
-  const costs = getVehicleCosts(vehicle);
-  
   return (
-    <div 
-      className={cn(
-        "relative border rounded-lg p-4 hover:border-primary/50 transition-colors",
-        onClick && "cursor-pointer",
-        isSelected && "border-primary bg-primary/5",
-        className
-      )}
-      onClick={onClick}
-    >
-      <div className="flex items-start justify-between">
+    <div className="border rounded-lg p-4 flex flex-col">
+      <div className="flex justify-between items-start mb-2">
         <div>
-          <div className="flex items-center">
-            <Car className="h-4 w-4 mr-2 text-muted-foreground" />
-            <h3 className="font-medium">
-              {brand} {model}
-            </h3>
-          </div>
-          
-          <div className="text-sm mt-1 space-y-1">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-3 w-3 text-muted-foreground" />
-              <span>{year}</span>
-              
-              {plateNumber && (
-                <>
-                  <span className="text-muted-foreground">•</span>
-                  <span>{plateNumber}</span>
-                </>
-              )}
-              
-              {!plateNumber && !isUsed && (
-                <span className="bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full text-xs">
-                  Novo
-                </span>
-              )}
-              
-              {isUsed && (
-                <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full text-xs">
-                  Usado
-                </span>
-              )}
-            </div>
-            
-            {group && (
-              <div className="flex items-center gap-2">
-                <Tag className="h-3 w-3 text-muted-foreground" />
-                <span>Grupo {group}</span>
-                
-                {vehicleGroup?.description && (
-                  <span className="text-xs text-muted-foreground">
-                    ({vehicleGroup.description})
-                  </span>
-                )}
-              </div>
-            )}
-            
-            {showDetailedInfo && (
-              <div className="mt-2 space-y-2">
-                {value !== undefined && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Valor do veículo:</p>
-                    <p className="font-medium">
-                      R$ {Number(value || 0).toLocaleString('pt-BR')}
-                    </p>
-                  </div>
-                )}
-                
-                {color && (
-                  <div className="flex items-center gap-2">
-                    <Droplet className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-muted-foreground">Cor:</span>
-                    <span>{color}</span>
-                  </div>
-                )}
-                
-                {fuelType && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">Combustível:</span>
-                    <span>{fuelType}</span>
-                  </div>
-                )}
-                
-                {(odometer !== undefined && odometer > 0) && (
-                  <div className="flex items-center gap-2">
-                    <Gauge className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-muted-foreground">Odômetro:</span>
-                    <span>{odometer.toLocaleString('pt-BR')} km</span>
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {showCosts && (
-              <div className="mt-3 pt-2 border-t grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                <div>
-                  <p className="text-xs text-muted-foreground">Depreciação:</p>
-                  <p>R$ {costs.depreciationCost.toLocaleString('pt-BR')}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Manutenção:</p>
-                  <p>R$ {costs.maintenanceCost.toLocaleString('pt-BR')}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Km excedente:</p>
-                  <p>R$ {costs.extraKmRate.toLocaleString('pt-BR', {maximumFractionDigits: 2})}</p>
-                </div>
-                <div className="font-medium">
-                  <p className="text-xs text-muted-foreground">Custo total:</p>
-                  <p>R$ {costs.totalCost.toLocaleString('pt-BR')}</p>
-                </div>
-              </div>
-            )}
-          </div>
+          <h3 className="font-medium">{vehicle.brand} {vehicle.model}</h3>
+          <p className="text-sm text-muted-foreground">
+            {vehicle.year} • {vehicle.isUsed ? 'Usado' : 'Novo'}
+          </p>
+          {vehicle.plateNumber && (
+            <Badge variant="outline" className="mt-1 bg-primary/10">
+              {vehicle.plateNumber}
+            </Badge>
+          )}
         </div>
-
-        {value !== undefined && !children && !showCosts && (
-          <div className="text-right">
-            <p className="font-medium">
-              R$ {Number(value).toLocaleString('pt-BR')}
-            </p>
-            <p className="text-xs text-muted-foreground">Valor do veículo</p>
-          </div>
-        )}
-        
-        {costs.totalCost > 0 && !children && showCosts && (
-          <div className="text-right">
-            <p className="font-medium">
-              R$ {costs.totalCost.toLocaleString('pt-BR')}
-            </p>
-            <p className="text-xs text-muted-foreground">Valor mensal</p>
-          </div>
-        )}
+        <div className="text-right">
+          <p className="font-medium">R$ {vehicle.value.toLocaleString('pt-BR')}</p>
+        </div>
       </div>
       
-      {children}
+      {(vehicle.groupId || vehicle.color || vehicle.odometer) && (
+        <div className="mt-2 pt-2 border-t text-xs space-y-1">
+          {vehicle.groupId && (
+            <p><span className="text-muted-foreground">Grupo:</span> {vehicle.groupId}</p>
+          )}
+          {vehicle.color && (
+            <p><span className="text-muted-foreground">Cor:</span> {vehicle.color}</p>
+          )}
+          {vehicle.odometer && (
+            <p><span className="text-muted-foreground">Odômetro:</span> {vehicle.odometer.toLocaleString('pt-BR')} km</p>
+          )}
+          {vehicle.fuelType && (
+            <p><span className="text-muted-foreground">Combustível:</span> {vehicle.fuelType}</p>
+          )}
+        </div>
+      )}
+      
+      {showRemoveButton && (
+        <div className="mt-auto pt-3">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={handleRemove}
+          >
+            <Car className="mr-2 h-4 w-4" />
+            Remover Veículo
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

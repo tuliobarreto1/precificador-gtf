@@ -15,9 +15,7 @@ import Parameters from "./pages/Parameters";
 import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
-
-// Create a client
-const queryClient = new QueryClient();
+import { useState } from "react";
 
 // Componente para proteger rotas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -39,12 +37,15 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 function App() {
+  // Criar o QueryClient dentro do componente funcional
+  const [queryClient] = useState(() => new QueryClient());
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+    <BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
           <AuthProvider>
             <Routes>
               <Route path="/login" element={<Login />} />
@@ -66,9 +67,9 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </BrowserRouter>
   );
 }
 
