@@ -37,7 +37,7 @@ export const convertToValidUuid = (id: string) => {
   }
 };
 
-// Função para obter veículos do Supabase
+// Função para obter veículos do Supabase - agora com parâmetro "includeUsed" explícito
 export const getVehiclesFromSupabase = async (includeUsed: boolean = true) => {
   try {
     let query = supabase
