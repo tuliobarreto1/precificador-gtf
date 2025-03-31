@@ -392,7 +392,6 @@ export type Database = {
           color: string | null
           created_at: string
           created_by: string | null
-          fuel_type: string | null
           group_id: string | null
           id: string
           is_used: boolean
@@ -408,7 +407,6 @@ export type Database = {
           color?: string | null
           created_at?: string
           created_by?: string | null
-          fuel_type?: string | null
           group_id?: string | null
           id?: string
           is_used?: boolean
@@ -424,7 +422,6 @@ export type Database = {
           color?: string | null
           created_at?: string
           created_by?: string | null
-          fuel_type?: string | null
           group_id?: string | null
           id?: string
           is_used?: boolean

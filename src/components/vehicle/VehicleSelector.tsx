@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Car, Search, Loader2, AlertTriangle, Database, RefreshCw, Plus, Check, X, Menu, Fuel } from 'lucide-react';
+import { ArrowRight, Car, Search, Loader2, AlertTriangle, Database, RefreshCw, Plus, Check, X, Menu } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -44,7 +44,6 @@ type VehicleSelectorProps = {
 };
 
 type VehicleType = 'new' | 'used';
-type FuelType = 'Gasolina' | 'Flex' | 'Diesel';
 
 const VehicleSelector: React.FC<VehicleSelectorProps> = ({ 
   onSelectVehicle, 
@@ -67,7 +66,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   const [vehicleModels, setVehicleModels] = useState<SqlVehicleModel[]>([]);
   const [selectedModel, setSelectedModel] = useState<SqlVehicleModel | null>(null);
   const [customPrice, setCustomPrice] = useState<number | null>(null);
-  const [selectedFuelType, setSelectedFuelType] = useState<FuelType | null>(null);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [loadingModels, setLoadingModels] = useState(false);
   
@@ -156,7 +154,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     setSelectedGroup(null);
     setSelectedModel(null);
     setCustomPrice(null);
-    setSelectedFuelType(null);
   };
 
   const testDatabaseConnection = async () => {
@@ -322,18 +319,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       return;
     }
     
-    if (!selectedFuelType) {
-      toast({
-        title: "Tipo de combustível não selecionado",
-        description: "Selecione o tipo de combustível do veículo.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     const finalPrice = customPrice !== null ? customPrice : selectedModel.MaiorValorCompra;
-    
-    console.log(`Adicionando veículo com combustível: ${selectedFuelType}`);
     
     const mappedVehicle: Vehicle = {
       id: `new-${selectedModel.CodigoModelo}`,
@@ -343,7 +329,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       value: finalPrice,
       isUsed: false,
       groupId: selectedModel.LetraGrupo,
-      fuelType: selectedFuelType
     };
     
     const mappedGroup: VehicleGroup = {
@@ -365,7 +350,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     
     setSelectedModel(null);
     setCustomPrice(null);
-    setSelectedFuelType(null);
   };
 
   const isVehicleSelected = (vehicleId: string) => {
@@ -663,29 +647,11 @@ DB_DATABASE=seu-banco-de-dados`}
                     className="w-40 mt-1"
                     placeholder="Valor de compra"
                   />
-                  
-                  <div className="mt-3">
-                    <Label htmlFor="fuel-type" className="text-xs text-muted-foreground">Tipo de Combustível</Label>
-                    <Select 
-                      onValueChange={(value) => setSelectedFuelType(value as FuelType)}
-                      value={selectedFuelType || undefined}
-                    >
-                      <SelectTrigger className="w-full mt-1">
-                        <SelectValue placeholder="Selecione o combustível" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Gasolina">Gasolina</SelectItem>
-                        <SelectItem value="Flex">Flex</SelectItem>
-                        <SelectItem value="Diesel">Diesel</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
                   <Button 
                     onClick={handleSelectNewVehicle}
                     className="mt-3"
                     size="sm"
-                    disabled={!customPrice || !selectedFuelType}
+                    disabled={!customPrice}
                   >
                     Adicionar <Plus className="ml-1 h-4 w-4" />
                   </Button>
