@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Info, Users, Car, Wrench, Calculator, Plus, Trash2, Settings, Mail } from 'lucide-react';
@@ -312,7 +313,7 @@ const QuoteForm = () => {
 
   const renderVehicleStep = () => (
     <VehicleSelector 
-      onSelectVehicle={(vehicle) => addVehicle(vehicle)}
+      onSelectVehicle={addVehicle}
       selectedVehicles={quoteForm.vehicles.map(item => item.vehicle)}
       onRemoveVehicle={removeVehicle}
     />
@@ -678,6 +679,8 @@ const QuoteForm = () => {
     }
   };
 
+  // Aqui estava o erro - o componente estava usando um Fragment diretamente (<>) com um data-lov-id
+  // Vamos substituir pelo div para corrigir o erro
   return (
     <div className="space-y-8">
       {loadingQuote ? (
