@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Info, Users, Car, Wrench, Calculator, Plus, Trash2, Settings, Mail } from 'lucide-react';
@@ -159,7 +158,6 @@ const QuoteForm = () => {
     currentEditingQuoteId
   } = useQuote();
 
-  // Carregamento de clientes do Supabase
   useEffect(() => {
     const loadClients = async () => {
       setLoadingClients(true);
@@ -695,7 +693,7 @@ const QuoteForm = () => {
   const loadExistingVehicles = async () => {
     setIsLoadingExisting(true);
     try {
-      const { success, vehicles } = await getVehiclesFromSupabase();
+      const { success, vehicles } = await getVehiclesFromSupabase(false);
       
       if (success && vehicles) {
         const mappedVehicles = vehicles.map((v: VehicleData) => ({
