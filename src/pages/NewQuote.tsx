@@ -20,7 +20,7 @@ import VehicleCard, { Vehicle } from '@/components/ui-custom/VehicleCard';
 import { getClients, Client } from '@/lib/mock-data';
 import { useQuote, QuoteProvider } from '@/context/QuoteContext';
 import { CustomClient } from '@/components/quote/ClientForm';
-import { getVehiclesFromSupabase } from '@/integrations/supabase';
+import { getVehiclesFromSupabase, VehicleData } from '@/integrations/supabase/services/vehicles';
 
 const STEPS = [
   { id: 'client', name: 'Cliente', icon: <Users size={18} /> },
@@ -135,26 +135,6 @@ const QuoteForm = () => {
   const [isLoadingExisting, setIsLoadingExisting] = useState<boolean>(false);
   const [existingVehicles, setExistingVehicles] = useState<Vehicle[]>([]);
   const [filteredExisting, setFilteredExisting] = useState<Vehicle[]>([]);
-  const loadAttemptedRef = useRef(false);
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const { 
-    quoteForm, 
-    setClient, 
-    addVehicle, 
-    removeVehicle,
-    setGlobalContractMonths, 
-    setGlobalMonthlyKm, 
-    setGlobalOperationSeverity, 
-    setGlobalHasTracking, 
-    setUseGlobalParams,
-    setVehicleParams,
-    calculateQuote,
-    saveQuote,
-    loadQuoteForEditing,
-    isEditMode,
-    currentEditingQuoteId
-  } = useQuote();
 
   const logState = () => {
     console.log("Estado atual do formulário:", {
@@ -670,10 +650,10 @@ const QuoteForm = () => {
   const loadExistingVehicles = async () => {
     setIsLoadingExisting(true);
     try {
-      const { success, vehicles } = await getVehiclesFromSupabase();
+      const { success, vehicles } = await getVehiclesFromSupabase({});
       
       if (success && vehicles) {
-        const mappedVehicles = vehicles.map(v => ({
+        const mappedVehicles = vehicles.map((v: VehicleData) => ({
           id: v.id,
           brand: v.brand,
           model: v.model,
@@ -685,7 +665,7 @@ const QuoteForm = () => {
           color: v.color,
           odometer: v.odometer,
           fuelType: v.fuel_type
-        }));
+        } as Vehicle));
         
         setExistingVehicles(mappedVehicles);
         setFilteredExisting(mappedVehicles);
