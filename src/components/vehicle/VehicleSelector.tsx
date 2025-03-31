@@ -122,43 +122,43 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     }
   }, [selectedGroup, toast]);
 
-  useEffect(() => {
-    const loadExistingVehicles = async () => {
-      setIsLoadingExisting(true);
-      try {
-        const { success, vehicles } = await getVehiclesFromSupabase();
+  const loadExistingVehicles = async () => {
+    setIsLoadingExisting(true);
+    try {
+      const { success, vehicles } = await getVehiclesFromSupabase(false);
+      
+      if (success && vehicles) {
+        const mappedVehicles = vehicles.map(v => ({
+          id: v.id,
+          brand: v.brand,
+          model: v.model,
+          year: v.year,
+          value: v.value,
+          plateNumber: v.plate_number || undefined,
+          isUsed: v.is_used,
+          groupId: v.group_id,
+          color: v.color || undefined,
+          odometer: v.odometer || undefined,
+          fuelType: v.fuel_type || undefined
+        }));
         
-        if (success && vehicles) {
-          const mappedVehicles = vehicles.map(v => ({
-            id: v.id,
-            brand: v.brand,
-            model: v.model,
-            year: v.year,
-            value: v.value,
-            plateNumber: v.plate_number || undefined,
-            isUsed: v.is_used,
-            groupId: v.group_id,
-            color: v.color || undefined,
-            odometer: v.odometer || undefined,
-            fuelType: v.fuel_type || undefined
-          }));
-          
-          setExistingVehicles(mappedVehicles);
-          setFilteredExisting(mappedVehicles);
-        } else {
-          toast({
-            title: 'Aviso',
-            description: 'Não foi possível carregar os veículos existentes.',
-            variant: 'destructive',
-          });
-        }
-      } catch (error) {
-        console.error('Erro ao carregar veículos existentes:', error);
-      } finally {
-        setIsLoadingExisting(false);
+        setExistingVehicles(mappedVehicles);
+        setFilteredExisting(mappedVehicles);
+      } else {
+        toast({
+          title: 'Aviso',
+          description: 'Não foi possível carregar os veículos existentes.',
+          variant: 'destructive',
+        });
       }
-    };
+    } catch (error) {
+      console.error('Erro ao carregar veículos existentes:', error);
+    } finally {
+      setIsLoadingExisting(false);
+    }
+  };
 
+  useEffect(() => {
     loadExistingVehicles();
   }, [toast]);
 
