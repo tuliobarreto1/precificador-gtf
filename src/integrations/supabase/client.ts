@@ -198,8 +198,7 @@ export async function saveQuoteToSupabase(quote: any) {
             isUsed: vehicleItem.isUsed || false,
             groupId: vehicleItem.groupId || "A",
             color: vehicleItem.color || null,
-            odometer: vehicleItem.odometer || 0,
-            tipoCombustivel: vehicleItem.tipoCombustivel || null
+            odometer: vehicleItem.odometer || 0
           };
           console.log("Construindo objeto vehicle a partir dos campos:", vehicle);
         }
@@ -220,146 +219,128 @@ export async function saveQuoteToSupabase(quote: any) {
         // Verificar se o veículo já existe no Supabase
         let vehicleId = null;
         
-        // Primeiro, tenta pelo ID do veículo
-        if (vehicle.id) {
-          const { data: existingVehicleById } = await supabase
-            .from('vehicles')
-            .select('id')
-            .eq('id', vehicle.id)
-            .limit(1);
+        // Se o ID do veículo já parece ser um UUID, usamos ele diretamente
+        if (vehicle.id && typeof vehicle.id === 'string' && vehicle.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)) {
+          vehicleId = vehicle.id;
+          console.log("Usando ID do veículo existente (parece ser UUID):", vehicleId);
+        }
+        // Se o ID não é um UUID (como 'new-123'), precisamos verificar ou criar o veículo
+        else {
+          // Primeiro, tenta pela placa (se disponível)
+          if (vehicle.plateNumber || vehicle.plate_number) {
+            const plateToSearch = vehicle.plateNumber || vehicle.plate_number;
+            console.log(`Buscando veículo pela placa: ${plateToSearch}`);
             
-          if (existingVehicleById && Array.isArray(existingVehicleById) && existingVehicleById.length > 0) {
-            vehicleId = existingVehicleById[0].id;
-            console.log("Veículo existente encontrado pelo ID:", vehicleId);
+            const { data: existingVehicles } = await supabase
+              .from('vehicles')
+              .select('id')
+              .eq('plate_number', plateToSearch)
+              .limit(1);
+              
+            if (existingVehicles && Array.isArray(existingVehicles) && existingVehicles.length > 0) {
+              vehicleId = existingVehicles[0].id;
+              console.log("Veículo existente encontrado pela placa:", vehicleId);
+              
+              // CORREÇÃO: Atualizar os dados do veículo existente com as informações corretas
+              const updateData = {
+                brand: vehicle.brand || 'Não especificado',
+                model: vehicle.model || 'Não especificado',
+                year: parseInt(vehicle.year as any) || new Date().getFullYear(),
+                value: parseFloat(vehicle.value as any) || 0,
+                is_used: true, // Veículos com placa são sempre usados
+                group_id: vehicle.groupId || vehicle.group_id || 'A',
+                color: vehicle.color || null,
+                odometer: parseInt(vehicle.odometer as any) || 0
+              };
+              
+              console.log("Atualizando veículo existente com dados:", updateData);
+              
+              const { error: updateError } = await supabase
+                .from('vehicles')
+                .update(updateData)
+                .eq('id', vehicleId);
+                
+              if (updateError) {
+                console.error("Erro ao atualizar dados do veículo:", updateError);
+              } else {
+                console.log("Dados do veículo atualizados com sucesso");
+              }
+            }
+          }
+          
+          // Se ainda não encontrou o veículo, tenta pela combinação marca/modelo
+          if (!vehicleId && vehicle.brand && vehicle.model) {
+            console.log(`Buscando veículo pela marca/modelo: ${vehicle.brand}/${vehicle.model}`);
             
-            // CORREÇÃO: Atualizar os dados do veículo existente com as informações corretas
-            const updateData = {
+            const { data: existingVehicles } = await supabase
+              .from('vehicles')
+              .select('id')
+              .eq('brand', vehicle.brand)
+              .eq('model', vehicle.model)
+              .limit(1);
+              
+            if (existingVehicles && Array.isArray(existingVehicles) && existingVehicles.length > 0) {
+              vehicleId = existingVehicles[0].id;
+              console.log("Veículo existente encontrado pela marca/modelo:", vehicleId);
+            }
+          }
+          
+          // Se ainda não encontrou o veículo, cria um novo
+          if (!vehicleId) {
+            console.log("Criando novo veículo com dados:", vehicle);
+            
+            // CORREÇÃO: Garantir que todos os tipos de veículos (novos ou usados) sejam salvos
+            const vehicleData = {
               brand: vehicle.brand || 'Não especificado',
               model: vehicle.model || 'Não especificado',
               year: parseInt(vehicle.year as any) || new Date().getFullYear(),
               value: parseFloat(vehicle.value as any) || 0,
               plate_number: vehicle.plateNumber || vehicle.plate_number || null,
-              is_used: vehicle.isUsed === true || vehicle.is_used === true || (vehicle.plateNumber || vehicle.plate_number ? true : false), // Corrigido para determinar is_used com base na presença de placa
+              // Determinamos is_used explicitamente - veículos com placa são sempre usados
+              is_used: vehicle.plateNumber || vehicle.plate_number ? true : (vehicle.isUsed === true || vehicle.is_used === true), 
               group_id: vehicle.groupId || vehicle.group_id || 'A',
               color: vehicle.color || null,
-              odometer: parseInt(vehicle.odometer as any) || 0,
-              fuel_type: (vehicle as any).fuelType || (vehicle as any).fuel_type || (vehicle as any).tipoCombustivel || null
+              odometer: parseInt(vehicle.odometer as any) || 0
             };
             
-            console.log("Atualizando veículo existente com dados:", updateData);
+            console.log("Dados formatados do veículo para inserção:", vehicleData);
             
-            const { error: updateError } = await supabase
-              .from('vehicles')
-              .update(updateData)
-              .eq('id', vehicleId);
-              
-            if (updateError) {
-              console.error("Erro ao atualizar dados do veículo:", updateError);
-            } else {
-              console.log("Dados do veículo atualizados com sucesso");
-            }
-          }
-        }
-        
-        // Se não encontrou pelo ID, tenta pela placa (se disponível)
-        if (!vehicleId && (vehicle.plateNumber || vehicle.plate_number)) {
-          const plateToSearch = vehicle.plateNumber || vehicle.plate_number;
-          console.log(`Buscando veículo pela placa: ${plateToSearch}`);
-          
-          const { data: existingVehicles } = await supabase
-            .from('vehicles')
-            .select('id')
-            .eq('plate_number', plateToSearch)
-            .limit(1);
-            
-          if (existingVehicles && Array.isArray(existingVehicles) && existingVehicles.length > 0) {
-            vehicleId = existingVehicles[0].id;
-            console.log("Veículo existente encontrado pela placa:", vehicleId);
-            
-            // CORREÇÃO: Atualizar os dados do veículo existente com as informações corretas
-            const updateData = {
-              brand: vehicle.brand || 'Não especificado',
-              model: vehicle.model || 'Não especificado',
-              year: parseInt(vehicle.year as any) || new Date().getFullYear(),
-              value: parseFloat(vehicle.value as any) || 0,
-              is_used: true, // Veículos com placa são sempre usados
-              group_id: vehicle.groupId || vehicle.group_id || 'A',
-              color: vehicle.color || null,
-              odometer: parseInt(vehicle.odometer as any) || 0,
-              fuel_type: (vehicle as any).fuelType || (vehicle as any).fuel_type || (vehicle as any).tipoCombustivel || null
-            };
-            
-            console.log("Atualizando veículo existente com dados:", updateData);
-            
-            const { error: updateError } = await supabase
-              .from('vehicles')
-              .update(updateData)
-              .eq('id', vehicleId);
-              
-            if (updateError) {
-              console.error("Erro ao atualizar dados do veículo:", updateError);
-            } else {
-              console.log("Dados do veículo atualizados com sucesso");
-            }
-          }
-        }
-        
-        // Se ainda não encontrou o veículo, cria um novo
-        if (!vehicleId) {
-          console.log("Criando novo veículo com dados:", vehicle);
-          
-          // CORREÇÃO: Garantir que todos os tipos de veículos (novos ou usados) sejam salvos
-          const vehicleData = {
-            brand: vehicle.brand || 'Não especificado',
-            model: vehicle.model || 'Não especificado',
-            year: parseInt(vehicle.year as any) || new Date().getFullYear(),
-            value: parseFloat(vehicle.value as any) || 0,
-            plate_number: vehicle.plateNumber || vehicle.plate_number || null,
-            // Determinamos is_used explicitamente - veículos com placa são sempre usados
-            is_used: vehicle.plateNumber || vehicle.plate_number ? true : (vehicle.isUsed === true || vehicle.is_used === true), 
-            group_id: vehicle.groupId || vehicle.group_id || 'A',
-            color: vehicle.color || null,
-            odometer: parseInt(vehicle.odometer as any) || 0,
-            fuel_type: (vehicle as any).fuelType || (vehicle as any).fuel_type || (vehicle as any).tipoCombustivel || null
-          };
-          
-          console.log("Dados formatados do veículo para inserção:", vehicleData);
-          
-          try {
-            const { data: newVehicle, error: vehicleError } = await supabase
-              .from('vehicles')
-              .insert(vehicleData)
-              .select()
-              .single();
-              
-            if (vehicleError) {
-              console.error("Erro ao criar veículo:", vehicleError);
-              // Tentativa alternativa de inserção sem usar single()
-              const { data: fallbackInsert, error: fallbackError } = await supabase
+            try {
+              const { data: newVehicle, error: vehicleError } = await supabase
                 .from('vehicles')
                 .insert(vehicleData)
-                .select();
+                .select()
+                .single();
                 
-              if (fallbackError) {
-                console.error("Erro na tentativa alternativa de criar veículo:", fallbackError);
-                continue;
-              } else if (fallbackInsert && Array.isArray(fallbackInsert) && fallbackInsert.length > 0) {
-                vehicleId = fallbackInsert[0].id;
-                console.log("Veículo criado com sucesso na tentativa alternativa. ID:", vehicleId);
+              if (vehicleError) {
+                console.error("Erro ao criar veículo:", vehicleError);
+                // Tentativa alternativa de inserção sem usar single()
+                const { data: fallbackInsert, error: fallbackError } = await supabase
+                  .from('vehicles')
+                  .insert(vehicleData)
+                  .select();
+                  
+                if (fallbackError) {
+                  console.error("Erro na tentativa alternativa de criar veículo:", fallbackError);
+                  continue;
+                } else if (fallbackInsert && Array.isArray(fallbackInsert) && fallbackInsert.length > 0) {
+                  vehicleId = fallbackInsert[0].id;
+                  console.log("Veículo criado com sucesso na tentativa alternativa. ID:", vehicleId);
+                } else {
+                  console.error("Nenhum veículo retornado após inserção alternativa");
+                  continue;
+                }
+              } else if (newVehicle) {
+                vehicleId = newVehicle.id;
+                console.log("Novo veículo criado com ID:", vehicleId);
               } else {
-                console.error("Nenhum veículo retornado após inserção alternativa");
+                console.error("Nenhum veículo retornado após inserção");
                 continue;
               }
-            } else if (newVehicle) {
-              vehicleId = newVehicle.id;
-              console.log("Novo veículo criado com ID:", vehicleId);
-            } else {
-              console.error("Nenhum veículo retornado após inserção");
+            } catch (insertError) {
+              console.error("Exceção ao tentar inserir veículo:", insertError);
               continue;
             }
-          } catch (insertError) {
-            console.error("Exceção ao tentar inserir veículo:", insertError);
-            continue;
           }
         }
         
