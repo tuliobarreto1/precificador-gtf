@@ -39,31 +39,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// Componente para as rotas aplicadas após o AuthProvider
-const AppRoutes = () => {
-  return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      
-      {/* Rotas protegidas */}
-      <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-      <Route path="/orcamento/novo" element={<ProtectedRoute><NewQuote /></ProtectedRoute>} />
-      <Route path="/orcamentos" element={<ProtectedRoute><Quotes /></ProtectedRoute>} />
-      <Route path="/orcamento/:id" element={<ProtectedRoute><QuoteDetail /></ProtectedRoute>} />
-      <Route path="/editar-orcamento/:id" element={<ProtectedRoute><NewQuote /></ProtectedRoute>} />
-      <Route path="/clientes" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
-      <Route path="/cliente/novo" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
-      <Route path="/cliente/:id" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
-      <Route path="/configuracoes" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-      <Route path="/parametros" element={<ProtectedRoute><Parameters /></ProtectedRoute>} />
-      <Route path="/usuarios" element={<ProtectedRoute><Users /></ProtectedRoute>} />
-      
-      {/* Rota padrão para página não encontrada */}
-      <Route path="*" element={<NotFound />} />
-    </Routes>
-  );
-};
-
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -72,7 +47,25 @@ function App() {
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
-            <AppRoutes />
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              
+              {/* Rotas protegidas */}
+              <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/orcamento/novo" element={<ProtectedRoute><NewQuote /></ProtectedRoute>} />
+              <Route path="/orcamentos" element={<ProtectedRoute><Quotes /></ProtectedRoute>} />
+              <Route path="/orcamento/:id" element={<ProtectedRoute><QuoteDetail /></ProtectedRoute>} />
+              <Route path="/editar-orcamento/:id" element={<ProtectedRoute><NewQuote /></ProtectedRoute>} />
+              <Route path="/clientes" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
+              <Route path="/cliente/novo" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
+              <Route path="/cliente/:id" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
+              <Route path="/configuracoes" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/parametros" element={<ProtectedRoute><Parameters /></ProtectedRoute>} />
+              <Route path="/usuarios" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+              
+              {/* Rota padrão para página não encontrada */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
