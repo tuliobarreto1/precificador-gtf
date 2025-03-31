@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Car } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +19,7 @@ export interface Vehicle {
 }
 
 export interface VehicleCardProps {
-  vehicle: Vehicle;
+  vehicle: Vehicle | any; // Usando any para acomodar diferentes estruturas de dados
   showRemoveButton?: boolean;
   onRemoveVehicle?: (id: string) => void;
   showDetailedInfo?: boolean;
