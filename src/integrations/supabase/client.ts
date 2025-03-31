@@ -236,14 +236,14 @@ export async function saveQuoteToSupabase(quote: any) {
             const updateData = {
               brand: vehicle.brand || 'Não especificado',
               model: vehicle.model || 'Não especificado',
-              year: parseInt(vehicle.year) || new Date().getFullYear(),
-              value: parseFloat(vehicle.value) || 0,
+              year: parseInt(vehicle.year as any) || new Date().getFullYear(),
+              value: parseFloat(vehicle.value as any) || 0,
               plate_number: vehicle.plateNumber || vehicle.plate_number || null,
               is_used: vehicle.isUsed === true || vehicle.is_used === true || (vehicle.plateNumber || vehicle.plate_number ? true : false), // Corrigido para determinar is_used com base na presença de placa
               group_id: vehicle.groupId || vehicle.group_id || 'A',
               color: vehicle.color || null,
-              odometer: parseInt(vehicle.odometer) || 0,
-              fuel_type: vehicle.fuelType || vehicle.fuel_type || vehicle.tipoCombustivel || null
+              odometer: parseInt(vehicle.odometer as any) || 0,
+              fuel_type: (vehicle as any).fuelType || (vehicle as any).fuel_type || (vehicle as any).tipoCombustivel || null
             };
             
             console.log("Atualizando veículo existente com dados:", updateData);
@@ -280,13 +280,13 @@ export async function saveQuoteToSupabase(quote: any) {
             const updateData = {
               brand: vehicle.brand || 'Não especificado',
               model: vehicle.model || 'Não especificado',
-              year: parseInt(vehicle.year) || new Date().getFullYear(),
-              value: parseFloat(vehicle.value) || 0,
+              year: parseInt(vehicle.year as any) || new Date().getFullYear(),
+              value: parseFloat(vehicle.value as any) || 0,
               is_used: true, // Veículos com placa são sempre usados
               group_id: vehicle.groupId || vehicle.group_id || 'A',
               color: vehicle.color || null,
-              odometer: parseInt(vehicle.odometer) || 0,
-              fuel_type: vehicle.fuelType || vehicle.fuel_type || vehicle.tipoCombustivel || null
+              odometer: parseInt(vehicle.odometer as any) || 0,
+              fuel_type: (vehicle as any).fuelType || (vehicle as any).fuel_type || (vehicle as any).tipoCombustivel || null
             };
             
             console.log("Atualizando veículo existente com dados:", updateData);
@@ -312,15 +312,15 @@ export async function saveQuoteToSupabase(quote: any) {
           const vehicleData = {
             brand: vehicle.brand || 'Não especificado',
             model: vehicle.model || 'Não especificado',
-            year: parseInt(vehicle.year) || new Date().getFullYear(),
-            value: parseFloat(vehicle.value) || 0,
+            year: parseInt(vehicle.year as any) || new Date().getFullYear(),
+            value: parseFloat(vehicle.value as any) || 0,
             plate_number: vehicle.plateNumber || vehicle.plate_number || null,
             // Determinamos is_used explicitamente - veículos com placa são sempre usados
             is_used: vehicle.plateNumber || vehicle.plate_number ? true : (vehicle.isUsed === true || vehicle.is_used === true), 
             group_id: vehicle.groupId || vehicle.group_id || 'A',
             color: vehicle.color || null,
-            odometer: parseInt(vehicle.odometer) || 0,
-            fuel_type: vehicle.fuelType || vehicle.fuel_type || vehicle.tipoCombustivel || null
+            odometer: parseInt(vehicle.odometer as any) || 0,
+            fuel_type: (vehicle as any).fuelType || (vehicle as any).fuel_type || (vehicle as any).tipoCombustivel || null
           };
           
           console.log("Dados formatados do veículo para inserção:", vehicleData);
@@ -362,6 +362,17 @@ export async function saveQuoteToSupabase(quote: any) {
             continue;
           }
         }
+        
+        // CORREÇÃO IMPORTANTE: Neste ponto, temos o ID do veículo independentemente de ser novo ou usado
+        // Devemos continuar com a inserção na tabela quote_vehicles para TODOS os veículos
+
+        // Vamos agora garantir que o veículo seja adicionado à tabela quote_vehicles
+        if (!vehicleId) {
+          console.error("VehicleId ainda não definido após todas as tentativas, pulando para o próximo veículo");
+          continue;
+        }
+        
+        console.log(`Prosseguindo com a inclusão do veículo ID ${vehicleId} na tabela quote_vehicles`);
         
         // Obter parâmetros do veículo
         let params = quote.useGlobalParams 
