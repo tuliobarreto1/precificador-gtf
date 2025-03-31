@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Car } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -10,22 +9,12 @@ export interface Vehicle {
   model: string;
   year: number;
   value: number;
-  plateNumber?: string;
   isUsed: boolean;
+  plateNumber?: string;
   groupId?: string;
   color?: string;
   odometer?: number;
   fuelType?: string;
-  // Campos adicionais para cálculos
-  depreciation_cost?: number;
-  maintenance_cost?: number;
-  extra_km_rate?: number;
-  total_cost?: number;
-  monthly_value?: number;
-  contract_months?: number;
-  monthly_km?: number;
-  operation_severity?: number;
-  has_tracking?: boolean;
 }
 
 export interface VehicleCardProps {
@@ -51,7 +40,6 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
     }
   };
 
-  // Verifica se é um Vehicle ou um objeto com propriedade 'vehicle'
   const vehicleData = {
     brand: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).brand : vehicle.brand,
     model: 'vehicle' in vehicle ? (vehicle.vehicle as Vehicle).model : vehicle.model,
