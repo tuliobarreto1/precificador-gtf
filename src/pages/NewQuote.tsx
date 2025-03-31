@@ -135,6 +135,26 @@ const QuoteForm = () => {
   const [isLoadingExisting, setIsLoadingExisting] = useState<boolean>(false);
   const [existingVehicles, setExistingVehicles] = useState<Vehicle[]>([]);
   const [filteredExisting, setFilteredExisting] = useState<Vehicle[]>([]);
+  const loadAttemptedRef = useRef(false);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { 
+    quoteForm, 
+    setClient, 
+    addVehicle, 
+    removeVehicle,
+    setGlobalContractMonths, 
+    setGlobalMonthlyKm, 
+    setGlobalOperationSeverity, 
+    setGlobalHasTracking, 
+    setUseGlobalParams,
+    setVehicleParams,
+    calculateQuote,
+    saveQuote,
+    loadQuoteForEditing,
+    isEditMode,
+    currentEditingQuoteId
+  } = useQuote();
 
   const logState = () => {
     console.log("Estado atual do formulário:", {
