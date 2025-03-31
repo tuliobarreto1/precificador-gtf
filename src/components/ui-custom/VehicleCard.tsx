@@ -10,7 +10,7 @@ export interface Vehicle {
   model: string;
   year: number;
   value: number;
-  isUsed?: boolean; // Tornando opcional para compatibilidade
+  isUsed?: boolean; // Alterado para opcional para compatibilidade com a interface do mock-data
   plateNumber?: string;
   groupId?: string;
   color?: string;
