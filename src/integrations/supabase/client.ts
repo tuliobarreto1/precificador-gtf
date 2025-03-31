@@ -308,16 +308,14 @@ export async function saveQuoteToSupabase(quote: any) {
         if (!vehicleId) {
           console.log("Criando novo veículo com dados:", vehicle);
           
-          // CORREÇÃO PRINCIPAL: Garantir que todos os tipos de veículos (novos ou usados) sejam salvos
-          // Corrigimos aqui para criar veículos novos (sem placa) também
+          // CORREÇÃO: Garantir que todos os tipos de veículos (novos ou usados) sejam salvos
           const vehicleData = {
             brand: vehicle.brand || 'Não especificado',
             model: vehicle.model || 'Não especificado',
             year: parseInt(vehicle.year) || new Date().getFullYear(),
             value: parseFloat(vehicle.value) || 0,
             plate_number: vehicle.plateNumber || vehicle.plate_number || null,
-            // CORREÇÃO: Agora determinamos is_used explicitamente
-            // Veículos com placa são sempre usados, ou se a propriedade isUsed estiver definida como true
+            // Determinamos is_used explicitamente - veículos com placa são sempre usados
             is_used: vehicle.plateNumber || vehicle.plate_number ? true : (vehicle.isUsed === true || vehicle.is_used === true), 
             group_id: vehicle.groupId || vehicle.group_id || 'A',
             color: vehicle.color || null,
@@ -326,9 +324,6 @@ export async function saveQuoteToSupabase(quote: any) {
           };
           
           console.log("Dados formatados do veículo para inserção:", vehicleData);
-          
-          // CORREÇÃO: Adicionando logging mais detalhado para depuração
-          console.log("Tentativa de inserção de novo veículo na tabela vehicles:", JSON.stringify(vehicleData, null, 2));
           
           try {
             const { data: newVehicle, error: vehicleError } = await supabase
