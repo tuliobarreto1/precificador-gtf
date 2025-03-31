@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Info, Users, Car, Wrench, Calculator, Plus, Trash2, Settings, Mail } from 'lucide-react';
@@ -17,10 +18,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from '@/hooks/use-toast';
 import VehicleSelector from '@/components/vehicle/VehicleSelector';
 import VehicleCard, { Vehicle } from '@/components/ui-custom/VehicleCard';
-import { getClients, Client } from '@/lib/mock-data';
 import { useQuote, QuoteProvider } from '@/context/QuoteContext';
 import { CustomClient } from '@/components/quote/ClientForm';
 import { getVehiclesFromSupabase, VehicleData } from '@/integrations/supabase/services/vehicles';
+import { getClientsFromSupabase } from '@/integrations/supabase/services/clients';
 
 const STEPS = [
   { id: 'client', name: 'Cliente', icon: <Users size={18} /> },
@@ -135,6 +136,8 @@ const QuoteForm = () => {
   const [isLoadingExisting, setIsLoadingExisting] = useState<boolean>(false);
   const [existingVehicles, setExistingVehicles] = useState<Vehicle[]>([]);
   const [filteredExisting, setFilteredExisting] = useState<Vehicle[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [loadingClients, setLoadingClients] = useState<boolean>(false);
   const loadAttemptedRef = useRef(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -155,6 +158,27 @@ const QuoteForm = () => {
     isEditMode,
     currentEditingQuoteId
   } = useQuote();
+
+  // Carregamento de clientes do Supabase
+  useEffect(() => {
+    const loadClients = async () => {
+      setLoadingClients(true);
+      try {
+        const { success, clients, error } = await getClientsFromSupabase();
+        if (success && clients) {
+          setClients(clients);
+        } else {
+          console.error('Erro ao carregar clientes:', error);
+        }
+      } catch (error) {
+        console.error('Erro inesperado ao carregar clientes:', error);
+      } finally {
+        setLoadingClients(false);
+      }
+    };
+
+    loadClients();
+  }, []);
 
   const logState = () => {
     console.log("Estado atual do formulário:", {
@@ -300,7 +324,7 @@ const QuoteForm = () => {
     }
   };
 
-  const handleClientSelect = (client: Client | CustomClient) => {
+  const handleClientSelect = (client: CustomClient) => {
     console.log("Cliente selecionado:", client);
     setClient(client);
   };
@@ -309,7 +333,8 @@ const QuoteForm = () => {
     <div className="space-y-6 animate-fadeIn">
       <ClientForm 
         onClientSelect={handleClientSelect} 
-        existingClients={getClients()} 
+        existingClients={clients} 
+        isLoadingClients={loadingClients}
       />
     </div>
   );
