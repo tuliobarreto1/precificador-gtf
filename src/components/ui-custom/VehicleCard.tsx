@@ -16,34 +16,18 @@ export interface Vehicle {
   color?: string;
   odometer?: number;
   fuelType?: string;
-  // Campos adicionais para cálculos
-  depreciation_cost?: number;
-  maintenance_cost?: number;
-  extra_km_rate?: number;
-  total_cost?: number;
-  monthly_value?: number;
-  contract_months?: number;
-  monthly_km?: number;
-  operation_severity?: number;
-  has_tracking?: boolean;
 }
 
 export interface VehicleCardProps {
   vehicle: Vehicle;
   showRemoveButton?: boolean;
   onRemoveVehicle?: (id: string) => void;
-  showDetailedInfo?: boolean;
-  showCosts?: boolean;
-  children?: React.ReactNode;
 }
 
 const VehicleCard: React.FC<VehicleCardProps> = ({ 
   vehicle, 
   showRemoveButton = false, 
-  onRemoveVehicle,
-  showDetailedInfo = false,
-  showCosts = false,
-  children
+  onRemoveVehicle 
 }) => {
   const handleRemove = () => {
     if (onRemoveVehicle) {
@@ -51,72 +35,41 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
     }
   };
 
-  // Verifica se é um Vehicle ou VehicleData e adapta
-  const vehicleData = {
-    brand: 'vehicle' in vehicle ? vehicle.vehicle.brand : vehicle.brand,
-    model: 'vehicle' in vehicle ? vehicle.vehicle.model : vehicle.model,
-    year: 'vehicle' in vehicle ? vehicle.vehicle.year : vehicle.year,
-    value: 'vehicle' in vehicle ? vehicle.vehicle.value : vehicle.value,
-    plateNumber: 'vehicle' in vehicle ? vehicle.vehicle.plate_number : vehicle.plateNumber,
-    isUsed: 'vehicle' in vehicle ? vehicle.vehicle.is_used : vehicle.isUsed,
-    color: 'vehicle' in vehicle ? vehicle.vehicle.color : vehicle.color,
-    odometer: 'vehicle' in vehicle ? vehicle.vehicle.odometer : vehicle.odometer,
-    fuelType: 'vehicle' in vehicle ? vehicle.vehicle.fuel_type : vehicle.fuelType,
-    groupId: 'vehicle' in vehicle ? vehicle.vehicle.group_id : vehicle.groupId,
-  };
-
   return (
     <div className="border rounded-lg p-4 flex flex-col">
       <div className="flex justify-between items-start mb-2">
         <div>
-          <h3 className="font-medium">{vehicleData.brand} {vehicleData.model}</h3>
+          <h3 className="font-medium">{vehicle.brand} {vehicle.model}</h3>
           <p className="text-sm text-muted-foreground">
-            {vehicleData.year} • {vehicleData.isUsed ? 'Usado' : 'Novo'}
+            {vehicle.year} • {vehicle.isUsed ? 'Usado' : 'Novo'}
           </p>
-          {vehicleData.plateNumber && (
+          {vehicle.plateNumber && (
             <Badge variant="outline" className="mt-1 bg-primary/10">
-              {vehicleData.plateNumber}
+              {vehicle.plateNumber}
             </Badge>
           )}
         </div>
         <div className="text-right">
-          <p className="font-medium">R$ {vehicleData.value.toLocaleString('pt-BR')}</p>
-          {vehicle.monthly_value && (
-            <p className="text-xs text-muted-foreground">
-              Valor mensal: R$ {vehicle.monthly_value.toLocaleString('pt-BR')}
-            </p>
-          )}
+          <p className="font-medium">R$ {vehicle.value.toLocaleString('pt-BR')}</p>
         </div>
       </div>
       
-      {showDetailedInfo && (vehicleData.groupId || vehicleData.color || vehicleData.odometer || vehicleData.fuelType) && (
+      {(vehicle.groupId || vehicle.color || vehicle.odometer) && (
         <div className="mt-2 pt-2 border-t text-xs space-y-1">
-          {vehicleData.groupId && (
-            <p><span className="text-muted-foreground">Grupo:</span> {vehicleData.groupId}</p>
+          {vehicle.groupId && (
+            <p><span className="text-muted-foreground">Grupo:</span> {vehicle.groupId}</p>
           )}
-          {vehicleData.color && (
-            <p><span className="text-muted-foreground">Cor:</span> {vehicleData.color}</p>
+          {vehicle.color && (
+            <p><span className="text-muted-foreground">Cor:</span> {vehicle.color}</p>
           )}
-          {vehicleData.odometer && (
-            <p><span className="text-muted-foreground">Odômetro:</span> {vehicleData.odometer.toLocaleString('pt-BR')} km</p>
+          {vehicle.odometer && (
+            <p><span className="text-muted-foreground">Odômetro:</span> {vehicle.odometer.toLocaleString('pt-BR')} km</p>
           )}
-          {vehicleData.fuelType && (
-            <p><span className="text-muted-foreground">Combustível:</span> {vehicleData.fuelType}</p>
+          {vehicle.fuelType && (
+            <p><span className="text-muted-foreground">Combustível:</span> {vehicle.fuelType}</p>
           )}
         </div>
       )}
-
-      {showCosts && vehicle.depreciation_cost && vehicle.maintenance_cost && (
-        <div className="mt-2 pt-2 border-t text-xs space-y-1">
-          <p><span className="text-muted-foreground">Depreciação:</span> R$ {(vehicle.depreciation_cost || 0).toLocaleString('pt-BR')}</p>
-          <p><span className="text-muted-foreground">Manutenção:</span> R$ {(vehicle.maintenance_cost || 0).toLocaleString('pt-BR')}</p>
-          {vehicle.extra_km_rate && (
-            <p><span className="text-muted-foreground">Taxa por km excedente:</span> R$ {vehicle.extra_km_rate.toFixed(2)}</p>
-          )}
-        </div>
-      )}
-
-      {children}
       
       {showRemoveButton && (
         <div className="mt-auto pt-3">
