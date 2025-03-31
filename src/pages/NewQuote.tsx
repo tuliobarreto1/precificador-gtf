@@ -693,7 +693,7 @@ const QuoteForm = () => {
   const loadExistingVehicles = async () => {
     setIsLoadingExisting(true);
     try {
-      const { success, vehicles } = await getVehiclesFromSupabase(false);
+      const { success, vehicles, error } = await getVehiclesFromSupabase(false);
       
       if (success && vehicles) {
         const mappedVehicles = vehicles.map((v: VehicleData) => ({
