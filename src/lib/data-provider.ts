@@ -1,4 +1,3 @@
-
 /**
  * Arquivo de transição para substituir o mock-data.ts
  * Este arquivo encapsula as chamadas originais do mock-data e redireciona para o Supabase
@@ -175,7 +174,4 @@ export const getVehicleMaintenance = (vehicle: Vehicle) => {
 };
 
 // Re-exportar valores mockados para manter retrocompatibilidade
-export const { quotes } = mockData;
-
-// Para o erro savedQuotes, precisamos verificar se existe no mock-data, caso contrário criar um array vazio
-export const savedQuotes = mockData.savedQuotes || [];
+export const { quotes, savedQuotes } = mockData;

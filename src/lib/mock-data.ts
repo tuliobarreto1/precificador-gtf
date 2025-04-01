@@ -52,6 +52,9 @@ export type Quote = {
   costPerKm: number;
 };
 
+// Para resolver o erro de savedQuotes
+export const savedQuotes: Quote[] = [];
+
 // Carregar clientes do localStorage ou usar dados iniciais
 const STORED_CLIENTS_KEY = 'lovClients';
 const initialClients = [
