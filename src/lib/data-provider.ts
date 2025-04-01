@@ -11,8 +11,8 @@ import {
   saveClientToSupabase,
   getAllVehicles,
   findVehicleByPlate,
-  getVehicleGroupById,
-  getVehicleGroups,
+  getVehicleGroupById as getVehicleGroupByIdFromSupabase,
+  getVehicleGroups as getVehicleGroupsFromSupabase,
   getQuotesFromSupabase
 } from '@/integrations/supabase';
 import { v4 as uuidv4 } from 'uuid';
@@ -31,7 +31,7 @@ export const getClients = async (): Promise<Client[]> => {
       return clients.map(client => ({
         id: client.id,
         name: client.name,
-        type: client.type === 'PJ' ? 'PJ' : 'PF',
+        type: client.type === 'PJ' ? 'PJ' : 'PF' as 'PJ' | 'PF', // Garantir que o tipo seja 'PJ' | 'PF'
         document: client.document || '',
         email: client.email || undefined
       }));
@@ -52,7 +52,7 @@ export const getClientById = async (id: string): Promise<Client | undefined> => 
         return {
           id: client.id,
           name: client.name,
-          type: client.type === 'PJ' ? 'PJ' : 'PF',
+          type: client.type === 'PJ' ? 'PJ' : 'PF' as 'PJ' | 'PF',
           document: client.document || '',
           email: client.email || undefined
         };
@@ -76,7 +76,7 @@ export const addClient = async (client: Client): Promise<Client> => {
       return {
         id: data.id,
         name: data.name,
-        type: data.type === 'PJ' ? 'PJ' : 'PF',
+        type: data.type === 'PJ' ? 'PJ' : 'PF' as 'PJ' | 'PF',
         document: data.document || '',
         email: data.email || undefined
       };
@@ -91,7 +91,7 @@ export const addClient = async (client: Client): Promise<Client> => {
 // Funções para grupos de veículos
 export const getVehicleGroups = async (): Promise<VehicleGroup[]> => {
   try {
-    const { groups, success } = await getVehicleGroups();
+    const { groups, success } = await getVehicleGroupsFromSupabase();
     if (success && groups) {
       return groups;
     }
@@ -104,7 +104,7 @@ export const getVehicleGroups = async (): Promise<VehicleGroup[]> => {
 
 export const getVehicleGroupById = async (id: string): Promise<VehicleGroup | null> => {
   try {
-    const group = await getVehicleGroupById(id);
+    const group = await getVehicleGroupByIdFromSupabase(id);
     if (group) {
       return group;
     }
@@ -175,4 +175,7 @@ export const getVehicleMaintenance = (vehicle: Vehicle) => {
 };
 
 // Re-exportar valores mockados para manter retrocompatibilidade
-export const { quotes, savedQuotes } = mockData;
+export const { quotes } = mockData;
+
+// Para o erro savedQuotes, precisamos verificar se existe no mock-data, caso contrário criar um array vazio
+export const savedQuotes = mockData.savedQuotes || [];
