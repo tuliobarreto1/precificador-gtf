@@ -1,7 +1,8 @@
+
 import { useState, useEffect } from 'react';
 import { useQuote } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
-import { quotes, getClientById, getVehicleById } from '@/lib/mock-data';
+import { getQuotes, getClientById, getVehicleById, savedQuotes } from '@/lib/data-provider';
 import { 
   checkSupabaseConnection, 
   getQuotesFromSupabase, 
@@ -25,12 +26,21 @@ export const useQuotes = () => {
   const [supabaseConnected, setSupabaseConnected] = useState(false);
   const [supabaseQuotes, setSupabaseQuotes] = useState<any[]>([]);
   const [supabaseVehicles, setSupabaseVehicles] = useState<any[]>([]);
+  const [demoQuotes, setDemoQuotes] = useState<any[]>([]);
   
-  const { savedQuotes } = useQuote();
   const { toast } = useToast();
 
   useEffect(() => {
     console.log('Hook useQuotes montado, verificando conexão e carregando orçamentos');
+    
+    const loadDemoQuotes = async () => {
+      try {
+        const quotes = await getQuotes();
+        setDemoQuotes(quotes);
+      } catch (err) {
+        console.error('Erro ao carregar orçamentos demo:', err);
+      }
+    };
     
     const checkConnection = async () => {
       try {
@@ -47,10 +57,12 @@ export const useQuotes = () => {
         } else {
           console.error('Falha ao conectar ao Supabase');
           setSupabaseConnected(false);
+          await loadDemoQuotes();
         }
       } catch (error) {
         console.error('Erro ao verificar conexão:', error);
         setSupabaseConnected(false);
+        await loadDemoQuotes();
       } finally {
         setLoadingSupabase(false);
       }
@@ -163,13 +175,14 @@ export const useQuotes = () => {
     return { name: 'Veículo não especificado', value: quote.total_value || 0 };
   };
 
+  // Combinar os orçamentos de todas as fontes
   const allQuotes: QuoteItem[] = [
-    ...quotes.map(quote => ({
+    ...demoQuotes.map(quote => ({
       id: quote.id,
       clientName: getClientById(quote.clientId)?.name || 'Cliente não encontrado',
-      vehicleName: getVehicleById(quote.vehicleId)?.brand + ' ' + getVehicleById(quote.vehicleId)?.model,
+      vehicleName: getVehicleById(quote.vehicleId)?.brand + ' ' + getVehicleById(quote.vehicleId)?.model || 'Veículo não encontrado',
       value: quote.totalCost,
-      createdAt: new Date().toISOString(),
+      createdAt: quote.createdAt || new Date().toISOString(),
       status: 'ORCAMENTO',
       source: 'demo' as const
     })),
