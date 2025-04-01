@@ -83,22 +83,25 @@ export async function getVehiclesFromLocavia(filter?: string, filterValue?: stri
 
 // Função para obter todos os veículos (combinando Supabase e Locavia se necessário)
 export async function getAllVehicles(filter?: string, filterValue?: string) {
-  const [supabaseResult, locaviaResult] = await Promise.all([
-    getVehiclesFromSupabase(filter, filterValue),
+  try {
+    const supabaseResult = await getVehiclesFromSupabase(filter, filterValue);
     // Descomentar a linha abaixo quando a integração com Locavia estiver pronta
-    // getVehiclesFromLocavia(filter, filterValue)
-  ]);
-  
-  const allVehicles = [
-    ...(supabaseResult.vehicles || []),
-    // ...(locaviaResult.vehicles || [])
-  ];
-  
-  return {
-    success: supabaseResult.success, // || locaviaResult.success,
-    vehicles: allVehicles,
-    error: supabaseResult.error // || locaviaResult.error
-  };
+    // const locaviaResult = await getVehiclesFromLocavia(filter, filterValue);
+    
+    const allVehicles = [
+      ...(supabaseResult.vehicles || []),
+      // ...(locaviaResult.vehicles || [])
+    ];
+    
+    return {
+      success: supabaseResult.success, // || locaviaResult.success,
+      vehicles: allVehicles,
+      error: supabaseResult.error // || locaviaResult.error
+    };
+  } catch (error) {
+    console.error("Erro inesperado ao obter todos os veículos:", error);
+    return { success: false, error, vehicles: [] };
+  }
 }
 
 // Função para criar ou atualizar um veículo

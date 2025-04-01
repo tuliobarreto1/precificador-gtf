@@ -1,4 +1,3 @@
-
 // Mock data for clients
 export interface Client {
   id: string;
@@ -72,6 +71,9 @@ export const quotes: Quote[] = [
   { id: '3', client: clients[2], vehicle: vehicles[2], contractMonths: 48, monthlyKm: 2000, totalCost: 2500, createdAt: '2023-03-20' },
 ];
 
+// Import apenas o que é necessário do wrapper do Supabase
+import { supabase } from '@/integrations/supabase/core/client';
+
 // Função para simular API calls
 export const getClients = (): Client[] => {
   return clients;
@@ -98,23 +100,31 @@ export const getVehicleGroupById = (id: string): VehicleGroup | undefined => {
 };
 
 // Função para buscar orçamentos (integrando com Supabase)
-export async function getQuotes(): Promise<{ success: boolean; quotes: any[]; error?: any }> {
+export const fetchQuotesFromSupabase = async () => {
   try {
-    // Importar e usar a função do cliente Supabase
-    const { getQuotesFromSupabase } = await import('@/integrations/supabase/client');
-    const result = await getQuotesFromSupabase();
+    const { data, error } = await supabase
+      .from('quotes')
+      .select(`
+        *,
+        client:client_id(*),
+        vehicles:quote_vehicles(
+          *,
+          vehicle:vehicle_id(*)
+        )
+      `)
+      .order('created_at', { ascending: false });
     
-    // Garantir que o resultado tenha um array de orçamentos
-    return { 
-      success: result.success, 
-      quotes: Array.isArray(result.quotes) ? result.quotes : [],
-      error: result.error 
-    };
+    if (error) {
+      console.error('Erro ao buscar orçamentos:', error);
+      return { success: false, error, quotes: [] };
+    }
+    
+    return { success: true, quotes: data || [] };
   } catch (error) {
-    console.error('Erro ao buscar orçamentos:', error);
+    console.error('Erro inesperado ao buscar orçamentos:', error);
     return { success: false, error, quotes: [] };
   }
-}
+};
 
 // Interface para os retornos das funções de autenticação
 interface AuthResponse {

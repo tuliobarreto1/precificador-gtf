@@ -20,7 +20,8 @@ import VehicleCard from '@/components/ui-custom/VehicleCard';
 import { getClients, Client } from '@/lib/mock-data';
 import { useQuote, QuoteProvider } from '@/context/QuoteContext';
 import { CustomClient } from '@/components/quote/ClientForm';
-import { getVehicleGroupById } from '@/integrations/supabase';
+import { getAllVehicles } from '@/integrations/supabase';
+import { Vehicle } from '@/lib/mock-data';
 
 const STEPS = [
   { id: 'client', name: 'Cliente', icon: <Users size={18} /> },
@@ -132,6 +133,8 @@ const QuoteForm = () => {
   const [loadingQuote, setLoadingQuote] = useState<boolean>(!!id);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadAttempted, setLoadAttempted] = useState<boolean>(false);
+  const [loadingVehicles, setLoadingVehicles] = useState<boolean>(false);
+  const [availableVehicles, setAvailableVehicles] = useState<Vehicle[]>([]);
   const loadAttemptedRef = useRef(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -683,10 +686,13 @@ const QuoteForm = () => {
     try {
       setLoadingVehicles(true);
       
-      const { vehicles } = await getAllVehicles();
+      const { vehicles, success } = await getAllVehicles();
       
-      if (vehicles && vehicles.length > 0) {
+      if (success && vehicles && vehicles.length > 0) {
+        console.log('Veículos carregados com sucesso:', vehicles);
         setAvailableVehicles(vehicles);
+      } else {
+        console.log('Nenhum veículo encontrado ou erro ao carregar veículos');
       }
     } catch (error) {
       console.error("Erro ao carregar veículos:", error);
