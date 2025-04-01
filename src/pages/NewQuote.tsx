@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Info, Users, Car, Wrench, Calculator, Plus, Trash2, Settings, Mail } from 'lucide-react';
@@ -21,6 +20,7 @@ import VehicleCard from '@/components/ui-custom/VehicleCard';
 import { getClients, Client } from '@/lib/mock-data';
 import { useQuote, QuoteProvider } from '@/context/QuoteContext';
 import { CustomClient } from '@/components/quote/ClientForm';
+import { getVehicleGroupById } from '@/integrations/supabase';
 
 const STEPS = [
   { id: 'client', name: 'Cliente', icon: <Users size={18} /> },
@@ -679,8 +679,27 @@ const QuoteForm = () => {
     }
   };
 
-  // Aqui estava o erro - o componente estava usando um Fragment diretamente (<>) com um data-lov-id
-  // Vamos substituir pelo div para corrigir o erro
+  const loadExistingVehicles = async () => {
+    try {
+      setLoadingVehicles(true);
+      
+      const { vehicles } = await getAllVehicles();
+      
+      if (vehicles && vehicles.length > 0) {
+        setAvailableVehicles(vehicles);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar veículos:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar a lista de veículos",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingVehicles(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       {loadingQuote ? (

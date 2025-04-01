@@ -45,41 +45,56 @@ export type Database = {
       clients: {
         Row: {
           address: string | null
+          cep: number | null
           city: string | null
+          complement: string | null
           created_at: string
           created_by: string | null
           document: string | null
           email: string | null
           id: string
           name: string
+          number: number | null
           phone: string | null
+          responsible_person: string | null
           state: string | null
+          type: string | null
           updated_at: string
         }
         Insert: {
           address?: string | null
+          cep?: number | null
           city?: string | null
+          complement?: string | null
           created_at?: string
           created_by?: string | null
           document?: string | null
           email?: string | null
           id?: string
           name: string
+          number?: number | null
           phone?: string | null
+          responsible_person?: string | null
           state?: string | null
+          type?: string | null
           updated_at?: string
         }
         Update: {
           address?: string | null
+          cep?: number | null
           city?: string | null
+          complement?: string | null
           created_at?: string
           created_by?: string | null
           document?: string | null
           email?: string | null
           id?: string
           name?: string
+          number?: number | null
           phone?: string | null
+          responsible_person?: string | null
           state?: string | null
+          type?: string | null
           updated_at?: string
         }
         Relationships: []

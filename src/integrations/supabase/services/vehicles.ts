@@ -12,14 +12,17 @@ export const convertToValidUuid = (id: string | number): string => {
 };
 
 // Função para buscar veículos do Supabase
-export async function getVehiclesFromSupabase() {
+export async function getVehiclesFromSupabase(filter?: string, filterValue?: string) {
   try {
-    console.log("Buscando veículos do Supabase...");
+    console.log("Buscando veículos do Supabase...", { filter, filterValue });
     
-    const { data, error } = await supabase
-      .from('vehicles')
-      .select('*')
-      .order('brand', { ascending: true });
+    let query = supabase.from('vehicles').select('*');
+    
+    if (filter && filterValue) {
+      query = query.ilike(filter, `%${filterValue}%`);
+    }
+    
+    const { data, error } = await query.order('brand', { ascending: true });
       
     if (error) {
       console.error("Erro ao buscar veículos:", error);
@@ -34,6 +37,70 @@ export async function getVehiclesFromSupabase() {
   }
 }
 
+// Função para buscar veículos da Locavia
+export async function getVehiclesFromLocavia(filter?: string, filterValue?: string) {
+  try {
+    console.log("Buscando veículos da Locavia...", { filter, filterValue });
+    
+    // Aqui você utilizaria a função real para buscar da API da Locavia
+    // Por enquanto, estamos apenas simulando uma chamada à API externa
+    const response = await fetch('http://localhost:3002/api/vehicles');
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Erro ao buscar veículos da Locavia:", errorData);
+      return { success: false, error: errorData, vehicles: [] };
+    }
+    
+    const data = await response.json();
+    
+    // Transformar dados da Locavia para o formato usado no frontend
+    const vehicles = data.map((item: any) => ({
+      id: convertToValidUuid(item.CodigoMVA || item.id),
+      brand: item.DescricaoModelo ? item.DescricaoModelo.split(' ')[0] : 'Não especificado',
+      model: item.DescricaoModelo ? item.DescricaoModelo.split(' ').slice(1).join(' ') : 'Não especificado',
+      year: parseInt(item.AnoFabricacaoModelo) || new Date().getFullYear(),
+      value: item.ValorCompra || 0,
+      plateNumber: item.Placa || null,
+      plate_number: item.Placa || null,
+      color: item.Cor || null,
+      isUsed: true,  // Veículos da Locavia são sempre usados
+      is_used: true,
+      odometer: item.OdometroAtual || 0,
+      fuelType: item.TipoCombustivel || null,
+      fuel_type: item.TipoCombustivel || null,
+      groupId: item.LetraGrupo || 'A',
+      group_id: item.LetraGrupo || 'A'
+    }));
+    
+    console.log(`Recuperados ${vehicles?.length || 0} veículos da Locavia com sucesso`);
+    return { success: true, vehicles: vehicles || [] };
+  } catch (error) {
+    console.error("Erro inesperado ao buscar veículos da Locavia:", error);
+    return { success: false, error, vehicles: [] };
+  }
+}
+
+// Função para obter todos os veículos (combinando Supabase e Locavia se necessário)
+export async function getAllVehicles(filter?: string, filterValue?: string) {
+  const [supabaseResult, locaviaResult] = await Promise.all([
+    getVehiclesFromSupabase(filter, filterValue),
+    // Descomentar a linha abaixo quando a integração com Locavia estiver pronta
+    // getVehiclesFromLocavia(filter, filterValue)
+  ]);
+  
+  const allVehicles = [
+    ...(supabaseResult.vehicles || []),
+    // ...(locaviaResult.vehicles || [])
+  ];
+  
+  return {
+    success: supabaseResult.success, // || locaviaResult.success,
+    vehicles: allVehicles,
+    error: supabaseResult.error // || locaviaResult.error
+  };
+}
+
 // Função para criar ou atualizar um veículo
 export async function createOrUpdateVehicle(vehicle: any) {
   try {
@@ -46,7 +113,7 @@ export async function createOrUpdateVehicle(vehicle: any) {
       year: parseInt(vehicle.year as any) || new Date().getFullYear(),
       value: parseFloat(vehicle.value as any) || 0,
       plate_number: vehicle.plateNumber || vehicle.plate_number || null,
-      is_used: vehicle.isUsed === true || vehicle.is_used === true,
+      is_used: vehicle.isUsed === true || vehicle.is_used === true || !!vehicle.plateNumber || !!vehicle.plate_number,
       group_id: vehicle.groupId || vehicle.group_id || 'A',
       color: vehicle.color || null,
       odometer: parseInt(vehicle.odometer as any) || 0,
@@ -90,7 +157,49 @@ export async function findVehicleByPlate(plateNumber: string) {
       return null;
     }
     
-    return data;
+    if (data) {
+      return data;
+    }
+    
+    // Se não encontrar no Supabase, buscar na API da Locavia
+    try {
+      const response = await fetch(`http://localhost:3002/api/vehicles/${plateNumber}`);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null;
+        }
+        throw new Error('Erro ao buscar veículo da Locavia');
+      }
+      
+      const locaviaVehicle = await response.json();
+      
+      if (!locaviaVehicle) {
+        return null;
+      }
+      
+      // Transformar para o formato do frontend
+      return {
+        id: convertToValidUuid(locaviaVehicle.CodigoMVA || ''),
+        brand: locaviaVehicle.DescricaoModelo ? locaviaVehicle.DescricaoModelo.split(' ')[0] : 'Não especificado',
+        model: locaviaVehicle.DescricaoModelo ? locaviaVehicle.DescricaoModelo.split(' ').slice(1).join(' ') : 'Não especificado',
+        year: parseInt(locaviaVehicle.AnoFabricacaoModelo) || new Date().getFullYear(),
+        value: locaviaVehicle.ValorCompra || 0,
+        plateNumber: locaviaVehicle.Placa,
+        plate_number: locaviaVehicle.Placa,
+        color: locaviaVehicle.Cor || null,
+        isUsed: true,
+        is_used: true,
+        odometer: locaviaVehicle.OdometroAtual || 0,
+        fuelType: locaviaVehicle.TipoCombustivel || null,
+        fuel_type: locaviaVehicle.TipoCombustivel || null,
+        groupId: locaviaVehicle.LetraGrupo || 'A',
+        group_id: locaviaVehicle.LetraGrupo || 'A'
+      };
+    } catch (error) {
+      console.error("Erro ao buscar veículo da Locavia:", error);
+      return null;
+    }
   } catch (error) {
     console.error("Erro inesperado ao buscar veículo pela placa:", error);
     return null;
