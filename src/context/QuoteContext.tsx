@@ -1024,8 +1024,8 @@ export type QuoteContextType = {
   availableUsers: User[];
   isEditMode: boolean;
   currentEditingQuoteId: string | null;
-  getClientById: (id: string) => Promise<Client>;
-  getVehicleById: (id: string) => Promise<Vehicle>;
+  getClientById: (id: string) => Client;
+  getVehicleById: (id: string) => Vehicle;
   loadQuoteForEditing: (quoteId: string) => Promise<boolean>;
   deleteQuote: (quoteId: string) => boolean;
   canEditQuote: (quote: SavedQuote) => boolean;

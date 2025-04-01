@@ -30,38 +30,22 @@ export async function getClients(): Promise<Client[]> {
   }
 }
 
-export async function getClientById(id: string): Promise<Client> {
+export function getClientById(id: string): Client {
   if (!id) return {} as Client;
   
-  try {
-    const { data, error } = await supabase
-      .from('clients')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-      
-    if (error || !data) {
-      console.error(`Erro ao buscar cliente ${id}:`, error);
-      // Fallback para dados mock
-      const mockClient = mockClients.find(c => c.id === id);
-      return mockClient || {} as Client;
-    }
-    
-    return {
-      id: data.id,
-      name: data.name,
-      type: (data.type === 'PF' || data.type === 'PJ') ? data.type : 'PJ',
-      document: data.document || '',
-      email: data.email,
-      contact: data.phone,
-      responsible: data.responsible_person
-    };
-  } catch (error) {
-    console.error(`Erro inesperado ao buscar cliente ${id}:`, error);
-    // Fallback para dados mock
-    const mockClient = mockClients.find(c => c.id === id);
-    return mockClient || {} as Client;
+  // Buscar nos dados simulados para evitar chamadas assíncronas
+  const mockClient = mockClients.find(c => c.id === id);
+  if (mockClient) {
+    return mockClient;
   }
+  
+  // Retornar um cliente vazio se não encontrado
+  return {
+    id: '',
+    name: 'Cliente não encontrado',
+    type: 'PJ',
+    document: ''
+  } as Client;
 }
 
 export function addClient(client: Client): Client {
@@ -108,42 +92,25 @@ export async function getVehicles(): Promise<Vehicle[]> {
   }
 }
 
-export async function getVehicleById(id: string): Promise<Vehicle> {
+export function getVehicleById(id: string): Vehicle {
   if (!id) return {} as Vehicle;
   
-  try {
-    const { data, error } = await supabase
-      .from('vehicles')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-      
-    if (error || !data) {
-      console.error(`Erro ao buscar veículo ${id}:`, error);
-      // Fallback para dados mock
-      const mockVehicle = mockVehicles.find(v => v.id === id);
-      return mockVehicle || {} as Vehicle;
-    }
-    
-    return {
-      id: data.id,
-      brand: data.brand || '',
-      model: data.model || '',
-      year: data.year || new Date().getFullYear(),
-      value: data.value || 0,
-      isUsed: data.is_used || false,
-      plateNumber: data.plate_number,
-      color: data.color,
-      odometer: data.odometer,
-      fuelType: data.fuel_type,
-      groupId: data.group_id || 'A'
-    };
-  } catch (error) {
-    console.error(`Erro inesperado ao buscar veículo ${id}:`, error);
-    // Fallback para dados mock
-    const mockVehicle = mockVehicles.find(v => v.id === id);
-    return mockVehicle || {} as Vehicle;
+  // Buscar nos dados simulados para evitar chamadas assíncronas
+  const mockVehicle = mockVehicles.find(v => v.id === id);
+  if (mockVehicle) {
+    return mockVehicle;
   }
+  
+  // Retornar um veículo vazio se não encontrado
+  return {
+    id: '',
+    brand: 'Veículo não encontrado',
+    model: '',
+    year: new Date().getFullYear(),
+    value: 0,
+    isUsed: false,
+    groupId: 'A'
+  } as Vehicle;
 }
 
 // Funções para grupos de veículos
@@ -174,38 +141,25 @@ export async function getVehicleGroups(): Promise<VehicleGroup[]> {
   }
 }
 
-export async function getVehicleGroupById(id: string): Promise<VehicleGroup> {
+export function getVehicleGroupById(id: string): VehicleGroup {
   if (!id) return {} as VehicleGroup;
   
-  try {
-    const { data, error } = await supabase
-      .from('vehicle_groups')
-      .select('*')
-      .eq('code', id)
-      .maybeSingle();
-      
-    if (error || !data) {
-      console.error(`Erro ao buscar grupo de veículo ${id}:`, error);
-      // Fallback para dados mock
-      const mockGroup = mockVehicleGroups.find(g => g.id === id);
-      return mockGroup || {} as VehicleGroup;
-    }
-    
-    return {
-      id: data.code,
-      name: data.name,
-      description: data.description || '',
-      revisionKm: data.revision_km || 10000,
-      revisionCost: data.revision_cost || 500,
-      tireKm: data.tire_km || 40000,
-      tireCost: data.tire_cost || 2000
-    };
-  } catch (error) {
-    console.error(`Erro inesperado ao buscar grupo de veículo ${id}:`, error);
-    // Fallback para dados mock
-    const mockGroup = mockVehicleGroups.find(g => g.id === id);
-    return mockGroup || {} as VehicleGroup;
+  // Buscar nos dados simulados para evitar chamadas assíncronas
+  const mockGroup = mockVehicleGroups.find(g => g.id === id);
+  if (mockGroup) {
+    return mockGroup;
   }
+  
+  // Retornar um grupo vazio se não encontrado
+  return {
+    id: '',
+    name: 'Grupo não encontrado',
+    description: '',
+    revisionKm: 10000,
+    revisionCost: 500,
+    tireKm: 40000,
+    tireCost: 2000
+  } as VehicleGroup;
 }
 
 // Funções para orçamentos

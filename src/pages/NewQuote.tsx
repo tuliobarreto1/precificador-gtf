@@ -309,7 +309,7 @@ const QuoteForm = () => {
     <div className="space-y-6 animate-fadeIn">
       <ClientForm 
         onClientSelect={handleClientSelect} 
-        existingClients={getClients()} 
+        existingClients={[]} // Inicializamos com lista vazia que será preenchida pelo componente
       />
     </div>
   );

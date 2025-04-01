@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useQuote } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
-import { getQuotes, getClientById, getVehicleById, savedQuotes } from '@/lib/data-provider';
+import { getQuotes, getClientById, getVehicleById, savedQuotes, getVehicleGroupById, mockClients, mockVehicles } from '@/lib/data-provider';
 import { Client, Vehicle } from '@/lib/models';
 import { 
   checkSupabaseConnection, 
@@ -176,7 +176,7 @@ export const useQuotes = () => {
     return { name: 'Veículo não especificado', value: quote.total_value || 0 };
   };
 
-  const transformQuotes = async () => {
+  const transformQuotes = () => {
     // Funções auxiliares para transformar dados de forma síncrona
     const getClientNameSync = (clientId: string): string => {
       const client = mockClients.find(c => c.id === clientId);
@@ -245,13 +245,9 @@ export const useQuotes = () => {
   
   // Carregar e transformar quotes quando os dados mudarem
   useEffect(() => {
-    const loadAllQuotes = async () => {
-      const quotes = await transformQuotes();
-      quotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setAllQuotes(quotes);
-    };
-    
-    loadAllQuotes();
+    const quotes = transformQuotes();
+    quotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    setAllQuotes(quotes);
   }, [demoQuotes, supabaseQuotes, savedQuotes]);
   
   const totalQuotes = allQuotes.length;

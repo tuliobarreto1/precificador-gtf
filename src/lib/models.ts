@@ -1,4 +1,3 @@
-
 // Tipos e interfaces básicas para o sistema
 export type ClientType = 'PF' | 'PJ';
 
@@ -57,7 +56,7 @@ export interface Quote {
   clientName?: string;
 }
 
-// Dados de fallback para desenvolvimento
+// Adicionamos a exportação explícita dos dados simulados (mocks)
 export const mockClients: Client[] = [
   { 
     id: '1', 

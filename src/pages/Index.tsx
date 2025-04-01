@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FileText, List, Settings, PieChart, TrendingUp, Clock, Calendar } from 'lucide-react';
@@ -11,6 +10,7 @@ import { useQuote } from '@/context/QuoteContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { fetchSystemSettings } from '@/lib/settings';
+import { savedQuotes as mockSavedQuotes } from '@/lib/models';
 
 const Index = () => {
   const [companyName, setCompanyName] = useState('Car Lease Master');
@@ -18,7 +18,9 @@ const Index = () => {
   
   // Garantir que temos acesso ao contexto de orçamentos
   const quoteContext = useQuote();
-  const { savedQuotes } = quoteContext || {};
+  
+  // Usamos o savedQuotes do contexto se disponível, ou o mockSavedQuotes como fallback
+  const savedQuotes = quoteContext?.savedQuotes || mockSavedQuotes;
   
   // Garantir que savedQuotes é sempre um array antes de qualquer operação
   const safeQuotes = Array.isArray(savedQuotes) ? savedQuotes : [];
