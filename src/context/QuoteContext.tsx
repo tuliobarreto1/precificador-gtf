@@ -751,10 +751,9 @@ export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
           operationSeverity: updates.globalParams?.operationSeverity || quote.operationSeverity,
           hasTracking: updates.globalParams?.hasTracking !== undefined ? updates.globalParams.hasTracking : quote.hasTracking,
           vehicles: quoteResult.vehicleResults.map(result => {
-            const vehicle = updates.vehicles?.find(v => v.vehicle.id === result.vehicleId)?.vehicle;
-            const vehicleGroup = updates.vehicles?.find(v => v.vehicle.id === result.vehicleId)?.vehicleGroup;
+            const vehicleItem = updates.vehicles?.find(v => v.vehicle.id === result.vehicleId);
             
-            if (!vehicle) {
+            if (!vehicleItem) {
               // Se não encontrou o veículo nas atualizações, manter o veículo original
               const originalVehicle = quote.vehicles.find(v => v.vehicleId === result.vehicleId);
               if (originalVehicle) return originalVehicle;
@@ -764,11 +763,11 @@ export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
             }
             
             return {
-              vehicleId: vehicle.vehicle.id,
-              vehicleBrand: vehicle.vehicle.brand,
-              vehicleModel: vehicle.vehicle.model,
-              plateNumber: vehicle.vehicle.plateNumber,
-              groupId: vehicleGroup?.id || quote.vehicles[0].groupId,
+              vehicleId: vehicleItem.vehicle.id,
+              vehicleBrand: vehicleItem.vehicle.brand,
+              vehicleModel: vehicleItem.vehicle.model,
+              plateNumber: vehicleItem.vehicle.plateNumber,
+              groupId: vehicleItem.vehicleGroup?.id || quote.vehicles[0].groupId,
               totalCost: result.totalCost,
               depreciationCost: result.depreciationCost,
               maintenanceCost: result.maintenanceCost,
@@ -986,7 +985,8 @@ export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
     deleteQuote,
     canEditQuote,
     canDeleteQuote,
-    sendQuoteByEmail
+    sendQuoteByEmail,
+    savedQuotes
   };
 
   return (
@@ -1031,6 +1031,7 @@ export type QuoteContextType = {
   canEditQuote: (quote: SavedQuote) => boolean;
   canDeleteQuote: (quote: SavedQuote) => boolean;
   sendQuoteByEmail: (quoteId: string, email: string, message: string) => Promise<boolean>;
+  savedQuotes: SavedQuote[];
 };
 
 // Hook para usar o contexto
