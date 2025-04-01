@@ -690,7 +690,7 @@ export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
     // Também salvar no Supabase e atualizar o ID local se salvo com sucesso
     let finalQuote = { ...newSavedQuote };
     try {
-      import('@/integrations/supabase/client').then(async ({ saveQuoteToSupabase }) => {
+      import('@/integrations/supabase/services/quotes').then(async ({ saveQuoteToSupabase }) => {
         console.log('📤 Iniciando salvamento no Supabase...');
         // Passar o objeto cliente completo para a função de salvamento
         const result = await saveQuoteToSupabase({
