@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,6 +9,8 @@ import NewQuote from "./pages/NewQuote";
 import Quotes from "./pages/Quotes";
 import QuoteDetail from "./pages/QuoteDetail";
 import Clients from "./pages/Clients";
+import ClientEdit from "./pages/ClientEdit";
+import NewClient from "./pages/NewClient";
 import Settings from "./pages/Settings";
 import Parameters from "./pages/Parameters";
 import Users from "./pages/Users";
@@ -55,9 +56,12 @@ function App() {
               <Route path="/orcamentos" element={<ProtectedRoute><Quotes /></ProtectedRoute>} />
               <Route path="/orcamento/:id" element={<ProtectedRoute><QuoteDetail /></ProtectedRoute>} />
               <Route path="/editar-orcamento/:id" element={<ProtectedRoute><NewQuote /></ProtectedRoute>} />
+              
+              {/* Rotas de Clientes */}
               <Route path="/clientes" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
-              <Route path="/cliente/novo" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
-              <Route path="/cliente/:id" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
+              <Route path="/cliente/novo" element={<ProtectedRoute><NewClient /></ProtectedRoute>} />
+              <Route path="/cliente/:id/editar" element={<ProtectedRoute><ClientEdit /></ProtectedRoute>} />
+              
               <Route path="/configuracoes" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/parametros" element={<ProtectedRoute><Parameters /></ProtectedRoute>} />
               <Route path="/usuarios" element={<ProtectedRoute><Users /></ProtectedRoute>} />

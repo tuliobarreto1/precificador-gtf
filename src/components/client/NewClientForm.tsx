@@ -1,24 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Client, addClient, getClientByDocument } from '@/lib/mock-data';
 import { useToast } from '@/hooks/use-toast';
+import { saveClientToSupabase, updateClientInSupabase } from '@/integrations/supabase/services/clients';
 
 interface NewClientFormProps {
-  onSave: (client: Client) => void;
+  onSave: (client: any) => void;
   onCancel: () => void;
+  client?: any; // Cliente para edição
+  isEdit?: boolean;
 }
 
-export default function NewClientForm({ onSave, onCancel }: NewClientFormProps) {
+export default function NewClientForm({ onSave, onCancel, client, isEdit }: NewClientFormProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
+    id: '',
     document: '',
     name: '',
     email: '',
     contact: '',
+    phone: '',
     responsible: '',
+    type: 'PF'
   });
+
+  // Carregar dados do cliente se estiver em modo de edição
+  useEffect(() => {
+    if (isEdit && client) {
+      setFormData({
+        id: client.id || '',
+        document: client.document || '',
+        name: client.name || '',
+        email: client.email || '',
+        contact: client.contact || '',
+        phone: client.phone || '',
+        responsible: client.responsible || '',
+        type: client.document?.replace(/\D/g, '').length === 11 ? 'PF' : 'PJ'
+      });
+    }
+  }, [isEdit, client]);
 
   const documentType = formData.document.replace(/\D/g, '').length === 11 ? 'PF' : 'PJ';
   const { toast } = useToast();
@@ -58,6 +79,7 @@ export default function NewClientForm({ onSave, onCancel }: NewClientFormProps) 
       setFormData(prev => ({
         ...prev,
         name: data.razao_social,
+        type: 'PJ'
       }));
     } catch (error) {
       console.error('Erro ao buscar CNPJ:', error);
@@ -68,7 +90,11 @@ export default function NewClientForm({ onSave, onCancel }: NewClientFormProps) 
 
   const handleDocumentChange = (value: string) => {
     const formatted = formatDocument(value);
-    setFormData(prev => ({ ...prev, document: formatted }));
+    setFormData(prev => ({ 
+      ...prev, 
+      document: formatted,
+      type: formatted.replace(/\D/g, '').length === 11 ? 'PF' : 'PJ'
+    }));
 
     // Se for CNPJ (14 dígitos) busca automaticamente
     const numbers = value.replace(/\D/g, '');
@@ -77,41 +103,63 @@ export default function NewClientForm({ onSave, onCancel }: NewClientFormProps) 
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
 
-    // Validações básicas
-    if (!formData.document || !formData.name) {
+    try {
+      // Validações básicas
+      if (!formData.document || !formData.name) {
+        toast({
+          title: "Campos obrigatórios",
+          description: "Por favor, preencha todos os campos obrigatórios",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      let result;
+      if (isEdit) {
+        // Atualizar cliente existente
+        result = await updateClientInSupabase(formData.id, {
+          name: formData.name,
+          document: formData.document,
+          email: formData.email,
+          phone: formData.phone,
+          type: formData.type,
+          updated_at: new Date().toISOString()
+        });
+      } else {
+        // Criar novo cliente
+        result = await saveClientToSupabase({
+          name: formData.name,
+          document: formData.document,
+          email: formData.email,
+          phone: formData.phone,
+          type: formData.type
+        });
+      }
+
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Erro ao salvar cliente');
+      }
+
       toast({
-        title: "Campos obrigatórios",
-        description: "Por favor, preencha todos os campos obrigatórios",
+        title: isEdit ? "Cliente atualizado" : "Cliente criado",
+        description: isEdit ? "Cliente atualizado com sucesso!" : "Novo cliente criado com sucesso!",
+      });
+
+      onSave(result.data);
+    } catch (error: any) {
+      console.error('Erro ao salvar cliente:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao salvar cliente",
         variant: "destructive",
       });
-      return;
+    } finally {
+      setLoading(false);
     }
-
-    // Verificar se já existe um cliente com o mesmo documento
-    const existingClient = getClientByDocument(formData.document);
-    if (existingClient) {
-      toast({
-        title: "Cliente já cadastrado",
-        description: "Já existe um cliente cadastrado com este documento.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Criar e salvar novo cliente
-    const newClient: Client = {
-      id: Date.now().toString(),
-      name: formData.name,
-      type: documentType,
-      document: formData.document,
-      email: formData.email || undefined,
-    };
-
-    const savedClient = addClient(newClient);
-    onSave(savedClient);
   };
 
   return (
@@ -127,7 +175,7 @@ export default function NewClientForm({ onSave, onCancel }: NewClientFormProps) 
             onChange={(e) => handleDocumentChange(e.target.value)}
             placeholder="Digite o CPF ou CNPJ"
             maxLength={18}
-            disabled={loading}
+            disabled={loading || isEdit} // Desabilitar edição do documento em modo de edição
           />
         </div>
 
@@ -139,16 +187,17 @@ export default function NewClientForm({ onSave, onCancel }: NewClientFormProps) 
             id="name"
             value={formData.name}
             onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-            disabled={documentType === 'PJ' && loading}
+            disabled={loading}
           />
         </div>
 
         <div>
-          <Label htmlFor="contact">Contato</Label>
+          <Label htmlFor="phone">Telefone</Label>
           <Input
-            id="contact"
-            value={formData.contact}
-            onChange={(e) => setFormData(prev => ({ ...prev, contact: e.target.value }))}
+            id="phone"
+            value={formData.phone}
+            onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+            disabled={loading}
           />
         </div>
 
@@ -159,6 +208,7 @@ export default function NewClientForm({ onSave, onCancel }: NewClientFormProps) 
             type="email"
             value={formData.email}
             onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+            disabled={loading}
           />
         </div>
 
@@ -168,16 +218,17 @@ export default function NewClientForm({ onSave, onCancel }: NewClientFormProps) 
             id="responsible"
             value={formData.responsible}
             onChange={(e) => setFormData(prev => ({ ...prev, responsible: e.target.value }))}
+            disabled={loading}
           />
         </div>
       </div>
 
       <div className="flex justify-end space-x-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
           Cancelar
         </Button>
-        <Button type="submit">
-          Salvar Cliente
+        <Button type="submit" disabled={loading}>
+          {loading ? 'Salvando...' : (isEdit ? 'Atualizar' : 'Salvar Cliente')}
         </Button>
       </div>
     </form>

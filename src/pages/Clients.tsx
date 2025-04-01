@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, Plus, Search, Edit, Trash2, AlertCircle } from 'lucide-react';
@@ -6,7 +5,6 @@ import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
 import {
   Table,
   TableBody,
@@ -19,7 +17,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -108,7 +105,7 @@ const Clients = () => {
   };
 
   const handleEdit = (clientId: string) => {
-    navigate(`/cliente/${clientId}`);
+    navigate(`/cliente/${clientId}/editar`);
   };
 
   const handleDelete = async () => {
@@ -132,8 +129,6 @@ const Clients = () => {
           description: "Este cliente está vinculado a orçamentos e não pode ser excluído.",
           variant: "destructive",
         });
-        setIsDeleting(false);
-        setClientToDelete(null);
         return;
       }
       
