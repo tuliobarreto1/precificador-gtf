@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, Car, Search, Loader2, AlertTriangle, Database, RefreshCw, Plus, Check, X, Menu, Minus } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -16,7 +15,7 @@ import {
   SqlVehicleModel 
 } from '@/lib/sql-connection';
 import VehicleCard from '@/components/ui-custom/VehicleCard';
-import { Vehicle, VehicleGroup } from '@/lib/mock-data';
+import { Vehicle, VehicleGroup } from '@/lib/models';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import {

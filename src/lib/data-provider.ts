@@ -1,384 +1,228 @@
 
-/**
- * Arquivo de provedores de dados conectados ao Supabase
- * Este arquivo encapsula as chamadas ao Supabase para fornecer dados à aplicação
- */
-
-import { v4 as uuidv4 } from 'uuid';
-import { 
-  getClientsFromSupabase, 
-  getClientByDocument, 
-  saveClientToSupabase,
-  getAllVehicles,
-  findVehicleByPlate,
-  getVehicleGroupById as getVehicleGroupByIdFromSupabase,
-  getVehicleGroups as getVehicleGroupsFromSupabase,
-  getQuotesFromSupabase,
-  getQuoteByIdFromSupabase
-} from '@/integrations/supabase';
-
-// Definição de tipos exportados
-export type Client = {
-  id: string;
-  name: string;
-  type: 'PF' | 'PJ';
-  document: string;
-  email?: string;
-};
-
-export type VehicleGroup = {
-  id: string;
-  name: string;
-  revisionKm: number;
-  tireKm: number;
-  revisionCost: number;
-  tireCost: number;
-  description?: string;
-};
-
-export interface Vehicle {
-  id: string;
-  brand: string;
-  model: string;
-  year: number;
-  value: number;
-  isUsed?: boolean;
-  plateNumber?: string;
-  color?: string;
-  odometer?: number;
-  fuelType?: string;
-  revisionKm?: number;
-  revisionCost?: number;
-  tireKm?: number;
-  tireCost?: number;
-  groupId?: string;
-}
-
-export type Quote = {
-  id: string;
-  clientId: string;
-  vehicleId: string;
-  contractMonths: number;
-  monthlyKm: number;
-  operationSeverity: 1 | 2 | 3 | 4 | 5 | 6;
-  hasTracking: boolean;
-  createdAt: string;
-  totalCost: number;
-  depreciationCost: number;
-  maintenanceCost: number;
-  trackingCost: number;
-  costPerKm: number;
-};
-
-// Valores de exemplo para quando o Supabase não retornar dados
-// Estes serão usados apenas como fallback
-const defaultClients: Client[] = [
-  {
-    id: '1',
-    name: 'João da Silva',
-    type: 'PF',
-    document: '123.456.789-00',
-    email: 'joao.silva@email.com',
-  },
-  {
-    id: '2',
-    name: 'Empresa ABC Ltda',
-    type: 'PJ',
-    document: '00.123.456/0001-90',
-    email: 'contato@empresaabc.com.br',
-  }
-];
-
-const defaultVehicleGroups: VehicleGroup[] = [
-  {
-    id: 'A',
-    name: 'Grupo A',
-    revisionKm: 10000,
-    tireKm: 40000,
-    revisionCost: 300,
-    tireCost: 1200,
-    description: 'Veículos de pequeno porte'
-  },
-  {
-    id: 'B',
-    name: 'Grupo B',
-    revisionKm: 15000,
-    tireKm: 45000,
-    revisionCost: 350,
-    tireCost: 1400,
-    description: 'Veículos de médio porte'
-  },
-  {
-    id: 'C',
-    name: 'Grupo C',
-    revisionKm: 20000,
-    tireKm: 50000,
-    revisionCost: 400,
-    tireCost: 1600,
-    description: 'Veículos de grande porte'
-  }
-];
-
-const defaultVehicles: Vehicle[] = [
-  {
-    id: '1',
-    brand: 'Fiat',
-    model: 'Uno',
-    year: 2022,
-    value: 50000,
-    groupId: 'A'
-  },
-  {
-    id: '2',
-    brand: 'Volkswagen',
-    model: 'Gol',
-    year: 2023,
-    value: 55000,
-    groupId: 'A'
-  }
-];
-
-const defaultQuotes: Quote[] = [
-  {
-    id: '1',
-    clientId: '1',
-    vehicleId: '5',
-    contractMonths: 24,
-    monthlyKm: 2000,
-    operationSeverity: 2,
-    hasTracking: true,
-    createdAt: '2023-10-10T10:00:00Z',
-    totalCost: 1850,
-    depreciationCost: 1200,
-    maintenanceCost: 600,
-    trackingCost: 50,
-    costPerKm: 0.925
-  }
-];
-
-// Array vazio para quotes salvos (mantido para compatibilidade)
-export const savedQuotes: Quote[] = [];
+import { supabase } from '@/integrations/supabase';
+import { Client, Vehicle, VehicleGroup, Quote, mockClients, mockVehicleGroups, mockVehicles, mockQuotes, savedQuotes } from './models';
 
 // Funções para clientes
-export const getClients = async (): Promise<Client[]> => {
+export async function getClients(): Promise<Client[]> {
   try {
-    const { clients, success } = await getClientsFromSupabase();
-    if (success && clients && clients.length > 0) {
-      return clients.map(client => ({
-        id: client.id,
-        name: client.name,
-        type: (client.type === 'PJ' ? 'PJ' : 'PF') as 'PJ' | 'PF', 
-        document: client.document || '',
-        email: client.email || undefined
-      }));
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*');
+      
+    if (error || !data) {
+      console.error("Erro ao buscar clientes do Supabase:", error);
+      return mockClients; // Fallback para dados mock
     }
-    console.warn('Nenhum cliente retornado do Supabase, usando dados padrão');
-    return defaultClients;
-  } catch (error) {
-    console.error('Erro ao buscar clientes do Supabase, usando dados padrão', error);
-    return defaultClients;
-  }
-};
-
-export const getClientById = async (id: string): Promise<Client | undefined> => {
-  try {
-    const { clients, success } = await getClientsFromSupabase();
-    if (success && clients) {
-      const client = clients.find(c => c.id === id);
-      if (client) {
-        return {
-          id: client.id,
-          name: client.name,
-          type: (client.type === 'PJ' ? 'PJ' : 'PF') as 'PJ' | 'PF',
-          document: client.document || '',
-          email: client.email || undefined
-        };
-      }
-    }
-    console.warn(`Cliente com ID ${id} não encontrado no Supabase, procurando em dados padrão`);
-    return defaultClients.find(c => c.id === id);
-  } catch (error) {
-    console.error('Erro ao buscar cliente por ID do Supabase, usando dados padrão', error);
-    return defaultClients.find(c => c.id === id);
-  }
-};
-
-export const addClient = async (client: Client): Promise<Client> => {
-  try {
-    const { success, data } = await saveClientToSupabase({
-      ...client,
-      id: client.id || uuidv4()
-    });
     
-    if (success && data) {
-      return {
-        id: data.id,
-        name: data.name,
-        type: (data.type === 'PJ' ? 'PJ' : 'PF') as 'PJ' | 'PF',
-        document: data.document || '',
-        email: data.email || undefined
-      };
-    }
-    console.error('Falha ao salvar cliente no Supabase');
-    return client; // Retorna o cliente original em caso de erro
+    // Mapear os dados do Supabase para o formato Client
+    return data.map(client => ({
+      id: client.id,
+      name: client.name,
+      type: (client.type === 'PF' || client.type === 'PJ') ? client.type : 'PJ',
+      document: client.document || '',
+      email: client.email,
+      contact: client.phone,
+      responsible: client.responsible_person
+    }));
   } catch (error) {
-    console.error('Erro ao salvar cliente no Supabase', error);
-    return client; // Retorna o cliente original em caso de erro
+    console.error("Erro inesperado ao buscar clientes:", error);
+    return mockClients; // Fallback para dados mock
   }
-};
+}
 
-// Funções para grupos de veículos
-export const getVehicleGroups = async (): Promise<VehicleGroup[]> => {
+export async function getClientById(id: string): Promise<Client> {
+  if (!id) return {} as Client;
+  
   try {
-    const { groups, success } = await getVehicleGroupsFromSupabase();
-    if (success && groups && groups.length > 0) {
-      return groups;
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+      
+    if (error || !data) {
+      console.error(`Erro ao buscar cliente ${id}:`, error);
+      // Fallback para dados mock
+      const mockClient = mockClients.find(c => c.id === id);
+      return mockClient || {} as Client;
     }
-    console.warn('Nenhum grupo de veículos retornado do Supabase, usando dados padrão');
-    return defaultVehicleGroups;
+    
+    return {
+      id: data.id,
+      name: data.name,
+      type: (data.type === 'PF' || data.type === 'PJ') ? data.type : 'PJ',
+      document: data.document || '',
+      email: data.email,
+      contact: data.phone,
+      responsible: data.responsible_person
+    };
   } catch (error) {
-    console.error('Erro ao buscar grupos de veículos do Supabase, usando dados padrão', error);
-    return defaultVehicleGroups;
+    console.error(`Erro inesperado ao buscar cliente ${id}:`, error);
+    // Fallback para dados mock
+    const mockClient = mockClients.find(c => c.id === id);
+    return mockClient || {} as Client;
   }
-};
+}
 
-export const getVehicleGroupById = async (id: string): Promise<VehicleGroup | null> => {
-  try {
-    const group = await getVehicleGroupByIdFromSupabase(id);
-    if (group) {
-      return group;
-    }
-    console.warn(`Grupo de veículo com ID ${id} não encontrado no Supabase, procurando em dados padrão`);
-    return defaultVehicleGroups.find(group => group.id === id) || null;
-  } catch (error) {
-    console.error('Erro ao buscar grupo de veículo por ID do Supabase, usando dados padrão', error);
-    return defaultVehicleGroups.find(group => group.id === id) || null;
-  }
-};
+export function addClient(client: Client): Client {
+  // No mundo real, adicionaria ao Supabase aqui
+  // Por enquanto, apenas retornamos o cliente
+  return client;
+}
+
+export function getClientByDocument(document: string): Client | null {
+  // Simulação para o formulário de cliente
+  const existingClient = mockClients.find(c => c.document === document);
+  return existingClient || null;
+}
 
 // Funções para veículos
-export const getVehicles = async (): Promise<Vehicle[]> => {
+export async function getVehicles(): Promise<Vehicle[]> {
   try {
-    const { vehicles, success } = await getAllVehicles();
-    if (success && vehicles && vehicles.length > 0) {
-      return vehicles.map(v => ({
-        id: v.id,
-        brand: v.brand,
-        model: v.model,
-        year: v.year,
-        value: v.value,
-        isUsed: v.is_used,
-        plateNumber: v.plate_number,
-        color: v.color,
-        odometer: v.odometer,
-        fuelType: v.fuel_type,
-        groupId: v.group_id
-      }));
+    const { data, error } = await supabase
+      .from('vehicles')
+      .select('*');
+      
+    if (error || !data) {
+      console.error("Erro ao buscar veículos do Supabase:", error);
+      return mockVehicles; // Fallback para dados mock
     }
-    console.warn('Nenhum veículo retornado do Supabase, usando dados padrão');
-    return defaultVehicles;
+    
+    // Mapear os dados do Supabase para o formato Vehicle
+    return data.map(vehicle => ({
+      id: vehicle.id,
+      brand: vehicle.brand || '',
+      model: vehicle.model || '',
+      year: vehicle.year || new Date().getFullYear(),
+      value: vehicle.value || 0,
+      isUsed: vehicle.is_used || false,
+      plateNumber: vehicle.plate_number,
+      color: vehicle.color,
+      odometer: vehicle.odometer,
+      fuelType: vehicle.fuel_type,
+      groupId: vehicle.group_id || 'A'
+    }));
   } catch (error) {
-    console.error('Erro ao buscar veículos do Supabase, usando dados padrão', error);
-    return defaultVehicles;
+    console.error("Erro inesperado ao buscar veículos:", error);
+    return mockVehicles; // Fallback para dados mock
   }
-};
+}
 
-export const getVehicleById = async (id: string): Promise<Vehicle | undefined> => {
+export async function getVehicleById(id: string): Promise<Vehicle> {
+  if (!id) return {} as Vehicle;
+  
   try {
-    const { vehicles, success } = await getAllVehicles();
-    if (success && vehicles) {
-      const vehicle = vehicles.find(v => v.id === id);
-      if (vehicle) {
-        return {
-          id: vehicle.id,
-          brand: vehicle.brand,
-          model: vehicle.model,
-          year: vehicle.year,
-          value: vehicle.value,
-          isUsed: vehicle.is_used,
-          plateNumber: vehicle.plate_number,
-          color: vehicle.color,
-          odometer: vehicle.odometer,
-          fuelType: vehicle.fuel_type,
-          groupId: vehicle.group_id
-        };
-      }
+    const { data, error } = await supabase
+      .from('vehicles')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+      
+    if (error || !data) {
+      console.error(`Erro ao buscar veículo ${id}:`, error);
+      // Fallback para dados mock
+      const mockVehicle = mockVehicles.find(v => v.id === id);
+      return mockVehicle || {} as Vehicle;
     }
-    console.warn(`Veículo com ID ${id} não encontrado no Supabase, procurando em dados padrão`);
-    return defaultVehicles.find(v => v.id === id);
+    
+    return {
+      id: data.id,
+      brand: data.brand || '',
+      model: data.model || '',
+      year: data.year || new Date().getFullYear(),
+      value: data.value || 0,
+      isUsed: data.is_used || false,
+      plateNumber: data.plate_number,
+      color: data.color,
+      odometer: data.odometer,
+      fuelType: data.fuel_type,
+      groupId: data.group_id || 'A'
+    };
   } catch (error) {
-    console.error('Erro ao buscar veículo por ID do Supabase, usando dados padrão', error);
-    return defaultVehicles.find(v => v.id === id);
+    console.error(`Erro inesperado ao buscar veículo ${id}:`, error);
+    // Fallback para dados mock
+    const mockVehicle = mockVehicles.find(v => v.id === id);
+    return mockVehicle || {} as Vehicle;
   }
-};
+}
 
-// Funções para quotes (orçamentos)
-export const getQuotes = async (): Promise<Quote[]> => {
+// Funções para grupos de veículos
+export async function getVehicleGroups(): Promise<VehicleGroup[]> {
   try {
-    const { quotes, success } = await getQuotesFromSupabase();
-    if (success && quotes && quotes.length > 0) {
-      return quotes.map(q => ({
-        id: q.id,
-        clientId: q.client_id || '',
-        vehicleId: q.vehicle_id || '',
-        contractMonths: q.contract_months || 12,
-        monthlyKm: q.monthly_km || 2000,
-        operationSeverity: (q.operation_severity || 3) as 1 | 2 | 3 | 4 | 5 | 6,
-        hasTracking: q.has_tracking || false,
-        createdAt: q.created_at || new Date().toISOString(),
-        totalCost: q.total_value || 0,
-        depreciationCost: 0, // Campos adicionais a serem calculados 
-        maintenanceCost: 0,
-        trackingCost: 0,
-        costPerKm: 0
-      }));
+    const { data, error } = await supabase
+      .from('vehicle_groups')
+      .select('*');
+      
+    if (error || !data) {
+      console.error("Erro ao buscar grupos de veículos do Supabase:", error);
+      return mockVehicleGroups; // Fallback para dados mock
     }
-    console.warn('Nenhum orçamento retornado do Supabase, usando dados padrão');
-    return defaultQuotes;
+    
+    // Mapear os dados do Supabase para o formato VehicleGroup
+    return data.map(group => ({
+      id: group.code,
+      name: group.name,
+      description: group.description || '',
+      revisionKm: group.revision_km || 10000,
+      revisionCost: group.revision_cost || 500,
+      tireKm: group.tire_km || 40000,
+      tireCost: group.tire_cost || 2000
+    }));
   } catch (error) {
-    console.error('Erro ao buscar orçamentos do Supabase, usando dados padrão', error);
-    return defaultQuotes;
+    console.error("Erro inesperado ao buscar grupos de veículos:", error);
+    return mockVehicleGroups; // Fallback para dados mock
   }
-};
+}
 
-export const getQuoteById = async (id: string): Promise<Quote | undefined> => {
+export async function getVehicleGroupById(id: string): Promise<VehicleGroup> {
+  if (!id) return {} as VehicleGroup;
+  
   try {
-    const { quote, success } = await getQuoteByIdFromSupabase(id);
-    if (success && quote) {
-      return {
-        id: quote.id,
-        clientId: quote.client_id || '',
-        vehicleId: quote.vehicle_id || '',
-        contractMonths: quote.contract_months || 12,
-        monthlyKm: quote.monthly_km || 2000,
-        operationSeverity: (quote.operation_severity || 3) as 1 | 2 | 3 | 4 | 5 | 6,
-        hasTracking: quote.has_tracking || false,
-        createdAt: quote.created_at || new Date().toISOString(),
-        totalCost: quote.total_value || 0,
-        depreciationCost: 0, // Campos adicionais a serem calculados
-        maintenanceCost: 0,
-        trackingCost: 0,
-        costPerKm: 0
-      };
+    const { data, error } = await supabase
+      .from('vehicle_groups')
+      .select('*')
+      .eq('code', id)
+      .maybeSingle();
+      
+    if (error || !data) {
+      console.error(`Erro ao buscar grupo de veículo ${id}:`, error);
+      // Fallback para dados mock
+      const mockGroup = mockVehicleGroups.find(g => g.id === id);
+      return mockGroup || {} as VehicleGroup;
     }
-    console.warn(`Orçamento com ID ${id} não encontrado no Supabase, procurando em dados padrão`);
-    return defaultQuotes.find(q => q.id === id);
+    
+    return {
+      id: data.code,
+      name: data.name,
+      description: data.description || '',
+      revisionKm: data.revision_km || 10000,
+      revisionCost: data.revision_cost || 500,
+      tireKm: data.tire_km || 40000,
+      tireCost: data.tire_cost || 2000
+    };
   } catch (error) {
-    console.error('Erro ao buscar orçamento por ID do Supabase, usando dados padrão', error);
-    return defaultQuotes.find(q => q.id === id);
+    console.error(`Erro inesperado ao buscar grupo de veículo ${id}:`, error);
+    // Fallback para dados mock
+    const mockGroup = mockVehicleGroups.find(g => g.id === id);
+    return mockGroup || {} as VehicleGroup;
   }
-};
+}
 
-// Funções para manutenção de veículos
-export const getVehicleMaintenance = (vehicle: Vehicle) => {
-  const group = defaultVehicleGroups.find(g => g.id === vehicle.groupId);
-  return {
-    revisionKm: vehicle.revisionKm || group?.revisionKm || 10000,
-    revisionCost: vehicle.revisionCost || group?.revisionCost || 500,
-    tireKm: vehicle.tireKm || group?.tireKm || 40000,
-    tireCost: vehicle.tireCost || group?.tireCost || 2000
-  };
-};
+// Funções para orçamentos
+export async function getQuotes(): Promise<Quote[]> {
+  try {
+    const { quotes, success, error } = await import('@/integrations/supabase').then(m => m.getQuotesFromSupabase());
+    
+    if (!success || !quotes || quotes.length === 0) {
+      console.error("Erro ao buscar orçamentos do Supabase:", error);
+      return mockQuotes; // Fallback para dados mock
+    }
+    
+    return quotes as unknown as Quote[];
+  } catch (error) {
+    console.error("Erro inesperado ao buscar orçamentos:", error);
+    return mockQuotes; // Fallback para dados mock
+  }
+}
 
-// Re-exportar valores para manter retrocompatibilidade
-export const quotes = defaultQuotes;
+export { mockClients, mockVehicleGroups, mockVehicles, mockQuotes, savedQuotes };

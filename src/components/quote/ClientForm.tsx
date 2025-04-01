@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Client, addClient, getClientByDocument } from '@/lib/mock-data';
+import { Client, mockClients } from '@/lib/models';
+import { addClient, getClientByDocument } from '@/lib/data-provider';
 import { useToast } from '@/hooks/use-toast';
 
 export interface CustomClient extends Client {

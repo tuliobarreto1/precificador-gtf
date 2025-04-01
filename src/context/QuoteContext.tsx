@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { Vehicle, Client, VehicleGroup, getVehicleGroupById, getClientById, getVehicleById } from '@/lib/mock-data';
+import { Vehicle, Client, VehicleGroup } from '@/lib/models';
+import { getClientById, getVehicleById, savedQuotes, getVehicleGroupById } from '@/lib/data-provider';
 import { DepreciationParams, MaintenanceParams, calculateLeaseCost, calculateExtraKmRate, calculateLeaseCostSync, calculateExtraKmRateSync } from '@/lib/calculation';
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from '@/integrations/supabase/client';
+import { getQuoteByIdFromSupabase } from '@/integrations/supabase/services/quotes';
 
 // Item de veículo na cotação
 export type QuoteVehicleItem = {
@@ -112,48 +114,8 @@ export const defaultUser = mockUsers.find(user => user.status === 'active' && us
 const CURRENT_USER_KEY = 'currentUser';
 const SAVED_QUOTES_KEY = 'savedQuotes';
 
-// Context type
-type QuoteContextType = {
-  quoteForm: QuoteFormData;
-  setClient: (client: Client | null) => void;
-  addVehicle: (vehicle: Vehicle, vehicleGroup: VehicleGroup) => void;
-  removeVehicle: (vehicleId: string) => void;
-  setGlobalContractMonths: (months: number) => void;
-  setGlobalMonthlyKm: (km: number) => void;
-  setGlobalOperationSeverity: (severity: 1 | 2 | 3 | 4 | 5 | 6) => void;
-  setGlobalHasTracking: (hasTracking: boolean) => void;
-  setUseGlobalParams: (useGlobal: boolean) => void;
-  setVehicleParams: (
-    vehicleId: string, 
-    params: {
-      contractMonths?: number;
-      monthlyKm?: number;
-      operationSeverity?: 1 | 2 | 3 | 4 | 5 | 6;
-      hasTracking?: boolean;
-    }
-  ) => void;
-  resetForm: () => void;
-  calculateQuote: () => {
-    vehicleResults: VehicleQuoteResult[];
-    totalCost: number;
-  } | null;
-  savedQuotes: SavedQuote[];
-  saveQuote: () => boolean;
-  getSavedQuotes: () => SavedQuote[];
-  deleteQuote: (quoteId: string) => boolean;
-  getCurrentUser: () => User;
-  setCurrentUser: (user: User) => void;
-  canEditQuote: (quote: SavedQuote) => boolean;
-  canDeleteQuote: (quote: SavedQuote) => boolean;
-  updateQuote: (quoteId: string, updates: Partial<QuoteFormData>, changeDescription: string) => boolean;
-  availableUsers: User[];
-  authenticateUser: (userId: number, password?: string) => boolean;
-  mockUsers: User[];
-  loadQuoteForEditing: (quoteId: string) => Promise<boolean>;
-  isEditMode: boolean;
-  currentEditingQuoteId: string | null;
-  sendQuoteByEmail: (quoteId: string, recipientEmail: string, message: string) => Promise<boolean>;
-};
+// AQUI ESTAVA O ERRO: Precisamos criar o contexto antes de usá-lo
+const QuoteContext = createContext<QuoteContextType>({} as QuoteContextType);
 
 // Initial state
 const initialQuoteForm: QuoteFormData = {
@@ -167,9 +129,6 @@ const initialQuoteForm: QuoteFormData = {
     hasTracking: false,
   },
 };
-
-// AQUI ESTAVA O ERRO: Precisamos criar o contexto antes de usá-lo
-const QuoteContext = createContext<QuoteContextType>({} as QuoteContextType);
 
 // Provider component
 export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
@@ -697,11 +656,11 @@ export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
           ...newSavedQuote,
           client: quoteForm.client // Adicionar cliente aqui
         });
-        if (result.success && result.data && result.data[0]) {
-          console.log('✅ Orçamento salvo no Supabase com sucesso!', result.data);
+        if (result.success && result.quote && result.quote.id) {
+          console.log('✅ Orçamento salvo no Supabase com sucesso!', result.quote);
           
           // Atualizar o ID local com o UUID gerado pelo Supabase
-          const supabaseId = result.data[0].id;
+          const supabaseId = result.quote.id;
           
           // Atualizar o orçamento local com o ID do Supabase
           setSavedQuotes(prevQuotes => 
@@ -805,10 +764,10 @@ export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
             }
             
             return {
-              vehicleId: vehicle.id,
-              vehicleBrand: vehicle.brand,
-              vehicleModel: vehicle.model,
-              plateNumber: vehicle.plateNumber,
+              vehicleId: vehicle.vehicle.id,
+              vehicleBrand: vehicle.vehicle.brand,
+              vehicleModel: vehicle.vehicle.model,
+              plateNumber: vehicle.vehicle.plateNumber,
               groupId: vehicleGroup?.id || quote.vehicles[0].groupId,
               totalCost: result.totalCost,
               depreciationCost: result.depreciationCost,
@@ -924,147 +883,4 @@ export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
           if (!error && data && data.length > 0) {
             // Converter o formato do Supabase para o formato Vehicle
             vehicle = {
-              id: savedVehicle.vehicleId,
-              brand: data[0].brand,
-              model: data[0].model,
-              year: data[0].year,
-              value: data[0].value,
-              plateNumber: data[0].plate_number,
-              color: data[0].color,
-              odometer: data[0].odometer,
-              groupId: data[0].group_id
-            };
-          }
-        }
-
-        if (!vehicle || !vehicleGroup) {
-          console.error('Veículo ou grupo não encontrado:', 
-            savedVehicle.vehicleId, savedVehicle.groupId);
-          continue;
-        }
-        
-        // Adicionar ao array de itens
-        vehicleItems.push({
-          vehicle,
-          vehicleGroup,
-          params: {
-            contractMonths: quote.contractMonths,
-            monthlyKm: quote.monthlyKm,
-            operationSeverity: quote.operationSeverity || 3,
-            hasTracking: quote.hasTracking || false
-          }
-        });
-      }
-      
-      // Se não conseguiu reconstruir nenhum veículo, retornar falso
-      if (vehicleItems.length === 0) {
-        console.error('Não foi possível reconstruir nenhum veículo do orçamento');
-        return false;
-      }
-      
-      // Atualizar o estado com o orçamento carregado
-      setQuoteForm({
-        client,
-        vehicles: vehicleItems,
-        useGlobalParams: true, // Definir como true por padrão
-        globalParams: {
-          contractMonths: quote.contractMonths,
-          monthlyKm: quote.monthlyKm,
-          operationSeverity: quote.operationSeverity || 3,
-          hasTracking: quote.hasTracking || false
-        }
-      });
-      
-      // Definir modo de edição
-      setIsEditMode(true);
-      setCurrentEditingQuoteId(quoteId);
-      
-      console.log('✅ Orçamento carregado com sucesso:', quote);
-      return true;
-    } catch (error) {
-      console.error('Erro ao carregar orçamento:', error);
-      return false;
-    }
-  }, [savedQuotes]);
-
-  // Implementação da função para enviar orçamento por e-mail
-  const sendQuoteByEmail = async (quoteId: string, recipientEmail: string, message: string): Promise<boolean> => {
-    try {
-      // Buscar o orçamento pelo ID
-      const quote = savedQuotes.find(q => q.id === quoteId);
-      if (!quote) {
-        console.error('Orçamento não encontrado:', quoteId);
-        return false;
-      }
-      
-      // Aqui implementaríamos o envio real de e-mail via Supabase Functions ou outro serviço
-      // Para simular, vamos apenas logar as informações
-      console.log('📧 Simulando envio de e-mail:', {
-        para: recipientEmail,
-        assunto: `Orçamento de Locação - ${quote.clientName}`,
-        mensagem: message,
-        orçamento: quote
-      });
-      
-      // Simular um envio bem-sucedido após 1 segundo
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      return true;
-    } catch (error) {
-      console.error('Erro ao enviar e-mail:', error);
-      return false;
-    }
-  };
-
-  // Selecionar as cotações do estado atual
-  const getSavedQuotes = () => {
-    return savedQuotes;
-  };
-
-  // Declaração de valores para o provider
-  const value: QuoteContextType = {
-    quoteForm,
-    setClient,
-    addVehicle,
-    removeVehicle,
-    setGlobalContractMonths,
-    setGlobalMonthlyKm,
-    setGlobalOperationSeverity,
-    setGlobalHasTracking,
-    setUseGlobalParams,
-    setVehicleParams,
-    resetForm,
-    calculateQuote,
-    savedQuotes,
-    saveQuote,
-    getSavedQuotes,
-    deleteQuote,
-    getCurrentUser,
-    setCurrentUser,
-    canEditQuote,
-    canDeleteQuote,
-    updateQuote,
-    availableUsers,
-    authenticateUser,
-    mockUsers,
-    loadQuoteForEditing,
-    isEditMode,
-    currentEditingQuoteId,
-    sendQuoteByEmail,
-  };
-
-  return (
-    <QuoteContext.Provider value={value}>
-      {children}
-    </QuoteContext.Provider>
-  );
-};
-
-// Custom hook
-export const useQuote = () => {
-  const context = useContext(QuoteContext);
-  if (!context) {
-    throw new Error('useQuote must be used within a QuoteProvider');
-  }
-  return context;
-};
+              id: savedVehicle.

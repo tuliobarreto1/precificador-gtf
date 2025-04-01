@@ -17,11 +17,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from '@/hooks/use-toast';
 import VehicleSelector from '@/components/vehicle/VehicleSelector';
 import VehicleCard from '@/components/ui-custom/VehicleCard';
-import { getClients, Client } from '@/lib/mock-data';
+import { getClients } from '@/lib/data-provider';
+import { Client, Vehicle } from '@/lib/models';
 import { useQuote, QuoteProvider } from '@/context/QuoteContext';
 import { CustomClient } from '@/components/quote/ClientForm';
 import { getAllVehicles } from '@/integrations/supabase';
-import { Vehicle } from '@/lib/mock-data';
 
 const STEPS = [
   { id: 'client', name: 'Cliente', icon: <Users size={18} /> },
