@@ -1,5 +1,5 @@
 import { supabase } from '../core/client';
-import { saveClientToSupabase } from './clients';
+import { saveClientToSupabase, getClientByDocument } from './clients';
 import { v4 as uuidv4 } from 'uuid';
 
 // Função para salvar orçamento no Supabase
@@ -16,10 +16,37 @@ export async function saveQuoteToSupabase(quote: any) {
       const { data: { session } } = await supabase.auth.getSession();
       userId = session?.user?.id;
     }
-    
-    // Salvar cliente primeiro
-    const clientResult = await saveClientToSupabase(quote.client);
+
+    // Verificar se o cliente já existe pelo documento
+    let clientResult;
+    if (quote.client?.document) {
+      console.log("Verificando cliente pelo documento:", quote.client.document);
+      const { client: existingClient } = await getClientByDocument(quote.client.document);
+      
+      if (existingClient) {
+        console.log("Cliente encontrado, usando existente:", existingClient);
+        clientResult = { success: true, data: existingClient };
+      } else {
+        console.log("Cliente não encontrado, criando novo...");
+        clientResult = await saveClientToSupabase({
+          ...quote.client,
+          type: quote.client.type || 'PF',  // Garantir que o tipo está definido
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      }
+    } else {
+      console.log("Cliente sem documento, criando novo...");
+      clientResult = await saveClientToSupabase({
+        ...quote.client,
+        type: quote.client.type || 'PF',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+    }
+
     if (!clientResult.success) {
+      console.error("Erro ao processar cliente:", clientResult.error);
       return { success: false, error: clientResult.error };
     }
 
@@ -38,7 +65,9 @@ export async function saveQuoteToSupabase(quote: any) {
       total_value: quote.totalCost || 0,
       status: 'active',
       title: quote.title || `Orçamento ${new Date().toLocaleDateString('pt-BR')}`,
-      created_by: userId
+      created_by: userId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
     // Salvar orçamento
@@ -48,6 +77,7 @@ export async function saveQuoteToSupabase(quote: any) {
       .select();
 
     if (quoteError) {
+      console.error("Erro ao salvar orçamento:", quoteError);
       return { success: false, error: quoteError };
     }
 
@@ -76,7 +106,9 @@ export async function saveQuoteToSupabase(quote: any) {
             group_id: vehicleItem.groupId || 'A',
             color: vehicleItem.color || null,
             odometer: parseInt(String(vehicleItem.odometer)) || 0,
-            fuel_type: vehicleItem.fuelType || 'Flex'
+            fuel_type: vehicleItem.fuelType || 'Flex',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           };
 
           // Inserir veículo
@@ -99,7 +131,9 @@ export async function saveQuoteToSupabase(quote: any) {
             contract_months: quote.contractMonths || 12,
             operation_severity: quote.operationSeverity || 3,
             has_tracking: quote.hasTracking || false,
-            total_cost: vehicleItem.monthlyValue || quote.totalCost / quote.vehicles.length
+            total_cost: vehicleItem.monthlyValue || quote.totalCost / quote.vehicles.length,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           };
 
           await supabase
