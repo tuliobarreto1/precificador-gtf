@@ -883,4 +883,161 @@ export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
           if (!error && data && data.length > 0) {
             // Converter o formato do Supabase para o formato Vehicle
             vehicle = {
-              id: savedVehicle.
+              id: savedVehicle.vehicleId,
+              brand: savedVehicle.vehicleBrand,
+              model: savedVehicle.vehicleModel,
+              year: data[0].year || new Date().getFullYear(),
+              value: data[0].value || 0,
+              isUsed: data[0].is_used || false,
+              plateNumber: savedVehicle.plateNumber || data[0].plate_number,
+              color: data[0].color || '',
+              odometer: data[0].odometer || 0,
+              fuelType: data[0].fuel_type || '',
+              groupId: savedVehicle.groupId
+            };
+          } else {
+            // Se não encontrou no Supabase, criar um veículo básico
+            vehicle = {
+              id: savedVehicle.vehicleId,
+              brand: savedVehicle.vehicleBrand,
+              model: savedVehicle.vehicleModel,
+              year: new Date().getFullYear(),
+              value: 0,
+              isUsed: !!savedVehicle.plateNumber,
+              plateNumber: savedVehicle.plateNumber,
+              groupId: savedVehicle.groupId
+            };
+          }
+        }
+        
+        if (!vehicleGroup) {
+          console.error('Grupo não encontrado:', savedVehicle.groupId);
+          return false;
+        }
+        
+        vehicleItems.push({
+          vehicle,
+          vehicleGroup,
+          params: null
+        });
+      }
+      
+      // Configurar o formulário com os dados do orçamento
+      setQuoteForm({
+        client,
+        vehicles: vehicleItems,
+        useGlobalParams: true,
+        globalParams: {
+          contractMonths: quote.contractMonths || 24,
+          monthlyKm: quote.monthlyKm || 3000,
+          operationSeverity: (quote.operationSeverity || 3) as 1|2|3|4|5|6,
+          hasTracking: quote.hasTracking || false
+        }
+      });
+      
+      // Ativar o modo de edição
+      setIsEditMode(true);
+      setCurrentEditingQuoteId(quoteId);
+      
+      console.log('Orçamento carregado para edição:', quoteId);
+      return true;
+    } catch (error) {
+      console.error('Erro ao carregar orçamento para edição:', error);
+      return false;
+    }
+  }, [savedQuotes]);
+
+  // Função para enviar orçamento por e-mail (para ser implementada)
+  const sendQuoteByEmail = async (quoteId: string, email: string, message: string): Promise<boolean> => {
+    // Simulação de envio de e-mail
+    console.log('Enviando orçamento por e-mail:', { quoteId, email, message });
+    
+    return new Promise(resolve => {
+      setTimeout(() => {
+        console.log('E-mail enviado com sucesso!');
+        resolve(true);
+      }, 2000);
+    });
+  };
+
+  // Export the context
+  const contextValue: QuoteContextType = {
+    quoteForm,
+    setClient,
+    addVehicle,
+    removeVehicle,
+    setGlobalContractMonths,
+    setGlobalMonthlyKm,
+    setGlobalOperationSeverity,
+    setGlobalHasTracking,
+    setUseGlobalParams,
+    setVehicleParams,
+    resetForm,
+    calculateQuote,
+    saveQuote,
+    getCurrentUser,
+    setCurrentUser,
+    availableUsers,
+    isEditMode,
+    currentEditingQuoteId,
+    getClientById,
+    getVehicleById,
+    loadQuoteForEditing,
+    deleteQuote,
+    canEditQuote,
+    canDeleteQuote,
+    sendQuoteByEmail
+  };
+
+  return (
+    <QuoteContext.Provider value={contextValue}>
+      {children}
+    </QuoteContext.Provider>
+  );
+};
+
+// Definir tipo para o contexto
+export type QuoteContextType = {
+  quoteForm: QuoteFormData;
+  setClient: (client: Client | null) => void;
+  addVehicle: (vehicle: Vehicle, vehicleGroup: VehicleGroup) => void;
+  removeVehicle: (vehicleId: string) => void;
+  setGlobalContractMonths: (contractMonths: number) => void;
+  setGlobalMonthlyKm: (monthlyKm: number) => void;
+  setGlobalOperationSeverity: (operationSeverity: 1 | 2 | 3 | 4 | 5 | 6) => void;
+  setGlobalHasTracking: (hasTracking: boolean) => void;
+  setUseGlobalParams: (useGlobalParams: boolean) => void;
+  setVehicleParams: (vehicleId: string, params: {
+    contractMonths?: number;
+    monthlyKm?: number;
+    operationSeverity?: 1 | 2 | 3 | 4 | 5 | 6;
+    hasTracking?: boolean;
+  }) => void;
+  resetForm: () => void;
+  calculateQuote: () => {
+    vehicleResults: VehicleQuoteResult[];
+    totalCost: number;
+  } | null;
+  saveQuote: () => boolean;
+  getCurrentUser: () => User;
+  setCurrentUser: (user: User) => void;
+  availableUsers: User[];
+  isEditMode: boolean;
+  currentEditingQuoteId: string | null;
+  getClientById: (id: string) => Promise<Client>;
+  getVehicleById: (id: string) => Promise<Vehicle>;
+  loadQuoteForEditing: (quoteId: string) => Promise<boolean>;
+  deleteQuote: (quoteId: string) => boolean;
+  canEditQuote: (quote: SavedQuote) => boolean;
+  canDeleteQuote: (quote: SavedQuote) => boolean;
+  sendQuoteByEmail: (quoteId: string, email: string, message: string) => Promise<boolean>;
+};
+
+// Hook para usar o contexto
+export const useQuote = () => {
+  const context = useContext(QuoteContext);
+  if (context === undefined) {
+    throw new Error('useQuote must be used within a QuoteProvider');
+  }
+  return context;
+};
