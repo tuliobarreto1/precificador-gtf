@@ -10,7 +10,7 @@ import { QuoteTable } from '@/components/Quote/QuoteTable';
 import { useQuotes } from '@/hooks/useQuotes';
 import { useAuth } from '@/context/AuthContext';
 import { Separator } from '@/components/ui/separator';
-import { getQuoteActionLogs } from '@/integrations/supabase/services/quotes';
+import { getQuoteActionLogs } from '@/integrations/supabase';
 import {
   Table,
   TableBody,
