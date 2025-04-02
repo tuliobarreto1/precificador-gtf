@@ -509,6 +509,12 @@ export type Database = {
         }
         Returns: boolean
       }
+      delete_quote: {
+        Args: {
+          quote_id: string
+        }
+        Returns: boolean
+      }
       execute_sql: {
         Args: {
           sql_query: string

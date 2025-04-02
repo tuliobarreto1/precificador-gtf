@@ -260,7 +260,7 @@ export async function deleteQuoteFromSupabase(id: string) {
     // Pausa para garantir que a transação de exclusão dos veículos tenha terminado
     await new Promise(resolve => setTimeout(resolve, 300));
 
-    // Tentamos deletar o orçamento usando uma abordagem diferente com RPC
+    // Tentamos deletar o orçamento usando uma abordagem com a função RPC criada
     const { data, error } = await supabase
       .rpc('delete_quote', { quote_id: id });
 
