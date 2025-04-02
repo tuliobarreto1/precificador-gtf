@@ -170,12 +170,58 @@ export const calculateDepreciation = async (params: DepreciationParams): Promise
   return monthlyDepreciation;
 };
 
+// Versão síncrona para carregar parâmetros e evitar problemas em renderizações iniciais
+export const initializeCalculationParams = async () => {
+  try {
+    console.log('🔄 Inicializando parâmetros de cálculo...');
+    const params = await fetchCalculationParams();
+    
+    if (params) {
+      // Atualizar o cache com os valores do banco
+      cachedGlobalParams = {
+        trackingCost: params.tracking_cost,
+        depreciationRates: {
+          base: params.depreciation_base,
+          mileageMultiplier: params.depreciation_mileage_multiplier,
+          severityMultiplier: params.depreciation_severity_multiplier
+        },
+        extraKmPercentage: params.extra_km_percentage
+      };
+      lastGlobalParamsFetch = Date.now();
+      
+      console.log('✅ Parâmetros de cálculo inicializados do banco:', cachedGlobalParams);
+    } else {
+      console.warn('⚠️ Nenhum parâmetro encontrado no banco, usando valores padrão');
+      cachedGlobalParams = { ...defaultGlobalParams };
+    }
+    
+    // Também inicializar os grupos de veículos
+    await getVehicleGroupsMap();
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Erro ao inicializar parâmetros de cálculo:', error);
+    return false;
+  }
+};
+
 // Versão síncrona para retrocompatibilidade
 export const calculateDepreciationSync = (params: DepreciationParams): number => {
   const { vehicleValue, contractMonths, monthlyKm, operationSeverity } = params;
   
   // Usar parâmetros em cache para cálculo síncrono
   const globalParams = getGlobalParamsSync();
+  
+  // Log dos parâmetros usados
+  console.log('📊 Calculando depreciação com parâmetros:', {
+    base: globalParams.depreciationRates.base,
+    mileageMultiplier: globalParams.depreciationRates.mileageMultiplier,
+    severityMultiplier: globalParams.depreciationRates.severityMultiplier,
+    vehicleValue,
+    contractMonths,
+    monthlyKm,
+    operationSeverity
+  });
   
   // Base depreciation rate using global params
   let baseRate = globalParams.depreciationRates.base * (25 - contractMonths) / 12;
@@ -258,6 +304,7 @@ export const calculateExtraKmRate = (vehicleValue: number): number => {
 // Versão síncrona para retrocompatibilidade
 export const calculateExtraKmRateSync = (vehicleValue: number): number => {
   const globalParams = getGlobalParamsSync();
+  console.log(`📊 Calculando taxa de km extra com: valor=${vehicleValue}, percentual=${globalParams.extraKmPercentage}`);
   return vehicleValue * globalParams.extraKmPercentage;
 };
 
@@ -319,13 +366,12 @@ export const calculateLeaseCostSync = (
   };
 };
 
-// Iniciar carregando os dados do banco para o cache
+// Forçar inicialização dos parâmetros no carregamento da aplicação
 (async () => {
   try {
-    await getGlobalParams();
-    await getVehicleGroupsMap();
-    console.log('Parâmetros de cálculo inicializados com sucesso.');
+    await initializeCalculationParams();
+    console.log('🚀 Parâmetros de cálculo carregados na inicialização do módulo');
   } catch (error) {
-    console.error('Erro ao inicializar parâmetros de cálculo:', error);
+    console.error('❌ Erro ao carregar parâmetros de cálculo na inicialização:', error);
   }
 })();
