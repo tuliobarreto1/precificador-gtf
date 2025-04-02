@@ -257,20 +257,35 @@ export async function deleteQuoteFromSupabase(id: string) {
       .eq('id', id)
       .single();
 
-    // Então deletamos o orçamento
-    const { error, count } = await supabase
+    // Então deletamos o orçamento sem tentar usar 'count'
+    const { error } = await supabase
       .from('quotes')
       .delete()
-      .eq('id', id)
-      .select('count');
+      .eq('id', id);
       
     if (error) {
       console.error(`❌ Erro ao deletar orçamento ${id}:`, error);
       return { success: false, error };
     }
     
-    console.log(`✅ Orçamento ${id} deletado com sucesso. Registros afetados: ${count || 'desconhecido'}`);
-    return { success: true, deletedQuote: quoteData };
+    // Verificamos se o orçamento foi realmente excluído
+    const { data: checkData } = await supabase
+      .from('quotes')
+      .select('id')
+      .eq('id', id);
+    
+    const wasDeleted = !checkData || checkData.length === 0;
+    
+    if (wasDeleted) {
+      console.log(`✅ Orçamento ${id} deletado com sucesso.`);
+      return { success: true, deletedQuote: quoteData };
+    } else {
+      console.error(`❌ Falha ao deletar orçamento ${id}: ainda existe após a exclusão`);
+      return { 
+        success: false, 
+        error: { message: "Orçamento não foi excluído do banco de dados" } 
+      };
+    }
   } catch (error) {
     console.error(`❌ Erro inesperado ao deletar orçamento ${id}:`, error);
     return { success: false, error };

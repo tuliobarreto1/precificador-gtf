@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useQuote } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
@@ -31,8 +32,14 @@ export const useQuotes = () => {
   
   const { toast } = useToast();
 
+  // Método para atualizar diretamente o refreshTrigger (útil para chamadas externas)
+  const setRefreshTriggerDirectly = () => {
+    console.log("🔄 Atualizando trigger de atualização diretamente");
+    setRefreshTrigger(prev => prev + 1);
+  };
+
   useEffect(() => {
-    console.log('Hook useQuotes montado, verificando conexão e carregando orçamentos');
+    console.log('Hook useQuotes montado ou refreshTrigger atualizado:', refreshTrigger);
     
     const loadDemoQuotes = async () => {
       try {
@@ -117,7 +124,7 @@ export const useQuotes = () => {
   
   const handleRefresh = useCallback(() => {
     setLoading(true);
-    console.log('🔄 Atualizando lista de orçamentos...');
+    console.log('🔄 Atualizando lista de orçamentos via handleRefresh...');
     
     // Incrementar o contador para forçar a recarga de dados
     setRefreshTrigger(prev => prev + 1);
@@ -246,6 +253,7 @@ export const useQuotes = () => {
   useEffect(() => {
     const quotes = transformQuotes();
     quotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    console.log(`🔄 Lista de orçamentos atualizada: ${quotes.length} orçamentos`);
     setAllQuotes(quotes);
   }, [demoQuotes, supabaseQuotes, savedQuotes, refreshTrigger]);
   
@@ -262,6 +270,7 @@ export const useQuotes = () => {
     loadingSupabase,
     error,
     supabaseConnected,
-    handleRefresh
+    handleRefresh,
+    setRefreshTriggerDirectly
   };
 };

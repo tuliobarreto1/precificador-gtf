@@ -21,7 +21,8 @@ const Quotes = () => {
     totalValue, 
     avgValue, 
     loading, 
-    handleRefresh 
+    handleRefresh,
+    setRefreshTriggerDirectly
   } = useQuotes();
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -70,11 +71,16 @@ const Quotes = () => {
           description: "O orçamento foi excluído com sucesso."
         });
         
-        // Atualizar a lista após a exclusão bem-sucedida
+        // Atualizar a lista após a exclusão bem-sucedida com força total
         console.log("🔄 Atualizando lista de orçamentos após exclusão");
+        
+        // Forçar atualização direta do trigger para recarregar dados
+        setRefreshTriggerDirectly();
+        
+        // Também chamar handleRefresh após um curto atraso para garantir
         setTimeout(() => {
           handleRefresh();
-        }, 500);
+        }, 800);
       } else {
         toast({
           title: "Erro ao excluir",
