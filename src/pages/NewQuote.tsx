@@ -171,7 +171,6 @@ const QuoteForm = () => {
     });
   };
 
-  // Carregar clientes existentes
   useEffect(() => {
     const loadClients = async () => {
       try {
@@ -247,9 +246,16 @@ const QuoteForm = () => {
 
   useEffect(() => {
     if (currentStep === 'params' && quoteForm.vehicles.length > 0) {
-      setSelectedVehicleTab(quoteForm.vehicles[0].vehicle.id);
+      if (!selectedVehicleTab) {
+        setSelectedVehicleTab(quoteForm.vehicles[0].vehicle.id);
+      } else {
+        const vehicleStillExists = quoteForm.vehicles.some(v => v.vehicle.id === selectedVehicleTab);
+        if (!vehicleStillExists && quoteForm.vehicles.length > 0) {
+          setSelectedVehicleTab(quoteForm.vehicles[0].vehicle.id);
+        }
+      }
     }
-  }, [currentStep, quoteForm.vehicles]);
+  }, [currentStep, quoteForm.vehicles, selectedVehicleTab]);
 
   const handleNextStep = () => {
     logState();
@@ -536,6 +542,7 @@ const QuoteForm = () => {
             <Tabs 
               value={selectedVehicleTab || quoteForm.vehicles[0].vehicle.id}
               onValueChange={setSelectedVehicleTab}
+              defaultValue={selectedVehicleTab || quoteForm.vehicles[0].vehicle.id}
             >
               <TabsList className="mb-4 flex overflow-x-auto pb-1">
                 {quoteForm.vehicles.map(item => (

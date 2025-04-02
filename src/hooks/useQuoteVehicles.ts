@@ -171,21 +171,27 @@ export function useQuoteVehicles(quoteForm: QuoteFormData, setQuoteForm: React.D
       hasTracking?: boolean;
     }
   ) => {
-    setQuoteForm(prev => ({
-      ...prev,
-      vehicles: prev.vehicles.map(item => {
-        if (item.vehicle.id === vehicleId) {
-          return {
-            ...item,
-            params: {
-              ...(item.params || prev.globalParams),
-              ...params
-            }
-          };
-        }
-        return item;
-      }),
-    }));
+    // Mantemos o mesmo vehicleId na atualização dos parâmetros
+    setQuoteForm(prev => {
+      // Criar uma cópia profunda para não afetar o objeto original
+      const newState = {
+        ...prev,
+        vehicles: prev.vehicles.map(item => {
+          if (item.vehicle.id === vehicleId) {
+            return {
+              ...item,
+              params: {
+                ...(item.params || prev.globalParams),
+                ...params
+              }
+            };
+          }
+          return item;
+        }),
+      };
+      
+      return newState;
+    });
   };
 
   return {
