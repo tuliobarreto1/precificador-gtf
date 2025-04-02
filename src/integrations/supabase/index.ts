@@ -1,8 +1,9 @@
 
+
 // Central exports for Supabase services
 import { supabase, checkSupabaseConnection } from './client';
 import { getVehiclesFromSupabase, createOrUpdateVehicle, findVehicleByPlate, findVehicleByBrandModel, getAllVehicles, getVehiclesFromLocavia } from './services/vehicles';
-import { saveClientToSupabase, getClientByDocument, getClientsFromSupabase } from './services/clients';
+import { saveClientToSupabase, getClientByDocument, getClientsFromSupabase, deleteClientFromSupabase, updateClientInSupabase } from './services/clients';
 import { saveQuoteToSupabase, getQuotesFromSupabase, getQuoteByIdFromSupabase, deleteQuoteFromSupabase } from './services/quotes';
 import { getQuoteVehicles, addVehicleToQuote } from './services/quoteVehicles';
 import { getVehicleGroups, getVehicleGroupById } from './services/vehicleGroups';
@@ -29,6 +30,8 @@ export {
   saveClientToSupabase,
   getClientByDocument,
   getClientsFromSupabase,
+  deleteClientFromSupabase,
+  updateClientInSupabase,
   
   // Quotes
   saveQuoteToSupabase,
@@ -44,3 +47,4 @@ export {
   createQuoteActionLog,
   getQuoteActionLogs
 };
+

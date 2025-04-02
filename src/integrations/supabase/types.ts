@@ -509,6 +509,12 @@ export type Database = {
         }
         Returns: boolean
       }
+      delete_client: {
+        Args: {
+          client_id: string
+        }
+        Returns: boolean
+      }
       delete_quote: {
         Args: {
           quote_id: string

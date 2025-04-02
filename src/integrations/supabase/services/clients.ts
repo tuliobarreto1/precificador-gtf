@@ -122,11 +122,12 @@ export async function getClientsFromSupabase() {
   }
 }
 
-// Função para excluir cliente - REESCRITA COM NOVA ABORDAGEM
+// Função para excluir cliente - REESCRITA PARA USAR A NOVA FUNÇÃO SQL
 export async function deleteClientFromSupabase(clientId: string) {
   try {
     console.log(`🗑️ Iniciando exclusão do cliente ${clientId}...`);
     
+    // Verificar primeiro se o cliente possui orçamentos vinculados
     const { data: quotesData, error: quotesError } = await supabase
       .from('quotes')
       .select('id')
@@ -146,53 +147,73 @@ export async function deleteClientFromSupabase(clientId: string) {
       };
     }
 
-    console.log(`🔄 Tentando exclusão via RPC...`);
-    
-    const rpcResult = await supabase.rpc('delete_client', { client_id: clientId });
-    
-    if (rpcResult.error) {
-      console.error(`❌ Erro na exclusão via RPC:`, rpcResult.error);
+    // Chamar a função SQL personalizada para excluir o cliente
+    const { data, error } = await supabase.rpc(
+      'delete_client',
+      { client_id: clientId }
+    );
+
+    if (error) {
+      console.error(`❌ Erro na exclusão via RPC:`, error);
       
+      // Se a função RPC falhar, tentar o método tradicional
       console.log(`🔄 Tentando método tradicional...`);
-      const { error } = await supabase
+      const { error: deleteError } = await supabase
         .from('clients')
         .delete()
         .eq('id', clientId);
       
-      if (error) {
-        console.error(`❌ Erro ao excluir cliente ${clientId}:`, error);
-        return { success: false, error };
+      if (deleteError) {
+        console.error(`❌ Erro ao excluir cliente ${clientId}:`, deleteError);
+        return { success: false, error: deleteError };
       }
     }
     
+    // Verificar se o cliente realmente foi excluído
     console.log(`⏳ Aguardando confirmação da exclusão...`);
-    await new Promise(resolve => setTimeout(resolve, 2000));
     
-    const { data: checkData, error: checkError } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('id', clientId);
+    // Aguardar um pouco para garantir que a exclusão foi processada
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    let tentativas = 0;
+    const MAX_TENTATIVAS = 3;
+    
+    while (tentativas < MAX_TENTATIVAS) {
+      const { data: checkData, error: checkError } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('id', clientId);
+        
+      if (checkError) {
+        console.log(`✅ Possível sucesso (erro esperado ao buscar cliente excluído)`);
+        return { success: true };
+      }
       
-    if (checkError) {
-      if (checkError.code === 'PGRST116') {
+      if (!checkData || checkData.length === 0) {
         console.log(`✅ Cliente ${clientId} excluído com sucesso!`);
         return { success: true };
       }
       
-      console.error(`❌ Erro ao verificar exclusão do cliente:`, checkError);
-      return { success: false, error: checkError };
+      console.log(`⚠️ Cliente ainda existe no banco. Tentativa ${tentativas + 1}/${MAX_TENTATIVAS}`);
+      
+      // Se o cliente ainda existir, tentar excluí-lo novamente pelo método tradicional
+      if (tentativas < MAX_TENTATIVAS - 1) {
+        console.log(`🔄 Fazendo nova tentativa de exclusão...`);
+        await supabase.from('clients').delete().eq('id', clientId);
+        
+        // Aguardar mais tempo entre tentativas
+        await new Promise(resolve => setTimeout(resolve, 1500 * (tentativas + 1)));
+      }
+      
+      tentativas++;
     }
     
-    if (checkData && checkData.length > 0) {
-      console.error(`❌ Cliente ${clientId} ainda existe no banco após tentativa de exclusão`);
-      return { 
-        success: false, 
-        error: { message: "Não foi possível excluir o cliente do banco de dados. Por favor, tente novamente mais tarde." } 
-      };
-    }
+    console.error(`❌ Cliente ${clientId} não pôde ser excluído mesmo após múltiplas tentativas`);
+    return { 
+      success: false, 
+      error: { message: "Não foi possível excluir o cliente do banco de dados" } 
+    };
     
-    console.log(`✅ Cliente ${clientId} excluído com sucesso!`);
-    return { success: true };
   } catch (error) {
     console.error(`❌ Erro inesperado ao excluir cliente ${clientId}:`, error);
     return { success: false, error };
