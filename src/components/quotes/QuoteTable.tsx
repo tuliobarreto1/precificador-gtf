@@ -13,6 +13,7 @@ import {
   TableRow
 } from '@/components/ui/table';
 import { Edit, Trash2 } from 'lucide-react';
+import { useQuote, UserRole } from '@/context/QuoteContext';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,7 +25,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { deleteQuoteFromSupabase } from '@/integrations/supabase';
 
 interface QuoteItem {
   id: string;
@@ -44,88 +44,54 @@ interface QuoteItem {
 interface QuoteTableProps {
   quotes: QuoteItem[];
   onRefresh?: () => void;
-  loading?: boolean;
-  onDeleteQuote?: (id: string) => void;
 }
 
-const QuoteTable = ({ quotes, onRefresh, loading, onDeleteQuote }: QuoteTableProps) => {
+const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [quoteToDelete, setQuoteToDelete] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const quoteContext = useQuote();
+  const { canEditQuote, canDeleteQuote, deleteQuote } = quoteContext || {};
   const { toast } = useToast();
 
   // Garantir que quotes é sempre um array
   const safeQuotes = Array.isArray(quotes) ? quotes : [];
+
+  // Verificar se as funções necessárias estão disponíveis
+  const isQuoteContextAvailable = typeof canEditQuote === 'function' && 
+                                 typeof canDeleteQuote === 'function' &&
+                                 typeof deleteQuote === 'function';
 
   const handleDeleteClick = (quoteId: string) => {
     setQuoteToDelete(quoteId);
     setDeleteDialogOpen(true);
   };
 
-  const confirmDelete = async () => {
-    if (quoteToDelete) {
-      setDeleting(true);
-      try {
-        // Informações do usuário para o log (simplificado)
-        const userId = "sistema";
-        const userName = "Sistema";
-        
-        // Excluir no Supabase com registro de log
-        const { success, error } = await deleteQuoteFromSupabase(
-          quoteToDelete,
-          userId,
-          userName
-        );
-        
-        if (success) {
-          toast({
-            title: "Orçamento excluído",
-            description: "O orçamento foi excluído com sucesso e a ação foi registrada."
-          });
-          
-          if (onDeleteQuote) {
-            onDeleteQuote(quoteToDelete);
-          }
-          
-          if (onRefresh) {
-            onRefresh();
-          }
-        } else {
-          toast({
-            title: "Erro ao excluir",
-            description: error?.message || "Não foi possível excluir o orçamento.",
-            variant: "destructive"
-          });
+  const confirmDelete = () => {
+    if (quoteToDelete && isQuoteContextAvailable) {
+      const success = deleteQuote(quoteToDelete);
+      if (success) {
+        toast({
+          title: "Orçamento excluído",
+          description: "O orçamento foi excluído com sucesso."
+        });
+        if (onRefresh) {
+          onRefresh();
         }
-      } catch (error) {
-        console.error("Erro ao excluir orçamento:", error);
+      } else {
         toast({
           title: "Erro ao excluir",
-          description: "Ocorreu um erro inesperado ao excluir o orçamento.",
+          description: "Não foi possível excluir o orçamento.",
           variant: "destructive"
         });
-      } finally {
-        setDeleting(false);
-        setDeleteDialogOpen(false);
-        setQuoteToDelete(null);
       }
     }
+    setDeleteDialogOpen(false);
+    setQuoteToDelete(null);
   };
 
   const cancelDelete = () => {
     setDeleteDialogOpen(false);
     setQuoteToDelete(null);
-  };
-
-  // Função simplificada para verificação de permissões
-  const canEdit = (quote: QuoteItem) => {
-    // Por padrão, permitir editar orçamentos que estão em progresso
-    return quote.status === 'ORCAMENTO' || quote.status === 'draft';
-  };
-  
-  const canDelete = (quote: QuoteItem) => {
-    // Por padrão, permitir excluir qualquer orçamento
-    return true;
   };
 
   return (
@@ -151,8 +117,41 @@ const QuoteTable = ({ quotes, onRefresh, loading, onDeleteQuote }: QuoteTablePro
               </TableRow>
             ) : (
               safeQuotes.map((quote) => {
-                const isEditable = canEdit(quote);
-                const isDeletable = canDelete(quote);
+                // Converter o objeto quote para um formato compatível com as funções canEditQuote e canDeleteQuote
+                const quoteForPermissionCheck = {
+                  id: quote.id,
+                  clientId: '',
+                  clientName: quote.clientName || '',
+                  vehicleId: '',
+                  vehicleBrand: '',
+                  vehicleModel: '',
+                  contractMonths: 0,
+                  monthlyKm: 0,
+                  totalCost: quote.value || 0,
+                  createdAt: quote.createdAt || '',
+                  createdBy: quote.createdBy ? {
+                    id: quote.createdBy.id,
+                    name: quote.createdBy.name,
+                    role: quote.createdBy.role as UserRole, // Convertendo explicitamente para UserRole
+                    email: '',
+                    status: 'active' as 'active' | 'inactive', // Definindo o status explicitamente
+                    lastLogin: ''
+                  } : undefined,
+                  vehicles: [],
+                  source: quote.source || 'local',
+                  status: quote.status || 'ORCAMENTO'
+                };
+                
+                // Valores padrão caso o contexto não esteja disponível
+                let canEdit = false;
+                let canDelete = false;
+                
+                if (isQuoteContextAvailable) {
+                  canEdit = canEditQuote(quoteForPermissionCheck);
+                  canDelete = canDeleteQuote(quoteForPermissionCheck);
+                }
+                
+                const isEditable = quote.status === 'ORCAMENTO' || quote.status === 'draft';
                 
                 return (
                   <TableRow key={`${quote.source}-${quote.id}`}>
@@ -184,7 +183,7 @@ const QuoteTable = ({ quotes, onRefresh, loading, onDeleteQuote }: QuoteTablePro
                         <Button variant="link" size="sm">Ver</Button>
                       </Link>
                       
-                      {isEditable && (
+                      {canEdit && isEditable && (
                         <Link to={`/editar-orcamento/${quote.id}`}>
                           <Button variant="outline" size="icon" className="h-8 w-8">
                             <Edit className="h-4 w-4" />
@@ -192,13 +191,12 @@ const QuoteTable = ({ quotes, onRefresh, loading, onDeleteQuote }: QuoteTablePro
                         </Link>
                       )}
                       
-                      {isDeletable && (
+                      {canDelete && (
                         <Button 
                           variant="outline" 
                           size="icon" 
                           className="h-8 w-8 text-destructive hover:bg-destructive/10"
                           onClick={() => handleDeleteClick(quote.id)}
-                          disabled={deleting}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -218,19 +216,15 @@ const QuoteTable = ({ quotes, onRefresh, loading, onDeleteQuote }: QuoteTablePro
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja excluir este orçamento? Esta ação não pode ser desfeita.
-              <p className="mt-2 text-sm text-muted-foreground">
-                Um registro desta exclusão será salvo no sistema.
-              </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={cancelDelete} disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={cancelDelete}>Cancelar</AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={deleting}
             >
-              {deleting ? 'Excluindo...' : 'Excluir'}
+              Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

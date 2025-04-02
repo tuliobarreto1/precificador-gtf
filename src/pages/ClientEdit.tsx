@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
@@ -5,7 +6,7 @@ import PageTitle from '@/components/ui-custom/PageTitle';
 import { Card, CardContent } from '@/components/ui/card';
 import NewClientForm from '@/components/client/NewClientForm';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase';
 
 export default function ClientEdit() {
   const { id } = useParams();

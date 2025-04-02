@@ -1,11 +1,9 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth, AuthProvider } from "./context/AuthContext";
-import { QuoteProvider } from "./context/QuoteContext";
 import Index from "./pages/Index";
 import NewQuote from "./pages/NewQuote";
 import Quotes from "./pages/Quotes";
@@ -52,37 +50,18 @@ function App() {
             <Routes>
               <Route path="/login" element={<Login />} />
               
-              {/* Rota protegida e sem QuoteProvider */}
+              {/* Rotas protegidas */}
               <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-              
-              {/* Rotas que precisam do QuoteProvider */}
-              <Route path="/orcamento/novo" element={
-                <ProtectedRoute>
-                  <QuoteProvider>
-                    <NewQuote />
-                  </QuoteProvider>
-                </ProtectedRoute>
-              } />
-              <Route path="/editar-orcamento/:id" element={
-                <ProtectedRoute>
-                  <QuoteProvider>
-                    <NewQuote />
-                  </QuoteProvider>
-                </ProtectedRoute>
-              } />
-              <Route path="/orcamento/:id" element={
-                <ProtectedRoute>
-                  <QuoteProvider>
-                    <QuoteDetail />
-                  </QuoteProvider>
-                </ProtectedRoute>
-              } />
-              
-              {/* Outras rotas protegidas */}
+              <Route path="/orcamento/novo" element={<ProtectedRoute><NewQuote /></ProtectedRoute>} />
               <Route path="/orcamentos" element={<ProtectedRoute><Quotes /></ProtectedRoute>} />
+              <Route path="/orcamento/:id" element={<ProtectedRoute><QuoteDetail /></ProtectedRoute>} />
+              <Route path="/editar-orcamento/:id" element={<ProtectedRoute><NewQuote /></ProtectedRoute>} />
+              
+              {/* Rotas de Clientes */}
               <Route path="/clientes" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
               <Route path="/cliente/novo" element={<ProtectedRoute><NewClient /></ProtectedRoute>} />
               <Route path="/cliente/:id/editar" element={<ProtectedRoute><ClientEdit /></ProtectedRoute>} />
+              
               <Route path="/configuracoes" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/parametros" element={<ProtectedRoute><Parameters /></ProtectedRoute>} />
               <Route path="/usuarios" element={<ProtectedRoute><Users /></ProtectedRoute>} />

@@ -1,337 +1,546 @@
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import { Vehicle, Client, VehicleGroup } from '@/lib/models';
+import { getClientById, getVehicleById, savedQuotes, getVehicleGroupById } from '@/lib/data-provider';
+import { DepreciationParams, MaintenanceParams, calculateLeaseCost, calculateExtraKmRate, calculateLeaseCostSync, calculateExtraKmRateSync } from '@/lib/calculation';
+import { toast } from "@/components/ui/use-toast";
+import { supabase } from '@/integrations/supabase/client';
+import { getQuoteByIdFromSupabase } from '@/integrations/supabase/services/quotes';
 
-import React, { createContext, useState, useContext } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import { Client, Vehicle, VehicleGroup } from '@/lib/models';
-import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-import { savedQuotes } from '@/lib/data-provider';
-import { saveQuoteToSupabase, getQuoteByIdFromSupabase } from '@/integrations/supabase';
-
-export interface VehicleData {
+// Item de veículo na cotação
+export type QuoteVehicleItem = {
   vehicle: Vehicle;
   vehicleGroup: VehicleGroup;
-  contractMonths: number;
-  monthlyKm: number;
-  operationSeverity: number;
-  hasTracking: boolean;
+  params?: {
+    contractMonths: number;
+    monthlyKm: number;
+    operationSeverity: 1 | 2 | 3 | 4 | 5 | 6;
+    hasTracking: boolean;
+  };
+};
+
+// Quote form state
+export type QuoteFormData = {
+  client: Client | null;
+  vehicles: QuoteVehicleItem[];
+  useGlobalParams: boolean;
+  globalParams: {
+    contractMonths: number;
+    monthlyKm: number;
+    operationSeverity: 1 | 2 | 3 | 4 | 5 | 6;
+    hasTracking: boolean;
+  };
+};
+
+// Tipo para registro de edição
+export type EditRecord = {
+  editedAt: string;
+  editedBy: {
+    id: number;
+    name: string;
+    role: 'user' | 'manager' | 'admin';
+  };
+  changes: string;
+};
+
+// Tipos de usuário
+export type UserRole = 'user' | 'manager' | 'admin';
+
+// Tipo de usuário
+export type User = {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  status: 'active' | 'inactive';
+  lastLogin: string;
+};
+
+// Resultado do cálculo para um veículo
+export type VehicleQuoteResult = {
+  vehicleId: string;
   depreciationCost: number;
   maintenanceCost: number;
-  extraKmCost: number;
+  trackingCost: number;
   totalCost: number;
-  monthlyValue: number;
-  params?: QuoteParams;
-}
+  costPerKm: number;
+  extraKmRate: number;
+};
 
-export type ClientType = 'PF' | 'PJ';
-
-export interface QuoteParams {
+// Interface para orçamentos salvos
+export type SavedQuote = {
+  id: string;
+  clientId: string;
+  clientName: string;
+  vehicleId: string;
+  vehicleBrand: string;
+  vehicleModel: string;
   contractMonths: number;
   monthlyKm: number;
-  operationSeverity: 1 | 2 | 3 | 4 | 5 | 6;
-  hasTracking: boolean;
-}
-
-export interface QuoteFormState {
-  client: Client | null;
-  vehicles: VehicleData[];
-  globalParams: QuoteParams;
-  useGlobalParams: boolean;
-}
-
-export interface QuoteResult {
-  vehicleResults: Array<{
+  totalCost: number;
+  createdAt: string;
+  createdBy?: User;
+  editHistory?: EditRecord[];
+  vehicles: {
     vehicleId: string;
+    vehicleBrand: string;
+    vehicleModel: string;
+    plateNumber?: string;
+    groupId: string;
+    totalCost: number;
     depreciationCost: number;
     maintenanceCost: number;
     extraKmRate: number;
-    totalCost: number;
-  }>;
-  totalCost: number;
-}
+  }[];
+  operationSeverity?: 1 | 2 | 3 | 4 | 5 | 6;
+  hasTracking?: boolean;
+  trackingCost?: number;
+  status?: string;
+  source?: 'local' | 'supabase' | 'demo';
+};
 
-export interface QuoteContextType {
-  title: string;
-  setTitle: (title: string) => void;
-  client: Client | null;
-  setClient: (client: Client | null) => void;
-  vehicles: VehicleData[];
-  addVehicle: (vehicle: Vehicle, vehicleGroup: VehicleGroup) => void;
-  updateVehicle: (index: number, updates: Partial<VehicleData>) => void;
-  removeVehicle: (index: number) => void;
-  contractMonths: number;
-  setContractMonths: (months: number) => void;
-  monthlyKm: number;
-  setMonthlyKm: (km: number) => void;
-  operationSeverity: number;
-  setOperationSeverity: (severity: number) => void;
-  hasTracking: boolean;
-  setHasTracking: (hasTracking: boolean) => void;
-  totalCost: number;
-  monthlyValue: number;
-  saveQuote: () => Promise<{ success: boolean; quoteId?: string }>;
-  loadQuote: (id: string) => Promise<boolean>;
-  isEditMode: boolean;
-  setIsEditMode: (isEdit: boolean) => void;
-  editQuoteId: string | null;
-  setEditQuoteId: (id: string | null) => void;
-  resetQuote: () => void;
-  // Novas propriedades para corrigir erros
-  quoteForm: QuoteFormState;
-  setGlobalContractMonths: (months: number) => void;
-  setGlobalMonthlyKm: (km: number) => void;
-  setGlobalOperationSeverity: (severity: 1 | 2 | 3 | 4 | 5 | 6) => void;
-  setGlobalHasTracking: (hasTracking: boolean) => void;
-  setUseGlobalParams: (useGlobal: boolean) => void;
-  setVehicleParams: (vehicleId: string, params: Partial<QuoteParams>) => void;
-  calculateQuote: () => QuoteResult | null;
-  loadQuoteForEditing: (id: string) => boolean;
-  currentEditingQuoteId: string | null;
-  sendQuoteByEmail: (quoteId: string, email: string, message: string) => Promise<boolean>;
-}
+// Usuários do sistema (alinhados com a página de Usuários)
+export const mockUsers: User[] = [
+  { id: 1, name: 'Admin Principal', email: 'admin@carleasemaster.com.br', role: 'admin', status: 'active', lastLogin: '2023-10-15 14:30' },
+  { id: 2, name: 'Gerente de Vendas', email: 'gerente@carleasemaster.com.br', role: 'manager', status: 'active', lastLogin: '2023-10-14 09:15' },
+  { id: 3, name: 'Usuário Teste', email: 'teste@carleasemaster.com.br', role: 'user', status: 'active', lastLogin: '2023-10-10 16:45' },
+  { id: 4, name: 'Consultor 1', email: 'consultor1@carleasemaster.com.br', role: 'user', status: 'active', lastLogin: '2023-10-09 11:20' },
+  { id: 5, name: 'Usuário Inativo', email: 'inativo@carleasemaster.com.br', role: 'user', status: 'inactive', lastLogin: '2023-09-25 10:30' }
+];
 
-export const QuoteContext = createContext<QuoteContextType | undefined>(undefined);
+// Definir usuário padrão (primeiro usuário ativo admin)
+export const defaultUser = mockUsers.find(user => user.status === 'active' && user.role === 'admin') || mockUsers[0];
 
-export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [title, setTitle] = useState<string>(`Orçamento ${new Date().toLocaleDateString()}`);
-  const [client, setClient] = useState<Client | null>(null);
-  const [vehicles, setVehicles] = useState<VehicleData[]>([]);
-  const [contractMonths, setContractMonths] = useState(12);
-  const [monthlyKm, setMonthlyKm] = useState(2000);
-  const [operationSeverity, setOperationSeverity] = useState(3);
-  const [hasTracking, setHasTracking] = useState(false);
+// Chave para armazenar o usuário atual no localStorage
+const CURRENT_USER_KEY = 'currentUser';
+const SAVED_QUOTES_KEY = 'savedQuotes';
+
+// AQUI ESTAVA O ERRO: Precisamos criar o contexto antes de usá-lo
+const QuoteContext = createContext<QuoteContextType>({} as QuoteContextType);
+
+// Initial state
+const initialQuoteForm: QuoteFormData = {
+  client: null,
+  vehicles: [],
+  useGlobalParams: true,
+  globalParams: {
+    contractMonths: 24,
+    monthlyKm: 3000,
+    operationSeverity: 3,
+    hasTracking: false,
+  },
+};
+
+// Provider component
+export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
+  const [quoteForm, setQuoteForm] = useState<QuoteFormData>(initialQuoteForm);
+  const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
+  const [user, setUser] = useState<User>(defaultUser);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [editQuoteId, setEditQuoteId] = useState<string | null>(null);
-  
-  // Estado para o novo formato de orçamento
-  const [quoteForm, setQuoteForm] = useState<QuoteFormState>({
-    client: null,
-    vehicles: [],
-    globalParams: {
-      contractMonths: 12,
-      monthlyKm: 2000,
-      operationSeverity: 3,
-      hasTracking: false
-    },
-    useGlobalParams: true
-  });
-  
-  const { user, adminUser } = useAuth();
-  const { toast } = useToast();
+  const [currentEditingQuoteId, setCurrentEditingQuoteId] = useState<string | null>(null);
+  const [loadingLock, setLoadingLock] = useState<boolean>(false);
 
-  // Função para calcular o custo total do orçamento
-  const calculateTotalCost = (vehicles: VehicleData[]): number => {
-    return vehicles.reduce((total, vehicle) => total + vehicle.totalCost, 0);
-  };
+  // Carregar cotações salvas e usuário atual do localStorage na inicialização
+  useEffect(() => {
+    // Carregar usuário
+    try {
+      const storedUser = localStorage.getItem(CURRENT_USER_KEY);
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        // Validar se o usuário ainda existe na lista de usuários
+        const validUser = mockUsers.find(u => u.id === parsedUser.id);
+        if (validUser) {
+          setUser(validUser);
+          console.log('Usuário carregado do localStorage:', validUser);
+        } else {
+          // Se o usuário não existir mais, usar o usuário padrão
+          localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(defaultUser));
+          setUser(defaultUser);
+          console.log('Usuário não encontrado, usando padrão:', defaultUser);
+        }
+      } else {
+        // Se não houver usuário salvo, salvar o usuário padrão
+        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(defaultUser));
+        console.log('Usuário padrão definido:', defaultUser);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar usuário do localStorage:', error);
+      // Em caso de erro, definir o usuário padrão
+      setUser(defaultUser);
+    }
 
-  // Função para calcular o valor mensal do orçamento
-  const calculateMonthlyValue = (vehicles: VehicleData[]): number => {
-    return vehicles.reduce((total, vehicle) => total + vehicle.monthlyValue, 0);
-  };
+    // Carregar cotações
+    try {
+      const storedQuotes = localStorage.getItem(SAVED_QUOTES_KEY);
+      if (storedQuotes) {
+        const parsedQuotes = JSON.parse(storedQuotes);
+        setSavedQuotes(parsedQuotes);
+        console.log('Cotações carregadas do localStorage:', parsedQuotes);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar cotações salvas:', error);
+    }
+  }, []);
 
-  const totalCost = calculateTotalCost(vehicles);
-  const monthlyValue = calculateMonthlyValue(vehicles);
-
-  // Adicionar um novo veículo ao orçamento
-  const addVehicle = (vehicle: Vehicle, vehicleGroup: VehicleGroup) => {
-    // Cálculos simplificados
-    const depreciationCost = (vehicle.value * 0.2) * operationSeverity / 3;
-    const maintenanceCost = vehicleGroup.revisionCost * contractMonths / 12;
-    const extraKmCost = monthlyKm * 0.10; 
-    const trackingCost = hasTracking ? 250 : 0;
+  // Function to authenticate a user by ID
+  const authenticateUser = (userId: number, password?: string): boolean => {
+    const foundUser = mockUsers.find(u => u.id === userId && u.status === 'active');
     
-    const totalVehicleCost = depreciationCost + maintenanceCost + extraKmCost + trackingCost;
-    const monthlyVehicleValue = totalVehicleCost / contractMonths;
-
-    const vehicleData: VehicleData = {
-      vehicle,
-      vehicleGroup,
-      contractMonths,
-      monthlyKm,
-      operationSeverity,
-      hasTracking,
-      depreciationCost,
-      maintenanceCost,
-      extraKmCost,
-      totalCost: totalVehicleCost,
-      monthlyValue: monthlyVehicleValue
-    };
-
-    setVehicles([...vehicles, vehicleData]);
-    
-    // Também atualizar no novo formato
-    setQuoteForm(prev => ({
-      ...prev,
-      vehicles: [...prev.vehicles, vehicleData]
-    }));
-  };
-
-  // Atualizar um veículo existente
-  const updateVehicle = (index: number, updates: Partial<VehicleData>) => {
-    const updatedVehicles = [...vehicles];
-    updatedVehicles[index] = { ...updatedVehicles[index], ...updates };
-    
-    // Recalcular custos se necessário
-    if (updates.contractMonths || updates.monthlyKm || updates.operationSeverity || updates.hasTracking !== undefined) {
-      const vehicle = updatedVehicles[index];
-      
-      // Refazer os cálculos
-      const depreciationCost = (vehicle.vehicle.value * 0.2) * vehicle.operationSeverity / 3;
-      const maintenanceCost = vehicle.vehicleGroup.revisionCost * vehicle.contractMonths / 12;
-      const extraKmCost = vehicle.monthlyKm * 0.10;
-      const trackingCost = vehicle.hasTracking ? 250 : 0;
-      
-      const totalVehicleCost = depreciationCost + maintenanceCost + extraKmCost + trackingCost;
-      const monthlyVehicleValue = totalVehicleCost / vehicle.contractMonths;
-      
-      updatedVehicles[index] = {
-        ...vehicle,
-        depreciationCost,
-        maintenanceCost,
-        extraKmCost,
-        totalCost: totalVehicleCost,
-        monthlyValue: monthlyVehicleValue
-      };
+    if (foundUser) {
+      // Se a senha foi fornecida, verificar
+      if (password !== undefined) {
+        // Em um sistema real, isso seria uma verificação criptográfica adequada
+        // Para fins de simulação, vamos aceitar qualquer senha não vazia para o usuário correspondente
+        if (password.trim() === '') {
+          console.log('Autenticação falhou: senha vazia');
+          return false;
+        }
+        
+        // Atualizar data de último login
+        const updatedUser = {
+          ...foundUser,
+          lastLogin: new Date().toISOString().replace('T', ' ').substring(0, 16)
+        };
+        
+        setCurrentUser(updatedUser);
+        console.log(`Usuário ${updatedUser.name} autenticado com senha`);
+        return true;
+      } else {
+        // Para compatibilidade com o código existente, permitir autenticação sem senha
+        // (isso será usado apenas em fluxos internos do sistema)
+        setCurrentUser(foundUser);
+        console.log(`Usuário ${foundUser.name} autenticado sem senha (fluxo interno)`);
+        return true;
+      }
     }
     
-    setVehicles(updatedVehicles);
-    
-    // Também atualizar no novo formato
-    setQuoteForm(prev => ({
-      ...prev,
-      vehicles: updatedVehicles
-    }));
+    console.log('Autenticação falhou: usuário não encontrado ou inativo');
+    return false;
   };
 
-  // Remover um veículo do orçamento
-  const removeVehicle = (index: number) => {
-    const newVehicles = vehicles.filter((_, i) => i !== index);
-    setVehicles(newVehicles);
-    
-    // Também atualizar no novo formato
-    setQuoteForm(prev => ({
-      ...prev,
-      vehicles: newVehicles
-    }));
+  // Update functions
+  const setClient = (client: Client | null) => {
+    setQuoteForm(prev => ({ ...prev, client }));
   };
 
-  // Resetar o orçamento para valores padrão
-  const resetQuote = () => {
-    setTitle(`Orçamento ${new Date().toLocaleDateString()}`);
-    setClient(null);
-    setVehicles([]);
-    setContractMonths(12);
-    setMonthlyKm(2000);
-    setOperationSeverity(3);
-    setHasTracking(false);
-    setIsEditMode(false);
-    setEditQuoteId(null);
+  const addVehicle = (vehicle: Vehicle, vehicleGroup: VehicleGroup) => {
+    console.log('Adicionando veículo ao orçamento:', vehicle);
+    console.log('Grupo do veículo:', vehicleGroup);
     
-    // Também resetar no novo formato
-    setQuoteForm({
-      client: null,
-      vehicles: [],
-      globalParams: {
-        contractMonths: 12,
-        monthlyKm: 2000,
-        operationSeverity: 3,
-        hasTracking: false
-      },
-      useGlobalParams: true
+    // Verificar se o veículo já existe no orçamento
+    if (quoteForm.vehicles.some(item => item.vehicle.id === vehicle.id)) {
+      toast({
+        title: "Veículo já adicionado",
+        description: "Este veículo já foi adicionado ao orçamento.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setQuoteForm(prev => ({
+      ...prev,
+      vehicles: [
+        ...prev.vehicles,
+        { 
+          vehicle, 
+          vehicleGroup,
+          params: null
+        }
+      ]
+    }));
+
+    console.log('Verificando se o veículo está no banco de dados:', vehicle);
+    
+    // Verificar se o veículo existe no banco de dados usando placa (se tiver) ou combinação de marca/modelo
+    const checkVehicle = () => {
+      if (vehicle.plateNumber) {
+        return supabase
+          .from('vehicles')
+          .select()
+          .eq('plate_number', vehicle.plateNumber)
+          .maybeSingle();
+      } else {
+        return supabase
+          .from('vehicles')
+          .select()
+          .eq('brand', vehicle.brand)
+          .eq('model', vehicle.model)
+          .eq('year', vehicle.year)
+          .maybeSingle();
+      }
+    };
+
+    checkVehicle().then(({ data, error }) => {
+      if (error) {
+        console.error('Erro ao verificar veículo no banco de dados:', error);
+        return;
+      }
+      
+      if (!data) {
+        console.log('Veículo não encontrado no banco de dados, vamos inserir:', vehicle);
+        
+        // O veículo não existe no banco de dados, vamos inseri-lo
+        supabase
+          .from('vehicles')
+          .insert({
+            brand: vehicle.brand,
+            model: vehicle.model,
+            year: vehicle.year,
+            value: vehicle.value,
+            is_used: vehicle.plateNumber ? true : false, // Define como usado apenas se tiver placa
+            plate_number: vehicle.plateNumber || null,
+            color: vehicle.color || '',
+            odometer: vehicle.odometer || 0,
+            group_id: vehicle.groupId || vehicleGroup.id
+          })
+          .then(({ error: insertError }) => {
+            if (insertError) {
+              console.error('Erro ao inserir veículo no banco de dados:', insertError);
+            } else {
+              console.log('Veículo inserido com sucesso no banco de dados!');
+            }
+          });
+      } else {
+        console.log('Veículo já existe no banco de dados, verificando atualização:', data);
+        
+        // O veículo existe, mas vamos atualizar se necessário
+        const updates: any = {};
+        let needsUpdate = false;
+        
+        // Verificar cada campo para ver se precisa ser atualizado
+        if (vehicle.brand && vehicle.brand !== data.brand) {
+          updates.brand = vehicle.brand;
+          needsUpdate = true;
+        }
+        
+        if (vehicle.model && vehicle.model !== data.model) {
+          updates.model = vehicle.model;
+          needsUpdate = true;
+        }
+        
+        if (vehicle.year && vehicle.year !== data.year) {
+          updates.year = vehicle.year;
+          needsUpdate = true;
+        }
+        
+        if (vehicle.value && vehicle.value !== data.value) {
+          updates.value = vehicle.value;
+          needsUpdate = true;
+        }
+        
+        if (vehicle.color && vehicle.color !== data.color) {
+          updates.color = vehicle.color;
+          needsUpdate = true;
+        }
+        
+        if (vehicle.odometer && vehicle.odometer !== data.odometer) {
+          updates.odometer = vehicle.odometer;
+          needsUpdate = true;
+        }
+        
+        if (vehicle.groupId && vehicle.groupId !== data.group_id) {
+          updates.group_id = vehicle.groupId;
+          needsUpdate = true;
+        }
+        
+        // Certifique-se de que is_used é true para veículos com placa
+        if (data.is_used !== true && vehicle.plateNumber) {
+          updates.is_used = true;
+          needsUpdate = true;
+        }
+        
+        if (needsUpdate) {
+          console.log('Atualizando veículo no banco de dados com:', updates);
+          
+          supabase
+            .from('vehicles')
+            .update(updates)
+            .eq('id', data.id)
+            .then(({ error: updateError }) => {
+              if (updateError) {
+                console.error('Erro ao atualizar veículo no banco de dados:', updateError);
+              } else {
+                console.log('Veículo atualizado com sucesso no banco de dados!');
+              }
+            });
+        } else {
+          console.log('Nenhuma atualização necessária para o veículo.');
+        }
+      }
     });
   };
-  
-  // Funções para o novo formato de orçamento
-  const setGlobalContractMonths = (months: number) => {
+
+  const removeVehicle = (vehicleId: string) => {
     setQuoteForm(prev => ({
       ...prev,
-      globalParams: {
-        ...prev.globalParams,
-        contractMonths: months
-      }
+      vehicles: prev.vehicles.filter(item => item.vehicle.id !== vehicleId),
     }));
   };
-  
-  const setGlobalMonthlyKm = (km: number) => {
+
+  const setGlobalContractMonths = (contractMonths: number) => {
     setQuoteForm(prev => ({
       ...prev,
-      globalParams: {
-        ...prev.globalParams,
-        monthlyKm: km
-      }
+      globalParams: { ...prev.globalParams, contractMonths },
     }));
   };
-  
-  const setGlobalOperationSeverity = (severity: 1 | 2 | 3 | 4 | 5 | 6) => {
+
+  const setGlobalMonthlyKm = (monthlyKm: number) => {
     setQuoteForm(prev => ({
       ...prev,
-      globalParams: {
-        ...prev.globalParams,
-        operationSeverity: severity
-      }
+      globalParams: { ...prev.globalParams, monthlyKm },
     }));
   };
-  
+
+  const setGlobalOperationSeverity = (operationSeverity: 1 | 2 | 3 | 4 | 5 | 6) => {
+    setQuoteForm(prev => ({
+      ...prev,
+      globalParams: { ...prev.globalParams, operationSeverity },
+    }));
+  };
+
   const setGlobalHasTracking = (hasTracking: boolean) => {
     setQuoteForm(prev => ({
       ...prev,
-      globalParams: {
-        ...prev.globalParams,
-        hasTracking
-      }
+      globalParams: { ...prev.globalParams, hasTracking },
     }));
   };
-  
-  const setUseGlobalParams = (useGlobal: boolean) => {
-    setQuoteForm(prev => ({
-      ...prev,
-      useGlobalParams: useGlobal
-    }));
+
+  const setUseGlobalParams = (useGlobalParams: boolean) => {
+    setQuoteForm(prev => ({ ...prev, useGlobalParams }));
   };
-  
-  const setVehicleParams = (vehicleId: string, params: Partial<QuoteParams>) => {
+
+  const setVehicleParams = (
+    vehicleId: string, 
+    params: {
+      contractMonths?: number;
+      monthlyKm?: number;
+      operationSeverity?: 1 | 2 | 3 | 4 | 5 | 6;
+      hasTracking?: boolean;
+    }
+  ) => {
     setQuoteForm(prev => ({
       ...prev,
-      vehicles: prev.vehicles.map(vehicle => {
-        if (vehicle.vehicle.id === vehicleId) {
+      vehicles: prev.vehicles.map(item => {
+        if (item.vehicle.id === vehicleId) {
           return {
-            ...vehicle,
+            ...item,
             params: {
-              ...(vehicle.params || prev.globalParams),
+              ...(item.params || prev.globalParams),
               ...params
             }
           };
         }
-        return vehicle;
-      })
+        return item;
+      }),
     }));
   };
-  
-  const calculateQuote = (): QuoteResult | null => {
-    if (!quoteForm.client || quoteForm.vehicles.length === 0) {
-      return null;
-    }
-    
-    const vehicleResults = quoteForm.vehicles.map(vehicle => {
-      const params = quoteForm.useGlobalParams 
-        ? quoteForm.globalParams 
-        : (vehicle.params || quoteForm.globalParams);
-      
-      const depreciationCost = (vehicle.vehicle.value * 0.2) * params.operationSeverity / 3;
-      const maintenanceCost = vehicle.vehicleGroup.revisionCost * params.contractMonths / 12;
-      const extraKmRate = params.monthlyKm * 0.10;
-      const trackingCost = params.hasTracking ? 250 : 0;
-      
-      const totalCost = depreciationCost + maintenanceCost + extraKmRate + trackingCost;
-      
-      return {
-        vehicleId: vehicle.vehicle.id,
-        depreciationCost,
-        maintenanceCost,
-        extraKmRate,
-        totalCost
-      };
+
+  const resetForm = () => {
+    setQuoteForm(initialQuoteForm);
+  };
+
+  // Função para obter o usuário atual
+  const getCurrentUser = (): User => {
+    return user;
+  };
+
+  // Função para definir o usuário atual
+  const setCurrentUser = (newUser: User) => {
+    setUser(newUser);
+    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(newUser));
+    console.log('Usuário atual alterado para:', newUser);
+  };
+
+  // Lista de usuários disponíveis (somente usuários ativos)
+  const availableUsers = mockUsers.filter(user => user.status === 'active');
+
+  // Verificar se um usuário pode editar um orçamento
+  const canEditQuote = (quote: SavedQuote): boolean => {
+    const currentUser = getCurrentUser();
+    console.log('Verificando permissão de edição:', {
+      usuario: currentUser,
+      criador: quote.createdBy,
+      permissao: (quote.createdBy?.id === currentUser.id || 
+                currentUser.role === 'manager' || 
+                currentUser.role === 'admin')
     });
     
+    // Se não houver informações sobre quem criou, permitir edição para todos (para fins de demo)
+    if (!quote.createdBy) {
+      return true;
+    }
+    
+    // Caso contrário, verificar se o usuário atual é o criador ou tem permissões elevadas
+    return quote.createdBy.id === currentUser.id || 
+           currentUser.role === 'manager' || 
+           currentUser.role === 'admin';
+  };
+
+  // Verificar se um usuário pode excluir um orçamento
+  const canDeleteQuote = (quote: SavedQuote): boolean => {
+    const currentUser = getCurrentUser();
+    console.log('Verificando permissão de exclusão:', {
+      usuario: currentUser,
+      criador: quote.createdBy,
+      permissao: (quote.createdBy?.id === currentUser.id || 
+                currentUser.role === 'manager' || 
+                currentUser.role === 'admin')
+    });
+    
+    // Se não houver informações sobre quem criou, permitir exclusão para todos (para fins de demo)
+    if (!quote.createdBy) {
+      return true;
+    }
+    
+    // Caso contrário, verificar se o usuário atual é o criador ou tem permissões elevadas
+    return quote.createdBy.id === currentUser.id || 
+           currentUser.role === 'manager' || 
+           currentUser.role === 'admin';
+  };
+
+  // Calculate quote
+  const calculateQuote = () => {
+    const { vehicles, globalParams, useGlobalParams } = quoteForm;
+    
+    if (vehicles.length === 0) return null;
+    
+    // Precisamos garantir que não retornamos Promises para os cálculos
+    const vehicleResults: VehicleQuoteResult[] = [];
+    
+    for (const item of vehicles) {
+      // Usar parâmetros globais ou específicos do veículo
+      const params = useGlobalParams ? globalParams : (item.params || globalParams);
+      
+      const depreciationParams: DepreciationParams = {
+        vehicleValue: item.vehicle.value,
+        contractMonths: params.contractMonths,
+        monthlyKm: params.monthlyKm,
+        operationSeverity: params.operationSeverity,
+      };
+      
+      const maintenanceParams: MaintenanceParams = {
+        vehicleGroup: item.vehicleGroup.id,
+        contractMonths: params.contractMonths,
+        monthlyKm: params.monthlyKm,
+        hasTracking: params.hasTracking,
+      };
+    
+      // Calculamos de forma síncrona para evitar Promises
+      const result = calculateLeaseCostSync(depreciationParams, maintenanceParams);
+      const extraKmRate = calculateExtraKmRateSync(item.vehicle.value);
+    
+      // Construímos um objeto VehicleQuoteResult completo
+      vehicleResults.push({
+        vehicleId: item.vehicle.id,
+        depreciationCost: result.depreciationCost,
+        maintenanceCost: result.maintenanceCost,
+        trackingCost: result.trackingCost,
+        totalCost: result.totalCost,
+        costPerKm: result.costPerKm,
+        extraKmRate
+      });
+    }
+    
+    // Calcular custo total de todos os veículos
     const totalCost = vehicleResults.reduce((sum, result) => sum + result.totalCost, 0);
     
     return {
@@ -339,331 +548,515 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       totalCost
     };
   };
-  
-  const loadQuoteForEditing = (id: string): boolean => {
-    try {
-      // implementação simplificada para compatibilidade
-      return loadQuote(id);
-    } catch (error) {
-      console.error("Erro ao carregar orçamento para edição:", error);
+
+  // Função para salvar um orçamento
+  const saveQuote = (): boolean => {
+    const quoteResult = calculateQuote();
+    if (!quoteForm.client || !quoteResult || quoteForm.vehicles.length === 0) {
+      console.error('Erro ao salvar orçamento: dados incompletos', {
+        client: !!quoteForm.client,
+        quoteResult: !!quoteResult,
+        vehicles: quoteForm.vehicles.length
+      });
       return false;
     }
-  };
-  
-  const sendQuoteByEmail = async (quoteId: string, email: string, message: string): Promise<boolean> => {
-    try {
-      // Implementação simulada
-      console.log(`Enviando orçamento ${quoteId} para ${email}: ${message}`);
-      toast({
-        title: "E-mail enviado",
-        description: "O orçamento foi enviado por e-mail."
-      });
-      return true;
-    } catch (error) {
-      console.error("Erro ao enviar e-mail:", error);
-      return false;
-    }
-  };
 
-  // Salvar o orçamento
-  const saveQuote = async () => {
-    if (!client) {
-      toast({
-        title: "Cliente obrigatório",
-        description: "Você deve selecionar um cliente para o orçamento.",
-        variant: "destructive",
-      });
-      return { success: false };
-    }
+    // Verificar se estamos em modo de edição
+    if (isEditMode && currentEditingQuoteId) {
+      // Encontrar o orçamento original
+      const originalQuote = savedQuotes.find(q => q.id === currentEditingQuoteId);
+      if (!originalQuote) {
+        console.error('Orçamento original não encontrado:', currentEditingQuoteId);
+        return false;
+      }
 
-    if (vehicles.length === 0) {
-      toast({
-        title: "Veículos obrigatórios",
-        description: "Adicione pelo menos um veículo ao orçamento.",
-        variant: "destructive",
-      });
-      return { success: false };
-    }
-
-    try {
-      // Converter para o formato de salvamento
-      const quoteId = isEditMode && editQuoteId ? editQuoteId : uuidv4();
+      // Criar descrição das alterações
+      const changeDescription = `Orçamento editado em ${new Date().toLocaleString('pt-BR')}`;
       
-      // Escolhemos o primeiro veículo como referência para compatibilidade com o modelo Quote
-      const firstVehicleId = vehicles[0]?.vehicle?.id || '';
-      
-      const quoteData = {
-        id: quoteId,
-        title: title,
-        clientId: client.id,
-        clientName: client.name,
-        clientDocument: client.document,
-        clientType: client.type as ClientType,
-        contractMonths,
-        monthlyKm,
-        operationSeverity,
-        hasTracking,
-        totalCost,
-        monthlyValue,
-        vehicleId: firstVehicleId, // Adicionado para compatibilidade com o modelo Quote
-        vehicles: vehicles.map(v => ({
-          vehicleId: v.vehicle.id,
-          vehicleBrand: v.vehicle.brand,
-          vehicleModel: v.vehicle.model,
-          vehicleYear: v.vehicle.year,
-          vehicleValue: v.vehicle.value,
-          vehicleIsUsed: v.vehicle.isUsed,
-          vehiclePlateNumber: v.vehicle.plateNumber,
-          vehicleGroupId: v.vehicleGroup.id,
-          contractMonths: v.contractMonths,
-          monthlyKm: v.monthlyKm,
-          operationSeverity: v.operationSeverity,
-          hasTracking: v.hasTracking,
-          depreciationCost: v.depreciationCost,
-          maintenanceCost: v.maintenanceCost,
-          extraKmRate: v.extraKmCost,
-          totalCost: v.totalCost,
-          monthlyValue: v.monthlyValue,
-          vehicle: v.vehicle,
-        })),
-        createdAt: new Date().toISOString(),
-        createdBy: user?.id || adminUser?.id || '',
-        createdByName: user?.email || adminUser?.email || "Usuário",
-        isEdit: isEditMode,
-        status: 'ORCAMENTO',
-        statusFlow: 'ORCAMENTO'
+      // Criar objeto de atualizações
+      const updates: Partial<QuoteFormData> = {
+        client: quoteForm.client,
+        vehicles: quoteForm.vehicles,
+        globalParams: quoteForm.globalParams,
+        useGlobalParams: quoteForm.useGlobalParams
       };
       
-      console.log('Salvando orçamento:', quoteData);
-
-      // Salvar no Supabase
-      const { success, error, quote } = await saveQuoteToSupabase(quoteData);
+      // Atualizar o orçamento
+      const updated = updateQuote(currentEditingQuoteId, updates, changeDescription);
       
-      if (success) {
-        // Salvar localmente também para acesso offline
-        if (isEditMode) {
-          // Substituir o orçamento existente
-          const quoteIndex = savedQuotes.findIndex(q => q.id === editQuoteId);
-          if (quoteIndex >= 0) {
-            savedQuotes[quoteIndex] = quoteData;
-          } else {
-            savedQuotes.push(quoteData);
-          }
-        } else {
-          // Adicionar novo orçamento
-          savedQuotes.push(quoteData);
+      // Resetar o modo de edição
+      if (updated) {
+        setIsEditMode(false);
+        setCurrentEditingQuoteId(null);
+      }
+      
+      return updated;
+    }
+
+    // Caso contrário, continuar com a criação de um novo orçamento
+    // Criar um ID único baseado no timestamp (será substituído por UUID no Supabase)
+    const newId = Date.now().toString();
+    
+    // Obter o usuário atual
+    const userInfo = getCurrentUser();
+    
+    // Criar o objeto de orçamento salvo
+    const newSavedQuote: SavedQuote = {
+      id: newId,
+      clientId: quoteForm.client.id,
+      clientName: quoteForm.client.name,
+      vehicleId: quoteForm.vehicles[0].vehicle.id, // Para compatibilidade com o formato atual
+      vehicleBrand: quoteForm.vehicles[0].vehicle.brand,
+      vehicleModel: quoteForm.vehicles[0].vehicle.model,
+      contractMonths: quoteForm.globalParams.contractMonths,
+      monthlyKm: quoteForm.globalParams.monthlyKm,
+      totalCost: quoteResult.totalCost,
+      createdAt: new Date().toISOString(),
+      createdBy: userInfo, // Usar o usuário atual
+      editHistory: [],
+      vehicles: quoteResult.vehicleResults.map((result, index) => {
+        const vehicle = quoteForm.vehicles.find(v => v.vehicle.id === result.vehicleId);
+        if (!vehicle) {
+          throw new Error(`Veículo não encontrado: ${result.vehicleId}`);
         }
         
-        toast({
-          title: isEditMode ? "Orçamento atualizado" : "Orçamento criado",
-          description: isEditMode 
-            ? "O orçamento foi atualizado com sucesso." 
-            : "O orçamento foi criado com sucesso.",
-        });
+        return {
+          vehicleId: vehicle.vehicle.id,
+          vehicleBrand: vehicle.vehicle.brand,
+          vehicleModel: vehicle.vehicle.model,
+          plateNumber: vehicle.vehicle.plateNumber,
+          groupId: vehicle.vehicleGroup.id,
+          totalCost: result.totalCost,
+          depreciationCost: result.depreciationCost,
+          maintenanceCost: result.maintenanceCost,
+          extraKmRate: result.extraKmRate,
+        };
+      }),
+      operationSeverity: quoteForm.globalParams.operationSeverity,
+      hasTracking: quoteForm.globalParams.hasTracking,
+      trackingCost: quoteResult.vehicleResults[0].trackingCost,
+      status: 'active',
+      source: 'local'
+    };
+
+    console.log('📝 Tentando salvar novo orçamento:', {
+      clientId: newSavedQuote.clientId,
+      clientName: newSavedQuote.clientName,
+      totalCost: newSavedQuote.totalCost,
+      veículos: newSavedQuote.vehicles.length
+    });
+
+    // Também salvar no Supabase e atualizar o ID local se salvo com sucesso
+    let finalQuote = { ...newSavedQuote };
+    try {
+      import('@/integrations/supabase/services/quotes').then(async ({ saveQuoteToSupabase }) => {
+        console.log('📤 Iniciando salvamento no Supabase...');
         
-        return { success: true, quoteId: quote?.id || quoteId };
-      } else {
-        console.error('Erro ao salvar orçamento:', error);
+        // Preparar os dados completos para o salvamento
+        const quoteDataForSupabase = {
+          ...newSavedQuote,
+          client: quoteForm.client,
+          // Incluir os detalhes completos dos veículos para garantir que todos os dados necessários estejam disponíveis
+          vehicles: quoteForm.vehicles.map((vehicleItem, index) => {
+            const result = quoteResult.vehicleResults.find(r => r.vehicleId === vehicleItem.vehicle.id);
+            return {
+              vehicle: vehicleItem.vehicle,
+              vehicleId: vehicleItem.vehicle.id,
+              vehicleGroup: vehicleItem.vehicleGroup,
+              totalCost: result?.totalCost || 0,
+              depreciationCost: result?.depreciationCost || 0,
+              maintenanceCost: result?.maintenanceCost || 0,
+              extraKmRate: result?.extraKmRate || 0,
+              monthly_value: result?.totalCost || 0,
+              contract_months: quoteForm.globalParams.contractMonths,
+              monthly_km: quoteForm.globalParams.monthlyKm,
+              operation_severity: quoteForm.globalParams.operationSeverity,
+              has_tracking: quoteForm.globalParams.hasTracking
+            };
+          })
+        };
         
-        toast({
-          title: "Erro",
-          description: `Não foi possível ${isEditMode ? 'atualizar' : 'criar'} o orçamento: ${error?.message || 'Erro desconhecido'}`,
-          variant: "destructive",
-        });
+        const result = await saveQuoteToSupabase(quoteDataForSupabase);
         
-        return { success: false };
-      }
-    } catch (error) {
-      console.error('Erro ao salvar orçamento:', error);
-      
-      toast({
-        title: "Erro",
-        description: `Ocorreu um erro ao ${isEditMode ? 'atualizar' : 'criar'} o orçamento.`,
-        variant: "destructive",
+        if (result.success && result.quote && result.quote.id) {
+          console.log('✅ Orçamento salvo no Supabase com sucesso!', result.quote);
+          
+          // Atualizar o ID local com o UUID gerado pelo Supabase
+          const supabaseId = result.quote.id;
+          
+          // Atualizar o orçamento local com o ID do Supabase
+          setSavedQuotes(prevQuotes => 
+            prevQuotes.map(q => 
+              q.id === newSavedQuote.id ? { ...q, id: supabaseId } : q
+            )
+          );
+          
+          // Atualizar também no localStorage
+          try {
+            const storedQuotes = localStorage.getItem(SAVED_QUOTES_KEY);
+            if (storedQuotes) {
+              const parsedQuotes = JSON.parse(storedQuotes);
+              const updatedQuotes = parsedQuotes.map((q: SavedQuote) => 
+                q.id === newSavedQuote.id ? { ...q, id: supabaseId } : q
+              );
+              localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
+              console.log('✅ ID do orçamento atualizado no localStorage para UUID do Supabase');
+            }
+          } catch (error) {
+            console.error('❌ Erro ao atualizar ID no localStorage:', error);
+          }
+          
+        } else {
+          console.error('❌ Falha ao salvar orçamento no Supabase:', result.error);
+        }
+      }).catch(err => {
+        console.error('❌ Erro ao importar função do Supabase:', err);
       });
-      
-      return { success: false };
+    } catch (error) {
+      console.error('❌ Erro ao tentar salvar no Supabase:', error);
+      // Continuar salvando localmente mesmo se falhar no Supabase
     }
+
+    // Atualizar o estado e o localStorage
+    const updatedQuotes = [newSavedQuote, ...savedQuotes];
+    setSavedQuotes(updatedQuotes);
+    
+    // Salvar no localStorage com tratamento de erro
+    try {
+      localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
+      console.log('✅ Orçamento salvo com sucesso no localStorage:', newSavedQuote);
+      console.log('📊 Total de orçamentos salvos:', updatedQuotes.length);
+    } catch (error) {
+      console.error('❌ Erro ao salvar no localStorage:', error);
+      return false;
+    }
+    
+    return true;
   };
 
-  // Carregar um orçamento pelo ID
-  const loadQuote = async (id: string) => {
-    try {
-      console.log(`Carregando orçamento ${id}`);
-      
-      // Primeiro, tentar carregar do Supabase
-      const { success, quote } = await getQuoteByIdFromSupabase(id);
-      
-      if (success && quote) {
-        console.log('Orçamento carregado do Supabase:', quote);
-        
-        // Configurar cliente
-        if (quote.client) {
-          setClient({
-            id: quote.client.id,
-            name: quote.client.name,
-            type: quote.client.type || 'PJ',
-            document: quote.client.document || '',
-            email: quote.client.email,
-            contact: quote.client.phone,
-          });
-        }
-        
-        // Configurar título
-        setTitle(quote.title || `Orçamento ${new Date(quote.created_at).toLocaleDateString()}`);
-        
-        // Configurar parâmetros gerais
-        setContractMonths(quote.contract_months || 12);
-        setMonthlyKm(quote.monthly_km || 2000);
-        setOperationSeverity(quote.operation_severity || 3);
-        setHasTracking(quote.has_tracking || false);
-        
-        // Configurar veículos
-        if (quote.vehicles && Array.isArray(quote.vehicles) && quote.vehicles.length > 0) {
-          const mappedVehicles: VehicleData[] = [];
-          
-          for (const quoteVehicle of quote.vehicles) {
-            if (quoteVehicle.vehicle) {
-              const vehicle: Vehicle = {
-                id: quoteVehicle.vehicle.id,
-                brand: quoteVehicle.vehicle.brand || '',
-                model: quoteVehicle.vehicle.model || '',
-                year: quoteVehicle.vehicle.year || new Date().getFullYear(),
-                value: quoteVehicle.vehicle.value || 0,
-                isUsed: quoteVehicle.vehicle.is_used || false,
-                plateNumber: quoteVehicle.vehicle.plate_number,
-                color: quoteVehicle.vehicle.color,
-                fuelType: quoteVehicle.vehicle.fuel_type,
-                odometer: quoteVehicle.vehicle.odometer,
-                groupId: quoteVehicle.vehicle.group_id || 'A'
-              };
-              
-              // Grupo do veículo simplificado
-              const vehicleGroup: VehicleGroup = {
-                id: quoteVehicle.vehicle.group_id || 'A',
-                name: `Grupo ${quoteVehicle.vehicle.group_id || 'A'}`,
-                description: '',
-                revisionKm: 10000,
-                revisionCost: 500,
-                tireKm: 40000,
-                tireCost: 2000
-              };
-              
-              mappedVehicles.push({
-                vehicle,
-                vehicleGroup,
-                contractMonths: quoteVehicle.contract_months || quote.contract_months || 12,
-                monthlyKm: quoteVehicle.monthly_km || quote.monthly_km || 2000,
-                operationSeverity: quoteVehicle.operation_severity || quote.operation_severity || 3,
-                hasTracking: quoteVehicle.has_tracking || quote.has_tracking || false,
-                depreciationCost: quoteVehicle.depreciation_cost || 0,
-                maintenanceCost: quoteVehicle.maintenance_cost || 0,
-                extraKmCost: quoteVehicle.extra_km_rate || 0,
-                totalCost: quoteVehicle.total_cost || 0,
-                monthlyValue: quoteVehicle.monthly_value || 0
-              });
-            }
-          }
-          
-          setVehicles(mappedVehicles);
-        }
-        
-        // Configurar modo de edição
-        setIsEditMode(true);
-        setEditQuoteId(id);
-        
-        toast({
-          title: "Orçamento carregado",
-          description: "O orçamento foi carregado com sucesso."
-        });
-        
-        return true;
-      }
-      
-      // Se não encontrou no Supabase, tentar carregar do armazenamento local
-      const localQuote = savedQuotes.find(q => q.id === id);
-      
-      if (localQuote) {
-        console.log('Orçamento carregado do armazenamento local:', localQuote);
-        
-        // Similar ao processo acima, mas adaptado para o formato local
-        // ... configuração do cliente, título, parâmetros
-        
-        toast({
-          title: "Orçamento carregado (local)",
-          description: "O orçamento foi carregado do armazenamento local."
-        });
-        
-        return true;
-      }
-      
-      toast({
-        title: "Orçamento não encontrado",
-        description: `Não foi possível encontrar o orçamento com ID ${id}.`,
-        variant: "destructive"
-      });
-      
-      return false;
-    } catch (error) {
-      console.error('Erro ao carregar orçamento:', error);
-      
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro ao carregar o orçamento.",
-        variant: "destructive"
-      });
-      
+  // Função para atualizar um orçamento existente
+  const updateQuote = (quoteId: string, updates: Partial<QuoteFormData>, changeDescription: string): boolean => {
+    // Encontrar o orçamento a ser atualizado
+    const quoteToUpdate = savedQuotes.find(q => q.id === quoteId);
+    if (!quoteToUpdate) return false;
+    
+    // Verificar permissão
+    if (!canEditQuote(quoteToUpdate)) {
+      console.error('Permissão de edição negada para o usuário:', getCurrentUser());
       return false;
     }
+    
+    // Registrar a edição no histórico
+    const editRecord: EditRecord = {
+      editedAt: new Date().toISOString(),
+      editedBy: getCurrentUser(),
+      changes: changeDescription
+    };
+
+    // Calcular os novos valores do orçamento
+    const quoteResult = calculateQuote();
+    if (!quoteResult) {
+      console.error('Erro ao calcular o oramento atualizado');
+      return false;
+    }
+    
+    // Atualizar o orçamento
+    const updatedQuotes = savedQuotes.map(quote => {
+      if (quote.id === quoteId) {
+        return {
+          ...quote,
+          clientId: updates.client?.id || quote.clientId,
+          clientName: updates.client?.name || quote.clientName,
+          contractMonths: updates.globalParams?.contractMonths || quote.contractMonths,
+          monthlyKm: updates.globalParams?.monthlyKm || quote.monthlyKm,
+          totalCost: quoteResult.totalCost,
+          operationSeverity: updates.globalParams?.operationSeverity || quote.operationSeverity,
+          hasTracking: updates.globalParams?.hasTracking !== undefined ? updates.globalParams.hasTracking : quote.hasTracking,
+          vehicles: quoteResult.vehicleResults.map(result => {
+            const vehicleItem = updates.vehicles?.find(v => v.vehicle.id === result.vehicleId);
+            
+            if (!vehicleItem) {
+              // Se não encontrou o veículo nas atualizações, manter o veículo original
+              const originalVehicle = quote.vehicles.find(v => v.vehicleId === result.vehicleId);
+              if (originalVehicle) return originalVehicle;
+              
+              // Se não encontrou nem nas atualizações nem no original, algo está errado
+              throw new Error(`Veículo não encontrado: ${result.vehicleId}`);
+            }
+            
+            return {
+              vehicleId: vehicleItem.vehicle.id,
+              vehicleBrand: vehicleItem.vehicle.brand,
+              vehicleModel: vehicleItem.vehicle.model,
+              plateNumber: vehicleItem.vehicle.plateNumber,
+              groupId: vehicleItem.vehicleGroup?.id || quote.vehicles[0].groupId,
+              totalCost: result.totalCost,
+              depreciationCost: result.depreciationCost,
+              maintenanceCost: result.maintenanceCost,
+              extraKmRate: result.extraKmRate,
+            };
+          }),
+          editHistory: [...(quote.editHistory || []), editRecord]
+        };
+      }
+      return quote;
+    });
+    
+    // Salvar as alterações
+    setSavedQuotes(updatedQuotes);
+    localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
+    console.log('Orçamento atualizado com sucesso:', quoteId);
+    
+    return true;
+  };
+
+  // Delete quote implementation
+  const deleteQuote = useCallback((quoteId: string): boolean => {
+    console.log("🗑️ Tentando excluir orçamento:", quoteId);
+    
+    // Verificar se o orçamento existe
+    const quoteToDelete = savedQuotes.find(q => q.id === quoteId);
+    if (!quoteToDelete) {
+      console.error('❌ Orçamento não encontrado:', quoteId);
+      return false;
+    }
+    
+    // Verificar permissão
+    if (!canDeleteQuote(quoteToDelete)) {
+      console.error('❌ Permissão de exclusão negada para o usuário:', getCurrentUser());
+      return false;
+    }
+    
+    // Também excluir do Supabase se for um orçamento armazenado lá
+    try {
+      if (quoteToDelete.source === 'supabase') {
+        console.log("🔄 Excluindo orçamento do Supabase...");
+        
+        supabase
+          .from('quotes')
+          .delete()
+          .eq('id', quoteId)
+          .then(({ error }) => {
+            if (error) {
+              console.error('❌ Erro ao excluir orçamento do Supabase:', error);
+            } else {
+              console.log('✅ Orçamento excluído do Supabase com sucesso');
+            }
+          });
+      }
+    } catch (error) {
+      console.error('❌ Erro ao tentar excluir do Supabase:', error);
+      // Continuar excluindo localmente mesmo se falhar no Supabase
+    }
+    
+    // Remover o orçamento
+    const updatedQuotes = savedQuotes.filter(q => q.id !== quoteId);
+    setSavedQuotes(updatedQuotes);
+    
+    // Atualizar o localStorage
+    try {
+      localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
+      console.log('✅ Orçamento excluído com sucesso:', quoteId);
+      return true;
+    } catch (error) {
+      console.error('❌ Erro ao atualizar localStorage após exclusão:', error);
+      return false;
+    }
+  }, [savedQuotes]);
+
+  // Função melhorada para carregar um orçamento para edição
+  const loadQuoteForEditing = useCallback(async (quoteId: string): Promise<boolean> => {
+    console.log("⏳ Iniciando carregamento de orçamento:", quoteId);
+    
+    try {
+      // Buscar o orçamento pelo ID
+      const quote = savedQuotes.find(q => q.id === quoteId);
+      if (!quote) {
+        console.error('Orçamento não encontrado:', quoteId);
+        return false;
+      }
+      
+      // Precisamos reconstruir os objetos completos a partir dos dados salvos
+      // Buscar o cliente pelo ID
+      const client = getClientById(quote.clientId);
+      if (!client) {
+        console.error('Cliente não encontrado:', quote.clientId);
+        return false;
+      }
+      
+      // Reconstruir os itens de veículos
+      const vehicleItems: QuoteVehicleItem[] = [];
+      
+      for (const savedVehicle of quote.vehicles) {
+        // Tentar buscar o veículo primeiro no mock-data
+        let vehicle = getVehicleById(savedVehicle.vehicleId);
+        const vehicleGroup = getVehicleGroupById(savedVehicle.groupId);
+        
+        // Se não encontrou no mock-data e tem as informações do veículo salvo
+        if (!vehicle && savedVehicle.vehicleBrand && savedVehicle.vehicleModel) {
+          // Buscar no Supabase pelo brand/model/plate
+          const { data, error } = await supabase
+            .from('vehicles')
+            .select()
+            .eq('brand', savedVehicle.vehicleBrand)
+            .eq('model', savedVehicle.vehicleModel);
+
+          if (!error && data && data.length > 0) {
+            // Converter o formato do Supabase para o formato Vehicle
+            vehicle = {
+              id: savedVehicle.vehicleId,
+              brand: savedVehicle.vehicleBrand,
+              model: savedVehicle.vehicleModel,
+              year: data[0].year || new Date().getFullYear(),
+              value: data[0].value || 0,
+              isUsed: data[0].is_used || false,
+              plateNumber: savedVehicle.plateNumber || data[0].plate_number,
+              color: data[0].color || '',
+              odometer: data[0].odometer || 0,
+              fuelType: data[0].fuel_type || '',
+              groupId: savedVehicle.groupId
+            };
+          } else {
+            // Se não encontrou no Supabase, criar um veículo básico
+            vehicle = {
+              id: savedVehicle.vehicleId,
+              brand: savedVehicle.vehicleBrand,
+              model: savedVehicle.vehicleModel,
+              year: new Date().getFullYear(),
+              value: 0,
+              isUsed: !!savedVehicle.plateNumber,
+              plateNumber: savedVehicle.plateNumber,
+              groupId: savedVehicle.groupId
+            };
+          }
+        }
+        
+        if (!vehicleGroup) {
+          console.error('Grupo não encontrado:', savedVehicle.groupId);
+          return false;
+        }
+        
+        vehicleItems.push({
+          vehicle,
+          vehicleGroup,
+          params: null
+        });
+      }
+      
+      // Configurar o formulário com os dados do orçamento
+      setQuoteForm({
+        client,
+        vehicles: vehicleItems,
+        useGlobalParams: true,
+        globalParams: {
+          contractMonths: quote.contractMonths || 24,
+          monthlyKm: quote.monthlyKm || 3000,
+          operationSeverity: (quote.operationSeverity || 3) as 1|2|3|4|5|6,
+          hasTracking: quote.hasTracking || false
+        }
+      });
+      
+      // Ativar o modo de edição
+      setIsEditMode(true);
+      setCurrentEditingQuoteId(quoteId);
+      
+      console.log('Orçamento carregado para edição:', quoteId);
+      return true;
+    } catch (error) {
+      console.error('Erro ao carregar orçamento para edição:', error);
+      return false;
+    }
+  }, [savedQuotes]);
+
+  // Função para enviar orçamento por e-mail (para ser implementada)
+  const sendQuoteByEmail = async (quoteId: string, email: string, message: string): Promise<boolean> => {
+    // Simulação de envio de e-mail
+    console.log('Enviando orçamento por e-mail:', { quoteId, email, message });
+    
+    return new Promise(resolve => {
+      setTimeout(() => {
+        console.log('E-mail enviado com sucesso!');
+        resolve(true);
+      }, 2000);
+    });
+  };
+
+  // Export the context
+  const contextValue: QuoteContextType = {
+    quoteForm,
+    setClient,
+    addVehicle,
+    removeVehicle,
+    setGlobalContractMonths,
+    setGlobalMonthlyKm,
+    setGlobalOperationSeverity,
+    setGlobalHasTracking,
+    setUseGlobalParams,
+    setVehicleParams,
+    resetForm,
+    calculateQuote,
+    saveQuote,
+    getCurrentUser,
+    setCurrentUser,
+    availableUsers,
+    isEditMode,
+    currentEditingQuoteId,
+    getClientById,
+    getVehicleById,
+    loadQuoteForEditing,
+    deleteQuote,
+    canEditQuote,
+    canDeleteQuote,
+    sendQuoteByEmail,
+    savedQuotes
   };
 
   return (
-    <QuoteContext.Provider
-      value={{
-        title,
-        setTitle,
-        client,
-        setClient,
-        vehicles,
-        addVehicle,
-        updateVehicle,
-        removeVehicle,
-        contractMonths,
-        setContractMonths,
-        monthlyKm,
-        setMonthlyKm,
-        operationSeverity,
-        setOperationSeverity,
-        hasTracking,
-        setHasTracking,
-        totalCost,
-        monthlyValue,
-        saveQuote,
-        loadQuote,
-        isEditMode,
-        setIsEditMode,
-        editQuoteId,
-        setEditQuoteId,
-        resetQuote,
-        // Novas propriedades para corrigir erros
-        quoteForm,
-        setGlobalContractMonths,
-        setGlobalMonthlyKm,
-        setGlobalOperationSeverity,
-        setGlobalHasTracking,
-        setUseGlobalParams,
-        setVehicleParams,
-        calculateQuote,
-        loadQuoteForEditing,
-        currentEditingQuoteId: editQuoteId,
-        sendQuoteByEmail
-      }}
-    >
+    <QuoteContext.Provider value={contextValue}>
       {children}
     </QuoteContext.Provider>
   );
 };
 
+// Definir tipo para o contexto
+export type QuoteContextType = {
+  quoteForm: QuoteFormData;
+  setClient: (client: Client | null) => void;
+  addVehicle: (vehicle: Vehicle, vehicleGroup: VehicleGroup) => void;
+  removeVehicle: (vehicleId: string) => void;
+  setGlobalContractMonths: (contractMonths: number) => void;
+  setGlobalMonthlyKm: (monthlyKm: number) => void;
+  setGlobalOperationSeverity: (operationSeverity: 1 | 2 | 3 | 4 | 5 | 6) => void;
+  setGlobalHasTracking: (hasTracking: boolean) => void;
+  setUseGlobalParams: (useGlobalParams: boolean) => void;
+  setVehicleParams: (vehicleId: string, params: {
+    contractMonths?: number;
+    monthlyKm?: number;
+    operationSeverity?: 1 | 2 | 3 | 4 | 5 | 6;
+    hasTracking?: boolean;
+  }) => void;
+  resetForm: () => void;
+  calculateQuote: () => {
+    vehicleResults: VehicleQuoteResult[];
+    totalCost: number;
+  } | null;
+  saveQuote: () => boolean;
+  getCurrentUser: () => User;
+  setCurrentUser: (user: User) => void;
+  availableUsers: User[];
+  isEditMode: boolean;
+  currentEditingQuoteId: string | null;
+  getClientById: (id: string) => Client;
+  getVehicleById: (id: string) => Vehicle;
+  loadQuoteForEditing: (quoteId: string) => Promise<boolean>;
+  deleteQuote: (quoteId: string) => boolean;
+  canEditQuote: (quote: SavedQuote) => boolean;
+  canDeleteQuote: (quote: SavedQuote) => boolean;
+  sendQuoteByEmail: (quoteId: string, email: string, message: string) => Promise<boolean>;
+  savedQuotes: SavedQuote[];
+};
+
+// Hook para usar o contexto
 export const useQuote = () => {
   const context = useContext(QuoteContext);
   if (context === undefined) {
