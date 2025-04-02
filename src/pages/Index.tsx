@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FileText, List, Settings, PieChart, TrendingUp, Clock, Calendar } from 'lucide-react';
@@ -11,19 +12,53 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { fetchSystemSettings } from '@/lib/settings';
 import { savedQuotes as mockSavedQuotes } from '@/lib/models';
+import { getQuotesFromSupabase } from '@/integrations/supabase';
 
 const Index = () => {
   const [companyName, setCompanyName] = useState('Car Lease Master');
   const [loading, setLoading] = useState(true);
+  const [allQuotes, setAllQuotes] = useState([]);
   
   // Garantir que temos acesso ao contexto de orçamentos
   const quoteContext = useQuote();
   
-  // Usamos o savedQuotes do contexto se disponível, ou o mockSavedQuotes como fallback
-  const savedQuotes = quoteContext?.savedQuotes || mockSavedQuotes;
-  
-  // Garantir que savedQuotes é sempre um array antes de qualquer operação
-  const safeQuotes = Array.isArray(savedQuotes) ? savedQuotes : [];
+  // Buscamos todas as fontes de dados disponíveis
+  useEffect(() => {
+    const fetchAllQuotes = async () => {
+      setLoading(true);
+      try {
+        // 1. Buscar orçamentos do contexto
+        const contextQuotes = quoteContext?.savedQuotes || [];
+        
+        // 2. Buscar orçamentos do Supabase
+        let supabaseQuotes = [];
+        try {
+          const { quotes, success } = await getQuotesFromSupabase();
+          if (success && Array.isArray(quotes)) {
+            supabaseQuotes = quotes;
+            console.log("Orçamentos do Supabase carregados:", quotes.length);
+          }
+        } catch (error) {
+          console.error("Erro ao buscar orçamentos do Supabase:", error);
+        }
+        
+        // 3. Usar dados simulados como último recurso
+        const combinedQuotes = [...contextQuotes, ...supabaseQuotes];
+        
+        // Se não encontrarmos nada, usar dados mockados
+        const finalQuotes = combinedQuotes.length > 0 ? combinedQuotes : mockSavedQuotes;
+        
+        setAllQuotes(finalQuotes);
+      } catch (error) {
+        console.error("Erro ao buscar orçamentos:", error);
+        setAllQuotes(mockSavedQuotes);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchAllQuotes();
+  }, [quoteContext?.savedQuotes]);
   
   // Carregar configurações básicas
   useEffect(() => {
@@ -44,30 +79,40 @@ const Index = () => {
     loadSettings();
   }, []);
   
+  // Garantir que allQuotes é sempre um array
+  const safeQuotes = Array.isArray(allQuotes) ? allQuotes : [];
+  
   // Obter orçamentos recentes (5 mais recentes)
   const recentQuotes = safeQuotes
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .sort((a, b) => new Date(b.createdAt || b.created_at || '').getTime() - new Date(a.createdAt || a.created_at || '').getTime())
     .slice(0, 5)
-    .map(quote => ({
-      id: quote.id,
-      clientName: quote.clientName,
-      vehicleName: `${quote.vehicleBrand} ${quote.vehicleModel}`,
-      value: quote.totalCost,
-      createdAt: quote.createdAt,
-      status: quote.status || 'ORCAMENTO',
-      source: quote.source || 'local',
-      createdBy: quote.createdBy
-    }));
+    .map(quote => {
+      // Lidar com diferentes formatos de dados
+      const vehicleName = quote.vehicles && quote.vehicles.length > 0 
+        ? `${quote.vehicles[0].vehicleBrand || quote.vehicles[0].vehicle?.brand || ''} ${quote.vehicles[0].vehicleModel || quote.vehicles[0].vehicle?.model || ''}` 
+        : quote.vehicleBrand && quote.vehicleModel 
+          ? `${quote.vehicleBrand} ${quote.vehicleModel}`
+          : 'Veículo não especificado';
+
+      return {
+        id: quote.id,
+        clientName: quote.clientName || quote.client?.name || 'Cliente não especificado',
+        vehicleName: vehicleName,
+        value: quote.totalCost || quote.total_value || 0,
+        createdAt: quote.createdAt || quote.created_at || new Date().toISOString(),
+        status: quote.status || quote.status_flow || 'ORCAMENTO',
+        source: quote.source || 'supabase'
+      };
+    });
   
   // Estatísticas derivadas dos orçamentos
   const totalQuotes = safeQuotes.length;
   const averageContractLength = totalQuotes > 0 
-    ? safeQuotes.reduce((acc, q) => acc + q.contractMonths, 0) / totalQuotes 
+    ? safeQuotes.reduce((acc, q) => acc + (q.contractMonths || q.contract_months || 0), 0) / totalQuotes 
     : 0;
-  const averageMonthlyValue = totalQuotes > 0 
-    ? safeQuotes.reduce((acc, q) => acc + q.totalCost, 0) / totalQuotes 
-    : 0;
-  const activeQuotes = safeQuotes.filter(q => q.status !== 'CONCLUIDO').length;
+  const totalValue = safeQuotes.reduce((acc, q) => acc + (q.totalCost || q.total_value || 0), 0);
+  const averageMonthlyValue = totalQuotes > 0 ? totalValue / totalQuotes : 0;
+  const activeQuotes = safeQuotes.filter(q => (q.status !== 'CONCLUIDO' && q.status_flow !== 'CONCLUIDO')).length;
 
   return (
     <MainLayout>
@@ -86,7 +131,7 @@ const Index = () => {
           />
           <StatsCard 
             title="Valor Médio Mensal" 
-            value={`R$ ${averageMonthlyValue.toLocaleString('pt-BR')}`} 
+            value={`R$ ${averageMonthlyValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} 
             icon={<TrendingUp size={20} />}
             trend={{ value: 3.5, isPositive: true }}
           />

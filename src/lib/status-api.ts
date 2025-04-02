@@ -9,7 +9,6 @@ export const fetchStatusHistory = async (quoteId: string): Promise<StatusHistory
   try {
     console.log(`Buscando histórico de status para orçamento ${quoteId}`);
     
-    // Remover a tentativa de join com "users:changed_by(name)" que estava causando o erro
     const { data, error } = await supabase
       .from('quote_status_history')
       .select('*')

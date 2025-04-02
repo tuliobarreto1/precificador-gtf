@@ -31,6 +31,7 @@ export const useQuotes = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   const { toast } = useToast();
+  const quoteContext = useQuote();
 
   // Método para atualizar diretamente o refreshTrigger (útil para chamadas externas)
   const setRefreshTriggerDirectly = () => {
@@ -155,6 +156,11 @@ export const useQuotes = () => {
           name: `${firstVehicle.brand} ${firstVehicle.model}`,
           value: firstVehicle.monthly_value || quote.total_value || 0
         };
+      } else if (firstVehicle.vehicleBrand && firstVehicle.vehicleModel) {
+        return {
+          name: `${firstVehicle.vehicleBrand} ${firstVehicle.vehicleModel}`,
+          value: firstVehicle.totalCost || quote.total_value || 0
+        };
       } else {
         return { 
           name: 'Veículo não especificado', 
@@ -183,7 +189,14 @@ export const useQuotes = () => {
       }
     }
     
-    return { name: 'Veículo não especificado', value: quote.total_value || 0 };
+    if (quote.vehicleBrand && quote.vehicleModel) {
+      return {
+        name: `${quote.vehicleBrand} ${quote.vehicleModel}`,
+        value: quote.totalCost || quote.total_value || 0
+      };
+    }
+    
+    return { name: 'Veículo não especificado', value: quote.total_value || quote.totalCost || 0 };
   };
 
   const transformQuotes = () => {
@@ -213,7 +226,7 @@ export const useQuotes = () => {
       source: 'demo' as const
     }));
     
-    const localQuotesTransformed = (savedQuotes || []).map(quote => ({
+    const localQuotesTransformed = ((quoteContext?.savedQuotes || []) as any[]).map(quote => ({
       id: quote.id,
       clientName: quote.clientName || 'Cliente não especificado',
       vehicleName: quote.vehicles && quote.vehicles.length > 0 ? 
@@ -221,7 +234,7 @@ export const useQuotes = () => {
         'Veículo não especificado',
       value: quote.totalCost || 0,
       createdAt: quote.createdAt || new Date().toISOString(),
-      status: 'ORCAMENTO',
+      status: quote.status || 'ORCAMENTO',
       source: 'local' as const
     }));
     
@@ -255,7 +268,7 @@ export const useQuotes = () => {
     quotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     console.log(`🔄 Lista de orçamentos atualizada: ${quotes.length} orçamentos`);
     setAllQuotes(quotes);
-  }, [demoQuotes, supabaseQuotes, savedQuotes, refreshTrigger]);
+  }, [demoQuotes, supabaseQuotes, quoteContext?.savedQuotes, refreshTrigger]);
   
   const totalQuotes = allQuotes.length;
   const totalValue = allQuotes.reduce((sum, quote) => sum + Number(quote.value), 0);
