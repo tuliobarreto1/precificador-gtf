@@ -1,6 +1,4 @@
-
 import { useState, useEffect } from 'react';
-import { useQuote } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
 import { getQuotes, getClientById, getVehicleById, savedQuotes, getVehicleGroupById, mockClients, mockVehicles } from '@/lib/data-provider';
 import { Client, Vehicle } from '@/lib/models';
@@ -177,7 +175,6 @@ export const useQuotes = () => {
   };
 
   const transformQuotes = () => {
-    // Funções auxiliares para transformar dados de forma síncrona
     const getClientNameSync = (clientId: string): string => {
       const client = mockClients.find(c => c.id === clientId);
       return client?.name || 'Cliente não encontrado';
@@ -191,12 +188,11 @@ export const useQuotes = () => {
       };
     };
 
-    // Processamento dos dados de forma síncrona
     const demoQuotesTransformed = demoQuotes.map(quote => ({
       id: quote.id,
       clientName: getClientNameSync(quote.clientId),
       vehicleName: (() => {
-        const vehicle = getVehicleDetailsSync(quote.vehicleId);
+        const vehicle = getVehicleDetailsSync(quote.vehicleId || '');
         return `${vehicle.brand} ${vehicle.model}`;
       })(),
       value: quote.totalCost,
@@ -240,10 +236,8 @@ export const useQuotes = () => {
     return [...demoQuotesTransformed, ...localQuotesTransformed, ...supabaseQuotesTransformed];
   };
 
-  // Obter lista de quotes transformadas
   const [allQuotes, setAllQuotes] = useState<QuoteItem[]>([]);
   
-  // Carregar e transformar quotes quando os dados mudarem
   useEffect(() => {
     const quotes = transformQuotes();
     quotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

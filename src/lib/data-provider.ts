@@ -1,21 +1,22 @@
 
-import { supabase } from '@/integrations/supabase';
 import { Client, Vehicle, VehicleGroup, Quote, mockClients, mockVehicleGroups, mockVehicles, mockQuotes, savedQuotes } from './models';
+import { supabase } from '@/integrations/supabase/client';
+import { getAllVehicles, getVehiclesFromSupabase } from '@/integrations/supabase/services/vehicles';
+import { getQuotesFromSupabase } from '@/integrations/supabase/services/quotes';
+import { getClientsFromSupabase } from '@/integrations/supabase/services/clients';
 
 // Funções para clientes
 export async function getClients(): Promise<Client[]> {
   try {
-    const { data, error } = await supabase
-      .from('clients')
-      .select('*');
+    const { success, clients, error } = await getClientsFromSupabase();
       
-    if (error || !data) {
+    if (!success || !clients || clients.length === 0) {
       console.error("Erro ao buscar clientes do Supabase:", error);
       return mockClients; // Fallback para dados mock
     }
     
     // Mapear os dados do Supabase para o formato Client
-    return data.map(client => ({
+    return clients.map(client => ({
       id: client.id,
       name: client.name,
       type: (client.type === 'PF' || client.type === 'PJ') ? client.type : 'PJ',
@@ -63,29 +64,14 @@ export function getClientByDocument(document: string): Client | null {
 // Funções para veículos
 export async function getVehicles(): Promise<Vehicle[]> {
   try {
-    const { data, error } = await supabase
-      .from('vehicles')
-      .select('*');
+    const { success, vehicles, error } = await getVehiclesFromSupabase();
       
-    if (error || !data) {
+    if (!success || !vehicles || vehicles.length === 0) {
       console.error("Erro ao buscar veículos do Supabase:", error);
       return mockVehicles; // Fallback para dados mock
     }
     
-    // Mapear os dados do Supabase para o formato Vehicle
-    return data.map(vehicle => ({
-      id: vehicle.id,
-      brand: vehicle.brand || '',
-      model: vehicle.model || '',
-      year: vehicle.year || new Date().getFullYear(),
-      value: vehicle.value || 0,
-      isUsed: vehicle.is_used || false,
-      plateNumber: vehicle.plate_number,
-      color: vehicle.color,
-      odometer: vehicle.odometer,
-      fuelType: vehicle.fuel_type,
-      groupId: vehicle.group_id || 'A'
-    }));
+    return vehicles;
   } catch (error) {
     console.error("Erro inesperado ao buscar veículos:", error);
     return mockVehicles; // Fallback para dados mock
@@ -165,7 +151,7 @@ export function getVehicleGroupById(id: string): VehicleGroup {
 // Funções para orçamentos
 export async function getQuotes(): Promise<Quote[]> {
   try {
-    const { quotes, success, error } = await import('@/integrations/supabase').then(m => m.getQuotesFromSupabase());
+    const { success, quotes, error } = await getQuotesFromSupabase();
     
     if (!success || !quotes || quotes.length === 0) {
       console.error("Erro ao buscar orçamentos do Supabase:", error);

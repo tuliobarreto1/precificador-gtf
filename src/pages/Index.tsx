@@ -7,13 +7,12 @@ import PageTitle from '@/components/ui-custom/PageTitle';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
 import StatsCard from '@/components/ui-custom/StatsCard';
 import QuoteTable from '@/components/quotes/QuoteTable';
-import { QuoteProvider } from '@/context/QuoteContext';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { fetchSystemSettings } from '@/lib/settings';
 import { savedQuotes as mockSavedQuotes } from '@/lib/data-provider';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
-// Componente interno que usa o contexto
+// Componente interno sem depender do contexto
 const IndexContent = () => {
   const [companyName, setCompanyName] = useState('Car Lease Master');
   const [loading, setLoading] = useState(true);
@@ -47,7 +46,9 @@ const IndexContent = () => {
     .map(quote => ({
       id: quote.id,
       clientName: quote.clientName,
-      vehicleName: `${quote.vehicleBrand} ${quote.vehicleModel}`,
+      vehicleName: quote.vehicles && quote.vehicles.length > 0 
+        ? `${quote.vehicles[0].vehicleBrand} ${quote.vehicles[0].vehicleModel}` 
+        : 'Veículo não informado',
       value: quote.totalCost,
       createdAt: quote.createdAt,
       status: quote.status || 'ORCAMENTO',
@@ -155,13 +156,11 @@ const IndexContent = () => {
   );
 };
 
-// Componente principal envolvido pelo QuoteProvider
+// Componente principal sem depender do QuoteProvider
 const Index = () => {
   return (
     <MainLayout>
-      <QuoteProvider>
-        <IndexContent />
-      </QuoteProvider>
+      <IndexContent />
     </MainLayout>
   );
 };
