@@ -649,7 +649,7 @@ export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
     // Também salvar no Supabase e atualizar o ID local se salvo com sucesso
     let finalQuote = { ...newSavedQuote };
     try {
-      import('@/integrations/supabase/services/quotes').then(async ({ saveQuoteToSupabase }) => {
+      import('@/integrations/supabase/services/quotes').then(async ({ saveQuoteToSupabase, logQuoteAction }) => {
         console.log('📤 Iniciando salvamento no Supabase...');
         
         // Preparar os dados completos para o salvamento
@@ -806,6 +806,27 @@ export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
     setSavedQuotes(updatedQuotes);
     localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
     console.log('Orçamento atualizado com sucesso:', quoteId);
+    
+    // Registrar a edição no Supabase
+    try {
+      import('@/integrations/supabase/services/quotes').then(async ({ saveQuoteToSupabase, logQuoteAction }) => {
+        const quoteToSave = updatedQuotes.find(q => q.id === quoteId);
+        if (quoteToSave) {
+          // Marcar como edição para registrar no log
+          const quoteDataForSupabase = {
+            ...quoteToSave,
+            isEdit: true,
+            createdBy: getCurrentUser().id,
+            createdByName: getCurrentUser().name
+          };
+          
+          await saveQuoteToSupabase(quoteDataForSupabase);
+        }
+      });
+    } catch (error) {
+      console.error("Erro ao salvar edição no Supabase:", error);
+      // Continuar com sucesso mesmo se falhar no Supabase
+    }
     
     return true;
   };

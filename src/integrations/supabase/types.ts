@@ -126,6 +126,50 @@ export type Database = {
         }
         Relationships: []
       }
+      quote_action_logs: {
+        Row: {
+          action_date: string | null
+          action_type: string
+          deleted_data: Json | null
+          details: Json | null
+          id: string
+          quote_id: string | null
+          quote_title: string | null
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          action_date?: string | null
+          action_type: string
+          deleted_data?: Json | null
+          details?: Json | null
+          id?: string
+          quote_id?: string | null
+          quote_title?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          action_date?: string | null
+          action_type?: string
+          deleted_data?: Json | null
+          details?: Json | null
+          id?: string
+          quote_id?: string | null
+          quote_title?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_action_logs_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quote_status_history: {
         Row: {
           changed_at: string

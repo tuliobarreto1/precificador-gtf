@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
+import { deleteQuoteFromSupabase } from '@/integrations/supabase/services/quotes';
 
 interface QuoteItem {
   id: string;
@@ -49,8 +50,9 @@ interface QuoteTableProps {
 const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [quoteToDelete, setQuoteToDelete] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const quoteContext = useQuote();
-  const { canEditQuote, canDeleteQuote, deleteQuote } = quoteContext || {};
+  const { canEditQuote, canDeleteQuote, deleteQuote, getCurrentUser } = quoteContext || {};
   const { toast } = useToast();
 
   // Garantir que quotes é sempre um array
@@ -59,34 +61,61 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
   // Verificar se as funções necessárias estão disponíveis
   const isQuoteContextAvailable = typeof canEditQuote === 'function' && 
                                  typeof canDeleteQuote === 'function' &&
-                                 typeof deleteQuote === 'function';
+                                 typeof deleteQuote === 'function' &&
+                                 typeof getCurrentUser === 'function';
 
   const handleDeleteClick = (quoteId: string) => {
     setQuoteToDelete(quoteId);
     setDeleteDialogOpen(true);
   };
 
-  const confirmDelete = () => {
-    if (quoteToDelete && isQuoteContextAvailable) {
-      const success = deleteQuote(quoteToDelete);
-      if (success) {
-        toast({
-          title: "Orçamento excluído",
-          description: "O orçamento foi excluído com sucesso."
-        });
-        if (onRefresh) {
-          onRefresh();
+  const confirmDelete = async () => {
+    if (quoteToDelete) {
+      setDeleting(true);
+      try {
+        // Excluir no contexto local
+        const localSuccess = isQuoteContextAvailable ? deleteQuote(quoteToDelete) : true;
+        
+        // Obter informações do usuário atual para o log
+        const currentUser = isQuoteContextAvailable ? getCurrentUser() : null;
+        const userId = currentUser?.id?.toString();
+        const userName = currentUser?.name || 'Usuário';
+        
+        // Excluir no Supabase com registro de log
+        const { success, error } = await deleteQuoteFromSupabase(
+          quoteToDelete,
+          userId,
+          userName
+        );
+        
+        if (success && localSuccess) {
+          toast({
+            title: "Orçamento excluído",
+            description: "O orçamento foi excluído com sucesso e a ação foi registrada."
+          });
+          if (onRefresh) {
+            onRefresh();
+          }
+        } else {
+          toast({
+            title: "Erro ao excluir",
+            description: error?.message || "Não foi possível excluir o orçamento.",
+            variant: "destructive"
+          });
         }
-      } else {
+      } catch (error) {
+        console.error("Erro ao excluir orçamento:", error);
         toast({
           title: "Erro ao excluir",
-          description: "Não foi possível excluir o orçamento.",
+          description: "Ocorreu um erro inesperado ao excluir o orçamento.",
           variant: "destructive"
         });
+      } finally {
+        setDeleting(false);
+        setDeleteDialogOpen(false);
+        setQuoteToDelete(null);
       }
     }
-    setDeleteDialogOpen(false);
-    setQuoteToDelete(null);
   };
 
   const cancelDelete = () => {
@@ -197,6 +226,7 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
                           size="icon" 
                           className="h-8 w-8 text-destructive hover:bg-destructive/10"
                           onClick={() => handleDeleteClick(quote.id)}
+                          disabled={deleting}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -216,15 +246,19 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja excluir este orçamento? Esta ação não pode ser desfeita.
+              <p className="mt-2 text-sm text-muted-foreground">
+                Um registro desta exclusão será salvo no sistema.
+              </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={cancelDelete}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={cancelDelete} disabled={deleting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting}
             >
-              Excluir
+              {deleting ? 'Excluindo...' : 'Excluir'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

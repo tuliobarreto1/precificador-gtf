@@ -22,6 +22,29 @@ export async function saveQuoteToSupabase(quoteData: any) {
     
     // Se houver um veículo vinculado diretamente ao orçamento, criar ou salvar primeiro
     if (quoteData.vehicleId) {
+      // Verificar se o ID do veículo é um UUID válido, se não for, gerar um novo
+      if (!uuidRegex.test(quoteData.vehicleId.toString()) || quoteData.vehicleId.toString().startsWith('new-')) {
+        const oldVehicleId = quoteData.vehicleId;
+        quoteData.vehicleId = uuidv4();
+        console.log("Vehicle ID não é um UUID válido, gerando novo ID:", quoteData.vehicleId);
+        
+        // Também atualizar o ID do veículo nos dados de veículos do orçamento, se existir
+        if (quoteData.vehicles && Array.isArray(quoteData.vehicles)) {
+          quoteData.vehicles = quoteData.vehicles.map((v: any) => {
+            if (v.vehicle && v.vehicle.id === oldVehicleId) {
+              return {
+                ...v,
+                vehicle: {
+                  ...v.vehicle,
+                  id: quoteData.vehicleId
+                }
+              };
+            }
+            return v;
+          });
+        }
+      }
+      
       const vehicleData = {
         id: quoteData.vehicleId,
         brand: quoteData.vehicleBrand || '',
@@ -32,11 +55,6 @@ export async function saveQuoteToSupabase(quoteData: any) {
         is_used: quoteData.vehicleIsUsed || false,
         group_id: quoteData.vehicleGroupId
       };
-      
-      if (!uuidRegex.test(vehicleData.id.toString()) || vehicleData.id.toString().startsWith('new-')) {
-        vehicleData.id = uuidv4();
-        console.log("Vehicle ID não é um UUID válido, gerando novo ID:", vehicleData.id);
-      }
       
       try {
         const { success, data: savedVehicle } = await createOrUpdateVehicle(vehicleData);
@@ -159,9 +177,68 @@ export async function saveQuoteToSupabase(quoteData: any) {
       }
     }
     
+    // Se é uma edição, registrar no log
+    if (quoteData.isEdit) {
+      try {
+        await logQuoteAction(quoteId, 'EDIT', quoteData.createdBy, quoteData.createdByName || 'Usuário', {
+          editDetails: 'Orçamento editado',
+          editDate: new Date().toISOString()
+        });
+      } catch (logError) {
+        console.error("Erro ao registrar log de edição:", logError);
+      }
+    }
+    
     return { success: true, quote: data };
   } catch (error) {
     console.error("Erro inesperado ao salvar orçamento:", error);
+    return { success: false, error };
+  }
+}
+
+// Função para registrar ações nos orçamentos (edição/exclusão)
+export async function logQuoteAction(quoteId: string, actionType: 'EDIT' | 'DELETE', userId?: string, userName?: string, details?: any, deletedData?: any) {
+  try {
+    console.log(`Registrando ${actionType} para o orçamento ${quoteId}`);
+    
+    // Buscar título do orçamento se não estiver nos dados deletados
+    let quoteTitle = '';
+    if (actionType === 'DELETE' && deletedData?.title) {
+      quoteTitle = deletedData.title;
+    } else {
+      const { data } = await supabase
+        .from('quotes')
+        .select('title')
+        .eq('id', quoteId)
+        .single();
+        
+      quoteTitle = data?.title || 'Orçamento sem título';
+    }
+    
+    const logData = {
+      quote_id: quoteId,
+      quote_title: quoteTitle,
+      action_type: actionType,
+      user_id: userId,
+      user_name: userName,
+      action_date: new Date().toISOString(),
+      details: details || {},
+      deleted_data: deletedData || null
+    };
+    
+    const { data, error } = await supabase
+      .from('quote_action_logs')
+      .insert(logData);
+      
+    if (error) {
+      console.error(`Erro ao registrar log de ${actionType}:`, error);
+      return { success: false, error };
+    }
+    
+    console.log(`Log de ${actionType} registrado com sucesso`);
+    return { success: true, data };
+  } catch (error) {
+    console.error(`Erro ao registrar log de ${actionType}:`, error);
     return { success: false, error };
   }
 }
@@ -233,8 +310,26 @@ export async function getQuoteByIdFromSupabase(id: string) {
 }
 
 // Função para deletar um orçamento
-export async function deleteQuoteFromSupabase(id: string) {
+export async function deleteQuoteFromSupabase(id: string, userId?: string, userName?: string) {
   try {
+    // Primeiro, vamos buscar os dados do orçamento para armazenar no log
+    const { data: quoteToDelete } = await supabase
+      .from('quotes')
+      .select('*')
+      .eq('id', id)
+      .single();
+      
+    if (!quoteToDelete) {
+      return { success: false, error: `Orçamento ${id} não encontrado` };
+    }
+    
+    // Excluir os veículos associados ao orçamento
+    await supabase
+      .from('quote_vehicles')
+      .delete()
+      .eq('quote_id', id);
+    
+    // Excluir o orçamento
     const { error } = await supabase
       .from('quotes')
       .delete()
@@ -245,10 +340,42 @@ export async function deleteQuoteFromSupabase(id: string) {
       return { success: false, error };
     }
     
+    // Registrar a exclusão no log
+    await logQuoteAction(id, 'DELETE', userId, userName, {
+      deleteDate: new Date().toISOString(),
+      message: 'Orçamento excluído pelo usuário'
+    }, quoteToDelete);
+    
     console.log(`Orçamento ${id} deletado com sucesso`);
     return { success: true };
   } catch (error) {
     console.error(`Erro inesperado ao deletar orçamento ${id}:`, error);
     return { success: false, error };
+  }
+}
+
+// Função para obter logs de ações nos orçamentos
+export async function getQuoteActionLogs(quoteId?: string) {
+  try {
+    let query = supabase
+      .from('quote_action_logs')
+      .select('*')
+      .order('action_date', { ascending: false });
+      
+    if (quoteId) {
+      query = query.eq('quote_id', quoteId);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error("Erro ao buscar logs de ações:", error);
+      return { success: false, error, logs: [] };
+    }
+    
+    return { success: true, logs: data || [] };
+  } catch (error) {
+    console.error("Erro ao buscar logs de ações:", error);
+    return { success: false, error, logs: [] };
   }
 }
