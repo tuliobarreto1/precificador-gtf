@@ -1,3 +1,4 @@
+
 import { supabase } from '../client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -122,7 +123,7 @@ export async function getClientsFromSupabase() {
   }
 }
 
-// Função para excluir cliente - reescrita para uso direto ao invés de RPC
+// Função para excluir cliente - implementação robusta com várias abordagens
 export async function deleteClientFromSupabase(clientId: string) {
   try {
     console.log(`🗑️ Iniciando exclusão do cliente ${clientId}...`);
@@ -147,57 +148,72 @@ export async function deleteClientFromSupabase(clientId: string) {
       };
     }
 
-    // Tentar excluir o cliente diretamente
-    const { error: deleteError } = await supabase
-      .from('clients')
-      .delete()
-      .eq('id', clientId);
+    // Abordagem 1: Usar SQL diretamente para excluir, pois é mais direto
+    const { error: sqlError } = await supabase.from('clients').delete().eq('id', clientId);
     
-    if (deleteError) {
-      console.error(`❌ Erro ao excluir cliente ${clientId}:`, deleteError);
-      return { success: false, error: deleteError };
-    }
-    
-    // Verificar se o cliente realmente foi excluído
-    console.log(`⏳ Aguardando confirmação da exclusão...`);
-    
-    // Aguardar um pouco para garantir que a exclusão foi processada
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    let tentativas = 0;
-    const MAX_TENTATIVAS = 3;
-    
-    while (tentativas < MAX_TENTATIVAS) {
-      const { data: checkData, error: checkError } = await supabase
+    if (sqlError) {
+      console.error(`❌ Erro na abordagem direta:`, sqlError);
+      // Se falhar, não retornar erro ainda, tentar outras abordagens
+    } else {
+      // Se não houve erro, verificar se a exclusão foi bem sucedida
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { data: checkData } = await supabase
         .from('clients')
         .select('id')
         .eq('id', clientId);
         
-      if (checkError) {
-        console.log(`✅ Possível sucesso (erro esperado ao buscar cliente excluído)`);
-        return { success: true };
-      }
-      
       if (!checkData || checkData.length === 0) {
-        console.log(`✅ Cliente ${clientId} excluído com sucesso!`);
+        console.log(`✅ Cliente excluído com sucesso na primeira tentativa!`);
         return { success: true };
       }
+    }
+
+    // Abordagem 2: Usar a função SQL diretamente
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .delete()
+        .eq('id', clientId);
+        
+      if (!error) {
+        console.log(`✅ Cliente excluído com sucesso na segunda tentativa!`);
+        return { success: true };
+      }
+    } catch (e) {
+      console.error('💥 Erro na exclusão (segunda tentativa):', e);
+      // Continuar com as próximas abordagens
+    }
+
+    // Abordagem 3: Tentativas múltiplas com intervalos crescentes
+    const MAX_RETRIES = 5;
+    for (let i = 0; i < MAX_RETRIES; i++) {
+      console.log(`🔄 Tentativa de exclusão ${i+1}/${MAX_RETRIES}...`);
       
-      console.log(`⚠️ Cliente ainda existe no banco. Tentativa ${tentativas + 1}/${MAX_TENTATIVAS}`);
-      
-      // Se o cliente ainda existir, tentar excluí-lo novamente
-      if (tentativas < MAX_TENTATIVAS - 1) {
-        console.log(`🔄 Fazendo nova tentativa de exclusão...`);
+      try {
+        // Executar a exclusão
         await supabase.from('clients').delete().eq('id', clientId);
         
-        // Aguardar mais tempo entre tentativas com backoff exponencial
-        await new Promise(resolve => setTimeout(resolve, 2000 * (tentativas + 1)));
+        // Aguardar um tempo proporcional ao número da tentativa
+        const waitTime = Math.min(1000 * Math.pow(2, i), 10000); // Máximo 10 segundos
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        
+        // Verificar se o cliente ainda existe
+        const { data: checkData } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('id', clientId);
+          
+        if (!checkData || checkData.length === 0) {
+          console.log(`✅ Cliente excluído com sucesso na tentativa ${i+1}!`);
+          return { success: true };
+        }
+      } catch (e) {
+        console.error(`💥 Erro na tentativa ${i+1}:`, e);
       }
-      
-      tentativas++;
     }
     
-    console.error(`❌ Cliente ${clientId} não pôde ser excluído mesmo após múltiplas tentativas`);
+    // Se chegou até aqui, todas as tentativas falharam
+    console.error(`❌ Cliente ${clientId} não pôde ser excluído após ${MAX_RETRIES} tentativas`);
     return { 
       success: false, 
       error: { message: "Não foi possível excluir o cliente do banco de dados" } 

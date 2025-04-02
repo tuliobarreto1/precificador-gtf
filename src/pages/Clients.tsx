@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Plus, Search, Edit, Trash2, AlertCircle } from 'lucide-react';
+import { User, Plus, Search, Edit, Trash2, AlertCircle, Loader2 } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import { Button } from '@/components/ui/button';
@@ -54,6 +55,7 @@ const Clients = () => {
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+  const [alertDialogOpen, setAlertDialogOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -114,7 +116,21 @@ const Clients = () => {
       
       if (!success) {
         console.error('❌ Erro retornado pelo serviço:', error);
-        throw error;
+        
+        if (error?.message?.includes("vinculado a orçamentos")) {
+          toast({
+            title: "Exclusão não permitida",
+            description: "Este cliente está vinculado a orçamentos e não pode ser excluído.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Erro ao excluir",
+            description: error?.message || "Não foi possível excluir o cliente.",
+            variant: "destructive",
+          });
+        }
+        return;
       }
 
       setClients(clients.filter(client => client.id !== clientToDelete.id));
@@ -134,6 +150,7 @@ const Clients = () => {
     } finally {
       setIsDeleting(false);
       setClientToDelete(null);
+      setAlertDialogOpen(false);
     }
   };
 
@@ -152,6 +169,11 @@ const Clients = () => {
       .slice(0, 2)
       .join('')
       .toUpperCase();
+  };
+
+  const confirmDelete = (client: Client) => {
+    setClientToDelete(client);
+    setAlertDialogOpen(true);
   };
 
   return (
@@ -266,44 +288,15 @@ const Clients = () => {
                               Editar
                             </Button>
                             
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  className="text-destructive hover:text-destructive"
-                                  onClick={() => setClientToDelete(client)}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Excluir
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Excluir cliente</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Tem certeza que deseja excluir o cliente <strong>{clientToDelete?.name}</strong>?
-                                    <div className="mt-2 flex items-center p-3 bg-amber-50 text-amber-800 rounded-md">
-                                      <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
-                                      <span>Esta ação não poderá ser desfeita.</span>
-                                    </div>
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction 
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      handleDelete();
-                                    }}
-                                    disabled={isDeleting}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
-                                    {isDeleting ? 'Excluindo...' : 'Sim, excluir'}
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => confirmDelete(client)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Excluir
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -315,6 +308,42 @@ const Clients = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Dialog de confirmação de exclusão */}
+      <AlertDialog open={alertDialogOpen} onOpenChange={setAlertDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir cliente</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o cliente <strong>{clientToDelete?.name}</strong>?
+              <div className="mt-2 flex items-center p-3 bg-amber-50 text-amber-800 rounded-md">
+                <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+                <span>Esta ação não poderá ser desfeita.</span>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting} onClick={() => setAlertDialogOpen(false)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                handleDelete();
+              }}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Excluindo...
+                </>
+              ) : 'Sim, excluir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 };
