@@ -103,6 +103,25 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
     setQuoteToDelete(null);
   };
 
+  // Validar status antes de passar para o componente StatusBadge
+  const validateStatus = (status: string): QuoteStatusFlow => {
+    // Lista dos status válidos (os que estão definidos em statusInfo)
+    const validStatuses: QuoteStatusFlow[] = [
+      'ORCAMENTO', 'PROPOSTA_GERADA', 'EM_VERIFICACAO', 'APROVADA',
+      'CONTRATO_GERADO', 'ASSINATURA_CLIENTE', 'ASSINATURA_DIRETORIA',
+      'AGENDAMENTO_ENTREGA', 'ENTREGA', 'CONCLUIDO', 'draft'
+    ];
+    
+    // Verificar se o status está na lista de status válidos
+    if (validStatuses.includes(status as QuoteStatusFlow)) {
+      return status as QuoteStatusFlow;
+    }
+    
+    // Status padrão para valores inválidos
+    console.warn(`Status inválido detectado: ${status}. Usando 'ORCAMENTO' como fallback.`);
+    return 'ORCAMENTO';
+  };
+
   return (
     <>
       <div className="overflow-x-auto">
@@ -141,9 +160,9 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
                   createdBy: quote.createdBy ? {
                     id: quote.createdBy.id,
                     name: quote.createdBy.name,
-                    role: quote.createdBy.role as any, // Convertendo explicitamente 
+                    role: quote.createdBy.role as any,
                     email: '',
-                    status: 'active' as 'active' | 'inactive', // Definindo o status explicitamente
+                    status: 'active' as 'active' | 'inactive',
                     lastLogin: ''
                   } : undefined,
                   vehicles: [],
@@ -162,6 +181,9 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
                 
                 const isEditable = quote.status === 'ORCAMENTO' || quote.status === 'draft';
                 
+                // Validar o status antes de passar para o StatusBadge
+                const validatedStatus = validateStatus(quote.status || 'ORCAMENTO');
+                
                 return (
                   <TableRow key={`${quote.source}-${quote.id}`}>
                     <TableCell>
@@ -176,7 +198,7 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
                       R$ {Number(quote.value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell>
-                      <StatusBadge status={(quote.status || 'ORCAMENTO') as QuoteStatusFlow} size="sm" />
+                      <StatusBadge status={validatedStatus} size="sm" />
                     </TableCell>
                     <TableCell>
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${

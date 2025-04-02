@@ -10,7 +10,8 @@ export type QuoteStatusFlow =
   | 'ASSINATURA_DIRETORIA' 
   | 'AGENDAMENTO_ENTREGA' 
   | 'ENTREGA' 
-  | 'CONCLUIDO';
+  | 'CONCLUIDO'
+  | 'draft'; // Adicionando 'draft' como possível status para compatibilidade
 
 // Definição do item de histórico de status
 export interface StatusHistoryItem {
@@ -35,7 +36,8 @@ export const allStatus: QuoteStatusFlow[] = [
   'ASSINATURA_DIRETORIA',
   'AGENDAMENTO_ENTREGA',
   'ENTREGA',
-  'CONCLUIDO'
+  'CONCLUIDO',
+  'draft'
 ];
 
 // Função para calcular o progresso baseado no status atual
@@ -94,7 +96,7 @@ export const statusInfo: Record<QuoteStatusFlow, {
     shortLabel: 'Verificação',
     description: 'Proposta em análise pelo cliente',
     color: 'bg-purple-100 text-purple-800',
-    icon: 'Search',
+    icon: 'ClipboardCheck',
     step: 3,
     progressColor: 'bg-purple-500'
   },
@@ -121,7 +123,7 @@ export const statusInfo: Record<QuoteStatusFlow, {
     shortLabel: 'Ass. Cliente',
     description: 'Aguardando assinatura do cliente',
     color: 'bg-amber-100 text-amber-800',
-    icon: 'PenTool',
+    icon: 'FileSignature',
     step: 6,
     progressColor: 'bg-amber-500'
   },
@@ -130,7 +132,7 @@ export const statusInfo: Record<QuoteStatusFlow, {
     shortLabel: 'Ass. Diretoria',
     description: 'Aguardando assinatura da diretoria',
     color: 'bg-orange-100 text-orange-800',
-    icon: 'Stamp',
+    icon: 'FileSignature',
     step: 7,
     progressColor: 'bg-orange-500'
   },
@@ -139,7 +141,7 @@ export const statusInfo: Record<QuoteStatusFlow, {
     shortLabel: 'Agendamento',
     description: 'Entrega sendo agendada com o cliente',
     color: 'bg-rose-100 text-rose-800',
-    icon: 'Calendar',
+    icon: 'CalendarRange',
     step: 8,
     progressColor: 'bg-rose-500'
   },
@@ -148,7 +150,7 @@ export const statusInfo: Record<QuoteStatusFlow, {
     shortLabel: 'Entrega',
     description: 'Veículos em processo de entrega',
     color: 'bg-pink-100 text-pink-800',
-    icon: 'Truck',
+    icon: 'Car',
     step: 9,
     progressColor: 'bg-pink-500'
   },
@@ -157,8 +159,18 @@ export const statusInfo: Record<QuoteStatusFlow, {
     shortLabel: 'Concluído',
     description: 'Processo concluído com sucesso',
     color: 'bg-emerald-100 text-emerald-800',
-    icon: 'CheckSquare',
+    icon: 'CheckCircle',
     step: 10,
     progressColor: 'bg-emerald-500'
+  },
+  // Adicionando status 'draft' para compatibilidade com orçamentos salvos localmente
+  'draft': {
+    label: 'Rascunho',
+    shortLabel: 'Rascunho',
+    description: 'Orçamento em estado de rascunho',
+    color: 'bg-gray-100 text-gray-800',
+    icon: 'FileEdit',
+    step: 0,
+    progressColor: 'bg-gray-500'
   }
 };
