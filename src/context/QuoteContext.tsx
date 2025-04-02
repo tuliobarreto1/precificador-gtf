@@ -651,11 +651,33 @@ export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       import('@/integrations/supabase/services/quotes').then(async ({ saveQuoteToSupabase }) => {
         console.log('📤 Iniciando salvamento no Supabase...');
-        // Passar o objeto cliente completo para a função de salvamento
-        const result = await saveQuoteToSupabase({
+        
+        // Preparar os dados completos para o salvamento
+        const quoteDataForSupabase = {
           ...newSavedQuote,
-          client: quoteForm.client // Adicionar cliente aqui
-        });
+          client: quoteForm.client,
+          // Incluir os detalhes completos dos veículos para garantir que todos os dados necessários estejam disponíveis
+          vehicles: quoteForm.vehicles.map((vehicleItem, index) => {
+            const result = quoteResult.vehicleResults.find(r => r.vehicleId === vehicleItem.vehicle.id);
+            return {
+              vehicle: vehicleItem.vehicle,
+              vehicleId: vehicleItem.vehicle.id,
+              vehicleGroup: vehicleItem.vehicleGroup,
+              totalCost: result?.totalCost || 0,
+              depreciationCost: result?.depreciationCost || 0,
+              maintenanceCost: result?.maintenanceCost || 0,
+              extraKmRate: result?.extraKmRate || 0,
+              monthly_value: result?.totalCost || 0,
+              contract_months: quoteForm.globalParams.contractMonths,
+              monthly_km: quoteForm.globalParams.monthlyKm,
+              operation_severity: quoteForm.globalParams.operationSeverity,
+              has_tracking: quoteForm.globalParams.hasTracking
+            };
+          })
+        };
+        
+        const result = await saveQuoteToSupabase(quoteDataForSupabase);
+        
         if (result.success && result.quote && result.quote.id) {
           console.log('✅ Orçamento salvo no Supabase com sucesso!', result.quote);
           

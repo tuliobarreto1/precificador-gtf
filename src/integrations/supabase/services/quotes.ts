@@ -17,13 +17,21 @@ export async function saveQuoteToSupabase(quoteData: any) {
       console.log("ID não é um UUID válido, gerando novo ID:", quoteId);
     }
     
+    // Verificar e gerar um UUID válido para o vehicleId
+    let vehicleId = quoteData.vehicleId;
+    if (!vehicleId || !uuidRegex.test(vehicleId.toString()) || vehicleId.toString().startsWith('new-')) {
+      // Se for um ID temporário, gerar um novo
+      vehicleId = uuidv4();
+      console.log("Vehicle ID não é um UUID válido, gerando novo ID:", vehicleId);
+    }
+    
     // Validar e certificar que campos críticos são do tipo correto
     // Certifique-se de que os IDs estão no formato apropriado para UUID
     const quoteToSave = {
       id: quoteId,
       title: quoteData.title || `Orçamento ${new Date().toLocaleDateString()}`,
       client_id: typeof quoteData.clientId === 'object' ? null : quoteData.clientId,
-      vehicle_id: typeof quoteData.vehicleId === 'object' ? null : quoteData.vehicleId,
+      vehicle_id: vehicleId, // Usar o UUID válido gerado
       contract_months: quoteData.contractMonths || 12,
       monthly_km: quoteData.monthlyKm || 2000,
       operation_severity: quoteData.operationSeverity || 3,
@@ -55,19 +63,44 @@ export async function saveQuoteToSupabase(quoteData: any) {
     // Se temos veículos para salvar no orçamento
     if (quoteData.vehicles && Array.isArray(quoteData.vehicles) && quoteData.vehicles.length > 0) {
       try {
-        // Importar a função de adicionar veículo ao orçamento
-        const { addVehicleToQuote } = await import('../client');
+        console.log(`Processando ${quoteData.vehicles.length} veículos para o orçamento`);
         
         // Adicionar cada veículo ao orçamento
         for (const vehicle of quoteData.vehicles) {
-          await addVehicleToQuote(quoteId, {
-            ...vehicle,
-            monthly_value: vehicle.totalCost || 0,
+          // Verificar se o ID do veículo é válido ou se precisa gerar um novo
+          let validVehicleId = vehicle.vehicleId || vehicle.vehicle?.id;
+          
+          if (!validVehicleId || !uuidRegex.test(validVehicleId.toString()) || validVehicleId.toString().startsWith('new-')) {
+            validVehicleId = uuidv4();
+            console.log("ID de veículo inválido, gerando novo:", validVehicleId);
+          }
+          
+          // Preparar os dados do veículo com ID válido
+          const vehicleDataToSave = {
+            quote_id: quoteId,
+            vehicle_id: validVehicleId,
+            monthly_value: vehicle.monthly_value || vehicle.totalCost || 0,
             monthly_km: quoteData.monthlyKm || 2000,
             contract_months: quoteData.contractMonths || 12,
             operation_severity: quoteData.operationSeverity || 3,
-            has_tracking: quoteData.hasTracking || false
-          });
+            has_tracking: quoteData.hasTracking || false,
+            depreciation_cost: vehicle.depreciation_cost || vehicle.depreciationCost || 0,
+            maintenance_cost: vehicle.maintenance_cost || vehicle.maintenanceCost || 0,
+            extra_km_rate: vehicle.extra_km_rate || vehicle.extraKmRate || 0,
+            total_cost: vehicle.total_cost || vehicle.totalCost || 0
+          };
+          
+          console.log(`Adicionando veículo ao orçamento:`, vehicleDataToSave);
+          
+          const { error: addVehicleError } = await supabase
+            .from('quote_vehicles')
+            .upsert(vehicleDataToSave);
+            
+          if (addVehicleError) {
+            console.error(`Erro ao adicionar veículo ${validVehicleId} ao orçamento:`, addVehicleError);
+          } else {
+            console.log(`Veículo ${validVehicleId} adicionado com sucesso ao orçamento ${quoteId}`);
+          }
         }
         console.log("Veículos adicionados ao orçamento com sucesso");
       } catch (vehicleError) {
