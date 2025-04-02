@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, Plus, Search, Edit, Trash2, AlertCircle } from 'lucide-react';
@@ -32,7 +33,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
+import { deleteClientFromSupabase, getClientsFromSupabase } from '@/integrations/supabase/services/clients';
 import { useToast } from '@/hooks/use-toast';
 
 type Client = {
@@ -79,19 +80,14 @@ const Clients = () => {
   const fetchClients = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .order('name', { ascending: true });
+      const { success, clients: fetchedClients, error } = await getClientsFromSupabase();
 
-      if (error) {
+      if (!success) {
         throw error;
       }
 
-      if (data) {
-        setClients(data);
-        setFilteredClients(data);
-      }
+      setClients(fetchedClients);
+      setFilteredClients(fetchedClients);
     } catch (error: any) {
       console.error('Erro ao buscar clientes:', error.message);
       toast({
@@ -113,45 +109,28 @@ const Clients = () => {
     
     try {
       setIsDeleting(true);
+      console.log(`🗑️ Tentando excluir cliente: ${clientToDelete.id}`);
       
-      // Verificar se o cliente está em uso em algum orçamento
-      const { data: quotesData, error: quotesError } = await supabase
-        .from('quotes')
-        .select('id')
-        .eq('client_id', clientToDelete.id)
-        .limit(1);
-        
-      if (quotesError) throw quotesError;
+      const { success, error } = await deleteClientFromSupabase(clientToDelete.id);
       
-      if (quotesData && quotesData.length > 0) {
-        toast({
-          title: "Não é possível excluir",
-          description: "Este cliente está vinculado a orçamentos e não pode ser excluído.",
-          variant: "destructive",
-        });
-        return;
+      if (!success) {
+        console.error('❌ Erro retornado pelo serviço:', error);
+        throw error;
       }
-      
-      // Se não estiver em uso, proceder com a exclusão
-      const { error } = await supabase
-        .from('clients')
-        .delete()
-        .eq('id', clientToDelete.id);
 
-      if (error) throw error;
-
-      // Atualizar a lista de clientes
+      // Atualizar a lista de clientes localmente após confirmação de exclusão no banco
       setClients(clients.filter(client => client.id !== clientToDelete.id));
+      setFilteredClients(filteredClients.filter(client => client.id !== clientToDelete.id));
       
       toast({
         title: "Cliente excluído",
         description: "O cliente foi excluído com sucesso.",
       });
     } catch (error: any) {
-      console.error('Erro ao excluir cliente:', error.message);
+      console.error('Erro ao excluir cliente:', error);
       toast({
         title: "Erro ao excluir",
-        description: error.message || "Não foi possível excluir o cliente.",
+        description: error?.message || "Não foi possível excluir o cliente.",
         variant: "destructive",
       });
     } finally {

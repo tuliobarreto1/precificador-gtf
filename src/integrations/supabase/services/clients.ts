@@ -130,6 +130,64 @@ export async function getClientsFromSupabase() {
   }
 }
 
+// Função para excluir cliente
+export async function deleteClientFromSupabase(clientId: string) {
+  try {
+    console.log(`🗑️ Iniciando exclusão do cliente ${clientId}...`);
+    
+    // Verificar se o cliente está em uso em algum orçamento
+    const { data: quotesData, error: quotesError } = await supabase
+      .from('quotes')
+      .select('id')
+      .eq('client_id', clientId)
+      .limit(1);
+      
+    if (quotesError) {
+      console.error('❌ Erro ao verificar orçamentos vinculados:', quotesError);
+      return { success: false, error: quotesError };
+    }
+    
+    if (quotesData && quotesData.length > 0) {
+      console.log('⚠️ Cliente não pode ser excluído - vinculado a orçamentos');
+      return { 
+        success: false, 
+        error: { message: "Este cliente está vinculado a orçamentos e não pode ser excluído." } 
+      };
+    }
+    
+    // Se não estiver em uso, proceder com a exclusão
+    const { error } = await supabase
+      .from('clients')
+      .delete()
+      .eq('id', clientId);
+
+    if (error) {
+      console.error(`❌ Erro ao excluir cliente ${clientId}:`, error);
+      return { success: false, error };
+    }
+    
+    // Verificar se o cliente foi realmente excluído
+    const { data: checkData } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('id', clientId);
+      
+    if (checkData && checkData.length > 0) {
+      console.error(`❌ Cliente ${clientId} ainda existe no banco após tentativa de exclusão`);
+      return { 
+        success: false, 
+        error: { message: "Falha ao excluir o cliente do banco de dados" } 
+      };
+    }
+    
+    console.log(`✅ Cliente ${clientId} excluído com sucesso!`);
+    return { success: true };
+  } catch (error) {
+    console.error(`❌ Erro inesperado ao excluir cliente ${clientId}:`, error);
+    return { success: false, error };
+  }
+}
+
 // Função para atualizar cliente
 export async function updateClientInSupabase(clientId: string, updates: any) {
   try {
