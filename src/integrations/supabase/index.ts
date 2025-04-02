@@ -1,42 +1,7 @@
+export * from './services/auth';
+export * from './services/clients';
+export * from './services/settings';
+export * from './services/users';
 
-// Central exports for Supabase services
-import { supabase, checkSupabaseConnection } from './client';
-import { getVehiclesFromSupabase, createOrUpdateVehicle, findVehicleByPlate, findVehicleByBrandModel, getAllVehicles, getVehiclesFromLocavia } from './services/vehicles';
-import { saveClientToSupabase, getClientByDocument, getClientsFromSupabase } from './services/clients';
-import { saveQuoteToSupabase, getQuotesFromSupabase, getQuoteByIdFromSupabase, deleteQuoteFromSupabase, getQuoteActionLogs } from './services/quotes';
-import { getQuoteVehicles, addVehicleToQuote } from './services/quoteVehicles';
-import { getVehicleGroups, getVehicleGroupById } from './services/vehicleGroups';
-
-export {
-  // Core
-  supabase,
-  checkSupabaseConnection,
-  
-  // Vehicles
-  getVehiclesFromSupabase,
-  createOrUpdateVehicle,
-  findVehicleByPlate,
-  findVehicleByBrandModel,
-  getAllVehicles,
-  getVehiclesFromLocavia,
-  
-  // Vehicle Groups
-  getVehicleGroups,
-  getVehicleGroupById,
-  
-  // Clients
-  saveClientToSupabase,
-  getClientByDocument,
-  getClientsFromSupabase,
-  
-  // Quotes
-  saveQuoteToSupabase,
-  getQuotesFromSupabase,
-  getQuoteByIdFromSupabase,
-  deleteQuoteFromSupabase,
-  getQuoteActionLogs,
-  
-  // Quote Vehicles
-  getQuoteVehicles,
-  addVehicleToQuote
-};
+// Exportação da função getQuoteActionLogs
+export { getQuoteActionLogs } from './services/quotes';

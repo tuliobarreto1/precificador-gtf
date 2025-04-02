@@ -13,7 +13,6 @@ import {
   TableRow
 } from '@/components/ui/table';
 import { Edit, Trash2 } from 'lucide-react';
-import { useQuote, UserRole } from '@/context/QuoteContext';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,18 +50,10 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [quoteToDelete, setQuoteToDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const quoteContext = useQuote();
-  const { canEditQuote, canDeleteQuote, deleteQuote, getCurrentUser } = quoteContext || {};
   const { toast } = useToast();
 
   // Garantir que quotes é sempre um array
   const safeQuotes = Array.isArray(quotes) ? quotes : [];
-
-  // Verificar se as funções necessárias estão disponíveis
-  const isQuoteContextAvailable = typeof canEditQuote === 'function' && 
-                                 typeof canDeleteQuote === 'function' &&
-                                 typeof deleteQuote === 'function' &&
-                                 typeof getCurrentUser === 'function';
 
   const handleDeleteClick = (quoteId: string) => {
     setQuoteToDelete(quoteId);
@@ -73,13 +64,9 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
     if (quoteToDelete) {
       setDeleting(true);
       try {
-        // Excluir no contexto local
-        const localSuccess = isQuoteContextAvailable ? deleteQuote(quoteToDelete) : true;
-        
-        // Obter informações do usuário atual para o log
-        const currentUser = isQuoteContextAvailable ? getCurrentUser() : null;
-        const userId = currentUser?.id?.toString();
-        const userName = currentUser?.name || 'Usuário';
+        // Informações do usuário para o log (simplificado)
+        const userId = "sistema";
+        const userName = "Sistema";
         
         // Excluir no Supabase com registro de log
         const { success, error } = await deleteQuoteFromSupabase(
@@ -88,7 +75,7 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
           userName
         );
         
-        if (success && localSuccess) {
+        if (success) {
           toast({
             title: "Orçamento excluído",
             description: "O orçamento foi excluído com sucesso e a ação foi registrada."
@@ -123,6 +110,17 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
     setQuoteToDelete(null);
   };
 
+  // Função simplificada para verificação de permissões
+  const canEdit = (quote: QuoteItem) => {
+    // Por padrão, permitir editar orçamentos que estão em progresso
+    return quote.status === 'ORCAMENTO' || quote.status === 'draft';
+  };
+  
+  const canDelete = (quote: QuoteItem) => {
+    // Por padrão, permitir excluir qualquer orçamento
+    return true;
+  };
+
   return (
     <>
       <div className="overflow-x-auto">
@@ -146,41 +144,8 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
               </TableRow>
             ) : (
               safeQuotes.map((quote) => {
-                // Converter o objeto quote para um formato compatível com as funções canEditQuote e canDeleteQuote
-                const quoteForPermissionCheck = {
-                  id: quote.id,
-                  clientId: '',
-                  clientName: quote.clientName || '',
-                  vehicleId: '',
-                  vehicleBrand: '',
-                  vehicleModel: '',
-                  contractMonths: 0,
-                  monthlyKm: 0,
-                  totalCost: quote.value || 0,
-                  createdAt: quote.createdAt || '',
-                  createdBy: quote.createdBy ? {
-                    id: quote.createdBy.id,
-                    name: quote.createdBy.name,
-                    role: quote.createdBy.role as UserRole, // Convertendo explicitamente para UserRole
-                    email: '',
-                    status: 'active' as 'active' | 'inactive', // Definindo o status explicitamente
-                    lastLogin: ''
-                  } : undefined,
-                  vehicles: [],
-                  source: quote.source || 'local',
-                  status: quote.status || 'ORCAMENTO'
-                };
-                
-                // Valores padrão caso o contexto não esteja disponível
-                let canEdit = false;
-                let canDelete = false;
-                
-                if (isQuoteContextAvailable) {
-                  canEdit = canEditQuote(quoteForPermissionCheck);
-                  canDelete = canDeleteQuote(quoteForPermissionCheck);
-                }
-                
-                const isEditable = quote.status === 'ORCAMENTO' || quote.status === 'draft';
+                const isEditable = canEdit(quote);
+                const isDeletable = canDelete(quote);
                 
                 return (
                   <TableRow key={`${quote.source}-${quote.id}`}>
@@ -212,7 +177,7 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
                         <Button variant="link" size="sm">Ver</Button>
                       </Link>
                       
-                      {canEdit && isEditable && (
+                      {isEditable && (
                         <Link to={`/editar-orcamento/${quote.id}`}>
                           <Button variant="outline" size="icon" className="h-8 w-8">
                             <Edit className="h-4 w-4" />
@@ -220,7 +185,7 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
                         </Link>
                       )}
                       
-                      {canDelete && (
+                      {isDeletable && (
                         <Button 
                           variant="outline" 
                           size="icon" 
