@@ -130,7 +130,7 @@ export async function getClientsFromSupabase() {
   }
 }
 
-// Função para excluir cliente - CORRIGIDA
+// Função para excluir cliente - CORRIGIDA E MELHORADA
 export async function deleteClientFromSupabase(clientId: string) {
   try {
     console.log(`🗑️ Iniciando exclusão do cliente ${clientId}...`);
@@ -166,9 +166,11 @@ export async function deleteClientFromSupabase(clientId: string) {
       return { success: false, error };
     }
     
-    // Verificar se o cliente foi realmente excluído - com pequeno delay para garantir que a operação foi concluída
-    // pois às vezes o Supabase leva um tempo para refletir a exclusão
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Aumento do tempo de espera para 1.5 segundos para garantir que a operação foi concluída
+    console.log(`⏳ Aguardando confirmação da exclusão...`);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Verificar se o cliente foi realmente excluído
     const { data: checkData, error: checkError } = await supabase
       .from('clients')
       .select('id')
@@ -179,12 +181,40 @@ export async function deleteClientFromSupabase(clientId: string) {
       return { success: false, error: checkError };
     }
     
+    // Dupla verificação para garantir que o cliente foi excluído
     if (checkData && checkData.length > 0) {
       console.error(`❌ Cliente ${clientId} ainda existe no banco após tentativa de exclusão`);
-      return { 
-        success: false, 
-        error: { message: "Falha ao excluir o cliente do banco de dados" } 
-      };
+      
+      // Tentativa adicional de exclusão
+      console.log(`🔄 Fazendo nova tentativa de exclusão...`);
+      const { error: retryError } = await supabase
+        .from('clients')
+        .delete()
+        .eq('id', clientId);
+        
+      if (retryError) {
+        console.error(`❌ Erro na segunda tentativa:`, retryError);
+        return { 
+          success: false, 
+          error: { message: "Falha ao excluir o cliente do banco de dados após múltiplas tentativas" } 
+        };
+      }
+      
+      // Esperar um pouco mais e verificar novamente
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      const { data: finalCheck } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('id', clientId);
+        
+      if (finalCheck && finalCheck.length > 0) {
+        console.error(`❌ Cliente ${clientId} não pôde ser excluído mesmo após múltiplas tentativas`);
+        return { 
+          success: false, 
+          error: { message: "Não foi possível excluir o cliente do banco de dados" } 
+        };
+      }
     }
     
     console.log(`✅ Cliente ${clientId} excluído com sucesso!`);
