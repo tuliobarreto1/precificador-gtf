@@ -23,7 +23,7 @@ import StatusHistory from '@/components/status/StatusHistory';
 import StatusFlow from '@/components/status/StatusFlow';
 import { useQuote } from '@/context/QuoteContext';
 
-// Adicione este componente EmailDialog no início do arquivo, após as importações
+// Componente EmailDialog
 const EmailDialog = ({ quoteId }: { quoteId: string }) => {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
@@ -41,16 +41,31 @@ const EmailDialog = ({ quoteId }: { quoteId: string }) => {
       return;
     }
 
-    const success = await sendQuoteByEmail(quoteId, email, message);
-    
-    if (success) {
+    try {
+      const success = await sendQuoteByEmail(quoteId, email, message);
+      
+      if (success) {
+        toast({
+          title: "E-mail enviado",
+          description: "Orçamento enviado com sucesso"
+        });
+        setDialogOpen(false);
+        setEmail('');
+        setMessage('');
+      } else {
+        toast({
+          title: "Erro ao enviar",
+          description: "Não foi possível enviar o e-mail. Tente novamente.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao enviar e-mail:", error);
       toast({
-        title: "E-mail enviado",
-        description: "Orçamento enviado com sucesso"
+        title: "Erro inesperado",
+        description: "Ocorreu um erro ao tentar enviar o e-mail.",
+        variant: "destructive"
       });
-      setDialogOpen(false);
-      setEmail('');
-      setMessage('');
     }
   };
 
@@ -127,7 +142,7 @@ const EmailDialog = ({ quoteId }: { quoteId: string }) => {
 };
 
 // Interface ampliada para lidar com a estrutura do Supabase
-interface SupabaseQuote extends Quote {
+interface SupabaseQuote extends Omit<Quote, 'vehicles'> {
   title?: string;
   name?: string;
   created_at: string;

@@ -1,161 +1,140 @@
 
 import { useState } from 'react';
+import { QuoteFormData, VehicleQuoteResult } from '../context/types/quoteTypes';
+import { calculateVehicleCosts } from '../lib/calculation';
 import { supabase } from '@/integrations/supabase/client';
-import { QuoteFormData, VehicleQuoteResult } from '@/context/types/quoteTypes';
-import { calculateDepreciationSync, calculateMaintenanceSync, getGlobalParamsSync } from '@/lib/calculation';
-import { useToast } from './use-toast';
-import { useQuoteUsers } from './useQuoteUsers';
 
 export function useQuoteCalculation(quoteForm: QuoteFormData) {
   const [sendingEmail, setSendingEmail] = useState(false);
-  const { toast } = useToast();
-  const { getCurrentUser } = useQuoteUsers();
 
-  // Calcular orçamento para todos os veículos
+  // Função para calcular o orçamento
   const calculateQuote = () => {
-    if (quoteForm.vehicles.length === 0 || !quoteForm.client) return null;
+    if (quoteForm.vehicles.length === 0) {
+      return null;
+    }
 
-    let vehicleResults: VehicleQuoteResult[] = [];
+    const vehicleResults: VehicleQuoteResult[] = [];
     let totalCost = 0;
 
-    // Obter o custo de rastreamento dos parâmetros globais
-    const globalParams = getGlobalParamsSync();
-    const trackingCost = globalParams.trackingCost;
+    for (const item of quoteForm.vehicles) {
+      const params = quoteForm.useGlobalParams
+        ? quoteForm.globalParams
+        : item.params || quoteForm.globalParams;
 
-    // Calcular para cada veículo
-    quoteForm.vehicles.forEach(item => {
-      // Usar parâmetros individuais ou globais conforme a configuração
-      const params = item.params && !quoteForm.useGlobalParams
-        ? item.params
-        : quoteForm.globalParams;
-
-      // Calcular custos
-      const depreciationCost = calculateDepreciationSync({
-        vehicleValue: item.vehicle.value,
+      const result = calculateVehicleCosts({
+        vehicle: item.vehicle,
+        vehicleGroup: item.vehicleGroup,
         contractMonths: params.contractMonths,
         monthlyKm: params.monthlyKm,
-        operationSeverity: params.operationSeverity
-      });
-
-      const maintenanceCost = calculateMaintenanceSync({
-        vehicleGroup: item.vehicleGroup.id,
-        contractMonths: params.contractMonths,
-        monthlyKm: params.monthlyKm,
+        operationSeverity: params.operationSeverity,
         hasTracking: params.hasTracking
       });
 
-      // Determinar o custo de rastreamento
-      const currentTrackingCost = params.hasTracking ? trackingCost : 0;
-
-      const totalVehicleCost = depreciationCost + maintenanceCost;
-      
-      // Taxa KM excedente (20% a mais que o custo por KM)
-      const costPerKm = totalVehicleCost / (params.monthlyKm * params.contractMonths);
-      const extraKmRate = costPerKm * 1.2;
-
-      // Adicionar resultado deste veículo
       vehicleResults.push({
         vehicleId: item.vehicle.id,
-        depreciationCost,
-        maintenanceCost,
-        trackingCost: currentTrackingCost,
-        totalCost: totalVehicleCost,
-        costPerKm,
-        extraKmRate
+        depreciationCost: result.depreciationCost,
+        maintenanceCost: result.maintenanceCost,
+        trackingCost: result.trackingCost,
+        totalCost: result.totalCost,
+        costPerKm: result.costPerKm,
+        extraKmRate: result.extraKmRate
       });
 
-      totalCost += totalVehicleCost;
-    });
+      totalCost += result.totalCost;
+    }
 
-    return { vehicleResults, totalCost };
+    return {
+      vehicleResults,
+      totalCost
+    };
   };
 
-  // Função para enviar orçamento por email
-  const sendQuoteByEmail = async (quoteId: string, email: string, message: string): Promise<boolean> => {
-    setSendingEmail(true);
-    
+  // Função para enviar orçamento por e-mail
+  const sendQuoteByEmail = async (quoteId: string, recipientEmail: string, message: string): Promise<boolean> => {
     try {
-      console.log('Enviando orçamento por email:', { quoteId, email, message });
-      
-      // Buscar detalhes do orçamento
-      const { data: quoteData, error: quoteError } = await supabase
+      setSendingEmail(true);
+      console.log("Enviando orçamento por e-mail:", { quoteId, recipientEmail, message });
+
+      // Buscar os dados do orçamento para envio
+      const { data: quote, error: quoteError } = await supabase
         .from('quotes')
         .select(`
           id,
           title,
+          client_id,
+          monthly_values,
           contract_months,
           monthly_km,
-          total_value,
-          client_id,
-          clients(name),
+          clients(name, email),
           quote_vehicles(
             id,
-            monthly_value,
             vehicle_id,
+            monthly_value,
             vehicles(brand, model, plate_number)
           )
         `)
         .eq('id', quoteId)
         .single();
-      
-      if (quoteError) {
-        console.error('Erro ao buscar detalhes do orçamento:', quoteError);
-        toast({
-          title: 'Erro ao enviar email',
-          description: 'Não foi possível carregar os detalhes do orçamento.',
-          variant: 'destructive'
-        });
+
+      if (quoteError || !quote) {
+        console.error("Erro ao buscar dados do orçamento:", quoteError);
         return false;
       }
+
+      // Buscar informações do usuário atual
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
       
-      const currentUser = getCurrentUser();
-      
-      // Preparar dados para a função do Supabase Edge
-      const emailData = {
-        quoteId: quoteData.id,
-        quoteTitle: quoteData.title,
-        recipientEmail: email,
-        message: message,
-        contractMonths: quoteData.contract_months,
-        monthlyKm: quoteData.monthly_km,
-        totalValue: quoteData.total_value,
-        recipientName: quoteData.clients?.name,
-        vehicles: (quoteData.quote_vehicles || []).map((qv: any) => ({
-          brand: qv.vehicles?.brand || '',
-          model: qv.vehicles?.model || '',
-          plateNumber: qv.vehicles?.plate_number,
-          monthlyValue: qv.monthly_value
-        })),
-        senderName: currentUser.name,
-        senderEmail: currentUser.email,
-        senderPhone: '(XX) XXXX-XXXX' // Substituir por telefone real quando disponível
-      };
-      
-      // Chamar edge function
+      if (!userId) {
+        console.error("Usuário não autenticado");
+        return false;
+      }
+
+      const { data: userData, error: userError } = await supabase
+        .from('profiles')
+        .select('name, email, phone')
+        .eq('id', userId)
+        .single();
+
+      if (userError) {
+        console.error("Erro ao buscar dados do usuário:", userError);
+      }
+
+      // Preparar dados para envio
+      const vehicles = quote.quote_vehicles?.map((qv) => ({
+        brand: qv.vehicles?.brand || '',
+        model: qv.vehicles?.model || '',
+        plateNumber: qv.vehicles?.plate_number || '',
+        monthlyValue: qv.monthly_value || 0
+      })) || [];
+
+      // Chamar a função Edge do Supabase para envio do e-mail
       const { data, error } = await supabase.functions.invoke('send-quote-email', {
-        body: emailData
+        body: {
+          quoteId: quote.id,
+          quoteTitle: quote.title || 'Orçamento de Frota',
+          recipientEmail,
+          recipientName: quote.clients?.name || '',
+          message,
+          totalValue: quote.monthly_values || 0,
+          contractMonths: quote.contract_months || 24,
+          monthlyKm: quote.monthly_km || 3000,
+          vehicles,
+          senderName: userData?.name || 'Consultor de Frotas',
+          senderEmail: userData?.email || '',
+          senderPhone: userData?.phone || ''
+        }
       });
-      
+
       if (error) {
-        console.error('Erro ao enviar email:', error);
-        toast({
-          title: 'Erro ao enviar email',
-          description: error.message || 'Ocorreu um erro ao enviar o email.',
-          variant: 'destructive'
-        });
+        console.error("Erro ao enviar e-mail:", error);
         return false;
       }
-      
-      console.log('Email enviado com sucesso:', data);
+
+      console.log("E-mail enviado com sucesso:", data);
       return true;
-      
-    } catch (error: any) {
-      console.error('Exceção ao enviar email:', error);
-      toast({
-        title: 'Erro ao enviar email',
-        description: error.message || 'Ocorreu um erro inesperado ao enviar o email.',
-        variant: 'destructive'
-      });
+    } catch (err) {
+      console.error("Erro ao processar envio de e-mail:", err);
       return false;
     } finally {
       setSendingEmail(false);
