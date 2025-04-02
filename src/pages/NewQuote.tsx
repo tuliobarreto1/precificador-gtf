@@ -31,6 +31,8 @@ const STEPS = [
   { id: 'result', name: 'Resultado', icon: <Calculator size={18} /> },
 ];
 
+const KM_OPTIONS = [1000, 2000, 3000, 4000, 5000];
+
 const EmailDialog = ({ quoteId }: { quoteId: string }) => {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
@@ -391,20 +393,20 @@ const QuoteForm = () => {
         </div>
         
         <div className="space-y-4">
-          <Label className="text-sm">Quilometragem Mensal</Label>
-          <div className="space-y-3">
-            <Slider
-              value={[params.monthlyKm]}
-              min={1000}
-              max={5000}
-              step={100}
-              onValueChange={(value) => setVehicleParams(vehicleId, { monthlyKm: value[0] })}
-            />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>1.000 km</span>
-              <span>{params.monthlyKm.toLocaleString('pt-BR')} km</span>
-              <span>5.000 km</span>
-            </div>
+          <Label className="text-sm mb-2 block">Quilometragem Mensal</Label>
+          <div className="grid grid-cols-5 gap-2">
+            {KM_OPTIONS.map((km) => (
+              <Button 
+                key={`${vehicleId}-km-${km}`}
+                type="button"
+                variant={params.monthlyKm === km ? "default" : "outline"}
+                size="sm"
+                className="w-full"
+                onClick={() => setVehicleParams(vehicleId, { monthlyKm: km })}
+              >
+                {km.toLocaleString('pt-BR')} km
+              </Button>
+            ))}
           </div>
         </div>
         
@@ -487,20 +489,19 @@ const QuoteForm = () => {
           </div>
           
           <div className="space-y-4">
-            <Label className="text-base">Quilometragem Mensal</Label>
-            <div className="space-y-3">
-              <Slider
-                value={[quoteForm.globalParams.monthlyKm]}
-                min={1000}
-                max={5000}
-                step={100}
-                onValueChange={(value) => setGlobalMonthlyKm(value[0])}
-              />
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>1.000 km</span>
-                <span>{quoteForm.globalParams.monthlyKm.toLocaleString('pt-BR')} km</span>
-                <span>5.000 km</span>
-              </div>
+            <Label className="text-base mb-2 block">Quilometragem Mensal</Label>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              {KM_OPTIONS.map((km) => (
+                <Button 
+                  key={`global-km-${km}`}
+                  type="button"
+                  variant={quoteForm.globalParams.monthlyKm === km ? "default" : "outline"}
+                  onClick={() => setGlobalMonthlyKm(km)}
+                  className="w-full"
+                >
+                  {km.toLocaleString('pt-BR')} km
+                </Button>
+              ))}
             </div>
           </div>
           

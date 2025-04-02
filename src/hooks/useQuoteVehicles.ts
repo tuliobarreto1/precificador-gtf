@@ -171,26 +171,41 @@ export function useQuoteVehicles(quoteForm: QuoteFormData, setQuoteForm: React.D
       hasTracking?: boolean;
     }
   ) => {
-    // Mantemos o mesmo vehicleId na atualização dos parâmetros
+    console.log(`Configurando parâmetros para veículo ${vehicleId}:`, params);
+    
     setQuoteForm(prev => {
       // Criar uma cópia profunda para não afetar o objeto original
-      const newState = {
-        ...prev,
-        vehicles: prev.vehicles.map(item => {
-          if (item.vehicle.id === vehicleId) {
-            return {
-              ...item,
-              params: {
-                ...(item.params || prev.globalParams),
-                ...params
-              }
-            };
-          }
-          return item;
-        }),
-      };
+      const newVehicles = prev.vehicles.map(item => {
+        if (item.vehicle.id === vehicleId) {
+          console.log(`Atualizando veículo ${item.vehicle.brand} ${item.vehicle.model}`, {
+            paramsAntes: item.params,
+            novosParams: params
+          });
+          
+          return {
+            ...item,
+            params: {
+              // Se já há parâmetros específicos para o veículo, usar eles
+              // Senão usar os parâmetros globais como base
+              ...(item.params || prev.globalParams),
+              // Aplicar os novos parâmetros por cima
+              ...params
+            }
+          };
+        }
+        return item;
+      });
       
-      return newState;
+      console.log("Veículos após atualização:", newVehicles.map(v => ({
+        id: v.vehicle.id, 
+        modelo: v.vehicle.model, 
+        params: v.params
+      })));
+      
+      return {
+        ...prev,
+        vehicles: newVehicles
+      };
     });
   };
 
