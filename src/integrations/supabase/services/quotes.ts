@@ -226,13 +226,25 @@ export async function logQuoteAction(quoteId: string, actionType: 'EDIT' | 'DELE
       deleted_data: deletedData || null
     };
     
+    // Usar .rpc() para chamar uma função no banco de dados ou executar SQL diretamente
+    // em vez de acessar a tabela diretamente
     const { data, error } = await supabase
-      .from('quote_action_logs')
-      .insert(logData);
+      .rpc('insert_quote_action_log', logData);
       
     if (error) {
       console.error(`Erro ao registrar log de ${actionType}:`, error);
-      return { success: false, error };
+      
+      // Fallback: inserir usando endpoint genérico se a função RPC falhar
+      const { error: fallbackError } = await supabase
+        .postgrest
+        .schema('public')
+        .from('quote_action_logs')
+        .insert(logData);
+        
+      if (fallbackError) {
+        console.error(`Fallback também falhou:`, fallbackError);
+        return { success: false, error: fallbackError };
+      }
     }
     
     console.log(`Log de ${actionType} registrado com sucesso`);
@@ -340,11 +352,28 @@ export async function deleteQuoteFromSupabase(id: string, userId?: string, userN
       return { success: false, error };
     }
     
-    // Registrar a exclusão no log
-    await logQuoteAction(id, 'DELETE', userId, userName, {
-      deleteDate: new Date().toISOString(),
-      message: 'Orçamento excluído pelo usuário'
-    }, quoteToDelete);
+    // Registrar a exclusão no log usando SQL diretamente
+    try {
+      const logData = {
+        quote_id: id,
+        quote_title: quoteToDelete.title || 'Orçamento sem título',
+        action_type: 'DELETE',
+        user_id: userId,
+        user_name: userName || 'Usuário',
+        action_date: new Date().toISOString(),
+        details: {
+          deleteDate: new Date().toISOString(),
+          message: 'Orçamento excluído pelo usuário'
+        },
+        deleted_data: quoteToDelete
+      };
+
+      // Usar .rpc() para chamar uma função no banco de dados
+      await supabase
+        .rpc('insert_quote_action_log', logData);
+    } catch (logError) {
+      console.error("Erro ao registrar log de exclusão:", logError);
+    }
     
     console.log(`Orçamento ${id} deletado com sucesso`);
     return { success: true };
@@ -357,16 +386,18 @@ export async function deleteQuoteFromSupabase(id: string, userId?: string, userN
 // Função para obter logs de ações nos orçamentos
 export async function getQuoteActionLogs(quoteId?: string) {
   try {
-    let query = supabase
-      .from('quote_action_logs')
-      .select('*')
-      .order('action_date', { ascending: false });
-      
+    // Como não podemos acessar diretamente a tabela via types, vamos usar uma função RPC
+    let result;
+    
     if (quoteId) {
-      query = query.eq('quote_id', quoteId);
+      result = await supabase
+        .rpc('get_quote_action_logs_by_quote', { quote_id_param: quoteId });
+    } else {
+      result = await supabase
+        .rpc('get_all_quote_action_logs');
     }
     
-    const { data, error } = await query;
+    const { data, error } = result;
     
     if (error) {
       console.error("Erro ao buscar logs de ações:", error);
