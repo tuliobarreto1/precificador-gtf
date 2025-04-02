@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { Vehicle, Client, VehicleGroup } from '@/lib/models';
 import { getClientById, getVehicleById, savedQuotes, getVehicleGroupById } from '@/lib/data-provider';
@@ -1115,7 +1114,7 @@ export type QuoteContextType = {
   currentEditingQuoteId: string | null;
   getClientById: (id: string) => Client;
   getVehicleById: (id: string) => Vehicle;
-  loadQuoteForEditing: (quoteId: string) => Promise<boolean>; // Alterado de boolean para Promise<boolean>
+  loadQuoteForEditing: (quoteId: string) => Promise<boolean>; // Corrigido para Promise<boolean>
   deleteQuote: (quoteId: string) => Promise<boolean>;
   canEditQuote: (quote: SavedQuote) => boolean;
   canDeleteQuote: (quote: SavedQuote) => boolean;
