@@ -13,6 +13,19 @@ export type QuoteStatusFlow =
   | 'CONCLUIDO'
   | 'draft'; // Adicionando 'draft' como possível status para compatibilidade
 
+// Definição de tipo para status válidos no banco de dados (sem o 'draft')
+export type DbQuoteStatus =
+  | 'ORCAMENTO' 
+  | 'PROPOSTA_GERADA' 
+  | 'EM_VERIFICACAO' 
+  | 'APROVADA' 
+  | 'CONTRATO_GERADO' 
+  | 'ASSINATURA_CLIENTE' 
+  | 'ASSINATURA_DIRETORIA' 
+  | 'AGENDAMENTO_ENTREGA' 
+  | 'ENTREGA' 
+  | 'CONCLUIDO';
+
 // Definição do item de histórico de status
 export interface StatusHistoryItem {
   id: string;
@@ -61,6 +74,11 @@ export const isValidTransition = (
   
   // Permitir avançar apenas para o próximo status
   return toIndex === fromIndex + 1;
+};
+
+// Função para converter entre o status interno da aplicação e o status do banco de dados
+export const toDbStatus = (status: QuoteStatusFlow): DbQuoteStatus => {
+  return status === 'draft' ? 'ORCAMENTO' : status as DbQuoteStatus;
 };
 
 // Informações detalhadas sobre cada status

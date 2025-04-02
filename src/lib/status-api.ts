@@ -46,6 +46,9 @@ export const updateQuoteStatus = async (
   observation?: string
 ): Promise<{ success: boolean; error?: any }> => {
   try {
+    // Verifica se o novo status é "draft" e converte para "ORCAMENTO" para compatibilidade com o banco
+    const dbStatus = newStatus === 'draft' ? 'ORCAMENTO' : newStatus;
+    
     // Buscar o status atual antes da atualização
     const { data: quoteData, error: fetchError } = await supabase
       .from('quotes')
@@ -63,7 +66,7 @@ export const updateQuoteStatus = async (
     // Atualizar o status na tabela de orçamentos
     const { error: updateError } = await supabase
       .from('quotes')
-      .update({ status_flow: newStatus })
+      .update({ status_flow: dbStatus })
       .eq('id', quoteId);
     
     if (updateError) {
@@ -72,14 +75,16 @@ export const updateQuoteStatus = async (
     }
     
     // Inserir um registro no histórico
+    const historyEntry = {
+      quote_id: quoteId,
+      previous_status: previousStatus === 'draft' ? 'ORCAMENTO' : previousStatus,
+      new_status: dbStatus,
+      observation: observation || null
+    };
+    
     const { error: historyError } = await supabase
       .from('quote_status_history')
-      .insert({
-        quote_id: quoteId,
-        previous_status: previousStatus,
-        new_status: newStatus,
-        observation: observation || null
-      });
+      .insert(historyEntry);
     
     if (historyError) {
       console.error('Erro ao salvar histórico de status:', historyError);
