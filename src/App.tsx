@@ -52,7 +52,7 @@ function App() {
             <Routes>
               <Route path="/login" element={<Login />} />
               
-              {/* Rotas protegidas */}
+              {/* Rota protegida e sem QuoteProvider */}
               <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
               
               {/* Rotas que precisam do QuoteProvider */}

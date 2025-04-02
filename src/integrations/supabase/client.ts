@@ -1,9 +1,24 @@
 
 import { createClient } from '@supabase/supabase-js';
 
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl) {
+  console.error('VITE_SUPABASE_URL não está definida no ambiente. Usando URL de fallback.');
+}
+
+if (!supabaseKey) {
+  console.error('VITE_SUPABASE_ANON_KEY não está definida no ambiente. Usando chave de fallback.');
+}
+
+// Usar URLs de fallback para desenvolvimento se as variáveis de ambiente não estiverem definidas
+const fallbackUrl = 'https://pvsjjqmsoauuxxfgdhfg.supabase.co';
+const fallbackKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2c2pqcW1zb2F1dXh4ZmdkaGZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMxMTI5NTUsImV4cCI6MjA1ODY4ODk1NX0.Mp6zyYRkHfHZTkBIkV_lpYv8nkAkJ9i7cI1y8dGGF6M';
+
 export const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL || '',
-  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+  supabaseUrl || fallbackUrl,
+  supabaseKey || fallbackKey
 );
 
 // Função para verificar a conexão com o Supabase

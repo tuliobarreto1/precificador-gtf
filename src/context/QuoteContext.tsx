@@ -1,13 +1,13 @@
 
 import React, { createContext, useState, useContext } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Client, Vehicle, VehicleGroup, Quote } from '@/lib/models';
+import { Client, Vehicle, VehicleGroup } from '@/lib/models';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { savedQuotes } from '@/lib/data-provider';
 import { saveQuoteToSupabase, getQuoteByIdFromSupabase } from '@/integrations/supabase';
 
-interface VehicleData {
+export interface VehicleData {
   vehicle: Vehicle;
   vehicleGroup: VehicleGroup;
   contractMonths: number;
@@ -21,7 +21,9 @@ interface VehicleData {
   monthlyValue: number;
 }
 
-interface QuoteContextType {
+export type ClientType = 'PF' | 'PJ';
+
+export interface QuoteContextType {
   title: string;
   setTitle: (title: string) => void;
   client: Client | null;
@@ -186,7 +188,7 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         clientId: client.id,
         clientName: client.name,
         clientDocument: client.document,
-        clientType: client.type,
+        clientType: client.type as ClientType,
         contractMonths,
         monthlyKm,
         operationSeverity,
@@ -215,7 +217,7 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         })),
         createdAt: new Date().toISOString(),
         createdBy: user?.id || adminUser?.id,
-        createdByName: user?.name || adminUser?.name,
+        createdByName: user?.email || adminUser?.email || "Usuário",
         isEdit: isEditMode,
         status: 'ORCAMENTO',
         statusFlow: 'ORCAMENTO'
@@ -224,7 +226,7 @@ export const QuoteProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       console.log('Salvando orçamento:', quoteData);
 
       // Salvar no Supabase
-      const { success, error, quote } = await saveQuoteToSupabase(quoteData);
+      const { success, error, quote } = await saveQuoteToSupabase(quoteData as any);
       
       if (success) {
         // Salvar localmente também para acesso offline

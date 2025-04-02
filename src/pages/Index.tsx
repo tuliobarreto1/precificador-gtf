@@ -7,10 +7,29 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import StatsCard from '@/components/ui-custom/StatsCard';
 import { Car, Users, FileText, Settings } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { QuoteProvider } from '@/context/QuoteContext';
 
 const Index = () => {
   const { user, adminUser } = useAuth();
+
+  // Dados estáticos para os cards de estatísticas
+  const statsData = {
+    orcamentos: {
+      valor: "28",
+      trend: { value: 12, isPositive: true }
+    },
+    clientes: {
+      valor: "124",
+      trend: { value: 4, isPositive: true }
+    },
+    veiculos: {
+      valor: "67",
+      trend: { value: 0, isPositive: true }
+    },
+    faturamento: {
+      valor: "R$ 128.400,00",
+      trend: { value: 18, isPositive: true }
+    }
+  };
 
   return (
     <MainLayout>
@@ -22,35 +41,27 @@ const Index = () => {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
           <StatsCard
             title="Orçamentos"
-            subtitle="Total de orçamentos"
-            value="28"
+            value={statsData.orcamentos.valor}
             icon={<FileText className="h-6 w-6" />}
-            trend="up"
-            trendValue="12%"
+            trend={statsData.orcamentos.trend}
           />
           <StatsCard
             title="Clientes"
-            subtitle="Base de clientes"
-            value="124"
+            value={statsData.clientes.valor}
             icon={<Users className="h-6 w-6" />}
-            trend="up"
-            trendValue="4%"
+            trend={statsData.clientes.trend}
           />
           <StatsCard
             title="Veículos"
-            subtitle="Frota gerenciada"
-            value="67"
+            value={statsData.veiculos.valor}
             icon={<Car className="h-6 w-6" />}
-            trend="neutral"
-            trendValue="0%"
+            trend={statsData.veiculos.trend}
           />
           <StatsCard
             title="Faturamento"
-            subtitle="Último mês"
-            value="R$ 128.400,00"
+            value={statsData.faturamento.valor}
             icon={<Settings className="h-6 w-6" />}
-            trend="up"
-            trendValue="18%"
+            trend={statsData.faturamento.trend}
           />
         </div>
 
@@ -102,5 +113,4 @@ const Index = () => {
   );
 };
 
-// Quando usarmos o QuoteProvider, usaremos na rota específica que precisa do QuoteContext
 export default Index;

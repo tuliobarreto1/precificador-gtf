@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { LucideIcon } from 'lucide-react';
 
 type StatsCardProps = {
   title: string;
@@ -11,10 +10,11 @@ type StatsCardProps = {
     value: number;
     isPositive: boolean;
   };
+  subtitle?: string;
   className?: string;
 };
 
-const StatsCard = ({ title, value, icon, trend, className }: StatsCardProps) => {
+const StatsCard = ({ title, value, icon, trend, subtitle, className }: StatsCardProps) => {
   return (
     <div className={cn(
       "bg-white rounded-xl border border-border p-5 shadow-sm",
@@ -25,6 +25,9 @@ const StatsCard = ({ title, value, icon, trend, className }: StatsCardProps) => 
         <div>
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
           <p className="mt-2 text-3xl font-semibold">{value}</p>
+          {subtitle && (
+            <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+          )}
           
           {trend && (
             <div className="mt-2 flex items-center">
