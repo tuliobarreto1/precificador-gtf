@@ -9,11 +9,13 @@ export async function saveQuoteToSupabase(quoteData: any) {
     
     const quoteId = quoteData.id || uuidv4();
     
+    // Validar e certificar que campos críticos são do tipo correto
+    // Certifique-se de que os IDs estão no formato apropriado para UUID
     const quoteToSave = {
       id: quoteId,
       title: quoteData.title || `Orçamento ${new Date().toLocaleDateString()}`,
-      client_id: quoteData.clientId,
-      vehicle_id: quoteData.vehicleId,
+      client_id: typeof quoteData.clientId === 'object' ? null : quoteData.clientId,
+      vehicle_id: typeof quoteData.vehicleId === 'object' ? null : quoteData.vehicleId,
       contract_months: quoteData.contractMonths || 12,
       monthly_km: quoteData.monthlyKm || 2000,
       operation_severity: quoteData.operationSeverity || 3,
@@ -22,10 +24,12 @@ export async function saveQuoteToSupabase(quoteData: any) {
       monthly_values: quoteData.monthlyValue || 0,
       status: quoteData.status || 'ORCAMENTO',
       status_flow: quoteData.statusFlow || 'ORCAMENTO',
-      created_by: quoteData.createdBy,
+      created_by: typeof quoteData.createdBy === 'object' ? null : quoteData.createdBy,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
+    
+    console.log("Dados formatados para salvar:", quoteToSave);
     
     const { data, error } = await supabase
       .from('quotes')
@@ -39,6 +43,31 @@ export async function saveQuoteToSupabase(quoteData: any) {
     }
     
     console.log("Orçamento salvo com sucesso:", data);
+    
+    // Se temos veículos para salvar no orçamento
+    if (quoteData.vehicles && Array.isArray(quoteData.vehicles) && quoteData.vehicles.length > 0) {
+      try {
+        // Importar a função de adicionar veículo ao orçamento
+        const { addVehicleToQuote } = await import('../client');
+        
+        // Adicionar cada veículo ao orçamento
+        for (const vehicle of quoteData.vehicles) {
+          await addVehicleToQuote(quoteId, {
+            ...vehicle,
+            monthly_value: vehicle.totalCost || 0,
+            monthly_km: quoteData.monthlyKm || 2000,
+            contract_months: quoteData.contractMonths || 12,
+            operation_severity: quoteData.operationSeverity || 3,
+            has_tracking: quoteData.hasTracking || false
+          });
+        }
+        console.log("Veículos adicionados ao orçamento com sucesso");
+      } catch (vehicleError) {
+        console.error("Erro ao adicionar veículos ao orçamento:", vehicleError);
+        // Não falhar o processo principal se os veículos falharem
+      }
+    }
+    
     return { success: true, quote: data };
   } catch (error) {
     console.error("Erro inesperado ao salvar orçamento:", error);
