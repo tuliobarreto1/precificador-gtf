@@ -1,3 +1,4 @@
+
 import { supabase } from '../client';
 import { v4 as uuidv4 } from 'uuid';
 import { createOrUpdateVehicle } from './vehicles';
@@ -234,6 +235,8 @@ export async function getQuoteByIdFromSupabase(id: string) {
 // Função para deletar um orçamento
 export async function deleteQuoteFromSupabase(id: string) {
   try {
+    console.log(`🗑️ Iniciando exclusão do orçamento ${id}...`);
+    
     // Primeiro, excluímos os veículos associados ao orçamento
     const { error: vehiclesError } = await supabase
       .from('quote_vehicles')
@@ -241,10 +244,10 @@ export async function deleteQuoteFromSupabase(id: string) {
       .eq('quote_id', id);
     
     if (vehiclesError) {
-      console.error(`Erro ao deletar veículos do orçamento ${id}:`, vehiclesError);
+      console.error(`❌ Erro ao deletar veículos do orçamento ${id}:`, vehiclesError);
       // Continuar mesmo se falhar, pois o orçamento ainda pode ser excluído
     } else {
-      console.log(`Veículos do orçamento ${id} excluídos com sucesso`);
+      console.log(`✅ Veículos do orçamento ${id} excluídos com sucesso`);
     }
 
     // Registramos para logs antes de deletar
@@ -255,20 +258,21 @@ export async function deleteQuoteFromSupabase(id: string) {
       .single();
 
     // Então deletamos o orçamento
-    const { error } = await supabase
+    const { error, count } = await supabase
       .from('quotes')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .select('count');
       
     if (error) {
-      console.error(`Erro ao deletar orçamento ${id}:`, error);
+      console.error(`❌ Erro ao deletar orçamento ${id}:`, error);
       return { success: false, error };
     }
     
-    console.log(`Orçamento ${id} deletado com sucesso`);
+    console.log(`✅ Orçamento ${id} deletado com sucesso. Registros afetados: ${count || 'desconhecido'}`);
     return { success: true, deletedQuote: quoteData };
   } catch (error) {
-    console.error(`Erro inesperado ao deletar orçamento ${id}:`, error);
+    console.error(`❌ Erro inesperado ao deletar orçamento ${id}:`, error);
     return { success: false, error };
   }
 }

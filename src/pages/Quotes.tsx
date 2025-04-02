@@ -45,20 +45,23 @@ const Quotes = () => {
     setIsDeleting(true);
 
     try {
+      console.log("🗑️ Iniciando processo de exclusão para orçamento:", quoteToDelete);
+      
       // Tentativa 1: Via contexto (para orçamentos locais)
       let success = false;
       
       if (typeof deleteQuoteFromContext === 'function') {
+        console.log("📌 Tentando excluir via contexto...");
         success = await deleteQuoteFromContext(quoteToDelete);
-        console.log("Resultado da exclusão via contexto:", success);
+        console.log("📝 Resultado da exclusão via contexto:", success);
       }
 
       // Tentativa 2: Diretamente via Supabase (se o contexto falhar ou não estiver disponível)
       if (!success) {
-        console.log("Tentando excluir diretamente via Supabase:", quoteToDelete);
+        console.log("📌 Tentando excluir diretamente via Supabase:", quoteToDelete);
         const result = await deleteQuoteFromSupabase(quoteToDelete);
         success = result.success;
-        console.log("Resultado da exclusão via Supabase:", result);
+        console.log("📝 Resultado da exclusão via Supabase:", result);
       }
 
       if (success) {
@@ -66,8 +69,12 @@ const Quotes = () => {
           title: "Orçamento excluído",
           description: "O orçamento foi excluído com sucesso."
         });
+        
         // Atualizar a lista após a exclusão bem-sucedida
-        handleRefresh();
+        console.log("🔄 Atualizando lista de orçamentos após exclusão");
+        setTimeout(() => {
+          handleRefresh();
+        }, 500);
       } else {
         toast({
           title: "Erro ao excluir",
@@ -76,7 +83,7 @@ const Quotes = () => {
         });
       }
     } catch (error) {
-      console.error("Erro ao excluir orçamento:", error);
+      console.error("❌ Erro ao excluir orçamento:", error);
       toast({
         title: "Erro ao excluir",
         description: "Ocorreu um erro inesperado ao tentar excluir o orçamento.",

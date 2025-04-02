@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useQuote } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
 import { getQuotes, getClientById, getVehicleById, savedQuotes, getVehicleGroupById, mockClients, mockVehicles } from '@/lib/data-provider';
@@ -28,6 +27,7 @@ export const useQuotes = () => {
   const [supabaseQuotes, setSupabaseQuotes] = useState<any[]>([]);
   const [supabaseVehicles, setSupabaseVehicles] = useState<any[]>([]);
   const [demoQuotes, setDemoQuotes] = useState<any[]>([]);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   const { toast } = useToast();
 
@@ -70,7 +70,7 @@ export const useQuotes = () => {
     };
     
     checkConnection();
-  }, []);
+  }, [refreshTrigger]);
   
   const loadSupabaseVehicles = async () => {
     try {
@@ -115,10 +115,13 @@ export const useQuotes = () => {
     }
   };
   
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     setLoading(true);
-    loadSupabaseVehicles();
-    loadSupabaseQuotes();
+    console.log('🔄 Atualizando lista de orçamentos...');
+    
+    // Incrementar o contador para forçar a recarga de dados
+    setRefreshTrigger(prev => prev + 1);
+    
     setTimeout(() => {
       setLoading(false);
       toast({
@@ -126,7 +129,7 @@ export const useQuotes = () => {
         description: "A lista de orçamentos foi atualizada com sucesso."
       });
     }, 1000);
-  };
+  }, [toast]);
 
   const getVehicleInfo = (quote: any) => {
     console.log('Processando informações de veículo para orçamento:', quote.id);
@@ -177,7 +180,6 @@ export const useQuotes = () => {
   };
 
   const transformQuotes = () => {
-    // Funções auxiliares para transformar dados de forma síncrona
     const getClientNameSync = (clientId: string): string => {
       const client = mockClients.find(c => c.id === clientId);
       return client?.name || 'Cliente não encontrado';
@@ -191,7 +193,6 @@ export const useQuotes = () => {
       };
     };
 
-    // Processamento dos dados de forma síncrona
     const demoQuotesTransformed = demoQuotes.map(quote => ({
       id: quote.id,
       clientName: getClientNameSync(quote.clientId),
@@ -240,15 +241,13 @@ export const useQuotes = () => {
     return [...demoQuotesTransformed, ...localQuotesTransformed, ...supabaseQuotesTransformed];
   };
 
-  // Obter lista de quotes transformadas
   const [allQuotes, setAllQuotes] = useState<QuoteItem[]>([]);
   
-  // Carregar e transformar quotes quando os dados mudarem
   useEffect(() => {
     const quotes = transformQuotes();
     quotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     setAllQuotes(quotes);
-  }, [demoQuotes, supabaseQuotes, savedQuotes]);
+  }, [demoQuotes, supabaseQuotes, savedQuotes, refreshTrigger]);
   
   const totalQuotes = allQuotes.length;
   const totalValue = allQuotes.reduce((sum, quote) => sum + Number(quote.value), 0);
