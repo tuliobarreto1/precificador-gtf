@@ -1,7 +1,21 @@
 
-// Reexportar o cliente do core para garantir exportação correta
-import { supabase } from './core/client';
+// Importações necessárias
 import { v4 as uuidv4 } from 'uuid';
+import { createClient } from '@supabase/supabase-js';
+import type { Database } from './types';
+
+// Configurações do Supabase
+const SUPABASE_URL = "https://pvsjjqmsoauuxxfgdhfg.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2c2pqcW1zb2F1dXh4ZmdkaGZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMxMTI5NTUsImV4cCI6MjA1ODY4ODk1NX0.Mp6zyYRkHfHZTkBIkV_lpYv8nkAkJ9i7cI1y8dGGF6M";
+
+// Criar e exportar o cliente Supabase diretamente
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: {
+    storage: typeof localStorage !== 'undefined' ? localStorage : undefined,
+    persistSession: true,
+    autoRefreshToken: true
+  }
+});
 
 /**
  * Adiciona um veículo a um orçamento existente
@@ -68,6 +82,3 @@ export async function checkSupabaseConnection() {
     return { success: false, error };
   }
 }
-
-// Importante: exportar o cliente Supabase
-export { supabase };

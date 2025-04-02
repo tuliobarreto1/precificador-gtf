@@ -1,6 +1,6 @@
 
 // Central exports for Supabase services
-import { supabase, checkSupabaseConnection } from './core/client';
+import { supabase, checkSupabaseConnection } from './client';
 import { getVehiclesFromSupabase, createOrUpdateVehicle, findVehicleByPlate, findVehicleByBrandModel, getAllVehicles, getVehiclesFromLocavia } from './services/vehicles';
 import { saveClientToSupabase, getClientByDocument, getClientsFromSupabase } from './services/clients';
 import { saveQuoteToSupabase, getQuotesFromSupabase, getQuoteByIdFromSupabase } from './services/quotes';
