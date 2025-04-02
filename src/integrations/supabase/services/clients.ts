@@ -130,7 +130,7 @@ export async function getClientsFromSupabase() {
   }
 }
 
-// Função para excluir cliente
+// Função para excluir cliente - CORRIGIDA
 export async function deleteClientFromSupabase(clientId: string) {
   try {
     console.log(`🗑️ Iniciando exclusão do cliente ${clientId}...`);
@@ -154,8 +154,8 @@ export async function deleteClientFromSupabase(clientId: string) {
         error: { message: "Este cliente está vinculado a orçamentos e não pode ser excluído." } 
       };
     }
-    
-    // Se não estiver em uso, proceder com a exclusão
+
+    // Se não estiver em uso, proceder com a exclusão usando o método correto
     const { error } = await supabase
       .from('clients')
       .delete()
@@ -166,12 +166,19 @@ export async function deleteClientFromSupabase(clientId: string) {
       return { success: false, error };
     }
     
-    // Verificar se o cliente foi realmente excluído
-    const { data: checkData } = await supabase
+    // Verificar se o cliente foi realmente excluído - com pequeno delay para garantir que a operação foi concluída
+    // pois às vezes o Supabase leva um tempo para refletir a exclusão
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const { data: checkData, error: checkError } = await supabase
       .from('clients')
       .select('id')
       .eq('id', clientId);
       
+    if (checkError) {
+      console.error(`❌ Erro ao verificar exclusão do cliente:`, checkError);
+      return { success: false, error: checkError };
+    }
+    
     if (checkData && checkData.length > 0) {
       console.error(`❌ Cliente ${clientId} ainda existe no banco após tentativa de exclusão`);
       return { 
