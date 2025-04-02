@@ -1,4 +1,5 @@
 
+// Reexportar o cliente do core para garantir exportação correta
 import { supabase } from './core/client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -67,3 +68,6 @@ export async function checkSupabaseConnection() {
     return { success: false, error };
   }
 }
+
+// Importante: exportar o cliente Supabase
+export { supabase };

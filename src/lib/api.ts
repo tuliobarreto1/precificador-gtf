@@ -71,8 +71,8 @@ export const quotes: Quote[] = [
   { id: '3', client: clients[2], vehicle: vehicles[2], contractMonths: 48, monthlyKm: 2000, totalCost: 2500, createdAt: '2023-03-20' },
 ];
 
-// Import apenas o que é necessário do wrapper do Supabase
-import { supabase } from '@/integrations/supabase/core/client';
+// Importar o cliente Supabase do arquivo que agora exporta corretamente
+import { supabase } from '@/integrations/supabase/client';
 
 // Função para simular API calls
 export const getClients = (): Client[] => {
@@ -136,7 +136,7 @@ interface AuthResponse {
 // Função de login para autenticação
 export async function signIn(email: string, password: string): Promise<AuthResponse> {
   try {
-    const { supabase } = await import('@/integrations/supabase/client');
+    // Usar a importação do arquivo correto
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
@@ -157,7 +157,7 @@ export async function signIn(email: string, password: string): Promise<AuthRespo
 // Função de registro para autenticação
 export async function signUp(email: string, password: string, name: string): Promise<AuthResponse> {
   try {
-    const { supabase } = await import('@/integrations/supabase/client');
+    // Usar a importação do arquivo correto
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -183,7 +183,7 @@ export async function signUp(email: string, password: string, name: string): Pro
 // Função para obter o perfil do usuário atual
 export async function getCurrentProfile(): Promise<{ success: boolean; profile?: any; error?: any }> {
   try {
-    const { supabase } = await import('@/integrations/supabase/client');
+    // Usar a importação do arquivo correto
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
