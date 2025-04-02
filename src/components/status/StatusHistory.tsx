@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { supabase } from '@/integrations/supabase/client';
 import { Spinner } from './Spinner';
 import { QuoteStatusFlow } from '@/lib/status-flow';
+import { fetchStatusHistory } from '@/lib/status-api';
 
 interface StatusHistoryProps {
   quoteId: string;
@@ -29,45 +28,22 @@ export const StatusHistory: React.FC<StatusHistoryProps> = ({ quoteId }) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchStatusHistory = async () => {
+    const getStatusHistory = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const { data, error } = await supabase
-          .from('quote_status_history')
-          .select(`
-            id,
-            quote_id,
-            previous_status,
-            new_status,
-            changed_by,
-            changed_at,
-            profiles (
-              full_name,
-              email
-            )
-          `)
-          .eq('quote_id', quoteId)
-          .order('changed_at', { ascending: false });
-
-        if (error) {
-          console.error('Erro ao buscar histórico de status:', error);
-          setError('Não foi possível carregar o histórico de status.');
-          return;
-        }
-
-        // Mapear os dados retornados para o tipo StatusChange[]
-        // Isso garante que os dados correspondam à interface esperada
-        const mappedData: StatusChange[] = data?.map((item: any) => ({
+        const historyItems = await fetchStatusHistory(quoteId);
+        
+        const mappedData: StatusChange[] = historyItems.map(item => ({
           id: item.id,
           quote_id: item.quote_id,
-          previous_status: item.previous_status,
+          previous_status: item.previous_status || null,
           new_status: item.new_status,
           changed_by: item.changed_by,
           changed_at: item.changed_at,
-          profiles: item.profiles
-        })) || [];
+          profiles: null
+        }));
 
         setStatusHistory(mappedData);
       } catch (err) {
@@ -79,7 +55,7 @@ export const StatusHistory: React.FC<StatusHistoryProps> = ({ quoteId }) => {
     };
 
     if (quoteId) {
-      fetchStatusHistory();
+      getStatusHistory();
     }
   }, [quoteId]);
 
@@ -128,7 +104,7 @@ export const StatusHistory: React.FC<StatusHistoryProps> = ({ quoteId }) => {
                 <span className="text-primary">{formatStatusName(change.new_status)}</span>
               </p>
               <p className="text-sm text-muted-foreground">
-                Por: {change.profiles?.full_name || change.profiles?.email || 'Usuário desconhecido'}
+                Por: {change.profiles?.full_name || 'Usuário desconhecido'}
               </p>
             </div>
             <div className="mt-2 sm:mt-0 text-sm text-muted-foreground">

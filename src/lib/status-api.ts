@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { QuoteStatusFlow, StatusHistoryItem } from './status-flow';
 
@@ -9,6 +8,7 @@ export const fetchStatusHistory = async (quoteId: string): Promise<StatusHistory
   try {
     console.log(`Buscando histórico de status para orçamento ${quoteId}`);
     
+    // Removendo a tentativa de join com profiles, pois não temos esta relação configurada
     const { data, error } = await supabase
       .from('quote_status_history')
       .select(`
@@ -18,11 +18,7 @@ export const fetchStatusHistory = async (quoteId: string): Promise<StatusHistory
         new_status,
         changed_by,
         changed_at,
-        observation,
-        profiles (
-          name,
-          email
-        )
+        observation
       `)
       .eq('quote_id', quoteId)
       .order('changed_at', { ascending: false });
@@ -41,7 +37,7 @@ export const fetchStatusHistory = async (quoteId: string): Promise<StatusHistory
       changed_by: item.changed_by,
       changed_at: item.changed_at,
       observation: item.observation,
-      user_name: item.profiles?.name // Ajustado para usar o nome do perfil
+      user_name: undefined // Não temos essa informação no momento
     }));
   } catch (error) {
     console.error('Erro ao buscar histórico de status:', error);
