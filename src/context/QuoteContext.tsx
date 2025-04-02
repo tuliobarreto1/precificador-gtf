@@ -58,8 +58,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   
   const {
     calculateQuote,
-    sendQuoteByEmail,
-    sendingEmail
+    sendQuoteByEmail
   } = useQuoteCalculation(quoteForm);
   
   const {
@@ -104,7 +103,6 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     canEditQuote,
     canDeleteQuote,
     sendQuoteByEmail,
-    sendingEmail,
     savedQuotes
   };
 

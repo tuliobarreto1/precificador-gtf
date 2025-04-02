@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { QuoteStatusFlow, StatusHistoryItem } from './status-flow';
 
@@ -8,18 +9,10 @@ export const fetchStatusHistory = async (quoteId: string): Promise<StatusHistory
   try {
     console.log(`Buscando histórico de status para orçamento ${quoteId}`);
     
-    // Removendo a tentativa de join com profiles, pois não temos esta relação configurada
+    // Remover a tentativa de join com "users:changed_by(name)" que estava causando o erro
     const { data, error } = await supabase
       .from('quote_status_history')
-      .select(`
-        id,
-        quote_id,
-        previous_status,
-        new_status,
-        changed_by,
-        changed_at,
-        observation
-      `)
+      .select('*')
       .eq('quote_id', quoteId)
       .order('changed_at', { ascending: false });
     

@@ -1,396 +1,388 @@
 
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Edit, Trash2, ArrowLeft, Mail } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-
+import React, { useEffect, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { ArrowLeft, FileEdit, Car, Calendar, User, Landmark, Gauge } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
-import Card from '@/components/ui-custom/Card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from '@/hooks/use-toast';
-
-import { getQuoteByIdFromSupabase, deleteQuoteFromSupabase } from '@/integrations/supabase';
-import { Quote } from '@/lib/models';
+import Card, { CardHeader } from '@/components/ui-custom/Card';
+import VehicleCard from '@/components/ui-custom/VehicleCard';
+import StatusUpdater from '@/components/status/StatusUpdater';
+import StatusBreadcrumb from '@/components/status/StatusBreadcrumb';
 import StatusHistory from '@/components/status/StatusHistory';
-import StatusFlow from '@/components/status/StatusFlow';
-import { useQuote } from '@/context/QuoteContext';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { getQuoteByIdFromSupabase, getQuoteVehicles } from '@/integrations/supabase';
+import { useToast } from '@/hooks/use-toast';
 import { QuoteStatusFlow } from '@/lib/status-flow';
+import { fetchStatusHistory } from '@/lib/status-api';
+import { 
+  calculateDepreciationSync, 
+  calculateMaintenanceSync, 
+  calculateExtraKmRateSync 
+} from '@/lib/calculation';
 
-// Componente EmailDialog
-const EmailDialog = ({ quoteId }: { quoteId: string }) => {
-  const [email, setEmail] = useState('');
-  const [message, setMessage] = useState('');
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const { toast } = useToast();
-  const { sendQuoteByEmail, sendingEmail } = useQuote();
-
-  const handleSendEmail = async () => {
-    if (!email) {
-      toast({
-        title: "E-mail obrigatório",
-        description: "Digite o e-mail do destinatário",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      const success = await sendQuoteByEmail(quoteId, email, message);
-      
-      if (success) {
-        toast({
-          title: "E-mail enviado",
-          description: "Orçamento enviado com sucesso"
-        });
-        setDialogOpen(false);
-        setEmail('');
-        setMessage('');
-      } else {
-        toast({
-          title: "Erro ao enviar",
-          description: "Não foi possível enviar o e-mail. Tente novamente.",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error("Erro ao enviar e-mail:", error);
-      toast({
-        title: "Erro inesperado",
-        description: "Ocorreu um erro ao tentar enviar o e-mail.",
-        variant: "destructive"
-      });
-    }
+// Interface para os dados do veículo
+interface VehicleData {
+  id: string;
+  vehicle: {
+    id: string;
+    brand: string;
+    model: string;
+    year: number;
+    value: number;
+    plate_number?: string;
+    color?: string;
+    is_used: boolean;
+    odometer?: number;
+    group_id?: string;
+    fuel_type?: string;
   };
-
-  return (
-    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="flex items-center gap-2">
-          <Mail size={16} />
-          <span>Enviar por E-mail</span>
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Enviar Orçamento por E-mail</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="email" className="text-right">
-              E-mail
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="cliente@empresa.com.br"
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="message" className="text-right">
-              Mensagem
-            </Label>
-            <Textarea
-              id="message"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Segue em anexo o orçamento conforme solicitado."
-              className="col-span-3"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={() => setDialogOpen(false)}
-            disabled={sendingEmail}
-          >
-            Cancelar
-          </Button>
-          <Button 
-            type="button" 
-            onClick={handleSendEmail} 
-            disabled={sendingEmail}
-            className="flex items-center gap-2"
-          >
-            {sendingEmail ? (
-              <>
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                <span>Enviando...</span>
-              </>
-            ) : (
-              <>
-                <Mail size={14} />
-                <span>Enviar</span>
-              </>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-// Interface ampliada para lidar com a estrutura do Supabase
-interface SupabaseQuote extends Omit<Quote, 'vehicles'> {
-  title?: string;
-  name?: string;
-  created_at: string;
-  status_flow: QuoteStatusFlow; // Garantindo que o status_flow é do tipo correto
-  monthly_values?: number;
-  vehicles?: {
-    vehicle_id: string;
-    vehicleId?: string; // Para compatibilidade
-    vehicleBrand?: string; // Para compatibilidade
-    vehicleModel?: string; // Para compatibilidade
-    vehicle?: {
-      brand: string;
-      model: string;
-      plate_number?: string;
-    };
-  }[];
+  monthly_value: number;
+  contract_months: number;
+  monthly_km: number;
+  operation_severity: number;
+  has_tracking: boolean;
+  depreciation_cost?: number;
+  maintenance_cost?: number;
+  extra_km_rate?: number;
+  total_cost?: number;
 }
 
 const QuoteDetail = () => {
-  const { id } = useParams<{ id: string }>();
-  const [quote, setQuote] = useState<SupabaseQuote | null>(null);
+  const { id } = useParams();
+  const [quote, setQuote] = useState<any>(null);
+  const [vehicles, setVehicles] = useState<VehicleData[]>([]);
+  const [statusHistory, setStatusHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
-  const navigate = useNavigate();
   const { toast } = useToast();
-  const { canEditQuote, canDeleteQuote } = useQuote();
+
+  // Função para calcular os custos para cada veículo
+  const calculateCosts = (vehicles: VehicleData[]): VehicleData[] => {
+    return vehicles.map(vehicle => {
+      const vehicleValue = vehicle.vehicle.value || 0;
+      const contractMonths = vehicle.contract_months || 12;
+      const monthlyKm = vehicle.monthly_km || 2000;
+      const operationSeverity = vehicle.operation_severity || 3;
+      const hasTracking = vehicle.has_tracking || false;
+      const vehicleGroup = vehicle.vehicle.group_id || 'A';
+      
+      // Calcular depreciação
+      const depreciationCost = calculateDepreciationSync({
+        vehicleValue,
+        contractMonths,
+        monthlyKm,
+        operationSeverity: operationSeverity as 1|2|3|4|5|6
+      });
+      
+      // Calcular manutenção
+      const maintenanceCost = calculateMaintenanceSync({
+        vehicleGroup,
+        contractMonths,
+        monthlyKm,
+        hasTracking
+      });
+      
+      // Calcular taxa de km excedente
+      const extraKmRate = calculateExtraKmRateSync(vehicleValue);
+      
+      // Calcular custo total
+      const totalCost = depreciationCost + maintenanceCost;
+      
+      return {
+        ...vehicle,
+        depreciation_cost: depreciationCost,
+        maintenance_cost: maintenanceCost,
+        extra_km_rate: extraKmRate,
+        total_cost: totalCost
+      };
+    });
+  };
 
   useEffect(() => {
-    const fetchQuote = async () => {
-      if (!id) {
-        setError('ID do orçamento não fornecido.');
-        setLoading(false);
-        return;
-      }
+    const fetchQuoteData = async () => {
+      if (!id) return;
 
       try {
         setLoading(true);
-        setError(null);
-        const { quote: quoteData, error: quoteError } = await getQuoteByIdFromSupabase(id);
-
-        if (quoteError) {
-          setError(`Erro ao carregar orçamento: ${quoteError.message}`);
-          console.error("Erro ao carregar orçamento:", quoteError);
-          return;
+        const { success, quote: quoteData } = await getQuoteByIdFromSupabase(id);
+        
+        if (success && quoteData) {
+          console.log("Dados do orçamento carregados:", quoteData);
+          setQuote(quoteData);
+          
+          // Buscar veículos separadamente
+          console.log("Buscando veículos para o orçamento:", id);
+          const { success: vehiclesSuccess, vehicles: vehiclesData } = await getQuoteVehicles(id);
+          
+          if (vehiclesSuccess && vehiclesData && Array.isArray(vehiclesData)) {
+            console.log("Veículos do orçamento carregados:", vehiclesData);
+            
+            // Verificar se algum veículo foi encontrado
+            if (vehiclesData.length > 0) {
+              // Calcular os custos para cada veículo
+              const vehiclesWithCosts = calculateCosts(vehiclesData);
+              setVehicles(vehiclesWithCosts);
+            } else {
+              console.log("Nenhum veículo encontrado para o orçamento:", id);
+              setVehicles([]);
+            }
+          } else {
+            console.log("Nenhum veículo encontrado para o orçamento:", id);
+            setVehicles([]);
+          }
+          
+          // Buscar histórico de status
+          const historyData = await fetchStatusHistory(id);
+          if (historyData) {
+            setStatusHistory(historyData);
+          }
+        } else {
+          setError("Não foi possível carregar os dados do orçamento.");
+          toast({
+            title: "Erro ao carregar",
+            description: "Não foi possível carregar os dados do orçamento.",
+            variant: "destructive"
+          });
         }
-
-        if (!quoteData) {
-          setError('Orçamento não encontrado.');
-          return;
-        }
-
-        setQuote(quoteData as SupabaseQuote);
-      } catch (err: any) {
-        setError(`Erro inesperado: ${err.message}`);
-        console.error("Erro inesperado:", err);
+      } catch (err) {
+        console.error("Erro ao carregar orçamento:", err);
+        setError("Ocorreu um erro ao carregar os dados do orçamento.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchQuote();
-  }, [id]);
-
-  const handleDeleteQuote = async () => {
-    try {
-      if (!id) return;
-      
-      const { success, error: deleteError } = await deleteQuoteFromSupabase(id);
-      if (success) {
-        toast({
-          title: "Orçamento excluído",
-          description: "O orçamento foi excluído com sucesso.",
-        });
-        navigate('/orcamentos');
-      } else {
-        toast({
-          title: "Erro ao excluir",
-          description: deleteError?.message || "Ocorreu um erro ao excluir o orçamento.",
-          variant: "destructive",
-        });
-      }
-    } catch (err: any) {
-      toast({
-        title: "Erro inesperado",
-        description: err.message || "Ocorreu um erro inesperado ao excluir o orçamento.",
-        variant: "destructive",
-      });
-    } finally {
-      setShowDeleteAlert(false);
-    }
-  };
-
-  const handleEditQuote = () => {
-    navigate(`/editar-orcamento/${id}`);
-  };
+    fetchQuoteData();
+  }, [id, toast]);
 
   if (loading) {
     return (
       <MainLayout>
         <div className="py-8">
-          <PageTitle title="Detalhes do Orçamento" subtitle="Carregando informações..." />
-          <Card>
-            <div className="flex items-center justify-center h-48">
-              <span className="loading loading-dots loading-lg"></span>
-            </div>
-          </Card>
+          <div className="flex items-center space-x-2 mb-8">
+            <Link to="/orcamentos">
+              <Button variant="outline" size="sm">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Voltar
+              </Button>
+            </Link>
+          </div>
+          
+          <div className="flex justify-center py-12">
+            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+          </div>
         </div>
       </MainLayout>
     );
   }
 
-  if (error) {
+  if (error || !quote) {
     return (
       <MainLayout>
         <div className="py-8">
-          <PageTitle title="Detalhes do Orçamento" subtitle="Erro ao carregar informações" />
-          <Card>
-            <Alert variant="destructive">
-              <AlertTitle>Erro</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          </Card>
+          <div className="flex items-center space-x-2 mb-8">
+            <Link to="/orcamentos">
+              <Button variant="outline" size="sm">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Voltar
+              </Button>
+            </Link>
+          </div>
+          
+          <div className="bg-destructive/10 border border-destructive/20 text-destructive p-6 rounded-lg">
+            <h3 className="text-xl font-bold mb-2">Erro ao carregar orçamento</h3>
+            <p>{error || "Orçamento não encontrado"}</p>
+          </div>
         </div>
       </MainLayout>
     );
   }
 
-  if (!quote) {
-    return (
-      <MainLayout>
-        <div className="py-8">
-          <PageTitle title="Detalhes do Orçamento" subtitle="Orçamento não encontrado" />
-          <Card>
-            <Alert variant="destructive">
-              <AlertTitle>Aviso</AlertTitle>
-              <AlertDescription>Orçamento não encontrado.</AlertDescription>
-            </Alert>
-          </Card>
-        </div>
-      </MainLayout>
-    );
-  }
+  // Obter informações do cliente
+  const client = quote?.client || {};
+  
+  // Obter status
+  const status = quote?.status_flow || 'ORCAMENTO';
+  
+  // Função para atualizar quando o status for alterado
+  const handleStatusChange = (newStatus: QuoteStatusFlow) => {
+    setQuote({...quote, status_flow: newStatus});
+  };
+  
+  // Função para recarregar os dados quando algo for atualizado
+  const handleUpdate = async () => {
+    if (id) {
+      const historyData = await fetchStatusHistory(id);
+      setStatusHistory(historyData || []);
+    }
+  };
 
   return (
     <MainLayout>
       <div className="py-8">
-        <div className="flex items-center justify-between mb-4">
-          <PageTitle title="Detalhes do Orçamento" subtitle="Visualize e gerencie os detalhes do orçamento" />
-          <Button variant="ghost" onClick={() => navigate('/orcamentos')}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Voltar
-          </Button>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+          <div>
+            <div className="flex items-center space-x-2 mb-2">
+              <Link to="/orcamentos">
+                <Button variant="outline" size="sm">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Voltar
+                </Button>
+              </Link>
+              <Link to={`/editar-orcamento/${id}`}>
+                <Button variant="outline" size="sm">
+                  <FileEdit className="h-4 w-4 mr-2" />
+                  Editar
+                </Button>
+              </Link>
+            </div>
+            <PageTitle 
+              title={`Orçamento #${id?.substring(0, 8)}`} 
+              subtitle={`Cliente: ${client.name || 'Não especificado'}`}
+            />
+          </div>
+          
+          <StatusBreadcrumb currentStatus={status as QuoteStatusFlow} />
         </div>
-
-        <Card>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h2 className="text-lg font-semibold mb-4">Informações do Orçamento</h2>
-              <div className="space-y-2">
-                <div>
-                  <span className="font-semibold">Título:</span> {quote.name || quote.title}
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <Card>
+              <CardHeader title="Detalhes do Orçamento" />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground flex items-center">
+                      <User className="h-4 w-4 mr-2" />
+                      Cliente
+                    </h3>
+                    <p className="mt-1">{client.name || 'Não especificado'}</p>
+                    {client.document && <p className="text-sm text-muted-foreground">CNPJ/CPF: {client.document}</p>}
+                  </div>
+                  
+                  {client.email && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Contato</h3>
+                      <p className="mt-1">{client.email}</p>
+                      {client.phone && <p className="text-sm">{client.phone}</p>}
+                    </div>
+                  )}
+                  
+                  {(client.city || client.state) && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Localização</h3>
+                      <p className="mt-1">
+                        {client.city && client.state ? `${client.city} - ${client.state}` : 
+                         client.city || client.state}
+                      </p>
+                      {client.address && <p className="text-sm text-muted-foreground">{client.address}</p>}
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <span className="font-semibold">ID:</span> {quote.id}
-                </div>
-                <div>
-                  <span className="font-semibold">Cliente:</span> {quote.client?.name || 'N/A'}
-                </div>
-                <div>
-                  <span className="font-semibold">Criado em:</span>{' '}
-                  {format(new Date(quote.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                </div>
-                <div>
-                  <span className="font-semibold">Status:</span>{' '}
-                  <Badge variant="secondary">{quote.status_flow}</Badge>
-                </div>
-                <div>
-                  <span className="font-semibold">Valor Mensal:</span> R$ {quote.monthly_values?.toLocaleString('pt-BR') || '0,00'}
+                
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground flex items-center">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Parâmetros
+                    </h3>
+                    <div className="mt-1 space-y-1">
+                      <p>Prazo: {quote?.contract_months} meses</p>
+                      <p>Quilometragem: {quote?.monthly_km?.toLocaleString('pt-BR')} km/mês</p>
+                      <p>Severidade: Nível {quote?.operation_severity}</p>
+                      <p>Rastreamento: {quote?.has_tracking ? 'Sim' : 'Não'}</p>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground flex items-center">
+                      <Landmark className="h-4 w-4 mr-2" />
+                      Valores
+                    </h3>
+                    <div className="mt-1">
+                      <p className="text-lg font-semibold">
+                        R$ {Number(quote?.total_value || 0).toLocaleString('pt-BR')}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Valor mensal total</p>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground flex items-center">
+                      <Gauge className="h-4 w-4 mr-2" />
+                      Datas
+                    </h3>
+                    <div className="mt-1 space-y-1 text-sm">
+                      <p>Criado em: {quote?.created_at ? new Date(quote.created_at).toLocaleDateString('pt-BR') : '-'}</p>
+                      <p>Atualizado em: {quote?.updated_at ? new Date(quote.updated_at).toLocaleDateString('pt-BR') : '-'}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-
-            <div>
-              <h2 className="text-lg font-semibold mb-4">Veículos</h2>
-              {quote.vehicles && quote.vehicles.length > 0 ? (
-                <ul className="list-disc pl-5">
-                  {quote.vehicles.map((vehicle) => (
-                    <li key={vehicle.vehicle_id || vehicle.vehicleId}>
-                      {vehicle.vehicle?.brand || vehicle.vehicleBrand} {vehicle.vehicle?.model || vehicle.vehicleModel} 
-                      ({vehicle.vehicle?.plate_number || 'N/A'})
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div>Nenhum veículo associado a este orçamento.</div>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-6 border-t pt-4">
-            <h2 className="text-lg font-semibold mb-4">Histórico de Status</h2>
-            <StatusHistory quoteId={quote.id} />
-          </div>
-
-          <div className="mt-6 border-t pt-4">
-            <h2 className="text-lg font-semibold mb-4">Alterar Status</h2>
-            <StatusFlow quoteId={quote.id} currentStatus={quote.status_flow} />
-          </div>
-
-          <div className="flex items-center space-x-2 mt-6 border-t pt-4">
-            {canEditQuote && (
-              <Button variant="outline" onClick={handleEditQuote}>
-                <Edit className="mr-2 h-4 w-4" /> Editar
-              </Button>
-            )}
+            </Card>
             
-            {canDeleteQuote && (
-              <Button variant="destructive" onClick={() => setShowDeleteAlert(true)}>
-                <Trash2 className="mr-2 h-4 w-4" /> Excluir
-              </Button>
-            )}
-            
-            {quote && <EmailDialog quoteId={quote.id} />}
+            <Card>
+              <CardHeader 
+                title={`Veículos (${vehicles.length})`} 
+                subtitle="Veículos incluídos neste orçamento"
+                icon={<Car size={18} />}
+              />
+              
+              <div className="p-6 space-y-4">
+                {vehicles.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Car className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                    <p>Nenhum veículo encontrado neste orçamento</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {vehicles.map((item) => (
+                      <VehicleCard 
+                        key={item.id} 
+                        vehicle={item} 
+                        showDetailedInfo={true}
+                        showCosts={true}
+                      >
+                        <div className="mt-3 pt-3 border-t">
+                          <div className="flex justify-between">
+                            <div>
+                              <p className="text-sm text-muted-foreground">Valor mensal:</p>
+                              <p className="font-medium">R$ {Number(item.monthly_value).toLocaleString('pt-BR')}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm text-muted-foreground">Parâmetros:</p>
+                              <p className="text-sm">{item.contract_months} meses / {item.monthly_km.toLocaleString('pt-BR')} km</p>
+                            </div>
+                          </div>
+                        </div>
+                      </VehicleCard>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Card>
           </div>
-        </Card>
+          
+          <div className="space-y-6">
+            <Card>
+              <CardHeader title="Status do Orçamento" />
+              
+              <div className="p-6">
+                <StatusUpdater 
+                  quoteId={id || ''} 
+                  currentStatus={status as QuoteStatusFlow} 
+                  onStatusChange={handleStatusChange}
+                  onUpdate={handleUpdate}
+                />
+              </div>
+            </Card>
+            
+            <StatusHistory quoteId={id} />
+          </div>
+        </div>
       </div>
-
-      {/* Delete Confirmation Alert */}
-      <Dialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Confirmar Exclusão</DialogTitle>
-            <DialogDescription>
-              Tem certeza de que deseja excluir este orçamento? Esta ação não pode ser desfeita.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button type="button" variant="secondary" onClick={() => setShowDeleteAlert(false)}>
-              Cancelar
-            </Button>
-            <Button type="button" variant="destructive" onClick={handleDeleteQuote}>
-              Excluir
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </MainLayout>
   );
 };
