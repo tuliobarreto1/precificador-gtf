@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/table';
 import { Edit, Trash2 } from 'lucide-react';
 import { useQuote } from '@/context/QuoteContext';
-import { UserRole } from '@/context/types/quoteTypes';
+import { User } from '@/context/types/quoteTypes';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,9 +45,10 @@ interface QuoteItem {
 interface QuoteTableProps {
   quotes: QuoteItem[];
   onRefresh?: () => void;
+  onDeleteClick?: (quoteId: string) => void;
 }
 
-const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
+const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [quoteToDelete, setQuoteToDelete] = useState<string | null>(null);
   const quoteContext = useQuote();
@@ -63,6 +64,13 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
                                  typeof deleteQuote === 'function';
 
   const handleDeleteClick = (quoteId: string) => {
+    // Se temos uma função de delete externa, usar ela
+    if (onDeleteClick) {
+      onDeleteClick(quoteId);
+      return;
+    }
+    
+    // Caso contrário, usar o fluxo interno
     setQuoteToDelete(quoteId);
     setDeleteDialogOpen(true);
   };
@@ -133,7 +141,7 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
                   createdBy: quote.createdBy ? {
                     id: quote.createdBy.id,
                     name: quote.createdBy.name,
-                    role: quote.createdBy.role as UserRole, // Convertendo explicitamente para UserRole
+                    role: quote.createdBy.role as any, // Convertendo explicitamente 
                     email: '',
                     status: 'active' as 'active' | 'inactive', // Definindo o status explicitamente
                     lastLogin: ''
@@ -144,8 +152,8 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
                 };
                 
                 // Valores padrão caso o contexto não esteja disponível
-                let canEdit = false;
-                let canDelete = false;
+                let canEdit = true; // Por padrão, permitir edição
+                let canDelete = true; // Por padrão, permitir exclusão
                 
                 if (isQuoteContextAvailable) {
                   canEdit = canEditQuote(quoteForPermissionCheck);
