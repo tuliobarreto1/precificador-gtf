@@ -1,7 +1,6 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Client, Vehicle, VehicleGroup } from '@/lib/models';
-import { getClientById, getVehicleById } from '@/lib/data-provider';
 import { QuoteFormData, SavedQuote, QuoteContextType } from './types/quoteTypes';
 import { useQuoteUsers } from '@/hooks/useQuoteUsers';
 import { useQuoteVehicles } from '@/hooks/useQuoteVehicles';

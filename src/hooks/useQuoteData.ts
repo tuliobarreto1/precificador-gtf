@@ -6,44 +6,33 @@ import { supabase } from '@/integrations/supabase/client';
 
 export function useQuoteData() {
   // Função para recuperar um cliente pelo ID
-  const getClient = (id: string): Client => {
-    if (!id) return {} as Client;
+  const getClient = async (id: string): Promise<Client | null> => {
+    if (!id) return null;
     
-    // Buscar nos dados simulados para evitar chamadas assíncronas
-    const client = getClientById(id);
-    if (client) {
+    try {
+      // Buscar cliente do Supabase
+      const client = await getClientById(id);
       return client;
+    } catch (error) {
+      console.error(`Erro ao buscar cliente ${id}:`, error);
+      // Retornar null se não encontrado
+      return null;
     }
-    
-    // Retornar um cliente vazio se não encontrado
-    return {
-      id: '',
-      name: 'Cliente não encontrado',
-      type: 'PJ',
-      document: ''
-    } as Client;
   };
 
   // Função para recuperar um veículo pelo ID
-  const getVehicle = (id: string): Vehicle => {
-    if (!id) return {} as Vehicle;
+  const getVehicle = async (id: string): Promise<Vehicle | null> => {
+    if (!id) return null;
     
-    // Buscar nos dados simulados para evitar chamadas assíncronas
-    const vehicle = getVehicleById(id);
-    if (vehicle) {
+    try {
+      // Buscar veículo do Supabase
+      const vehicle = await getVehicleById(id);
       return vehicle;
+    } catch (error) {
+      console.error(`Erro ao buscar veículo ${id}:`, error);
+      // Retornar null se não encontrado
+      return null;
     }
-    
-    // Retornar um veículo vazio se não encontrado
-    return {
-      id: '',
-      brand: 'Veículo não encontrado',
-      model: '',
-      year: new Date().getFullYear(),
-      value: 0,
-      isUsed: false,
-      groupId: 'A'
-    } as Vehicle;
   };
 
   // Função para carregar dados de um orçamento usando seu ID
@@ -79,15 +68,31 @@ export function useQuoteData() {
       }
       
       // Converter o cliente do formato do Supabase
-      const client: Client = quoteData.client ? {
-        id: quoteData.client.id,
-        name: quoteData.client.name,
-        type: (quoteData.client.document?.length === 14 ? 'PJ' : 'PF'),
-        document: quoteData.client.document,
-        email: quoteData.client.email,
-        contact: quoteData.client.phone,
-        responsible: quoteData.client.responsible_person
-      } : getClient(quoteData.client_id);
+      let client: Client;
+      if (quoteData.client) {
+        client = {
+          id: quoteData.client.id,
+          name: quoteData.client.name,
+          type: (quoteData.client.document?.length === 14 ? 'PJ' : 'PF'),
+          document: quoteData.client.document || '',
+          email: quoteData.client.email,
+          contact: quoteData.client.phone,
+          responsible: quoteData.client.responsible_person
+        };
+      } else {
+        const fetchedClient = await getClient(quoteData.client_id);
+        if (fetchedClient) {
+          client = fetchedClient;
+        } else {
+          // Cliente padrão se não encontrado
+          client = {
+            id: quoteData.client_id || '',
+            name: 'Cliente não encontrado',
+            type: 'PJ',
+            document: ''
+          };
+        }
+      }
       
       // Converter os veículos do formato do Supabase
       const vehicleItems: QuoteVehicleItem[] = [];
@@ -106,10 +111,33 @@ export function useQuoteData() {
             groupId: qv.vehicle.group_id
           };
         } else {
-          vehicle = getVehicle(qv.vehicle_id);
+          const fetchedVehicle = await getVehicle(qv.vehicle_id);
+          if (fetchedVehicle) {
+            vehicle = fetchedVehicle;
+          } else {
+            // Veículo padrão se não encontrado
+            vehicle = {
+              id: qv.vehicle_id || '',
+              brand: 'Veículo não encontrado',
+              model: '',
+              year: new Date().getFullYear(),
+              value: 0,
+              isUsed: false,
+              groupId: 'A'
+            };
+          }
         }
         
-        const vehicleGroup = getVehicleGroupById(vehicle.groupId);
+        const fetchedVehicleGroup = await getVehicleGroupById(vehicle.groupId);
+        const vehicleGroup: VehicleGroup = fetchedVehicleGroup || {
+          id: vehicle.groupId || 'A',
+          name: `Grupo ${vehicle.groupId || 'A'}`,
+          description: '',
+          revisionKm: 10000,
+          revisionCost: 300,
+          tireKm: 40000,
+          tireCost: 1200
+        };
         
         vehicleItems.push({
           vehicle,
@@ -168,7 +196,15 @@ export function useQuoteData() {
               plateNumber: savedVehicle.plateNumber,
               groupId: savedVehicle.groupId
             },
-            group: getVehicleGroupById(savedVehicle.groupId)
+            group: {
+              id: savedVehicle.groupId || 'A',
+              name: `Grupo ${savedVehicle.groupId || 'A'}`,
+              description: '',
+              revisionKm: 10000,
+              revisionCost: 300,
+              tireKm: 40000,
+              tireCost: 1200
+            }
           };
         }
         
@@ -191,7 +227,16 @@ export function useQuoteData() {
           };
         } else {
           // Se não tem grupo na resposta, buscar pelo ID
-          vehicleGroup = getVehicleGroupById(data.group_id);
+          const fetchedGroup = await getVehicleGroupById(data.group_id);
+          vehicleGroup = fetchedGroup || {
+            id: data.group_id || 'A',
+            name: `Grupo ${data.group_id || 'A'}`,
+            description: '',
+            revisionKm: 10000,
+            revisionCost: 300,
+            tireKm: 40000,
+            tireCost: 1200
+          };
         }
         
         return {

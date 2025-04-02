@@ -1,6 +1,6 @@
 
 import { supabase } from '@/integrations/supabase';
-import { Client, Vehicle, VehicleGroup, Quote, savedQuotes } from './models';
+import { Client, Vehicle, VehicleGroup, Quote, savedQuotes, ClientType } from './models';
 
 // Funções para clientes
 export async function getClients(): Promise<Client[]> {
@@ -18,7 +18,7 @@ export async function getClients(): Promise<Client[]> {
     return data.map(client => ({
       id: client.id,
       name: client.name,
-      type: (client.type === 'PF' || client.type === 'PJ') ? client.type : 'PJ',
+      type: (client.type === 'PF' || client.type === 'PJ') ? client.type as ClientType : 'PJ' as ClientType,
       document: client.document || '',
       email: client.email,
       contact: client.phone,
@@ -48,7 +48,7 @@ export async function getClientById(id: string): Promise<Client | null> {
     return {
       id: data.id,
       name: data.name,
-      type: (data.type === 'PF' || data.type === 'PJ') ? data.type : 'PJ',
+      type: (data.type === 'PF' || data.type === 'PJ') ? data.type as ClientType : 'PJ' as ClientType,
       document: data.document || '',
       email: data.email,
       contact: data.phone,

@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { User, SavedQuote, defaultUser } from '@/context/types/quoteTypes';
+import { User, SavedQuote, defaultUser, UserRole } from '@/context/types/quoteTypes';
 import { supabase } from '@/integrations/supabase/client';
 
 // Chave para armazenar o usuário atual no localStorage

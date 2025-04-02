@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuote } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
-import { getQuotes, getClientById, getVehicleById, savedQuotes, getVehicleGroupById, mockClients, mockVehicles } from '@/lib/data-provider';
+import { getQuotes, getClientById, getVehicleById, savedQuotes, getVehicleGroupById } from '@/lib/data-provider';
 import { Client, Vehicle } from '@/lib/models';
 import { 
   checkSupabaseConnection, 
@@ -200,32 +200,50 @@ export const useQuotes = () => {
   };
 
   const transformQuotes = () => {
-    const getClientNameSync = (clientId: string): string => {
-      const client = mockClients.find(c => c.id === clientId);
-      return client?.name || 'Cliente não encontrado';
+    // Função para buscar cliente e veículo diretamente no Supabase
+    const getClientNameAsync = async (clientId: string): Promise<string> => {
+      try {
+        const client = await getClientById(clientId);
+        return client?.name || 'Cliente não encontrado';
+      } catch (error) {
+        console.error(`Erro ao buscar cliente ${clientId}:`, error);
+        return 'Cliente não encontrado';
+      }
     };
 
-    const getVehicleDetailsSync = (vehicleId: string): {brand: string, model: string} => {
-      const vehicle = mockVehicles.find(v => v.id === vehicleId);
+    const getVehicleDetailsAsync = async (vehicleId: string): Promise<{brand: string, model: string}> => {
+      try {
+        const vehicle = await getVehicleById(vehicleId);
+        return {
+          brand: vehicle?.brand || 'Marca desconhecida',
+          model: vehicle?.model || 'Modelo desconhecido'
+        };
+      } catch (error) {
+        console.error(`Erro ao buscar veículo ${vehicleId}:`, error);
+        return {
+          brand: 'Marca desconhecida',
+          model: 'Modelo desconhecido'
+        };
+      }
+    };
+
+    // Transforma dados de orçamentos de demonstração
+    const demoQuotesTransformed = demoQuotes.map(async (quote) => {
+      const clientName = await getClientNameAsync(quote.clientId);
+      const vehicleDetails = await getVehicleDetailsAsync(quote.vehicleId);
+      
       return {
-        brand: vehicle?.brand || 'Marca desconhecida',
-        model: vehicle?.model || 'Modelo desconhecido'
+        id: quote.id,
+        clientName,
+        vehicleName: `${vehicleDetails.brand} ${vehicleDetails.model}`,
+        value: quote.totalCost,
+        createdAt: quote.createdAt || new Date().toISOString(),
+        status: 'ORCAMENTO',
+        source: 'demo' as const
       };
-    };
-
-    const demoQuotesTransformed = demoQuotes.map(quote => ({
-      id: quote.id,
-      clientName: getClientNameSync(quote.clientId),
-      vehicleName: (() => {
-        const vehicle = getVehicleDetailsSync(quote.vehicleId);
-        return `${vehicle.brand} ${vehicle.model}`;
-      })(),
-      value: quote.totalCost,
-      createdAt: quote.createdAt || new Date().toISOString(),
-      status: 'ORCAMENTO',
-      source: 'demo' as const
-    }));
+    });
     
+    // Transforma dados de orçamentos locais
     const localQuotesTransformed = ((quoteContext?.savedQuotes || []) as any[]).map(quote => ({
       id: quote.id,
       clientName: quote.clientName || 'Cliente não especificado',
@@ -238,6 +256,7 @@ export const useQuotes = () => {
       source: 'local' as const
     }));
     
+    // Transforma dados de orçamentos do Supabase
     const supabaseQuotesTransformed = supabaseQuotes.map(quote => {
       console.log('Processando orçamento do Supabase:', quote.id);
       
@@ -258,16 +277,29 @@ export const useQuotes = () => {
       };
     });
 
-    return [...demoQuotesTransformed, ...localQuotesTransformed, ...supabaseQuotesTransformed];
+    // Combinar todas as cotações transformadas
+    return Promise.all([
+      ...demoQuotesTransformed,
+      ...localQuotesTransformed,
+      ...supabaseQuotesTransformed
+    ]);
   };
 
   const [allQuotes, setAllQuotes] = useState<QuoteItem[]>([]);
   
   useEffect(() => {
-    const quotes = transformQuotes();
-    quotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    console.log(`🔄 Lista de orçamentos atualizada: ${quotes.length} orçamentos`);
-    setAllQuotes(quotes);
+    const updateQuotes = async () => {
+      try {
+        const quotes = await transformQuotes();
+        quotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        console.log(`🔄 Lista de orçamentos atualizada: ${quotes.length} orçamentos`);
+        setAllQuotes(quotes);
+      } catch (error) {
+        console.error('Erro ao transformar orçamentos:', error);
+      }
+    };
+    
+    updateQuotes();
   }, [demoQuotes, supabaseQuotes, quoteContext?.savedQuotes, refreshTrigger]);
   
   const totalQuotes = allQuotes.length;
