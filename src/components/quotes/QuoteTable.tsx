@@ -13,7 +13,8 @@ import {
   TableRow
 } from '@/components/ui/table';
 import { Edit, Trash2 } from 'lucide-react';
-import { useQuote, UserRole } from '@/context/QuoteContext';
+import { useQuote } from '@/context/QuoteContext';
+import { UserRole } from '@/context/types/quoteTypes';
 import {
   AlertDialog,
   AlertDialogAction,

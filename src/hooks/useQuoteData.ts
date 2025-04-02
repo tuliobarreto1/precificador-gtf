@@ -1,4 +1,3 @@
-
 import { getClientById, getVehicleById, getVehicleGroupById } from '@/lib/data-provider';
 import { Client, Vehicle, VehicleGroup } from '@/lib/models';
 import { QuoteVehicleItem, SavedQuote } from '@/context/types/quoteTypes';
@@ -173,6 +172,24 @@ export function useQuoteData() {
         }
         
         // Se encontrou no banco, mapear para o formato Vehicle
+        let vehicleGroup: VehicleGroup;
+        
+        // Verifica se data.group é um objeto válido ou se precisamos buscar o grupo pelo ID
+        if (data.group && typeof data.group === 'object' && data.group !== null) {
+          vehicleGroup = {
+            id: data.group.id || data.group.code || data.group_id || '',
+            name: data.group.name || `Grupo ${data.group.code || data.group_id || ''}`,
+            description: data.group.description || '',
+            revisionKm: data.group.revision_km || 10000,
+            revisionCost: data.group.revision_cost || 300,
+            tireKm: data.group.tire_km || 40000,
+            tireCost: data.group.tire_cost || 1200
+          };
+        } else {
+          // Se não tem grupo na resposta, buscar pelo ID
+          vehicleGroup = getVehicleGroupById(data.group_id);
+        }
+        
         return {
           vehicle: {
             id: data.id,
@@ -186,15 +203,7 @@ export function useQuoteData() {
             odometer: data.odometer,
             groupId: data.group_id
           },
-          group: data.group ? {
-            id: data.group.code,
-            name: data.group.name,
-            description: data.group.description,
-            revisionKm: data.group.revision_km,
-            revisionCost: data.group.revision_cost,
-            tireKm: data.group.tire_km,
-            tireCost: data.group.tire_cost
-          } : getVehicleGroupById(data.group_id)
+          group: vehicleGroup
         };
       });
       
