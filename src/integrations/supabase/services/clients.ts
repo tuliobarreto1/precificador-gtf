@@ -1,4 +1,3 @@
-
 import { supabase } from '../client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -9,7 +8,6 @@ export async function getClientByDocument(document: string) {
       return { success: false, error: 'Documento não fornecido', client: null };
     }
 
-    // Removido o .maybeSingle() para tratar múltiplos resultados
     const { data, error } = await supabase
       .from('clients')
       .select('*')
@@ -20,9 +18,7 @@ export async function getClientByDocument(document: string) {
       return { success: false, error, client: null };
     }
 
-    // Se encontrou múltiplos registros, usar o mais recente
     if (data && data.length > 0) {
-      // Ordenar por updated_at e pegar o mais recente
       const mostRecent = data.sort((a, b) => 
         new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
       )[0];
@@ -44,9 +40,7 @@ export async function saveClientToSupabase(client: any) {
   try {
     console.log("Iniciando salvamento/atualização de cliente:", client);
 
-    // Verificar se o cliente tem documento (CPF/CNPJ)
     if (client.document) {
-      // Buscar cliente existente pelo documento
       const { success, client: existingClient, error } = await getClientByDocument(client.document);
       
       if (!success) {
@@ -57,14 +51,13 @@ export async function saveClientToSupabase(client: any) {
       if (existingClient) {
         console.log("Cliente já existe, atualizando dados...");
         
-        // Atualizar dados do cliente existente
         const { data, error: updateError } = await supabase
           .from('clients')
           .update({
             name: client.name,
             email: client.email || existingClient.email,
             phone: client.phone || existingClient.phone,
-            document: client.document, // Manter o documento original
+            document: client.document,
             updated_at: new Date().toISOString()
           })
           .eq('id', existingClient.id)
@@ -81,7 +74,6 @@ export async function saveClientToSupabase(client: any) {
       }
     }
 
-    // Se não encontrou cliente existente ou não tem documento, criar novo
     console.log("Criando novo cliente...");
     const { data, error } = await supabase
       .from('clients')
@@ -130,12 +122,11 @@ export async function getClientsFromSupabase() {
   }
 }
 
-// Função para excluir cliente - CORRIGIDA E MELHORADA
+// Função para excluir cliente - REESCRITA COM NOVA ABORDAGEM
 export async function deleteClientFromSupabase(clientId: string) {
   try {
     console.log(`🗑️ Iniciando exclusão do cliente ${clientId}...`);
     
-    // Verificar se o cliente está em uso em algum orçamento
     const { data: quotesData, error: quotesError } = await supabase
       .from('quotes')
       .select('id')
@@ -155,66 +146,49 @@ export async function deleteClientFromSupabase(clientId: string) {
       };
     }
 
-    // Se não estiver em uso, proceder com a exclusão usando o método correto
-    const { error } = await supabase
-      .from('clients')
-      .delete()
-      .eq('id', clientId);
-
-    if (error) {
-      console.error(`❌ Erro ao excluir cliente ${clientId}:`, error);
-      return { success: false, error };
+    console.log(`🔄 Tentando exclusão via RPC...`);
+    
+    const rpcResult = await supabase.rpc('delete_client', { client_id: clientId });
+    
+    if (rpcResult.error) {
+      console.error(`❌ Erro na exclusão via RPC:`, rpcResult.error);
+      
+      console.log(`🔄 Tentando método tradicional...`);
+      const { error } = await supabase
+        .from('clients')
+        .delete()
+        .eq('id', clientId);
+      
+      if (error) {
+        console.error(`❌ Erro ao excluir cliente ${clientId}:`, error);
+        return { success: false, error };
+      }
     }
     
-    // Aumento do tempo de espera para 1.5 segundos para garantir que a operação foi concluída
     console.log(`⏳ Aguardando confirmação da exclusão...`);
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
-    // Verificar se o cliente foi realmente excluído
     const { data: checkData, error: checkError } = await supabase
       .from('clients')
       .select('id')
       .eq('id', clientId);
       
     if (checkError) {
+      if (checkError.code === 'PGRST116') {
+        console.log(`✅ Cliente ${clientId} excluído com sucesso!`);
+        return { success: true };
+      }
+      
       console.error(`❌ Erro ao verificar exclusão do cliente:`, checkError);
       return { success: false, error: checkError };
     }
     
-    // Dupla verificação para garantir que o cliente foi excluído
     if (checkData && checkData.length > 0) {
       console.error(`❌ Cliente ${clientId} ainda existe no banco após tentativa de exclusão`);
-      
-      // Tentativa adicional de exclusão
-      console.log(`🔄 Fazendo nova tentativa de exclusão...`);
-      const { error: retryError } = await supabase
-        .from('clients')
-        .delete()
-        .eq('id', clientId);
-        
-      if (retryError) {
-        console.error(`❌ Erro na segunda tentativa:`, retryError);
-        return { 
-          success: false, 
-          error: { message: "Falha ao excluir o cliente do banco de dados após múltiplas tentativas" } 
-        };
-      }
-      
-      // Esperar um pouco mais e verificar novamente
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const { data: finalCheck } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('id', clientId);
-        
-      if (finalCheck && finalCheck.length > 0) {
-        console.error(`❌ Cliente ${clientId} não pôde ser excluído mesmo após múltiplas tentativas`);
-        return { 
-          success: false, 
-          error: { message: "Não foi possível excluir o cliente do banco de dados" } 
-        };
-      }
+      return { 
+        success: false, 
+        error: { message: "Não foi possível excluir o cliente do banco de dados. Por favor, tente novamente mais tarde." } 
+      };
     }
     
     console.log(`✅ Cliente ${clientId} excluído com sucesso!`);
@@ -230,7 +204,6 @@ export async function updateClientInSupabase(clientId: string, updates: any) {
   try {
     console.log("Atualizando cliente:", { clientId, updates });
 
-    // Se estiver tentando atualizar o documento, verificar se já existe
     if (updates.document) {
       const { client: existingClient } = await getClientByDocument(updates.document);
       if (existingClient && existingClient.id !== clientId) {

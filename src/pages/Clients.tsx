@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, Plus, Search, Edit, Trash2, AlertCircle } from 'lucide-react';
@@ -118,7 +117,6 @@ const Clients = () => {
         throw error;
       }
 
-      // Atualizar a lista de clientes localmente após confirmação de exclusão no banco
       setClients(clients.filter(client => client.id !== clientToDelete.id));
       setFilteredClients(filteredClients.filter(client => client.id !== clientToDelete.id));
       
