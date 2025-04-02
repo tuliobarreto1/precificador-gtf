@@ -4,11 +4,14 @@ import { DepreciationParams, MaintenanceParams, calculateDepreciationSync, calcu
 import { useState, useEffect } from 'react';
 import { fetchCalculationParams } from '@/lib/settings';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { getCurrentUser } from '@/lib/data-provider';
 
 export function useQuoteCalculation(quoteForm: QuoteFormData) {
   // Estado para armazenar parâmetros de cálculo do banco de dados
   const [calculationParams, setCalculationParams] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   // Carregar parâmetros de cálculo do banco de dados ao iniciar
   useEffect(() => {
@@ -102,25 +105,90 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
 
   // Função para enviar orçamento por e-mail
   const sendQuoteByEmail = async (quoteId: string, email: string, message: string): Promise<boolean> => {
-    // Simulação de envio de e-mail
-    console.log('Enviando orçamento por e-mail:', { quoteId, email, message });
-    
-    // Aqui você poderia implementar a lógica real de envio de e-mail
-    // usando uma API de e-mail ou uma função do Supabase Edge
-    
-    return new Promise(resolve => {
-      setTimeout(() => {
-        console.log('E-mail enviado com sucesso!');
-        toast.success('E-mail enviado com sucesso!');
-        resolve(true);
-      }, 2000);
-    });
+    try {
+      console.log('📧 Iniciando envio de orçamento por e-mail:', { quoteId, email, message });
+      setSendingEmail(true);
+      
+      // Obter informações do orçamento
+      const { data: quoteData } = await supabase
+        .from('quotes')
+        .select(`
+          *,
+          client:client_id(*),
+          vehicles:quote_vehicles(
+            *,
+            vehicle:vehicle_id(*)
+          )
+        `)
+        .eq('id', quoteId)
+        .single();
+      
+      if (!quoteData) {
+        console.error('❌ Orçamento não encontrado:', quoteId);
+        toast.error('Erro ao enviar e-mail: Orçamento não encontrado');
+        return false;
+      }
+      
+      // Obter informações do usuário atual
+      const currentUser = await getCurrentUser();
+      
+      if (!currentUser) {
+        console.error('❌ Usuário não encontrado');
+        toast.error('Erro ao enviar e-mail: Usuário não encontrado');
+        return false;
+      }
+      
+      // Preparar dados para a função edge
+      const emailData = {
+        quoteId,
+        quoteTitle: quoteData.title,
+        recipientEmail: email,
+        recipientName: quoteData.client?.name,
+        message: message,
+        totalValue: quoteData.monthly_values || 0,
+        contractMonths: quoteData.contract_months || 12,
+        monthlyKm: quoteData.monthly_km || 2000,
+        vehicles: (quoteData.vehicles || []).map((qv: any) => ({
+          brand: qv.vehicle?.brand || '',
+          model: qv.vehicle?.model || '',
+          plateNumber: qv.vehicle?.plate_number,
+          monthlyValue: qv.monthly_value || 0
+        })),
+        senderName: currentUser.name || currentUser.email,
+        senderEmail: currentUser.email,
+        senderPhone: currentUser.phone
+      };
+      
+      console.log('📧 Dados preparados para envio:', emailData);
+      
+      // Chamar a função edge
+      const { data, error } = await supabase.functions.invoke('send-quote-email', {
+        body: emailData
+      });
+      
+      if (error) {
+        console.error('❌ Erro ao chamar função de envio de e-mail:', error);
+        toast.error(`Erro ao enviar e-mail: ${error.message}`);
+        return false;
+      }
+      
+      console.log('✅ E-mail enviado com sucesso:', data);
+      toast.success('E-mail enviado com sucesso!');
+      return true;
+    } catch (error: any) {
+      console.error('❌ Erro ao enviar e-mail:', error);
+      toast.error(`Erro ao enviar e-mail: ${error.message}`);
+      return false;
+    } finally {
+      setSendingEmail(false);
+    }
   };
 
   return {
     calculateQuote,
     sendQuoteByEmail,
     loadingParams: loading,
+    sendingEmail,
     usingDatabaseParams: !!calculationParams
   };
 }

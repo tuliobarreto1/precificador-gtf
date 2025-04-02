@@ -36,10 +36,9 @@ const KM_OPTIONS = [1000, 2000, 3000, 4000, 5000];
 const EmailDialog = ({ quoteId }: { quoteId: string }) => {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
-  const [sending, setSending] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const { toast } = useToast();
-  const { sendQuoteByEmail } = useQuote();
+  const { sendQuoteByEmail, sendingEmail } = useQuote();
 
   const handleSendEmail = async () => {
     if (!email) {
@@ -51,7 +50,6 @@ const EmailDialog = ({ quoteId }: { quoteId: string }) => {
       return;
     }
 
-    setSending(true);
     const success = await sendQuoteByEmail(quoteId, email, message);
     
     if (success) {
@@ -62,14 +60,7 @@ const EmailDialog = ({ quoteId }: { quoteId: string }) => {
       setDialogOpen(false);
       setEmail('');
       setMessage('');
-    } else {
-      toast({
-        title: "Erro ao enviar",
-        description: "Não foi possível enviar o orçamento por e-mail",
-        variant: "destructive"
-      });
     }
-    setSending(false);
   };
 
   return (
@@ -116,12 +107,27 @@ const EmailDialog = ({ quoteId }: { quoteId: string }) => {
             type="button" 
             variant="outline" 
             onClick={() => setDialogOpen(false)}
-            disabled={sending}
+            disabled={sendingEmail}
           >
             Cancelar
           </Button>
-          <Button type="button" onClick={handleSendEmail} disabled={sending}>
-            {sending ? 'Enviando...' : 'Enviar'}
+          <Button 
+            type="button" 
+            onClick={handleSendEmail} 
+            disabled={sendingEmail}
+            className="flex items-center gap-2"
+          >
+            {sendingEmail ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                <span>Enviando...</span>
+              </>
+            ) : (
+              <>
+                <Mail size={14} />
+                <span>Enviar</span>
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

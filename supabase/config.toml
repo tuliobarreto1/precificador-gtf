@@ -1,1 +1,7 @@
+
+# Supabase configuration for Edge Functions
 project_id = "pvsjjqmsoauuxxfgdhfg"
+
+[functions.send-quote-email]
+verify_jwt = true
+
