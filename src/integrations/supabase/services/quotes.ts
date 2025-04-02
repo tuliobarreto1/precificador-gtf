@@ -1,5 +1,4 @@
 
-// Manter apenas as funções que são realmente utilizadas
 import { supabase } from '../client';
 
 // Função para buscar logs de ações nos orçamentos

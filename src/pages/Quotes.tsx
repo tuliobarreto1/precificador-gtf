@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
@@ -6,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Search, Plus, RefreshCw, ClipboardList } from 'lucide-react';
-import { QuoteTable } from '@/components/Quote/QuoteTable';
+import QuoteTable from '@/components/Quote/QuoteTable';
 import { useQuotes } from '@/hooks/useQuotes';
 import { useAuth } from '@/context/AuthContext';
 import { Separator } from '@/components/ui/separator';
