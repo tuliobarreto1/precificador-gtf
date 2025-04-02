@@ -125,15 +125,42 @@ export async function saveQuoteToSupabase(quoteData: any) {
           
           console.log(`Veículo salvo com sucesso:`, savedVehicle);
           
+          // Verificar se temos parâmetros específicos para este veículo ou se usa os globais
+          const useGlobalParams = quoteData.useGlobalParams !== false; // padrão é true
+          
+          // Obter os parâmetros corretos para este veículo (específicos ou globais)
+          const params = useGlobalParams 
+            ? {
+                monthly_km: quoteData.monthlyKm || 2000,
+                contract_months: quoteData.contractMonths || 12,
+                operation_severity: quoteData.operationSeverity || 3,
+                has_tracking: quoteData.hasTracking || false
+              }
+            : (vehicleItem.params 
+                ? {
+                    monthly_km: vehicleItem.params.monthlyKm || quoteData.monthlyKm || 2000,
+                    contract_months: vehicleItem.params.contractMonths || quoteData.contractMonths || 12,
+                    operation_severity: vehicleItem.params.operationSeverity || quoteData.operationSeverity || 3,
+                    has_tracking: vehicleItem.params.hasTracking !== undefined ? vehicleItem.params.hasTracking : quoteData.hasTracking || false
+                  }
+                : {
+                    monthly_km: quoteData.monthlyKm || 2000,
+                    contract_months: quoteData.contractMonths || 12,
+                    operation_severity: quoteData.operationSeverity || 3,
+                    has_tracking: quoteData.hasTracking || false
+                  });
+          
+          console.log(`Parâmetros para o veículo ${savedVehicle.id}:`, params);
+          
           // Agora que o veículo está salvo, adicionar a relação na quote_vehicles
           const vehicleDataToSave = {
             quote_id: quoteId,
             vehicle_id: savedVehicle.id,
             monthly_value: vehicleItem.monthlyValue || vehicleItem.totalCost || 0,
-            monthly_km: quoteData.monthlyKm || 2000,
-            contract_months: quoteData.contractMonths || 12,
-            operation_severity: quoteData.operationSeverity || 3,
-            has_tracking: quoteData.hasTracking || false,
+            monthly_km: params.monthly_km,
+            contract_months: params.contract_months,
+            operation_severity: params.operation_severity,
+            has_tracking: params.has_tracking,
             depreciation_cost: vehicleItem.depreciationCost || 0,
             maintenance_cost: vehicleItem.maintenanceCost || 0,
             extra_km_rate: vehicleItem.extraKmRate || 0,

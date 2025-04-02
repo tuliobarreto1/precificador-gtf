@@ -1,11 +1,9 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { QuoteFormData, SavedQuote, EditRecord, User, VehicleQuoteResult } from '@/context/types/quoteTypes';
 import { supabase } from '@/integrations/supabase/client';
 import { getClientById, getVehicleById } from '@/lib/data-provider';
 import { Client, Vehicle } from '@/lib/models';
 
-// Chave para armazenar orçamentos salvos no localStorage
 const SAVED_QUOTES_KEY = 'savedQuotes';
 
 export function useQuoteSaving(
@@ -17,7 +15,6 @@ export function useQuoteSaving(
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentEditingQuoteId, setCurrentEditingQuoteId] = useState<string | null>(null);
 
-  // Carregar cotações salvas do localStorage na inicialização
   useEffect(() => {
     try {
       const storedQuotes = localStorage.getItem(SAVED_QUOTES_KEY);
@@ -31,7 +28,6 @@ export function useQuoteSaving(
     }
   }, []);
 
-  // Função para salvar um orçamento
   const saveQuote = (): boolean => {
     const quoteResult = calculateQuote();
     if (!quoteForm.client || !quoteResult || quoteForm.vehicles.length === 0) {
@@ -43,19 +39,15 @@ export function useQuoteSaving(
       return false;
     }
 
-    // Verificar se estamos em modo de edição
     if (isEditMode && currentEditingQuoteId) {
-      // Encontrar o orçamento original
       const originalQuote = savedQuotes.find(q => q.id === currentEditingQuoteId);
       if (!originalQuote) {
         console.error('Orçamento original não encontrado:', currentEditingQuoteId);
         return false;
       }
 
-      // Criar descrição das alterações
       const changeDescription = `Orçamento editado em ${new Date().toLocaleString('pt-BR')}`;
       
-      // Criar objeto de atualizações
       const updates: Partial<QuoteFormData> = {
         client: quoteForm.client,
         vehicles: quoteForm.vehicles,
@@ -63,10 +55,8 @@ export function useQuoteSaving(
         useGlobalParams: quoteForm.useGlobalParams
       };
       
-      // Atualizar o orçamento
       const updated = updateQuote(currentEditingQuoteId, updates, changeDescription);
       
-      // Resetar o modo de edição
       if (updated) {
         setIsEditMode(false);
         setCurrentEditingQuoteId(null);
@@ -75,26 +65,22 @@ export function useQuoteSaving(
       return updated;
     }
 
-    // Caso contrário, continuar com a criação de um novo orçamento
-    // Criar um ID único baseado no timestamp (será substituído por UUID no Supabase)
     const newId = Date.now().toString();
     
-    // Obter o usuário atual
     const userInfo = getCurrentUser();
     
-    // Criar o objeto de orçamento salvo
     const newSavedQuote: SavedQuote = {
       id: newId,
       clientId: quoteForm.client.id,
       clientName: quoteForm.client.name,
-      vehicleId: quoteForm.vehicles[0].vehicle.id, // Para compatibilidade com o formato atual
+      vehicleId: quoteForm.vehicles[0].vehicle.id,
       vehicleBrand: quoteForm.vehicles[0].vehicle.brand,
       vehicleModel: quoteForm.vehicles[0].vehicle.model,
       contractMonths: quoteForm.globalParams.contractMonths,
       monthlyKm: quoteForm.globalParams.monthlyKm,
       totalCost: quoteResult.totalCost,
       createdAt: new Date().toISOString(),
-      createdBy: userInfo, // Usar o usuário atual
+      createdBy: userInfo,
       editHistory: [],
       vehicles: quoteResult.vehicleResults.map((result, index) => {
         const vehicle = quoteForm.vehicles.find(v => v.vehicle.id === result.vehicleId);
@@ -128,32 +114,27 @@ export function useQuoteSaving(
       veículos: newSavedQuote.vehicles.length
     });
 
-    // Também salvar no Supabase e atualizar o ID local se salvo com sucesso
     let finalQuote = { ...newSavedQuote };
     try {
       import('@/integrations/supabase/services/quotes').then(async ({ saveQuoteToSupabase }) => {
         console.log('📤 Iniciando salvamento no Supabase...');
         
-        // Preparar os dados completos para o salvamento
         const quoteDataForSupabase = {
           ...newSavedQuote,
           client: quoteForm.client,
-          // Incluir os detalhes completos dos veículos para garantir que todos os dados necessários estejam disponíveis
+          useGlobalParams: quoteForm.useGlobalParams,
           vehicles: quoteForm.vehicles.map((vehicleItem, index) => {
             const result = quoteResult.vehicleResults.find(r => r.vehicleId === vehicleItem.vehicle.id);
             return {
               vehicle: vehicleItem.vehicle,
               vehicleId: vehicleItem.vehicle.id,
               vehicleGroup: vehicleItem.vehicleGroup,
+              params: vehicleItem.params,
               totalCost: result?.totalCost || 0,
               depreciationCost: result?.depreciationCost || 0,
               maintenanceCost: result?.maintenanceCost || 0,
               extraKmRate: result?.extraKmRate || 0,
-              monthly_value: result?.totalCost || 0,
-              contract_months: quoteForm.globalParams.contractMonths,
-              monthly_km: quoteForm.globalParams.monthlyKm,
-              operation_severity: quoteForm.globalParams.operationSeverity,
-              has_tracking: quoteForm.globalParams.hasTracking
+              monthly_value: result?.totalCost || 0
             };
           })
         };
@@ -163,17 +144,14 @@ export function useQuoteSaving(
         if (result.success && result.quote && result.quote.id) {
           console.log('✅ Orçamento salvo no Supabase com sucesso!', result.quote);
           
-          // Atualizar o ID local com o UUID gerado pelo Supabase
           const supabaseId = result.quote.id;
           
-          // Atualizar o orçamento local com o ID do Supabase
           setSavedQuotes(prevQuotes => 
             prevQuotes.map(q => 
               q.id === newSavedQuote.id ? { ...q, id: supabaseId } : q
             )
           );
           
-          // Atualizar também no localStorage
           try {
             const storedQuotes = localStorage.getItem(SAVED_QUOTES_KEY);
             if (storedQuotes) {
@@ -196,14 +174,12 @@ export function useQuoteSaving(
       });
     } catch (error) {
       console.error('❌ Erro ao tentar salvar no Supabase:', error);
-      // Continuar salvando localmente mesmo se falhar no Supabase
+      return false;
     }
 
-    // Atualizar o estado e o localStorage
     const updatedQuotes = [newSavedQuote, ...savedQuotes];
     setSavedQuotes(updatedQuotes);
     
-    // Salvar no localStorage com tratamento de erro
     try {
       localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
       console.log('✅ Orçamento salvo com sucesso no localStorage:', newSavedQuote);
@@ -216,27 +192,22 @@ export function useQuoteSaving(
     return true;
   };
 
-  // Função para atualizar um orçamento existente
   const updateQuote = (quoteId: string, updates: Partial<QuoteFormData>, changeDescription: string): boolean => {
-    // Encontrar o orçamento a ser atualizado
     const quoteToUpdate = savedQuotes.find(q => q.id === quoteId);
     if (!quoteToUpdate) return false;
     
-    // Registrar a edição no histórico
     const editRecord: EditRecord = {
       editedAt: new Date().toISOString(),
       editedBy: getCurrentUser(),
       changes: changeDescription
     };
 
-    // Calcular os novos valores do orçamento
     const quoteResult = calculateQuote();
     if (!quoteResult) {
       console.error('Erro ao calcular o oramento atualizado');
       return false;
     }
     
-    // Atualizar o orçamento
     const updatedQuotes = savedQuotes.map(quote => {
       if (quote.id === quoteId) {
         return {
@@ -252,11 +223,9 @@ export function useQuoteSaving(
             const vehicleItem = updates.vehicles?.find(v => v.vehicle.id === result.vehicleId);
             
             if (!vehicleItem) {
-              // Se não encontrou o veículo nas atualizações, manter o veículo original
               const originalVehicle = quote.vehicles.find(v => v.vehicleId === result.vehicleId);
               if (originalVehicle) return originalVehicle;
               
-              // Se não encontrou nem nas atualizações nem no original, algo está errado
               throw new Error(`Veículo não encontrado: ${result.vehicleId}`);
             }
             
@@ -278,17 +247,14 @@ export function useQuoteSaving(
       return quote;
     });
     
-    // Salvar as alterações
     setSavedQuotes(updatedQuotes);
     localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
     console.log('Orçamento atualizado com sucesso:', quoteId);
     
-    // Registrar o log de edição no Supabase
     if (quoteToUpdate.source === 'supabase') {
       try {
         const userInfo = getCurrentUser();
         
-        // Usar a função dedicada para registrar logs de ação em vez de inserção direta
         import('@/integrations/supabase/services/quoteActionLogs').then(async ({ createQuoteActionLog }) => {
           await createQuoteActionLog({
             quote_id: quoteId,
@@ -322,26 +288,21 @@ export function useQuoteSaving(
     return true;
   };
 
-  // Delete quote implementation 
   const deleteQuote = useCallback(async (quoteId: string): Promise<boolean> => {
     console.log("🗑️ Tentando excluir orçamento:", quoteId);
     
-    // Verificar se o orçamento existe
     const quoteToDelete = savedQuotes.find(q => q.id === quoteId);
     if (!quoteToDelete) {
       console.error('❌ Orçamento não encontrado:', quoteId);
       return false;
     }
     
-    // Também excluir do Supabase se for um orçamento armazenado lá
     try {
       if (quoteToDelete.source === 'supabase') {
         console.log("🔄 Excluindo orçamento do Supabase...");
         
-        // Registrar o log de exclusão primeiro
         const userInfo = getCurrentUser();
         try {
-          // Usar a função dedicada para registrar logs de ação em vez de inserção direta
           import('@/integrations/supabase/services/quoteActionLogs').then(async ({ createQuoteActionLog }) => {
             await createQuoteActionLog({
               quote_id: quoteId,
@@ -363,7 +324,6 @@ export function useQuoteSaving(
           console.error('❌ Erro ao registrar log de exclusão:', logError);
         }
         
-        // Agora excluir o orçamento
         const { error } = await supabase
           .from('quotes')
           .delete()
@@ -376,19 +336,16 @@ export function useQuoteSaving(
           console.log('✅ Orçamento excluído do Supabase com sucesso');
         }
       } else {
-        // Para orçamentos locais, podemos apenas registrar a ação em logs de console
         console.log('Orçamento local excluído. Usuário:', getCurrentUser().name, 'Orçamento:', quoteToDelete);
       }
     } catch (error) {
       console.error('❌ Erro ao tentar excluir do Supabase:', error);
-      // Continuar excluindo localmente mesmo se falhar no Supabase
+      return false;
     }
     
-    // Remover o orçamento
     const updatedQuotes = savedQuotes.filter(q => q.id !== quoteId);
     setSavedQuotes(updatedQuotes);
     
-    // Atualizar o localStorage
     try {
       localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
       console.log('✅ Orçamento excluído com sucesso:', quoteId);
@@ -399,19 +356,16 @@ export function useQuoteSaving(
     }
   }, [savedQuotes, getCurrentUser]);
 
-  // Função melhorada para carregar um orçamento para edição
   const loadQuoteForEditing = useCallback(async (quoteId: string): Promise<boolean> => {
     console.log("⏳ Iniciando carregamento de orçamento:", quoteId);
     
     try {
-      // Buscar o orçamento pelo ID
       const quote = savedQuotes.find(q => q.id === quoteId);
       if (!quote) {
         console.error('Orçamento não encontrado:', quoteId);
         return false;
       }
       
-      // Ativar o modo de edição
       setIsEditMode(true);
       setCurrentEditingQuoteId(quoteId);
       
