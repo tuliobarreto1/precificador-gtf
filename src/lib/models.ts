@@ -1,3 +1,4 @@
+
 // Tipos e interfaces básicas para o sistema
 export type ClientType = 'PF' | 'PJ';
 
