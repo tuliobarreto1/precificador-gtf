@@ -1,5 +1,5 @@
 
-import { supabase } from '../core/client';
+import { supabase } from '../client';
 import { v4 as uuidv4 } from 'uuid';
 
 // Função para salvar um orçamento no Supabase

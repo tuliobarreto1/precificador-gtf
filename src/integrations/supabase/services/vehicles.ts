@@ -1,5 +1,5 @@
 
-import { supabase } from '../core/client';
+import { supabase } from '../client';
 import { v4 as uuidv4 } from 'uuid';
 
 // Função para converter IDs de timestamp para formato UUID

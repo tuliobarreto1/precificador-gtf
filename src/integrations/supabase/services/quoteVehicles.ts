@@ -1,5 +1,4 @@
-
-import { supabase } from '../core/client';
+import { supabase } from '../client';
 
 export const addVehicleToQuote = async (quoteId: string, vehicleData: any): Promise<{ success: boolean; data?: any; error?: any }> => {
   try {
@@ -77,7 +76,6 @@ export const addVehicleToQuote = async (quoteId: string, vehicleData: any): Prom
   }
 };
 
-// Modificar a função getQuoteVehicles para retornar mais detalhes
 export const getQuoteVehicles = async (quoteId: string): Promise<{ success: boolean; vehicles?: any[]; error?: any }> => {
   try {
     console.log(`Buscando veículos para o orçamento ${quoteId}...`);

@@ -1,5 +1,4 @@
-
-import { supabase } from '../core/client';
+import { supabase } from '../client';
 
 // Interface para grupo de veículo
 export interface VehicleGroup {
