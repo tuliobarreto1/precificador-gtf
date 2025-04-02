@@ -1,5 +1,4 @@
 
-
 // Central exports for Supabase services
 import { supabase, checkSupabaseConnection } from './client';
 import { getVehiclesFromSupabase, createOrUpdateVehicle, findVehicleByPlate, findVehicleByBrandModel, getAllVehicles, getVehiclesFromLocavia } from './services/vehicles';
@@ -47,4 +46,3 @@ export {
   createQuoteActionLog,
   getQuoteActionLogs
 };
-

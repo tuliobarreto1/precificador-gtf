@@ -122,7 +122,7 @@ export async function getClientsFromSupabase() {
   }
 }
 
-// Função para excluir cliente - REESCRITA PARA USAR A NOVA FUNÇÃO SQL
+// Função para excluir cliente - reescrita para uso direto ao invés de RPC
 export async function deleteClientFromSupabase(clientId: string) {
   try {
     console.log(`🗑️ Iniciando exclusão do cliente ${clientId}...`);
@@ -147,33 +147,22 @@ export async function deleteClientFromSupabase(clientId: string) {
       };
     }
 
-    // Chamar a função SQL personalizada para excluir o cliente
-    const { data, error } = await supabase.rpc(
-      'delete_client',
-      { client_id: clientId }
-    );
-
-    if (error) {
-      console.error(`❌ Erro na exclusão via RPC:`, error);
-      
-      // Se a função RPC falhar, tentar o método tradicional
-      console.log(`🔄 Tentando método tradicional...`);
-      const { error: deleteError } = await supabase
-        .from('clients')
-        .delete()
-        .eq('id', clientId);
-      
-      if (deleteError) {
-        console.error(`❌ Erro ao excluir cliente ${clientId}:`, deleteError);
-        return { success: false, error: deleteError };
-      }
+    // Tentar excluir o cliente diretamente
+    const { error: deleteError } = await supabase
+      .from('clients')
+      .delete()
+      .eq('id', clientId);
+    
+    if (deleteError) {
+      console.error(`❌ Erro ao excluir cliente ${clientId}:`, deleteError);
+      return { success: false, error: deleteError };
     }
     
     // Verificar se o cliente realmente foi excluído
     console.log(`⏳ Aguardando confirmação da exclusão...`);
     
     // Aguardar um pouco para garantir que a exclusão foi processada
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
     let tentativas = 0;
     const MAX_TENTATIVAS = 3;
@@ -196,13 +185,13 @@ export async function deleteClientFromSupabase(clientId: string) {
       
       console.log(`⚠️ Cliente ainda existe no banco. Tentativa ${tentativas + 1}/${MAX_TENTATIVAS}`);
       
-      // Se o cliente ainda existir, tentar excluí-lo novamente pelo método tradicional
+      // Se o cliente ainda existir, tentar excluí-lo novamente
       if (tentativas < MAX_TENTATIVAS - 1) {
         console.log(`🔄 Fazendo nova tentativa de exclusão...`);
         await supabase.from('clients').delete().eq('id', clientId);
         
-        // Aguardar mais tempo entre tentativas
-        await new Promise(resolve => setTimeout(resolve, 1500 * (tentativas + 1)));
+        // Aguardar mais tempo entre tentativas com backoff exponencial
+        await new Promise(resolve => setTimeout(resolve, 2000 * (tentativas + 1)));
       }
       
       tentativas++;
