@@ -1,196 +1,149 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { allStatus, QuoteStatusFlow, isValidTransition, statusInfo } from '@/lib/status-flow';
-import { updateQuoteStatus } from '@/lib/status-api';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import StatusBadge from './StatusBadge';
-import StatusProgressBar from './StatusProgressBar';
+import { supabase } from '@/integrations/supabase/client';
+import { Loader2 } from 'lucide-react';
+
+type QuoteStatus = 'ORCAMENTO' | 'PROPOSTA_GERADA' | 'EM_VERIFICACAO' | 'APROVADA' | 
+                   'CONTRATO_GERADO' | 'ASSINATURA_CLIENTE' | 'ASSINATURA_DIRETORIA' | 
+                   'AGENDAMENTO_ENTREGA' | 'ENTREGA' | 'CONCLUIDO';
+
+const STATUS_OPTIONS: { value: QuoteStatus; label: string; color: string }[] = [
+  { value: 'ORCAMENTO', label: 'Orçamento', color: 'bg-gray-200' },
+  { value: 'PROPOSTA_GERADA', label: 'Proposta Gerada', color: 'bg-blue-200' },
+  { value: 'EM_VERIFICACAO', label: 'Em Verificação', color: 'bg-yellow-200' },
+  { value: 'APROVADA', label: 'Aprovada', color: 'bg-green-200' },
+  { value: 'CONTRATO_GERADO', label: 'Contrato Gerado', color: 'bg-emerald-200' },
+  { value: 'ASSINATURA_CLIENTE', label: 'Assinatura Cliente', color: 'bg-teal-200' },
+  { value: 'ASSINATURA_DIRETORIA', label: 'Assinatura Diretoria', color: 'bg-cyan-200' },
+  { value: 'AGENDAMENTO_ENTREGA', label: 'Agendamento Entrega', color: 'bg-indigo-200' },
+  { value: 'ENTREGA', label: 'Entrega', color: 'bg-purple-200' },
+  { value: 'CONCLUIDO', label: 'Concluído', color: 'bg-green-300' },
+];
 
 interface StatusFlowProps {
   quoteId: string;
-  currentStatus: QuoteStatusFlow;
-  onStatusUpdate?: () => void;
+  currentStatus: QuoteStatus;
 }
 
-const StatusFlow: React.FC<StatusFlowProps> = ({ 
-  quoteId, 
-  currentStatus,
-  onStatusUpdate
-}) => {
-  const [selectedStatus, setSelectedStatus] = useState<QuoteStatusFlow | ''>('');
-  const [observation, setObservation] = useState('');
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [showDialog, setShowDialog] = useState(false);
+export const StatusFlow: React.FC<StatusFlowProps> = ({ quoteId, currentStatus }) => {
+  const [selectedStatus, setSelectedStatus] = useState<QuoteStatus>(currentStatus);
+  const [updating, setUpdating] = useState(false);
   const { toast } = useToast();
-  
-  // Filtrar status válidos para transição
-  const validNextStatuses = allStatus.filter(status => 
-    status !== currentStatus && isValidTransition(currentStatus, status)
-  );
-  
-  const handleStatusChange = (status: QuoteStatusFlow) => {
-    setSelectedStatus(status);
-  };
-  
-  const handleOpenDialog = () => {
-    if (!selectedStatus) {
+
+  const handleUpdateStatus = async () => {
+    if (selectedStatus === currentStatus) {
       toast({
-        title: "Selecione um status",
-        description: "Você precisa selecionar um status antes de continuar.",
-        variant: "destructive"
+        title: "Sem alterações",
+        description: "O status selecionado é o mesmo que o atual.",
       });
       return;
     }
-    
-    setShowDialog(true);
-  };
-  
-  const handleUpdateStatus = async () => {
-    if (!selectedStatus) return;
-    
-    setIsUpdating(true);
+
     try {
-      const result = await updateQuoteStatus(quoteId, selectedStatus, observation);
-      
-      if (result.success) {
+      setUpdating(true);
+
+      // Atualizar o status no banco de dados
+      const { error } = await supabase
+        .from('quotes')
+        .update({ status_flow: selectedStatus, updated_at: new Date().toISOString() })
+        .eq('id', quoteId);
+
+      if (error) {
+        console.error('Erro ao atualizar status:', error);
         toast({
-          title: "Status atualizado",
-          description: `Status alterado para ${statusInfo[selectedStatus].label} com sucesso.`
-        });
-        
-        // Limpar campos
-        setSelectedStatus('');
-        setObservation('');
-        
-        // Chamar callback se existir
-        if (onStatusUpdate) onStatusUpdate();
-        
-        // Fechar o diálogo
-        setShowDialog(false);
-        
-        // Recarregar a página para refletir as mudanças
-        window.location.reload();
-      } else {
-        toast({
-          title: "Erro ao atualizar status",
-          description: result.error?.message || "Ocorreu um erro ao atualizar o status.",
+          title: "Erro ao atualizar",
+          description: error.message || "Não foi possível atualizar o status do orçamento.",
           variant: "destructive"
         });
+        return;
       }
-    } catch (error: any) {
+
+      toast({
+        title: "Status atualizado",
+        description: `O orçamento foi movido para: ${STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}`,
+      });
+
+    } catch (err) {
+      console.error('Exceção ao atualizar status:', err);
       toast({
         title: "Erro inesperado",
-        description: error.message || "Ocorreu um erro inesperado.",
+        description: "Ocorreu um erro ao tentar atualizar o status.",
         variant: "destructive"
       });
     } finally {
-      setIsUpdating(false);
+      setUpdating(false);
     }
   };
-  
+
+  // Determina o índice do status atual para mostrar o progresso
+  const currentStatusIndex = STATUS_OPTIONS.findIndex(option => option.value === currentStatus);
+
   return (
-    <div className="space-y-4">
-      {/* Status atual e barra de progresso */}
-      <div className="mb-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
-          <div>
-            <span className="text-sm font-medium mr-2">Status atual:</span>
-            <StatusBadge status={currentStatus} />
-          </div>
-          <div className="text-sm text-muted-foreground">
-            {statusInfo[currentStatus].description}
+    <div className="space-y-6">
+      <div className="space-y-4">
+        <div className="flex flex-col space-y-2">
+          <p className="text-sm text-muted-foreground">Status atual:</p>
+          <div className="flex items-center space-x-2">
+            <div className={`h-3 w-3 rounded-full ${STATUS_OPTIONS.find(s => s.value === currentStatus)?.color}`}></div>
+            <span className="font-medium">{STATUS_OPTIONS.find(s => s.value === currentStatus)?.label}</span>
           </div>
         </div>
         
-        <StatusProgressBar currentStatus={currentStatus} className="mt-4" />
-      </div>
-      
-      {/* Seletor de próximo status */}
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="col-span-2">
-            <label className="text-sm font-medium mb-1 block">
-              Selecione o próximo status:
-            </label>
-            <Select value={selectedStatus} onValueChange={(value) => handleStatusChange(value as QuoteStatusFlow)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um status..." />
-              </SelectTrigger>
-              <SelectContent>
-                {validNextStatuses.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {statusInfo[status].label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="flex items-end">
-            <Button 
-              onClick={handleOpenDialog}
-              disabled={!selectedStatus}
-              className="w-full"
-            >
-              Atualizar Status
-            </Button>
-          </div>
+        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-gradient-to-r from-blue-400 to-green-500 transition-all duration-300" 
+            style={{ 
+              width: `${Math.max(5, Math.min(100, ((currentStatusIndex + 1) / STATUS_OPTIONS.length) * 100))}%` 
+            }}
+          ></div>
         </div>
       </div>
-      
-      {/* Diálogo de confirmação */}
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Confirmar mudança de status</DialogTitle>
-            <DialogDescription>
-              Você está prestes a alterar o status de <span className="font-semibold">{statusInfo[currentStatus].label}</span> para <span className="font-semibold">{selectedStatus ? statusInfo[selectedStatus].label : ''}</span>.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4">
-            <label htmlFor="observation" className="text-sm font-medium block mb-2">
-              Observação (opcional):
-            </label>
-            <Textarea
-              id="observation"
-              value={observation}
-              onChange={(e) => setObservation(e.target.value)}
-              placeholder="Adicione uma observação sobre esta mudança de status..."
-              rows={3}
-            />
-          </div>
-          
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowDialog(false)}
-              disabled={isUpdating}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleUpdateStatus}
-              disabled={isUpdating}
-            >
-              {isUpdating ? (
-                <>
-                  <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
-                  Atualizando...
-                </>
-              ) : (
-                'Confirmar'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
+      <div className="border rounded-md p-4">
+        <h4 className="text-sm font-medium mb-3">Atualizar status para:</h4>
+        
+        <RadioGroup 
+          value={selectedStatus} 
+          onValueChange={(value) => setSelectedStatus(value as QuoteStatus)}
+          className="grid grid-cols-1 md:grid-cols-2 gap-2"
+        >
+          {STATUS_OPTIONS.map((option) => (
+            <div key={option.value} className="flex items-center space-x-2">
+              <RadioGroupItem value={option.value} id={`status-${option.value}`} />
+              <Label 
+                htmlFor={`status-${option.value}`} 
+                className={`flex items-center space-x-2 cursor-pointer ${
+                  option.value === currentStatus ? 'font-medium text-primary' : ''
+                }`}
+              >
+                <div className={`h-2 w-2 rounded-full ${option.color}`}></div>
+                <span>{option.label}</span>
+              </Label>
+            </div>
+          ))}
+        </RadioGroup>
+        
+        <div className="mt-4">
+          <Button 
+            onClick={handleUpdateStatus} 
+            disabled={updating || selectedStatus === currentStatus}
+            className="w-full md:w-auto"
+          >
+            {updating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Atualizando...
+              </>
+            ) : (
+              'Atualizar Status'
+            )}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };
-
-export default StatusFlow;

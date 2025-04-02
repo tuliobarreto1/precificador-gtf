@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { QuoteFormData, VehicleQuoteResult } from '@/context/types/quoteTypes';
-import { calculateVehicleDepreciation, calculateMaintenance, TRACKING_COST } from '@/lib/calculation';
+import { calculateDepreciationSync, calculateMaintenanceSync, getGlobalParamsSync } from '@/lib/calculation';
 import { useToast } from './use-toast';
 import { useQuoteUsers } from './useQuoteUsers';
 
@@ -18,6 +18,10 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
     let vehicleResults: VehicleQuoteResult[] = [];
     let totalCost = 0;
 
+    // Obter o custo de rastreamento dos parâmetros globais
+    const globalParams = getGlobalParamsSync();
+    const trackingCost = globalParams.trackingCost;
+
     // Calcular para cada veículo
     quoteForm.vehicles.forEach(item => {
       // Usar parâmetros individuais ou globais conforme a configuração
@@ -26,24 +30,24 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         : quoteForm.globalParams;
 
       // Calcular custos
-      const depreciationCost = calculateVehicleDepreciation(
-        item.vehicle.value,
-        params.contractMonths,
-        params.monthlyKm * params.contractMonths,
-        params.operationSeverity
-      );
+      const depreciationCost = calculateDepreciationSync({
+        vehicleValue: item.vehicle.value,
+        contractMonths: params.contractMonths,
+        monthlyKm: params.monthlyKm,
+        operationSeverity: params.operationSeverity
+      });
 
-      const maintenanceCost = calculateMaintenance(
-        params.monthlyKm,
-        item.vehicleGroup.revision_cost,
-        item.vehicleGroup.revision_km,
-        item.vehicleGroup.tire_cost,
-        item.vehicleGroup.tire_km
-      );
+      const maintenanceCost = calculateMaintenanceSync({
+        vehicleGroup: item.vehicleGroup.id,
+        contractMonths: params.contractMonths,
+        monthlyKm: params.monthlyKm,
+        hasTracking: params.hasTracking
+      });
 
-      const trackingCost = params.hasTracking ? TRACKING_COST : 0;
+      // Determinar o custo de rastreamento
+      const currentTrackingCost = params.hasTracking ? trackingCost : 0;
 
-      const totalVehicleCost = depreciationCost + maintenanceCost + trackingCost;
+      const totalVehicleCost = depreciationCost + maintenanceCost;
       
       // Taxa KM excedente (20% a mais que o custo por KM)
       const costPerKm = totalVehicleCost / (params.monthlyKm * params.contractMonths);
@@ -54,7 +58,7 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         vehicleId: item.vehicle.id,
         depreciationCost,
         maintenanceCost,
-        trackingCost,
+        trackingCost: currentTrackingCost,
         totalCost: totalVehicleCost,
         costPerKm,
         extraKmRate
