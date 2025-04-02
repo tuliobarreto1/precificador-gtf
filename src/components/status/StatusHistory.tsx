@@ -57,8 +57,19 @@ export const StatusHistory: React.FC<StatusHistoryProps> = ({ quoteId }) => {
           return;
         }
 
-        // Corrigindo o tipo do resultado para corresponder à StatusChange[]
-        setStatusHistory(data as StatusChange[] || []);
+        // Mapear os dados retornados para o tipo StatusChange[]
+        // Isso garante que os dados correspondam à interface esperada
+        const mappedData: StatusChange[] = data?.map((item: any) => ({
+          id: item.id,
+          quote_id: item.quote_id,
+          previous_status: item.previous_status,
+          new_status: item.new_status,
+          changed_by: item.changed_by,
+          changed_at: item.changed_at,
+          profiles: item.profiles
+        })) || [];
+
+        setStatusHistory(mappedData);
       } catch (err) {
         console.error('Erro ao processar histórico de status:', err);
         setError('Ocorreu um erro ao processar os dados de histórico.');
