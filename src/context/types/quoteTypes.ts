@@ -136,8 +136,9 @@ export interface QuoteContextType {
   getVehicleById: (id: string) => Vehicle;
   loadQuoteForEditing: (quoteId: string) => Promise<boolean>;
   deleteQuote: (quoteId: string) => Promise<boolean>;
-  canEditQuote: (quote: SavedQuote) => boolean;
-  canDeleteQuote: (quote: SavedQuote) => boolean;
+  canEditQuote: (quote: any) => boolean;
+  canDeleteQuote: (quote: any) => boolean;
   sendQuoteByEmail: (quoteId: string, email: string, message: string) => Promise<boolean>;
+  sendingEmail: boolean;
   savedQuotes: SavedQuote[];
 }

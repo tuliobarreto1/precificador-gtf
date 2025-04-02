@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Edit, Trash2, ArrowLeft, Mail } from 'lucide-react';
@@ -18,8 +19,8 @@ import { useToast } from '@/hooks/use-toast';
 
 import { getQuoteByIdFromSupabase, deleteQuoteFromSupabase } from '@/integrations/supabase';
 import { Quote } from '@/lib/models';
-import { StatusHistory } from '@/components/status/StatusHistory';
-import { StatusFlow } from '@/components/status/StatusFlow';
+import StatusHistory from '@/components/status/StatusHistory';
+import StatusFlow from '@/components/status/StatusFlow';
 import { useQuote } from '@/context/QuoteContext';
 
 // Adicione este componente EmailDialog no início do arquivo, após as importações
@@ -173,7 +174,9 @@ const QuoteDetail = () => {
 
   const handleDeleteQuote = async () => {
     try {
-      const { success, error: deleteError } = await deleteQuoteFromSupabase(id as string);
+      if (!id) return;
+      
+      const { success, error: deleteError } = await deleteQuoteFromSupabase(id);
       if (success) {
         toast({
           title: "Orçamento excluído",
@@ -199,7 +202,7 @@ const QuoteDetail = () => {
   };
 
   const handleEditQuote = () => {
-    navigate(`/novo-orcamento/${id}`);
+    navigate(`/editar-orcamento/${id}`);
   };
 
   if (loading) {
@@ -239,7 +242,7 @@ const QuoteDetail = () => {
         <div className="py-8">
           <PageTitle title="Detalhes do Orçamento" subtitle="Orçamento não encontrado" />
           <Card>
-            <Alert variant="warning">
+            <Alert variant="destructive">
               <AlertTitle>Aviso</AlertTitle>
               <AlertDescription>Orçamento não encontrado.</AlertDescription>
             </Alert>
@@ -276,14 +279,14 @@ const QuoteDetail = () => {
                 </div>
                 <div>
                   <span className="font-semibold">Criado em:</span>{' '}
-                  {format(new Date(quote.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                  {format(new Date(quote.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
                 </div>
                 <div>
                   <span className="font-semibold">Status:</span>{' '}
-                  <Badge variant="secondary">{quote.status_flow}</Badge>
+                  <Badge variant="secondary">{quote.status}</Badge>
                 </div>
                 <div>
-                  <span className="font-semibold">Valor Mensal:</span> R$ {quote.monthly_values?.toLocaleString('pt-BR') || '0,00'}
+                  <span className="font-semibold">Valor Mensal:</span> R$ {quote.totalValue?.toLocaleString('pt-BR') || '0,00'}
                 </div>
               </div>
             </div>
@@ -293,8 +296,8 @@ const QuoteDetail = () => {
               {quote.vehicles && quote.vehicles.length > 0 ? (
                 <ul className="list-disc pl-5">
                   {quote.vehicles.map((vehicle) => (
-                    <li key={vehicle.vehicle_id}>
-                      {vehicle.vehicle?.brand} {vehicle.vehicle?.model} ({vehicle.vehicle?.plate_number || 'N/A'})
+                    <li key={vehicle.vehicleId}>
+                      {vehicle.vehicleBrand} {vehicle.vehicleModel} ({vehicle.plateNumber || 'N/A'})
                     </li>
                   ))}
                 </ul>
@@ -311,7 +314,7 @@ const QuoteDetail = () => {
 
           <div className="mt-6 border-t pt-4">
             <h2 className="text-lg font-semibold mb-4">Alterar Status</h2>
-            <StatusFlow quoteId={quote.id} currentStatus={quote.status_flow} />
+            <StatusFlow quoteId={quote.id} currentStatus={quote.status as any} />
           </div>
 
           <div className="flex items-center space-x-2 mt-6 border-t pt-4">

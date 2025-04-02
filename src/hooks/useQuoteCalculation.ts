@@ -1,183 +1,157 @@
 
-import { QuoteFormData, VehicleQuoteResult } from '@/context/types/quoteTypes';
-import { DepreciationParams, MaintenanceParams, calculateDepreciationSync, calculateMaintenanceSync, calculateExtraKmRateSync } from '@/lib/calculation';
-import { useState, useEffect } from 'react';
-import { fetchCalculationParams } from '@/lib/settings';
-import { toast } from 'sonner';
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { getCurrentUser } from '@/lib/data-provider';
+import { QuoteFormData, VehicleQuoteResult } from '@/context/types/quoteTypes';
+import { calculateVehicleDepreciation, calculateMaintenance, TRACKING_COST } from '@/lib/calculation';
+import { useToast } from './use-toast';
+import { useQuoteUsers } from './useQuoteUsers';
 
 export function useQuoteCalculation(quoteForm: QuoteFormData) {
-  // Estado para armazenar parâmetros de cálculo do banco de dados
-  const [calculationParams, setCalculationParams] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
+  const { toast } = useToast();
+  const { getCurrentUser } = useQuoteUsers();
 
-  // Carregar parâmetros de cálculo do banco de dados ao iniciar
-  useEffect(() => {
-    async function loadCalculationParams() {
-      try {
-        setLoading(true);
-        const params = await fetchCalculationParams();
-        if (params) {
-          console.log('✅ Parâmetros de cálculo carregados do banco de dados:', params);
-          setCalculationParams(params);
-        } else {
-          console.warn('⚠️ Parâmetros de cálculo não encontrados no banco, usando valores padrão');
-        }
-      } catch (error) {
-        console.error('❌ Erro ao carregar parâmetros de cálculo:', error);
-        toast.error('Erro ao carregar parâmetros de cálculo');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadCalculationParams();
-  }, []);
-
-  // Calculate quote
+  // Calcular orçamento para todos os veículos
   const calculateQuote = () => {
-    const { vehicles, globalParams, useGlobalParams } = quoteForm;
-    
-    if (vehicles.length === 0) return null;
-    
-    // Precisamos garantir que não retornamos Promises para os cálculos
-    const vehicleResults: VehicleQuoteResult[] = [];
-    
-    for (const item of vehicles) {
-      // Usar parâmetros globais ou específicos do veículo
-      const params = useGlobalParams ? globalParams : (item.params || globalParams);
-      
-      const depreciationParams: DepreciationParams = {
-        vehicleValue: item.vehicle.value,
-        contractMonths: params.contractMonths,
-        monthlyKm: params.monthlyKm,
-        operationSeverity: params.operationSeverity,
-      };
-      
-      const maintenanceParams: MaintenanceParams = {
-        vehicleGroup: item.vehicleGroup.id,
-        contractMonths: params.contractMonths,
-        monthlyKm: params.monthlyKm,
-        hasTracking: params.hasTracking,
-      };
+    if (quoteForm.vehicles.length === 0 || !quoteForm.client) return null;
 
-      // Verificar se temos parâmetros do banco de dados
-      if (calculationParams) {
-        console.log(`📊 Calculando custos para veículo ${item.vehicle.brand} ${item.vehicle.model} com parâmetros do banco`);
-      } else {
-        console.log(`📊 Calculando custos para veículo ${item.vehicle.brand} ${item.vehicle.model} com parâmetros padrão`);
-      }
-    
-      // Calculamos de forma síncrona para evitar Promises
-      const result = {
-        depreciationCost: calculateDepreciationSync(depreciationParams),
-        maintenanceCost: calculateMaintenanceSync(maintenanceParams),
-        trackingCost: params.hasTracking ? (calculationParams?.tracking_cost || 50) : 0
-      };
+    let vehicleResults: VehicleQuoteResult[] = [];
+    let totalCost = 0;
+
+    // Calcular para cada veículo
+    quoteForm.vehicles.forEach(item => {
+      // Usar parâmetros individuais ou globais conforme a configuração
+      const params = item.params && !quoteForm.useGlobalParams
+        ? item.params
+        : quoteForm.globalParams;
+
+      // Calcular custos
+      const depreciationCost = calculateVehicleDepreciation(
+        item.vehicle.value,
+        params.contractMonths,
+        params.monthlyKm * params.contractMonths,
+        params.operationSeverity
+      );
+
+      const maintenanceCost = calculateMaintenance(
+        params.monthlyKm,
+        item.vehicleGroup.revision_cost,
+        item.vehicleGroup.revision_km,
+        item.vehicleGroup.tire_cost,
+        item.vehicleGroup.tire_km
+      );
+
+      const trackingCost = params.hasTracking ? TRACKING_COST : 0;
+
+      const totalVehicleCost = depreciationCost + maintenanceCost + trackingCost;
       
-      const totalCost = result.depreciationCost + result.maintenanceCost;
-      const costPerKm = totalCost / params.monthlyKm;
-      const extraKmRate = calculateExtraKmRateSync(item.vehicle.value);
-    
-      // Construímos um objeto VehicleQuoteResult completo
+      // Taxa KM excedente (20% a mais que o custo por KM)
+      const costPerKm = totalVehicleCost / (params.monthlyKm * params.contractMonths);
+      const extraKmRate = costPerKm * 1.2;
+
+      // Adicionar resultado deste veículo
       vehicleResults.push({
         vehicleId: item.vehicle.id,
-        depreciationCost: result.depreciationCost,
-        maintenanceCost: result.maintenanceCost - result.trackingCost,
-        trackingCost: result.trackingCost,
-        totalCost: totalCost,
-        costPerKm: costPerKm,
+        depreciationCost,
+        maintenanceCost,
+        trackingCost,
+        totalCost: totalVehicleCost,
+        costPerKm,
         extraKmRate
       });
-    }
-    
-    // Calcular custo total de todos os veículos
-    const totalCost = vehicleResults.reduce((sum, result) => sum + result.totalCost, 0);
-    
-    return {
-      vehicleResults,
-      totalCost,
-      isUsingDatabaseParams: !!calculationParams
-    };
+
+      totalCost += totalVehicleCost;
+    });
+
+    return { vehicleResults, totalCost };
   };
 
-  // Função para enviar orçamento por e-mail
+  // Função para enviar orçamento por email
   const sendQuoteByEmail = async (quoteId: string, email: string, message: string): Promise<boolean> => {
+    setSendingEmail(true);
+    
     try {
-      console.log('📧 Iniciando envio de orçamento por e-mail:', { quoteId, email, message });
-      setSendingEmail(true);
+      console.log('Enviando orçamento por email:', { quoteId, email, message });
       
-      // Obter informações do orçamento
-      const { data: quoteData } = await supabase
+      // Buscar detalhes do orçamento
+      const { data: quoteData, error: quoteError } = await supabase
         .from('quotes')
         .select(`
-          *,
-          client:client_id(*),
-          vehicles:quote_vehicles(
-            *,
-            vehicle:vehicle_id(*)
+          id,
+          title,
+          contract_months,
+          monthly_km,
+          total_value,
+          client_id,
+          clients(name),
+          quote_vehicles(
+            id,
+            monthly_value,
+            vehicle_id,
+            vehicles(brand, model, plate_number)
           )
         `)
         .eq('id', quoteId)
         .single();
       
-      if (!quoteData) {
-        console.error('❌ Orçamento não encontrado:', quoteId);
-        toast.error('Erro ao enviar e-mail: Orçamento não encontrado');
+      if (quoteError) {
+        console.error('Erro ao buscar detalhes do orçamento:', quoteError);
+        toast({
+          title: 'Erro ao enviar email',
+          description: 'Não foi possível carregar os detalhes do orçamento.',
+          variant: 'destructive'
+        });
         return false;
       }
       
-      // Obter informações do usuário atual
-      const currentUser = await getCurrentUser();
+      const currentUser = getCurrentUser();
       
-      if (!currentUser) {
-        console.error('❌ Usuário não encontrado');
-        toast.error('Erro ao enviar e-mail: Usuário não encontrado');
-        return false;
-      }
-      
-      // Preparar dados para a função edge
+      // Preparar dados para a função do Supabase Edge
       const emailData = {
-        quoteId,
+        quoteId: quoteData.id,
         quoteTitle: quoteData.title,
         recipientEmail: email,
-        recipientName: quoteData.client?.name,
         message: message,
-        totalValue: quoteData.monthly_values || 0,
-        contractMonths: quoteData.contract_months || 12,
-        monthlyKm: quoteData.monthly_km || 2000,
-        vehicles: (quoteData.vehicles || []).map((qv: any) => ({
-          brand: qv.vehicle?.brand || '',
-          model: qv.vehicle?.model || '',
-          plateNumber: qv.vehicle?.plate_number,
-          monthlyValue: qv.monthly_value || 0
+        contractMonths: quoteData.contract_months,
+        monthlyKm: quoteData.monthly_km,
+        totalValue: quoteData.total_value,
+        recipientName: quoteData.clients?.name,
+        vehicles: (quoteData.quote_vehicles || []).map((qv: any) => ({
+          brand: qv.vehicles?.brand || '',
+          model: qv.vehicles?.model || '',
+          plateNumber: qv.vehicles?.plate_number,
+          monthlyValue: qv.monthly_value
         })),
-        senderName: currentUser.name || currentUser.email,
+        senderName: currentUser.name,
         senderEmail: currentUser.email,
-        senderPhone: currentUser.phone
+        senderPhone: '(XX) XXXX-XXXX' // Substituir por telefone real quando disponível
       };
       
-      console.log('📧 Dados preparados para envio:', emailData);
-      
-      // Chamar a função edge
+      // Chamar edge function
       const { data, error } = await supabase.functions.invoke('send-quote-email', {
         body: emailData
       });
       
       if (error) {
-        console.error('❌ Erro ao chamar função de envio de e-mail:', error);
-        toast.error(`Erro ao enviar e-mail: ${error.message}`);
+        console.error('Erro ao enviar email:', error);
+        toast({
+          title: 'Erro ao enviar email',
+          description: error.message || 'Ocorreu um erro ao enviar o email.',
+          variant: 'destructive'
+        });
         return false;
       }
       
-      console.log('✅ E-mail enviado com sucesso:', data);
-      toast.success('E-mail enviado com sucesso!');
+      console.log('Email enviado com sucesso:', data);
       return true;
+      
     } catch (error: any) {
-      console.error('❌ Erro ao enviar e-mail:', error);
-      toast.error(`Erro ao enviar e-mail: ${error.message}`);
+      console.error('Exceção ao enviar email:', error);
+      toast({
+        title: 'Erro ao enviar email',
+        description: error.message || 'Ocorreu um erro inesperado ao enviar o email.',
+        variant: 'destructive'
+      });
       return false;
     } finally {
       setSendingEmail(false);
@@ -187,8 +161,6 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
   return {
     calculateQuote,
     sendQuoteByEmail,
-    loadingParams: loading,
-    sendingEmail,
-    usingDatabaseParams: !!calculationParams
+    sendingEmail
   };
 }
