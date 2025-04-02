@@ -1,6 +1,7 @@
 
 import { supabase } from '../client';
 import { v4 as uuidv4 } from 'uuid';
+import { createOrUpdateVehicle } from './vehicles';
 
 // Função para salvar um orçamento no Supabase
 export async function saveQuoteToSupabase(quoteData: any) {
@@ -17,21 +18,45 @@ export async function saveQuoteToSupabase(quoteData: any) {
       console.log("ID não é um UUID válido, gerando novo ID:", quoteId);
     }
     
-    // Verificar e gerar um UUID válido para o vehicleId
-    let vehicleId = quoteData.vehicleId;
-    if (!vehicleId || !uuidRegex.test(vehicleId.toString()) || vehicleId.toString().startsWith('new-')) {
-      // Se for um ID temporário, gerar um novo
-      vehicleId = uuidv4();
-      console.log("Vehicle ID não é um UUID válido, gerando novo ID:", vehicleId);
+    let vehicleId = null;
+    
+    // Se houver um veículo vinculado diretamente ao orçamento, criar ou salvar primeiro
+    if (quoteData.vehicleId) {
+      const vehicleData = {
+        id: quoteData.vehicleId,
+        brand: quoteData.vehicleBrand || '',
+        model: quoteData.vehicleModel || '',
+        year: quoteData.vehicleYear || new Date().getFullYear(),
+        value: quoteData.vehicleValue || 0,
+        plate_number: quoteData.vehiclePlateNumber,
+        is_used: quoteData.vehicleIsUsed || false,
+        group_id: quoteData.vehicleGroupId
+      };
+      
+      if (!uuidRegex.test(vehicleData.id.toString()) || vehicleData.id.toString().startsWith('new-')) {
+        vehicleData.id = uuidv4();
+        console.log("Vehicle ID não é um UUID válido, gerando novo ID:", vehicleData.id);
+      }
+      
+      try {
+        const { success, data: savedVehicle } = await createOrUpdateVehicle(vehicleData);
+        if (success && savedVehicle) {
+          vehicleId = savedVehicle.id;
+          console.log("Veículo salvo com sucesso:", savedVehicle);
+        } else {
+          console.warn("Não foi possível salvar o veículo principal, continuando sem ele");
+        }
+      } catch (vehicleError) {
+        console.error("Erro ao salvar veículo principal:", vehicleError);
+      }
     }
     
     // Validar e certificar que campos críticos são do tipo correto
-    // Certifique-se de que os IDs estão no formato apropriado para UUID
     const quoteToSave = {
       id: quoteId,
       title: quoteData.title || `Orçamento ${new Date().toLocaleDateString()}`,
       client_id: typeof quoteData.clientId === 'object' ? null : quoteData.clientId,
-      vehicle_id: vehicleId, // Usar o UUID válido gerado
+      vehicle_id: vehicleId, // Usar o UUID válido gerado ou null se não houver veículo
       contract_months: quoteData.contractMonths || 12,
       monthly_km: quoteData.monthlyKm || 2000,
       operation_severity: quoteData.operationSeverity || 3,
@@ -65,29 +90,54 @@ export async function saveQuoteToSupabase(quoteData: any) {
       try {
         console.log(`Processando ${quoteData.vehicles.length} veículos para o orçamento`);
         
-        // Adicionar cada veículo ao orçamento
-        for (const vehicle of quoteData.vehicles) {
-          // Verificar se o ID do veículo é válido ou se precisa gerar um novo
-          let validVehicleId = vehicle.vehicleId || vehicle.vehicle?.id;
+        // Para cada veículo no orçamento
+        for (const vehicleItem of quoteData.vehicles) {
+          // Primeiro, salvar ou atualizar o veículo na tabela vehicles
+          const vehicle = vehicleItem.vehicle;
           
-          if (!validVehicleId || !uuidRegex.test(validVehicleId.toString()) || validVehicleId.toString().startsWith('new-')) {
-            validVehicleId = uuidv4();
-            console.log("ID de veículo inválido, gerando novo:", validVehicleId);
+          if (!vehicle) {
+            console.warn("Item de veículo sem dados de veículo, pulando...");
+            continue;
           }
           
-          // Preparar os dados do veículo com ID válido
+          // Preparar dados do veículo para salvar
+          const vehicleToSave = {
+            id: vehicle.id,
+            brand: vehicle.brand || '',
+            model: vehicle.model || '',
+            year: vehicle.year || new Date().getFullYear(),
+            value: vehicle.value || 0,
+            plate_number: vehicle.plateNumber,
+            color: vehicle.color,
+            is_used: vehicle.isUsed || false,
+            odometer: vehicle.odometer || 0,
+            group_id: vehicle.groupId,
+            fuel_type: vehicle.fuelType
+          };
+          
+          // Salvar o veículo na tabela de veículos
+          const { success, data: savedVehicle, error: vehicleError } = await createOrUpdateVehicle(vehicleToSave);
+          
+          if (!success || vehicleError) {
+            console.error(`Erro ao salvar veículo ${vehicleToSave.id} para o orçamento:`, vehicleError);
+            continue; // Pular para o próximo veículo
+          }
+          
+          console.log(`Veículo salvo com sucesso:`, savedVehicle);
+          
+          // Agora que o veículo está salvo, adicionar a relação na quote_vehicles
           const vehicleDataToSave = {
             quote_id: quoteId,
-            vehicle_id: validVehicleId,
-            monthly_value: vehicle.monthly_value || vehicle.totalCost || 0,
+            vehicle_id: savedVehicle.id,
+            monthly_value: vehicleItem.monthlyValue || vehicleItem.totalCost || 0,
             monthly_km: quoteData.monthlyKm || 2000,
             contract_months: quoteData.contractMonths || 12,
             operation_severity: quoteData.operationSeverity || 3,
             has_tracking: quoteData.hasTracking || false,
-            depreciation_cost: vehicle.depreciation_cost || vehicle.depreciationCost || 0,
-            maintenance_cost: vehicle.maintenance_cost || vehicle.maintenanceCost || 0,
-            extra_km_rate: vehicle.extra_km_rate || vehicle.extraKmRate || 0,
-            total_cost: vehicle.total_cost || vehicle.totalCost || 0
+            depreciation_cost: vehicleItem.depreciationCost || 0,
+            maintenance_cost: vehicleItem.maintenanceCost || 0,
+            extra_km_rate: vehicleItem.extraKmRate || 0,
+            total_cost: vehicleItem.totalCost || 0
           };
           
           console.log(`Adicionando veículo ao orçamento:`, vehicleDataToSave);
@@ -97,9 +147,9 @@ export async function saveQuoteToSupabase(quoteData: any) {
             .upsert(vehicleDataToSave);
             
           if (addVehicleError) {
-            console.error(`Erro ao adicionar veículo ${validVehicleId} ao orçamento:`, addVehicleError);
+            console.error(`Erro ao adicionar veículo ${savedVehicle.id} ao orçamento:`, addVehicleError);
           } else {
-            console.log(`Veículo ${validVehicleId} adicionado com sucesso ao orçamento ${quoteId}`);
+            console.log(`Veículo ${savedVehicle.id} adicionado com sucesso ao orçamento ${quoteId}`);
           }
         }
         console.log("Veículos adicionados ao orçamento com sucesso");
