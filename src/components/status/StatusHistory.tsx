@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { Spinner } from './Spinner';
+import { QuoteStatusFlow } from '@/lib/status-flow';
 
 interface StatusHistoryProps {
   quoteId: string;
@@ -12,14 +13,14 @@ interface StatusHistoryProps {
 interface StatusChange {
   id: string;
   quote_id: string;
-  previous_status: string;
-  new_status: string;
+  previous_status: QuoteStatusFlow | null;
+  new_status: QuoteStatusFlow;
   changed_by: string;
   changed_at: string;
   profiles?: {
     full_name: string;
     email: string;
-  };
+  } | null;
 }
 
 export const StatusHistory: React.FC<StatusHistoryProps> = ({ quoteId }) => {
@@ -110,7 +111,7 @@ export const StatusHistory: React.FC<StatusHistoryProps> = ({ quoteId }) => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-medium">
-                <span className="text-muted-foreground">De:</span> {formatStatusName(change.previous_status)}
+                <span className="text-muted-foreground">De:</span> {change.previous_status ? formatStatusName(change.previous_status) : 'N/A'}
                 <span className="mx-2">→</span>
                 <span className="text-primary">{formatStatusName(change.new_status)}</span>
               </p>
@@ -127,3 +128,5 @@ export const StatusHistory: React.FC<StatusHistoryProps> = ({ quoteId }) => {
     </div>
   );
 };
+
+export default StatusHistory;

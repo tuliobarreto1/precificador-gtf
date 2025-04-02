@@ -6,12 +6,9 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
+import { QuoteStatusFlow, statusInfo } from '@/lib/status-flow';
 
-type QuoteStatus = 'ORCAMENTO' | 'PROPOSTA_GERADA' | 'EM_VERIFICACAO' | 'APROVADA' | 
-                   'CONTRATO_GERADO' | 'ASSINATURA_CLIENTE' | 'ASSINATURA_DIRETORIA' | 
-                   'AGENDAMENTO_ENTREGA' | 'ENTREGA' | 'CONCLUIDO';
-
-const STATUS_OPTIONS: { value: QuoteStatus; label: string; color: string }[] = [
+const STATUS_OPTIONS: { value: QuoteStatusFlow; label: string; color: string }[] = [
   { value: 'ORCAMENTO', label: 'Orçamento', color: 'bg-gray-200' },
   { value: 'PROPOSTA_GERADA', label: 'Proposta Gerada', color: 'bg-blue-200' },
   { value: 'EM_VERIFICACAO', label: 'Em Verificação', color: 'bg-yellow-200' },
@@ -26,11 +23,11 @@ const STATUS_OPTIONS: { value: QuoteStatus; label: string; color: string }[] = [
 
 interface StatusFlowProps {
   quoteId: string;
-  currentStatus: QuoteStatus;
+  currentStatus: QuoteStatusFlow;
 }
 
 export const StatusFlow: React.FC<StatusFlowProps> = ({ quoteId, currentStatus }) => {
-  const [selectedStatus, setSelectedStatus] = useState<QuoteStatus>(currentStatus);
+  const [selectedStatus, setSelectedStatus] = useState<QuoteStatusFlow>(currentStatus);
   const [updating, setUpdating] = useState(false);
   const { toast } = useToast();
 
@@ -108,7 +105,7 @@ export const StatusFlow: React.FC<StatusFlowProps> = ({ quoteId, currentStatus }
         
         <RadioGroup 
           value={selectedStatus} 
-          onValueChange={(value) => setSelectedStatus(value as QuoteStatus)}
+          onValueChange={(value) => setSelectedStatus(value as QuoteStatusFlow)}
           className="grid grid-cols-1 md:grid-cols-2 gap-2"
         >
           {STATUS_OPTIONS.map((option) => (
@@ -147,3 +144,5 @@ export const StatusFlow: React.FC<StatusFlowProps> = ({ quoteId, currentStatus }
     </div>
   );
 };
+
+export default StatusFlow;

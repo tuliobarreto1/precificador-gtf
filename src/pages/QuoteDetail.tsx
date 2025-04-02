@@ -147,7 +147,7 @@ const QuoteDetail = () => {
       try {
         setLoading(true);
         setError(null);
-        const { data: quoteData, error: quoteError } = await getQuoteByIdFromSupabase(id);
+        const { quote: quoteData, error: quoteError } = await getQuoteByIdFromSupabase(id);
 
         if (quoteError) {
           setError(`Erro ao carregar orçamento: ${quoteError.message}`);
@@ -269,7 +269,7 @@ const QuoteDetail = () => {
               <h2 className="text-lg font-semibold mb-4">Informações do Orçamento</h2>
               <div className="space-y-2">
                 <div>
-                  <span className="font-semibold">Título:</span> {quote.title}
+                  <span className="font-semibold">Título:</span> {quote.name || quote.title}
                 </div>
                 <div>
                   <span className="font-semibold">ID:</span> {quote.id}
@@ -279,14 +279,14 @@ const QuoteDetail = () => {
                 </div>
                 <div>
                   <span className="font-semibold">Criado em:</span>{' '}
-                  {format(new Date(quote.createdAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                  {format(new Date(quote.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
                 </div>
                 <div>
                   <span className="font-semibold">Status:</span>{' '}
-                  <Badge variant="secondary">{quote.status}</Badge>
+                  <Badge variant="secondary">{quote.status_flow}</Badge>
                 </div>
                 <div>
-                  <span className="font-semibold">Valor Mensal:</span> R$ {quote.totalValue?.toLocaleString('pt-BR') || '0,00'}
+                  <span className="font-semibold">Valor Mensal:</span> R$ {quote.monthly_values?.toLocaleString('pt-BR') || '0,00'}
                 </div>
               </div>
             </div>
@@ -296,8 +296,8 @@ const QuoteDetail = () => {
               {quote.vehicles && quote.vehicles.length > 0 ? (
                 <ul className="list-disc pl-5">
                   {quote.vehicles.map((vehicle) => (
-                    <li key={vehicle.vehicleId}>
-                      {vehicle.vehicleBrand} {vehicle.vehicleModel} ({vehicle.plateNumber || 'N/A'})
+                    <li key={vehicle.vehicle_id}>
+                      {vehicle.vehicle?.brand} {vehicle.vehicle?.model} ({vehicle.vehicle?.plate_number || 'N/A'})
                     </li>
                   ))}
                 </ul>
@@ -314,7 +314,7 @@ const QuoteDetail = () => {
 
           <div className="mt-6 border-t pt-4">
             <h2 className="text-lg font-semibold mb-4">Alterar Status</h2>
-            <StatusFlow quoteId={quote.id} currentStatus={quote.status as any} />
+            <StatusFlow quoteId={quote.id} currentStatus={quote.status_flow} />
           </div>
 
           <div className="flex items-center space-x-2 mt-6 border-t pt-4">
