@@ -29,6 +29,14 @@ export default function ClientForm({ onClientSelect, existingClients = [] }: Cli
   const documentType = formData.document.replace(/\D/g, '').length === 11 ? 'PF' : 'PJ';
   const { toast } = useToast();
 
+  const formatPhone = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    return numbers
+      .replace(/(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{5})(\d)/, '$1-$2')
+      .slice(0, 15);
+  };
+
   const formatDocument = (value: string) => {
     const numbers = value.replace(/\D/g, '');
     if (numbers.length <= 11) {
@@ -206,7 +214,9 @@ export default function ClientForm({ onClientSelect, existingClients = [] }: Cli
               <Input
                 id="contact"
                 value={formData.contact}
-                onChange={(e) => setFormData(prev => ({ ...prev, contact: e.target.value }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, contact: formatPhone(e.target.value) }))}
+                placeholder="(00) 00000-0000"
+                maxLength={15}
               />
             </div>
 

@@ -78,6 +78,14 @@ export default function NewClientForm({ onSave, onCancel, client, isEdit }: NewC
     }
   };
 
+  const formatPhone = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    return numbers
+      .replace(/(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{5})(\d)/, '$1-$2')
+      .slice(0, 15);
+  };
+
   const formatCEP = (value: string) => {
     const numbers = value.replace(/\D/g, '');
     return numbers
@@ -290,8 +298,10 @@ export default function NewClientForm({ onSave, onCancel, client, isEdit }: NewC
               <Input
                 id="phone"
                 value={formData.phone}
-                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, phone: formatPhone(e.target.value) }))}
                 disabled={loading}
+                placeholder="(00) 00000-0000"
+                maxLength={15}
               />
             </div>
           </div>

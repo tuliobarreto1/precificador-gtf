@@ -18,10 +18,11 @@ import { useToast } from '@/hooks/use-toast';
 import VehicleSelector from '@/components/vehicle/VehicleSelector';
 import VehicleCard from '@/components/ui-custom/VehicleCard';
 import { getClients } from '@/lib/data-provider';
-import { Client, Vehicle } from '@/lib/models';
+import { Client, Vehicle, ClientType } from '@/lib/models';
 import { useQuote, QuoteProvider } from '@/context/QuoteContext';
 import { CustomClient } from '@/components/quote/ClientForm';
 import { getAllVehicles } from '@/integrations/supabase';
+import { getClientsFromSupabase } from '@/integrations/supabase/services/clients';
 
 const STEPS = [
   { id: 'client', name: 'Cliente', icon: <Users size={18} /> },
@@ -135,6 +136,7 @@ const QuoteForm = () => {
   const [loadAttempted, setLoadAttempted] = useState<boolean>(false);
   const [loadingVehicles, setLoadingVehicles] = useState<boolean>(false);
   const [availableVehicles, setAvailableVehicles] = useState<Vehicle[]>([]);
+  const [existingClients, setExistingClients] = useState<Client[]>([]);
   const loadAttemptedRef = useRef(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -168,6 +170,31 @@ const QuoteForm = () => {
       id
     });
   };
+
+  // Carregar clientes existentes
+  useEffect(() => {
+    const loadClients = async () => {
+      try {
+        const { success, clients } = await getClientsFromSupabase();
+        if (success && clients) {
+          const mappedClients: Client[] = clients.map(client => ({
+            id: client.id,
+            name: client.name,
+            type: client.document?.replace(/\D/g, '').length === 11 ? 'PF' : 'PJ' as ClientType,
+            document: client.document,
+            email: client.email || undefined,
+            contact: client.phone || undefined,
+            responsible: client.responsible_person || undefined
+          }));
+          setExistingClients(mappedClients);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar clientes:", error);
+      }
+    };
+
+    loadClients();
+  }, []);
 
   useEffect(() => {
     if (id && !loadAttemptedRef.current) {
@@ -309,7 +336,7 @@ const QuoteForm = () => {
     <div className="space-y-6 animate-fadeIn">
       <ClientForm 
         onClientSelect={handleClientSelect} 
-        existingClients={[]} // Inicializamos com lista vazia que será preenchida pelo componente
+        existingClients={existingClients}
       />
     </div>
   );
