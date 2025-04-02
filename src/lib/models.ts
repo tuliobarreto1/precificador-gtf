@@ -1,3 +1,4 @@
+
 // Tipos e interfaces básicas para o sistema
 export type ClientType = 'PF' | 'PJ';
 
@@ -38,7 +39,7 @@ export interface Vehicle {
 export interface Quote {
   id: string;
   clientId: string;
-  vehicleId: string;
+  vehicleId?: string; // Tornando opcional para compatibilidade com o formato atual
   contractMonths: number;
   monthlyKm: number;
   totalCost: number;

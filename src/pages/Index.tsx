@@ -31,11 +31,14 @@ const Index = () => {
     }
   };
 
+  // Obter o nome do usuário de forma segura
+  const userName = user?.email?.split('@')[0] || adminUser?.name || '';
+
   return (
     <MainLayout>
       <div className="container py-6">
         <h1 className="text-3xl font-bold tracking-tight mb-6">
-          Bem-vindo{user?.name ? `, ${user.name}` : adminUser?.name ? `, ${adminUser.name}` : ''}!
+          Bem-vindo{userName ? `, ${userName}` : ''}!
         </h1>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
