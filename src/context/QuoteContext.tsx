@@ -811,15 +811,15 @@ export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
     if (quoteToUpdate.source === 'supabase') {
       try {
         const userInfo = getCurrentUser();
-        await supabase
-          .from('quote_action_logs')
-          .insert({
+        
+        // Usar a função dedicada para registrar logs de ação em vez de inserção direta
+        import('@/integrations/supabase/services/quoteActionLogs').then(async ({ createQuoteActionLog }) => {
+          await createQuoteActionLog({
             quote_id: quoteId,
             quote_title: quoteToUpdate.clientName,
             action_type: 'EDIT',
             user_id: userInfo.id.toString(),
             user_name: userInfo.name,
-            action_date: new Date().toISOString(),
             details: {
               description: changeDescription,
               previous: {
@@ -834,7 +834,10 @@ export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
               }
             }
           });
-        console.log('✅ Log de edição registrado com sucesso');
+          console.log('✅ Log de edição registrado com sucesso');
+        }).catch(logError => {
+          console.error('❌ Erro ao registrar log de edição:', logError);
+        });
       } catch (logError) {
         console.error('❌ Erro ao registrar log de edição:', logError);
       }
@@ -843,7 +846,7 @@ export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
     return true;
   };
 
-  // Delete quote implementation
+  // Delete quote implementation 
   const deleteQuote = useCallback(async (quoteId: string): Promise<boolean> => {
     console.log("🗑️ Tentando excluir orçamento:", quoteId);
     
@@ -868,22 +871,24 @@ export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
         // Registrar o log de exclusão primeiro
         const userInfo = getCurrentUser();
         try {
-          await supabase
-            .from('quote_action_logs')
-            .insert({
+          // Usar a função dedicada para registrar logs de ação em vez de inserção direta
+          import('@/integrations/supabase/services/quoteActionLogs').then(async ({ createQuoteActionLog }) => {
+            await createQuoteActionLog({
               quote_id: quoteId,
               quote_title: quoteToDelete.clientName,
               action_type: 'DELETE',
               user_id: userInfo.id.toString(),
               user_name: userInfo.name,
-              action_date: new Date().toISOString(),
               details: {
                 status: quoteToDelete.status,
                 value: quoteToDelete.totalCost
               },
               deleted_data: quoteToDelete
             });
-          console.log('✅ Log de exclusão registrado com sucesso');
+            console.log('✅ Log de exclusão registrado com sucesso');
+          }).catch(logError => {
+            console.error('❌ Erro ao registrar log de exclusão:', logError);
+          });
         } catch (logError) {
           console.error('❌ Erro ao registrar log de exclusão:', logError);
         }
