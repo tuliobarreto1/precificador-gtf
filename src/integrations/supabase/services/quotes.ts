@@ -138,3 +138,68 @@ export async function getQuoteByIdFromSupabase(id: string) {
     return { success: false, error, quote: null };
   }
 }
+
+// Função para excluir um orçamento e registrar esta ação
+export async function deleteQuoteFromSupabase(quoteId: string, userId?: string, userName?: string) {
+  try {
+    if (!quoteId) {
+      return { success: false, error: "ID do orçamento não fornecido" };
+    }
+
+    // Primeiro, buscar os dados do orçamento para registro no log
+    const { quote, error: fetchError } = await getQuoteByIdFromSupabase(quoteId);
+    
+    if (fetchError) {
+      console.error("Erro ao buscar orçamento para exclusão:", fetchError);
+      return { success: false, error: fetchError };
+    }
+
+    // Registrar ação de exclusão no log
+    const logEntry = {
+      quote_id: quoteId,
+      user_id: userId || null,
+      user_name: userName || "Sistema",
+      action_type: "DELETE",
+      action_date: new Date().toISOString(),
+      quote_title: quote?.title || "Orçamento sem título",
+      deleted_data: quote || null
+    };
+    
+    const { error: logError } = await supabase
+      .from('quote_action_logs')
+      .insert(logEntry);
+      
+    if (logError) {
+      console.error("Erro ao registrar log de exclusão:", logError);
+      // Continuar com a exclusão mesmo com erro no log
+    }
+    
+    // Excluir primeiro os veículos do orçamento (para manter integridade referencial)
+    const { error: vehiclesDeleteError } = await supabase
+      .from('quote_vehicles')
+      .delete()
+      .eq('quote_id', quoteId);
+      
+    if (vehiclesDeleteError) {
+      console.error("Erro ao excluir veículos do orçamento:", vehiclesDeleteError);
+      return { success: false, error: vehiclesDeleteError };
+    }
+
+    // Então excluir o orçamento
+    const { error: quoteDeleteError } = await supabase
+      .from('quotes')
+      .delete()
+      .eq('id', quoteId);
+      
+    if (quoteDeleteError) {
+      console.error("Erro ao excluir orçamento:", quoteDeleteError);
+      return { success: false, error: quoteDeleteError };
+    }
+    
+    console.log(`Orçamento ${quoteId} excluído com sucesso`);
+    return { success: true };
+  } catch (error) {
+    console.error("Erro inesperado ao excluir orçamento:", error);
+    return { success: false, error };
+  }
+}

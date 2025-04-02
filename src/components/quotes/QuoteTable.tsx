@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { deleteQuoteFromSupabase } from '@/integrations/supabase/services/quotes';
+import { deleteQuoteFromSupabase } from '@/integrations/supabase';
 
 interface QuoteItem {
   id: string;
@@ -44,9 +44,11 @@ interface QuoteItem {
 interface QuoteTableProps {
   quotes: QuoteItem[];
   onRefresh?: () => void;
+  loading?: boolean;
+  onDeleteQuote?: (id: string) => void;
 }
 
-const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
+const QuoteTable = ({ quotes, onRefresh, loading, onDeleteQuote }: QuoteTableProps) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [quoteToDelete, setQuoteToDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -80,6 +82,11 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
             title: "Orçamento excluído",
             description: "O orçamento foi excluído com sucesso e a ação foi registrada."
           });
+          
+          if (onDeleteQuote) {
+            onDeleteQuote(quoteToDelete);
+          }
+          
           if (onRefresh) {
             onRefresh();
           }

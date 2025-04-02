@@ -1,167 +1,195 @@
 
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { FileText, List, Settings, PieChart, TrendingUp, Clock, Calendar } from 'lucide-react';
-import MainLayout from '@/components/layout/MainLayout';
-import PageTitle from '@/components/ui-custom/PageTitle';
-import Card, { CardHeader } from '@/components/ui-custom/Card';
-import StatsCard from '@/components/ui-custom/StatsCard';
-import QuoteTable from '@/components/quotes/QuoteTable';
-import { fetchSystemSettings } from '@/lib/settings';
-import { savedQuotes as mockSavedQuotes } from '@/lib/data-provider';
-import { cn } from '@/lib/utils';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowRight, BarChart3, Car, FileText, Plus, Settings, Users } from 'lucide-react';
+import QuoteTable from '@/components/quotes/QuoteTable';
+import { useQuotes } from '@/hooks/useQuotes';
+import { Skeleton } from '@/components/ui/skeleton';
 
-// Componente interno sem depender do contexto
-const IndexContent = () => {
-  const [companyName, setCompanyName] = useState('Car Lease Master');
-  const [loading, setLoading] = useState(true);
+const Index = () => {
+  const navigate = useNavigate();
+  const { allQuotes, loading, loadingSupabase, totalQuotes } = useQuotes();
   
-  // Usamos dados mockados para evitar erro de contexto
-  const safeQuotes = Array.isArray(mockSavedQuotes) ? mockSavedQuotes : [];
-  
-  // Carregar configurações básicas
-  useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const settings = await fetchSystemSettings();
-        const companyNameSetting = settings.find(s => s.key === 'company_name');
-        if (companyNameSetting) {
-          setCompanyName(companyNameSetting.value);
-        }
-      } catch (error) {
-        console.error('Erro ao carregar configurações:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    loadSettings();
-  }, []);
-  
-  // Obter orçamentos recentes (5 mais recentes)
-  const recentQuotes = safeQuotes
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5)
-    .map(quote => ({
-      id: quote.id,
-      clientName: quote.clientName,
-      vehicleName: quote.vehicles && quote.vehicles.length > 0 
-        ? `${quote.vehicles[0].vehicleBrand} ${quote.vehicles[0].vehicleModel}` 
-        : 'Veículo não informado',
-      value: quote.totalCost,
-      createdAt: quote.createdAt,
-      status: quote.status || 'ORCAMENTO',
-      source: quote.source || 'local',
-      createdBy: quote.createdBy
-    }));
-  
-  // Estatísticas derivadas dos orçamentos
-  const totalQuotes = safeQuotes.length;
-  const averageContractLength = totalQuotes > 0 
-    ? safeQuotes.reduce((acc, q) => acc + q.contractMonths, 0) / totalQuotes 
-    : 0;
-  const averageMonthlyValue = totalQuotes > 0 
-    ? safeQuotes.reduce((acc, q) => acc + q.totalCost, 0) / totalQuotes 
-    : 0;
-  const activeQuotes = safeQuotes.filter(q => q.status !== 'CONCLUIDO').length;
+  // Selecionar apenas os 5 orçamentos mais recentes para exibição
+  const recentQuotes = allQuotes.slice(0, 5);
 
   return (
-    <div className="pt-8">
-      <PageTitle 
-        title={`Bem-vindo ao ${companyName}`} 
-        subtitle="Gerencie seus orçamentos de locação de veículos" 
-      />
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatsCard 
-          title="Total de Orçamentos" 
-          value={totalQuotes} 
-          icon={<FileText size={20} />}
-          trend={{ value: 12, isPositive: true }}
-        />
-        <StatsCard 
-          title="Valor Médio Mensal" 
-          value={`R$ ${averageMonthlyValue.toLocaleString('pt-BR')}`} 
-          icon={<TrendingUp size={20} />}
-          trend={{ value: 3.5, isPositive: true }}
-        />
-        <StatsCard 
-          title="Prazo Médio" 
-          value={`${Math.round(averageContractLength)} meses`} 
-          icon={<Calendar size={20} />}
-          trend={{ value: 2, isPositive: false }}
-        />
-        <StatsCard 
-          title="Orçamentos Ativos" 
-          value={activeQuotes} 
-          icon={<Clock size={20} />}
-          trend={{ value: 8, isPositive: true }}
-        />
-      </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader 
-              title="Orçamentos Recentes" 
-              action={
-                <Link to="/orcamentos" className="text-sm text-primary hover:underline">
-                  Ver todos
-                </Link>
-              }
-            />
-            
-            {recentQuotes.length === 0 ? (
-              <div className="p-6 text-center text-muted-foreground">
-                <p>Nenhum orçamento encontrado</p>
-                <Link to="/orcamento/novo" className="mt-4 inline-block">
-                  <Button variant="default" size="sm">Criar primeiro orçamento</Button>
-                </Link>
+    <div className="container py-6">
+      <h1 className="text-2xl font-bold tracking-tight mb-4">Painel Principal</h1>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="col-span-2">
+          <CardHeader>
+            <CardTitle className="text-xl">Resumo de Orçamentos</CardTitle>
+            <CardDescription>Visão geral e status dos seus orçamentos</CardDescription>
+          </CardHeader>
+          
+          <CardContent>
+            <div className="flex items-center gap-4 mb-4">
+              <div className="bg-primary/10 p-3 rounded-full">
+                <FileText className="h-8 w-8 text-primary" />
               </div>
-            ) : (
-              <QuoteTable quotes={recentQuotes} />
-            )}
-          </Card>
-        </div>
-        
-        <div>
-          <Card>
-            <CardHeader title="Acesso Rápido" />
-            
-            <div className="grid grid-cols-1 gap-3 p-4">
-              {[
-                { name: 'Novo Orçamento', icon: <FileText size={18} />, path: '/orcamento/novo' },
-                { name: 'Lista de Orçamentos', icon: <List size={18} />, path: '/orcamentos' },
-                { name: 'Configurações', icon: <Settings size={18} />, path: '/configuracoes' },
-                { name: 'Parâmetros', icon: <PieChart size={18} />, path: '/parametros' },
-              ].map((item) => (
-                <Link key={item.name} to={item.path}>
-                  <div className={cn(
-                    "flex items-center space-x-3 p-3 rounded-lg transition-colors",
-                    "hover:bg-primary/5 border border-border hover:border-primary/30"
-                  )}>
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                      {item.icon}
-                    </div>
-                    <span>{item.name}</span>
-                  </div>
-                </Link>
-              ))}
+              <div>
+                <div className="text-sm text-muted-foreground">Total de orçamentos</div>
+                <div className="text-2xl font-bold">
+                  {loadingSupabase ? <Skeleton className="h-8 w-16" /> : totalQuotes}
+                </div>
+              </div>
             </div>
-          </Card>
-        </div>
+            
+            <div className="relative">
+              {loading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </div>
+              ) : recentQuotes.length > 0 ? (
+                <QuoteTable 
+                  quotes={recentQuotes} 
+                  loading={loading}
+                />
+              ) : (
+                <div className="text-center py-8 bg-muted rounded-md">
+                  <p className="text-muted-foreground">Nenhum orçamento encontrado.</p>
+                  <Button 
+                    variant="outline" 
+                    className="mt-2"
+                    onClick={() => navigate('/orcamento/novo')}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Criar orçamento
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardContent>
+          
+          <CardFooter className="flex justify-between">
+            <Button variant="outline" onClick={() => navigate('/orcamentos')}>
+              Ver todos os orçamentos
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+            <Button onClick={() => navigate('/orcamento/novo')}>
+              <Plus className="mr-2 h-4 w-4" />
+              Novo Orçamento
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">Clientes</CardTitle>
+            <CardDescription>Gerenciar cadastros de clientes</CardDescription>
+          </CardHeader>
+          
+          <CardContent className="flex flex-col items-center justify-center py-6">
+            <div className="bg-blue-100 p-3 rounded-full mb-4">
+              <Users className="h-8 w-8 text-blue-600" />
+            </div>
+            <p className="text-muted-foreground text-center mb-4">
+              Cadastre e gerencie seus clientes para acelerar a criação de orçamentos.
+            </p>
+          </CardContent>
+          
+          <CardFooter className="flex justify-between">
+            <Button variant="outline" onClick={() => navigate('/clientes')}>
+              Ver clientes
+            </Button>
+            <Button 
+              variant="secondary" 
+              onClick={() => navigate('/cliente/novo')}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Novo cliente
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">Veículos</CardTitle>
+            <CardDescription>Gerenciar frota de veículos</CardDescription>
+          </CardHeader>
+          
+          <CardContent className="flex flex-col items-center justify-center py-6">
+            <div className="bg-green-100 p-3 rounded-full mb-4">
+              <Car className="h-8 w-8 text-green-600" />
+            </div>
+            <p className="text-muted-foreground text-center mb-4">
+              Cadastre veículos e configure parâmetros para cálculos precisos nos orçamentos.
+            </p>
+          </CardContent>
+          
+          <CardFooter className="flex justify-between">
+            <Button variant="outline" onClick={() => navigate('/veiculos')}>
+              Ver veículos
+            </Button>
+            <Button 
+              variant="secondary" 
+              onClick={() => navigate('/veiculo/novo')}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Novo veículo
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">Parâmetros</CardTitle>
+            <CardDescription>Configurações do sistema</CardDescription>
+          </CardHeader>
+          
+          <CardContent className="flex flex-col items-center justify-center py-6">
+            <div className="bg-purple-100 p-3 rounded-full mb-4">
+              <Settings className="h-8 w-8 text-purple-600" />
+            </div>
+            <p className="text-muted-foreground text-center mb-4">
+              Configure os parâmetros do sistema para cálculos de depreciação, manutenção e mais.
+            </p>
+          </CardContent>
+          
+          <CardFooter>
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={() => navigate('/parametros')}
+            >
+              Configurar parâmetros
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">Análise de Dados</CardTitle>
+            <CardDescription>Estatísticas e gráficos</CardDescription>
+          </CardHeader>
+          
+          <CardContent className="flex flex-col items-center justify-center py-6">
+            <div className="bg-amber-100 p-3 rounded-full mb-4">
+              <BarChart3 className="h-8 w-8 text-amber-600" />
+            </div>
+            <p className="text-muted-foreground text-center mb-4">
+              Visualize estatísticas sobre orçamentos, conversões e rendimento da frota.
+            </p>
+          </CardContent>
+          
+          <CardFooter>
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={() => navigate('/analise')}
+            >
+              Ver estatísticas
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
     </div>
-  );
-};
-
-// Componente principal sem depender do QuoteProvider
-const Index = () => {
-  return (
-    <MainLayout>
-      <IndexContent />
-    </MainLayout>
   );
 };
 
