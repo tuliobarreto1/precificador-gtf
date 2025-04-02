@@ -509,6 +509,56 @@ export type Database = {
         }
         Returns: boolean
       }
+      execute_sql: {
+        Args: {
+          sql_query: string
+          params?: Json
+        }
+        Returns: Json
+      }
+      get_all_quote_action_logs: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          action_date: string | null
+          action_type: string
+          deleted_data: Json | null
+          details: Json | null
+          id: string
+          quote_id: string | null
+          quote_title: string | null
+          user_id: string | null
+          user_name: string | null
+        }[]
+      }
+      get_quote_action_logs_by_quote: {
+        Args: {
+          quote_id_param: string
+        }
+        Returns: {
+          action_date: string | null
+          action_type: string
+          deleted_data: Json | null
+          details: Json | null
+          id: string
+          quote_id: string | null
+          quote_title: string | null
+          user_id: string | null
+          user_name: string | null
+        }[]
+      }
+      insert_quote_action_log: {
+        Args: {
+          quote_id: string
+          quote_title: string
+          action_type: string
+          user_id: string
+          user_name: string
+          action_date?: string
+          details?: Json
+          deleted_data?: Json
+        }
+        Returns: string
+      }
       is_valid_status_transition: {
         Args: {
           current_status: Database["public"]["Enums"]["quote_status"]

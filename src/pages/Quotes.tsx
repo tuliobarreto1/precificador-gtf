@@ -1,213 +1,226 @@
 
-import React, { useState } from 'react';
-import MainLayout from '@/components/layout/MainLayout';
-import QuotesHeader from '@/components/quotes/QuotesHeader';
-import QuoteStats from '@/components/quotes/QuoteStats';
-import QuoteFilters from '@/components/quotes/QuoteFilters';
-import QuoteEmpty from '@/components/quotes/QuoteEmpty';
-import QuoteTable from '@/components/quotes/QuoteTable';
-import { useQuotes } from '@/hooks/useQuotes';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getQuoteActionLogs } from '@/integrations/supabase/services/quotes';
-import { useToast } from '@/hooks/use-toast';
-import { useQuote } from '@/context/QuoteContext';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { MainLayout } from '@/layouts/MainLayout';
 import { Button } from '@/components/ui/button';
-import { Clock, FileTextIcon } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Search, Plus, RefreshCw, ClipboardList } from 'lucide-react';
+import { QuoteTable } from '@/components/Quote/QuoteTable';
+import { useQuotes } from '@/hooks/useQuotes';
+import { useAuth } from '@/context/AuthContext';
+import { Separator } from '@/components/ui/separator';
+import { getQuoteActionLogs } from '@/integrations/supabase';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
-const Quotes = () => {
-  const { 
-    allQuotes, 
-    totalQuotes, 
-    totalValue, 
-    avgValue, 
-    loading, 
-    handleRefresh 
-  } = useQuotes();
-
-  const [activeTab, setActiveTab] = useState("orçamentos");
-  const [actionLogs, setActionLogs] = useState<any[]>([]);
+const Quotes: React.FC = () => {
+  const navigate = useNavigate();
+  const { allQuotes, totalQuotes, avgValue, handleRefresh, loading } = useQuotes();
+  const { isAdmin, isSupervisor } = useAuth();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredQuotes, setFilteredQuotes] = useState(allQuotes);
+  const [activeTab, setActiveTab] = useState('orcamentos');
   const [loadingLogs, setLoadingLogs] = useState(false);
-  const { toast } = useToast();
-  const quoteContext = useQuote();
-  const currentUser = quoteContext?.getCurrentUser();
-  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'manager';
+  const [logs, setLogs] = useState<any[]>([]);
 
-  // Garantir que allQuotes é sempre um array
-  const safeQuotes = Array.isArray(allQuotes) ? allQuotes : [];
+  useEffect(() => {
+    const filtered = allQuotes.filter(
+      (quote) =>
+        quote.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        quote.vehicleName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredQuotes(filtered);
+  }, [searchTerm, allQuotes]);
 
-  const loadActionLogs = async () => {
-    if (!isAdmin) {
-      toast({
-        title: "Acesso negado",
-        description: "Apenas administradores e supervisores podem visualizar os logs de ações.",
-        variant: "destructive"
-      });
-      return;
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const handleNewQuote = () => {
+    navigate('/orcamento/novo');
+  };
+
+  // Carregar logs de ações quando a aba de logs for selecionada
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    
+    if (value === 'logs' && (isAdmin || isSupervisor)) {
+      loadActionLogs();
     }
-
-    setLoadingLogs(true);
+  };
+  
+  const loadActionLogs = async () => {
     try {
-      const { success, logs, error } = await getQuoteActionLogs();
-      if (success) {
-        setActionLogs(logs);
-      } else {
-        console.error("Erro ao carregar logs:", error);
-        toast({
-          title: "Erro ao carregar logs",
-          description: "Não foi possível carregar os registros de ações.",
-          variant: "destructive"
-        });
+      setLoadingLogs(true);
+      const { success, logs: actionLogs } = await getQuoteActionLogs();
+      
+      if (success && actionLogs) {
+        setLogs(actionLogs);
       }
     } catch (error) {
-      console.error("Erro ao carregar logs:", error);
-      toast({
-        title: "Erro ao carregar logs",
-        description: "Ocorreu um erro inesperado ao carregar os registros de ações.",
-        variant: "destructive"
-      });
+      console.error('Erro ao carregar logs de ações:', error);
     } finally {
       setLoadingLogs(false);
     }
   };
-
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
-    if (tab === "logs" && actionLogs.length === 0) {
-      loadActionLogs();
+  
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleString('pt-BR');
+    } catch (e) {
+      return dateString;
     }
   };
 
-  function formatDate(dateString: string) {
-    const date = new Date(dateString);
-    return date.toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  }
-
   return (
     <MainLayout>
-      <div className="py-8">
-        <QuotesHeader />
-        
-        <QuoteStats 
-          totalQuotes={totalQuotes}
-          totalValue={totalValue}
-          avgValue={avgValue}
-        />
-        
-        {isAdmin && (
-          <Tabs defaultValue="orçamentos" className="mb-6" onValueChange={handleTabChange}>
-            <TabsList>
-              <TabsTrigger value="orçamentos" className="flex items-center gap-2">
-                <FileTextIcon className="h-4 w-4" />
-                <span>Orçamentos</span>
-              </TabsTrigger>
-              <TabsTrigger value="logs" className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                <span>Logs de Ações</span>
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="orçamentos">
-              <div className="bg-white shadow rounded-md">
-                <QuoteFilters 
-                  loading={loading} 
-                  onRefresh={handleRefresh} 
-                />
-                
-                {safeQuotes.length === 0 ? (
-                  <QuoteEmpty />
-                ) : (
-                  <QuoteTable 
-                    quotes={safeQuotes} 
-                    onRefresh={handleRefresh}
-                  />
-                )}
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="logs">
-              <div className="bg-white shadow rounded-md">
-                <div className="p-4 border-b flex justify-between items-center">
-                  <h2 className="text-lg font-medium">Logs de Ações em Orçamentos</h2>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={loadActionLogs}
-                    disabled={loadingLogs}
-                  >
-                    {loadingLogs ? 'Carregando...' : 'Atualizar Logs'}
-                  </Button>
-                </div>
-                
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-muted/50 border-b">
-                        <th className="py-3 px-4 text-left font-medium text-sm">Ação</th>
-                        <th className="py-3 px-4 text-left font-medium text-sm">Orçamento</th>
-                        <th className="py-3 px-4 text-left font-medium text-sm">Usuário</th>
-                        <th className="py-3 px-4 text-left font-medium text-sm">Data/Hora</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {loadingLogs ? (
-                        <tr>
-                          <td colSpan={4} className="py-8 text-center text-muted-foreground">
-                            Carregando logs de ações...
-                          </td>
-                        </tr>
-                      ) : actionLogs.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="py-8 text-center text-muted-foreground">
-                            Nenhum log de ação encontrado
-                          </td>
-                        </tr>
-                      ) : (
-                        actionLogs.map((log) => (
-                          <tr key={log.id} className="border-b hover:bg-muted/20">
-                            <td className="py-3 px-4">
-                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                log.action_type === 'DELETE' ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'
-                              }`}>
-                                {log.action_type === 'DELETE' ? 'Exclusão' : 'Edição'}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4">{log.quote_title || `Orçamento: ${log.quote_id.substring(0, 8)}...`}</td>
-                            <td className="py-3 px-4">{log.user_name || 'Usuário não identificado'}</td>
-                            <td className="py-3 px-4">{formatDate(log.action_date)}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-        )}
-        
-        {!isAdmin && (
-          <div className="bg-white shadow rounded-md">
-            <QuoteFilters 
-              loading={loading} 
-              onRefresh={handleRefresh} 
-            />
-            
-            {safeQuotes.length === 0 ? (
-              <QuoteEmpty />
-            ) : (
-              <QuoteTable 
-                quotes={safeQuotes} 
-                onRefresh={handleRefresh}
-              />
-            )}
+      <div className="container py-6">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Orçamentos</h1>
+            <p className="text-muted-foreground">
+              Gerencie seus orçamentos e acompanhe o progresso das propostas
+            </p>
           </div>
-        )}
+          <Button onClick={handleNewQuote}>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Orçamento
+          </Button>
+        </div>
+
+        <Card className="mb-6">
+          <CardHeader className="pb-2">
+            <CardTitle>Resumo</CardTitle>
+            <CardDescription>Visão geral dos seus orçamentos</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="bg-muted rounded-md p-4">
+                <div className="text-muted-foreground mb-1 text-sm">Total de orçamentos</div>
+                <div className="text-2xl font-bold">{totalQuotes}</div>
+              </div>
+              <div className="bg-muted rounded-md p-4">
+                <div className="text-muted-foreground mb-1 text-sm">Valor médio</div>
+                <div className="text-2xl font-bold">
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                  }).format(avgValue)}
+                </div>
+              </div>
+              <div className="bg-muted rounded-md p-4">
+                <div className="text-muted-foreground mb-1 text-sm">Valor total</div>
+                <div className="text-2xl font-bold">
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                  }).format(
+                    allQuotes.reduce((sum, quote) => sum + Number(quote.value), 0)
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
+          <TabsList className="mb-4">
+            <TabsTrigger value="orcamentos">
+              Orçamentos
+            </TabsTrigger>
+            {(isAdmin || isSupervisor) && (
+              <TabsTrigger value="logs">
+                <ClipboardList className="h-4 w-4 mr-2" />
+                Logs de Ações
+              </TabsTrigger>
+            )}
+          </TabsList>
+
+          <TabsContent value="orcamentos">
+            <div className="flex items-center justify-between mb-4">
+              <div className="relative w-full max-w-sm">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Buscar por cliente ou veículo..."
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  className="pl-8"
+                />
+              </div>
+              <Button variant="outline" onClick={handleRefresh} disabled={loading}>
+                <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                Atualizar
+              </Button>
+            </div>
+
+            <QuoteTable 
+              quotes={filteredQuotes} 
+              loading={loading} 
+              onDeleteQuote={() => handleRefresh()}
+            />
+          </TabsContent>
+          
+          {(isAdmin || isSupervisor) && (
+            <TabsContent value="logs">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Histórico de Ações</CardTitle>
+                  <CardDescription>
+                    Registro de edições e exclusões de orçamentos
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loadingLogs ? (
+                    <div className="flex justify-center py-8">
+                      <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+                    </div>
+                  ) : logs.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      Nenhum registro de ação encontrado.
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableCaption>Histórico de ações em orçamentos</TableCaption>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Data / Hora</TableHead>
+                          <TableHead>Ação</TableHead>
+                          <TableHead>Orçamento</TableHead>
+                          <TableHead>Usuário</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {logs.map((log) => (
+                          <TableRow key={log.id}>
+                            <TableCell>{formatDate(log.action_date)}</TableCell>
+                            <TableCell>
+                              {log.action_type === 'EDIT' ? 'Edição' : 'Exclusão'}
+                            </TableCell>
+                            <TableCell>{log.quote_title}</TableCell>
+                            <TableCell>{log.user_name || 'Usuário desconhecido'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+        </Tabs>
       </div>
     </MainLayout>
   );
