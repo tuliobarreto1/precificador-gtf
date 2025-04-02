@@ -14,14 +14,22 @@ if (fs.existsSync(envPath)) {
   const safeContent = envContent.replace(/DB_PASSWORD=.*/g, 'DB_PASSWORD=***HIDDEN***');
   console.log('Conteúdo do arquivo .env (senha oculta):');
   console.log(safeContent);
+  
+  // Carregar variáveis de ambiente
+  dotenv.config({ path: envPath });
+  
+  // Verificar se as variáveis críticas foram carregadas
+  if (!process.env.DB_SERVER || !process.env.DB_USER || !process.env.DB_PASSWORD) {
+    console.error('ERRO CRÍTICO: Variáveis de ambiente do banco de dados não carregadas!');
+    console.error('Por favor, verifique o arquivo .env');
+  } else {
+    console.log('Variáveis de ambiente do banco de dados carregadas com sucesso!');
+  }
 } else {
   console.error(`ERRO: Arquivo .env não encontrado em: ${envPath}`);
   console.error('Por favor, crie o arquivo .env na raiz do projeto com as credenciais de banco de dados.');
   process.exit(1);
 }
-
-// Carregar variáveis de ambiente
-dotenv.config({ path: envPath });
 
 console.log('====================================================');
 console.log('Iniciando ambiente de desenvolvimento...');

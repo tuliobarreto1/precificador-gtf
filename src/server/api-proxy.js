@@ -1,3 +1,4 @@
+
 // Este arquivo é usado para configurar um proxy de API local durante o desenvolvimento
 // para contornar limitações de CORS e segurança em requisições diretas do navegador
 // para o SQL Server
@@ -14,7 +15,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Carregar variáveis de ambiente do arquivo .env
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+const envPath = path.resolve(__dirname, '../../.env');
+console.log(`Tentando carregar variáveis de ambiente de: ${envPath}`);
+dotenv.config({ path: envPath });
+
+// Verificar se as variáveis essenciais foram carregadas
+if (!process.env.DB_SERVER || !process.env.DB_USER || !process.env.DB_PASSWORD) {
+  console.error("ERRO CRÍTICO: Variáveis de ambiente do banco de dados não encontradas!");
+  console.error("Verifique se o arquivo .env existe e contém DB_SERVER, DB_USER e DB_PASSWORD.");
+  console.error(`Caminho do .env buscado: ${envPath}`);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -447,5 +457,5 @@ app.listen(PORT, () => {
   console.log(`- GET /api/vehicles/:plate`);
   console.log(`- GET /api/vehicle-groups`);
   console.log(`- GET /api/vehicle-models/:groupCode`);
-  console.log(`Variáveis de ambiente carregadas do arquivo: ${path.resolve(__dirname, '../../.env')}`);
+  console.log(`Variáveis de ambiente carregadas do arquivo: ${envPath}`);
 });
