@@ -77,10 +77,15 @@ const Quotes = () => {
         // Forçar atualização direta do trigger para recarregar dados
         setRefreshTriggerDirectly();
         
-        // Também chamar handleRefresh após um curto atraso para garantir
+        // Pausa maior para garantir que o backend processou a exclusão
         setTimeout(() => {
           handleRefresh();
-        }, 800);
+        }, 1000);
+        
+        // Força uma segunda atualização após mais tempo
+        setTimeout(() => {
+          setRefreshTriggerDirectly();
+        }, 2000);
       } else {
         toast({
           title: "Erro ao excluir",

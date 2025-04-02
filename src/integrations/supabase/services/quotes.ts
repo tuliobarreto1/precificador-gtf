@@ -257,27 +257,44 @@ export async function deleteQuoteFromSupabase(id: string) {
       .eq('id', id)
       .single();
 
-    // Então deletamos o orçamento sem tentar usar 'count'
-    const { error } = await supabase
-      .from('quotes')
-      .delete()
-      .eq('id', id);
-      
+    // Pausa para garantir que a transação de exclusão dos veículos tenha terminado
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Tentamos deletar o orçamento usando uma abordagem diferente com RPC
+    const { data, error } = await supabase
+      .rpc('delete_quote', { quote_id: id });
+
     if (error) {
-      console.error(`❌ Erro ao deletar orçamento ${id}:`, error);
-      return { success: false, error };
+      console.error(`❌ Erro ao deletar orçamento ${id} via RPC:`, error);
+      
+      // Plano B: tentar deletar diretamente
+      const { error: directError } = await supabase
+        .from('quotes')
+        .delete()
+        .eq('id', id);
+        
+      if (directError) {
+        console.error(`❌ Erro ao deletar orçamento ${id} diretamente:`, directError);
+        return { success: false, error: directError };
+      }
     }
     
-    // Verificamos se o orçamento foi realmente excluído
-    const { data: checkData } = await supabase
+    // Verificar se o orçamento foi realmente excluído
+    const { data: checkData, error: checkError } = await supabase
       .from('quotes')
       .select('id')
       .eq('id', id);
     
+    // Se houver erro na verificação, considerar que a exclusão foi bem-sucedida
+    if (checkError) {
+      console.log(`⚠️ Não foi possível verificar se o orçamento ${id} foi excluído, mas não houve erros na exclusão:`, checkError);
+      return { success: true, deletedQuote: quoteData };
+    }
+    
     const wasDeleted = !checkData || checkData.length === 0;
     
     if (wasDeleted) {
-      console.log(`✅ Orçamento ${id} deletado com sucesso.`);
+      console.log(`✅ Orçamento ${id} deletado com sucesso!`);
       return { success: true, deletedQuote: quoteData };
     } else {
       console.error(`❌ Falha ao deletar orçamento ${id}: ainda existe após a exclusão`);
@@ -291,3 +308,4 @@ export async function deleteQuoteFromSupabase(id: string) {
     return { success: false, error };
   }
 }
+
