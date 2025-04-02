@@ -123,7 +123,7 @@ export async function getClientsFromSupabase() {
   }
 }
 
-// Função para excluir cliente - implementação robusta com várias abordagens
+// Função para excluir cliente - implementação robusta e corrigida
 export async function deleteClientFromSupabase(clientId: string) {
   try {
     console.log(`🗑️ Iniciando exclusão do cliente ${clientId}...`);
@@ -148,77 +148,101 @@ export async function deleteClientFromSupabase(clientId: string) {
       };
     }
 
-    // Abordagem 1: Usar SQL diretamente para excluir, pois é mais direto
-    const { error: sqlError } = await supabase.from('clients').delete().eq('id', clientId);
-    
-    if (sqlError) {
-      console.error(`❌ Erro na abordagem direta:`, sqlError);
-      // Se falhar, não retornar erro ainda, tentar outras abordagens
-    } else {
-      // Se não houve erro, verificar se a exclusão foi bem sucedida
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const { data: checkData } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('id', clientId);
-        
-      if (!checkData || checkData.length === 0) {
-        console.log(`✅ Cliente excluído com sucesso na primeira tentativa!`);
-        return { success: true };
+    // Abordagem 1: Executar a função SQL diretamente através da API REST
+    try {
+      // Chamar a função criada diretamente usando a API REST do Supabase
+      const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/rpc/delete_client`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': process.env.SUPABASE_ANON_KEY || '',
+          'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY || ''}`
+        },
+        body: JSON.stringify({ client_id: clientId })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result === true) {
+          console.log(`✅ Cliente excluído com sucesso via API REST!`);
+          return { success: true };
+        }
       }
+    } catch (err) {
+      console.error('❌ Erro na exclusão via API REST:', err);
+      // Continuar com as próximas abordagens
     }
 
-    // Abordagem 2: Usar a função SQL diretamente
+    // Abordagem 2: Usar delete direto na tabela
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('clients')
         .delete()
         .eq('id', clientId);
         
       if (!error) {
-        console.log(`✅ Cliente excluído com sucesso na segunda tentativa!`);
-        return { success: true };
-      }
-    } catch (e) {
-      console.error('💥 Erro na exclusão (segunda tentativa):', e);
-      // Continuar com as próximas abordagens
-    }
-
-    // Abordagem 3: Tentativas múltiplas com intervalos crescentes
-    const MAX_RETRIES = 5;
-    for (let i = 0; i < MAX_RETRIES; i++) {
-      console.log(`🔄 Tentativa de exclusão ${i+1}/${MAX_RETRIES}...`);
-      
-      try {
-        // Executar a exclusão
-        await supabase.from('clients').delete().eq('id', clientId);
-        
-        // Aguardar um tempo proporcional ao número da tentativa
-        const waitTime = Math.min(1000 * Math.pow(2, i), 10000); // Máximo 10 segundos
-        await new Promise(resolve => setTimeout(resolve, waitTime));
-        
-        // Verificar se o cliente ainda existe
-        const { data: checkData } = await supabase
+        // Verificar se a exclusão foi bem-sucedida
+        const { data, error: checkError } = await supabase
           .from('clients')
           .select('id')
           .eq('id', clientId);
           
-        if (!checkData || checkData.length === 0) {
-          console.log(`✅ Cliente excluído com sucesso na tentativa ${i+1}!`);
+        if (checkError) {
+          console.error('❌ Erro ao verificar exclusão:', checkError);
+        } else if (!data || data.length === 0) {
+          console.log(`✅ Cliente excluído com sucesso na segunda tentativa!`);
           return { success: true };
         }
+      } else {
+        console.error('❌ Erro ao excluir cliente:', error);
+      }
+    } catch (e) {
+      console.error('❌ Erro na exclusão (segunda tentativa):', e);
+    }
+    
+    // Abordagem 3: Uso da técnica de tentativas múltiplas com intervalo exponencial
+    const MAX_RETRIES = 3;
+    
+    for (let i = 0; i < MAX_RETRIES; i++) {
+      try {
+        // Tentar excluir o cliente
+        await supabase
+          .from('clients')
+          .delete()
+          .eq('id', clientId);
+          
+        // Aguardar um curto período para a operação ser processada
+        await new Promise(resolve => setTimeout(resolve, 300 * (i + 1)));
+        
+        // Verificar se o cliente ainda existe
+        const { data } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('id', clientId)
+          .maybeSingle();
+          
+        if (!data) {
+          console.log(`✅ Cliente excluído com sucesso na tentativa ${i+1}!`);
+          return { success: true };
+        } else {
+          console.log(`⚠️ Cliente ainda existe no banco. Tentativa ${i+1}/${MAX_RETRIES}`);
+          if (i < MAX_RETRIES - 1) {
+            console.log(`🔄 Fazendo nova tentativa de exclusão...`);
+            // Esperar um tempo crescente entre tentativas (backoff exponencial)
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 500));
+          }
+        }
       } catch (e) {
-        console.error(`💥 Erro na tentativa ${i+1}:`, e);
+        console.error(`❌ Erro na tentativa ${i+1}:`, e);
       }
     }
     
     // Se chegou até aqui, todas as tentativas falharam
-    console.error(`❌ Cliente ${clientId} não pôde ser excluído após ${MAX_RETRIES} tentativas`);
+    console.error(`❌ Cliente ${clientId} não pôde ser excluído mesmo após múltiplas tentativas`);
     return { 
       success: false, 
       error: { message: "Não foi possível excluir o cliente do banco de dados" } 
     };
-    
   } catch (error) {
     console.error(`❌ Erro inesperado ao excluir cliente ${clientId}:`, error);
     return { success: false, error };
