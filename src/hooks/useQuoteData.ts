@@ -1,3 +1,4 @@
+
 import { getClientById, getVehicleById, getVehicleGroupById } from '@/lib/data-provider';
 import { Client, Vehicle, VehicleGroup } from '@/lib/models';
 import { QuoteVehicleItem, SavedQuote } from '@/context/types/quoteTypes';
@@ -175,15 +176,18 @@ export function useQuoteData() {
         let vehicleGroup: VehicleGroup;
         
         // Verifica se data.group é um objeto válido ou se precisamos buscar o grupo pelo ID
-        if (data.group && typeof data.group === 'object' && data.group !== null) {
+        // Corrigindo o acesso a 'data.group' para garantir que ele não seja null
+        if (data.group && typeof data.group === 'object') {
+          // Acessando com segurança as propriedades de data.group
+          const group = data.group as Record<string, any>;
           vehicleGroup = {
-            id: data.group.id || data.group.code || data.group_id || '',
-            name: data.group.name || `Grupo ${data.group.code || data.group_id || ''}`,
-            description: data.group.description || '',
-            revisionKm: data.group.revision_km || 10000,
-            revisionCost: data.group.revision_cost || 300,
-            tireKm: data.group.tire_km || 40000,
-            tireCost: data.group.tire_cost || 1200
+            id: group.id || group.code || data.group_id || '',
+            name: group.name || `Grupo ${group.code || data.group_id || ''}`,
+            description: group.description || '',
+            revisionKm: group.revision_km || 10000,
+            revisionCost: group.revision_cost || 300,
+            tireKm: group.tire_km || 40000,
+            tireCost: group.tire_cost || 1200
           };
         } else {
           // Se não tem grupo na resposta, buscar pelo ID
