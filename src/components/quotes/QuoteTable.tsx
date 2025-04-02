@@ -66,9 +66,9 @@ const QuoteTable = ({ quotes, onRefresh }: QuoteTableProps) => {
     setDeleteDialogOpen(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (quoteToDelete && isQuoteContextAvailable) {
-      const success = deleteQuote(quoteToDelete);
+      const success = await deleteQuote(quoteToDelete);
       if (success) {
         toast({
           title: "Orçamento excluído",

@@ -735,7 +735,7 @@ export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   // Função para atualizar um orçamento existente
-  const updateQuote = (quoteId: string, updates: Partial<QuoteFormData>, changeDescription: string): boolean => {
+  const updateQuote = async (quoteId: string, updates: Partial<QuoteFormData>, changeDescription: string): Promise<boolean> => {
     // Encontrar o orçamento a ser atualizado
     const quoteToUpdate = savedQuotes.find(q => q.id === quoteId);
     if (!quoteToUpdate) return false;
@@ -807,11 +807,44 @@ export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
     console.log('Orçamento atualizado com sucesso:', quoteId);
     
+    // Registrar o log de edição no Supabase
+    if (quoteToUpdate.source === 'supabase') {
+      try {
+        const userInfo = getCurrentUser();
+        await supabase
+          .from('quote_action_logs')
+          .insert({
+            quote_id: quoteId,
+            quote_title: quoteToUpdate.clientName,
+            action_type: 'EDIT',
+            user_id: userInfo.id.toString(),
+            user_name: userInfo.name,
+            action_date: new Date().toISOString(),
+            details: {
+              description: changeDescription,
+              previous: {
+                contractMonths: quoteToUpdate.contractMonths,
+                monthlyKm: quoteToUpdate.monthlyKm,
+                totalCost: quoteToUpdate.totalCost
+              },
+              new: {
+                contractMonths: updates.globalParams?.contractMonths,
+                monthlyKm: updates.globalParams?.monthlyKm,
+                totalCost: quoteResult.totalCost
+              }
+            }
+          });
+        console.log('✅ Log de edição registrado com sucesso');
+      } catch (logError) {
+        console.error('❌ Erro ao registrar log de edição:', logError);
+      }
+    }
+    
     return true;
   };
 
   // Delete quote implementation
-  const deleteQuote = useCallback((quoteId: string): boolean => {
+  const deleteQuote = useCallback(async (quoteId: string): Promise<boolean> => {
     console.log("🗑️ Tentando excluir orçamento:", quoteId);
     
     // Verificar se o orçamento existe
@@ -832,17 +865,44 @@ export const QuoteProvider = ({ children }: { children: React.ReactNode }) => {
       if (quoteToDelete.source === 'supabase') {
         console.log("🔄 Excluindo orçamento do Supabase...");
         
-        supabase
+        // Registrar o log de exclusão primeiro
+        const userInfo = getCurrentUser();
+        try {
+          await supabase
+            .from('quote_action_logs')
+            .insert({
+              quote_id: quoteId,
+              quote_title: quoteToDelete.clientName,
+              action_type: 'DELETE',
+              user_id: userInfo.id.toString(),
+              user_name: userInfo.name,
+              action_date: new Date().toISOString(),
+              details: {
+                status: quoteToDelete.status,
+                value: quoteToDelete.totalCost
+              },
+              deleted_data: quoteToDelete
+            });
+          console.log('✅ Log de exclusão registrado com sucesso');
+        } catch (logError) {
+          console.error('❌ Erro ao registrar log de exclusão:', logError);
+        }
+        
+        // Agora excluir o orçamento
+        const { error } = await supabase
           .from('quotes')
           .delete()
-          .eq('id', quoteId)
-          .then(({ error }) => {
-            if (error) {
-              console.error('❌ Erro ao excluir orçamento do Supabase:', error);
-            } else {
-              console.log('✅ Orçamento excluído do Supabase com sucesso');
-            }
-          });
+          .eq('id', quoteId);
+        
+        if (error) {
+          console.error('❌ Erro ao excluir orçamento do Supabase:', error);
+          return false;
+        } else {
+          console.log('✅ Orçamento excluído do Supabase com sucesso');
+        }
+      } else {
+        // Para orçamentos locais, podemos apenas registrar a ação em logs de console
+        console.log('Orçamento local excluído. Usuário:', getCurrentUser().name, 'Orçamento:', quoteToDelete);
       }
     } catch (error) {
       console.error('❌ Erro ao tentar excluir do Supabase:', error);
@@ -1049,7 +1109,7 @@ export type QuoteContextType = {
   getClientById: (id: string) => Client;
   getVehicleById: (id: string) => Vehicle;
   loadQuoteForEditing: (quoteId: string) => Promise<boolean>;
-  deleteQuote: (quoteId: string) => boolean;
+  deleteQuote: (quoteId: string) => Promise<boolean>;
   canEditQuote: (quote: SavedQuote) => boolean;
   canDeleteQuote: (quote: SavedQuote) => boolean;
   sendQuoteByEmail: (quoteId: string, email: string, message: string) => Promise<boolean>;

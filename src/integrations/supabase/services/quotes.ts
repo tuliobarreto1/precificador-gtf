@@ -1,4 +1,3 @@
-
 import { supabase } from '../client';
 import { v4 as uuidv4 } from 'uuid';
 import { createOrUpdateVehicle } from './vehicles';
@@ -235,6 +234,14 @@ export async function getQuoteByIdFromSupabase(id: string) {
 // Função para deletar um orçamento
 export async function deleteQuoteFromSupabase(id: string) {
   try {
+    // Primeiro, registramos a ação antes de deletar
+    const { data: quoteData } = await supabase
+      .from('quotes')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    // Então deletamos o orçamento
     const { error } = await supabase
       .from('quotes')
       .delete()
@@ -246,7 +253,7 @@ export async function deleteQuoteFromSupabase(id: string) {
     }
     
     console.log(`Orçamento ${id} deletado com sucesso`);
-    return { success: true };
+    return { success: true, deletedQuote: quoteData };
   } catch (error) {
     console.error(`Erro inesperado ao deletar orçamento ${id}:`, error);
     return { success: false, error };
