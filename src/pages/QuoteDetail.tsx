@@ -126,9 +126,26 @@ const EmailDialog = ({ quoteId }: { quoteId: string }) => {
   );
 };
 
+// Interface ampliada para lidar com a estrutura do Supabase
+interface SupabaseQuote extends Quote {
+  title?: string;
+  name?: string;
+  created_at: string;
+  status_flow: string;
+  monthly_values?: number;
+  vehicles?: {
+    vehicle_id: string;
+    vehicle?: {
+      brand: string;
+      model: string;
+      plate_number?: string;
+    };
+  }[];
+}
+
 const QuoteDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const [quote, setQuote] = useState<Quote | null>(null);
+  const [quote, setQuote] = useState<SupabaseQuote | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
@@ -160,7 +177,7 @@ const QuoteDetail = () => {
           return;
         }
 
-        setQuote(quoteData);
+        setQuote(quoteData as SupabaseQuote);
       } catch (err: any) {
         setError(`Erro inesperado: ${err.message}`);
         console.error("Erro inesperado:", err);
