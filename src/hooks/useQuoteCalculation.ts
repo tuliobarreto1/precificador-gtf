@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { QuoteFormData, VehicleQuoteResult } from '../context/types/quoteTypes';
-import { calculateVehicleCosts } from '../lib/calculation';
+import { calculateLeaseCostSync } from '../lib/calculation';
 import { supabase } from '@/integrations/supabase/client';
 
 export function useQuoteCalculation(quoteForm: QuoteFormData) {
@@ -21,14 +21,24 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         ? quoteForm.globalParams
         : item.params || quoteForm.globalParams;
 
-      const result = calculateVehicleCosts({
-        vehicle: item.vehicle,
-        vehicleGroup: item.vehicleGroup,
-        contractMonths: params.contractMonths,
-        monthlyKm: params.monthlyKm,
-        operationSeverity: params.operationSeverity,
-        hasTracking: params.hasTracking
-      });
+      // Usando calculateLeaseCostSync ao invés de calculateVehicleCosts
+      const result = calculateLeaseCostSync(
+        {
+          vehicleValue: item.vehicle.value,
+          contractMonths: params.contractMonths,
+          monthlyKm: params.monthlyKm,
+          operationSeverity: params.operationSeverity
+        },
+        {
+          vehicleGroup: item.vehicleGroup.id,
+          contractMonths: params.contractMonths,
+          monthlyKm: params.monthlyKm,
+          hasTracking: params.hasTracking
+        }
+      );
+
+      // Calcular a taxa de KM extra usando o valor do veículo
+      const extraKmRate = result.costPerKm * 1.5; // Ajuste conforme necessário
 
       vehicleResults.push({
         vehicleId: item.vehicle.id,
@@ -37,7 +47,7 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         trackingCost: result.trackingCost,
         totalCost: result.totalCost,
         costPerKm: result.costPerKm,
-        extraKmRate: result.extraKmRate
+        extraKmRate: extraKmRate
       });
 
       totalCost += result.totalCost;
@@ -90,15 +100,21 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         return false;
       }
 
+      // Ajuste da consulta do perfil do usuário para verificar os campos disponíveis
       const { data: userData, error: userError } = await supabase
         .from('profiles')
-        .select('name, email, phone')
+        .select('name, email')
         .eq('id', userId)
         .single();
 
       if (userError) {
         console.error("Erro ao buscar dados do usuário:", userError);
       }
+
+      // Verificar se userData é válido antes de acessar suas propriedades
+      const senderName = userData?.name || 'Consultor de Frotas';
+      const senderEmail = userData?.email || '';
+      const senderPhone = ''; // Campo removido já que não existe na tabela profiles
 
       // Preparar dados para envio
       const vehicles = quote.quote_vehicles?.map((qv) => ({
@@ -120,9 +136,9 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           contractMonths: quote.contract_months || 24,
           monthlyKm: quote.monthly_km || 3000,
           vehicles,
-          senderName: userData?.name || 'Consultor de Frotas',
-          senderEmail: userData?.email || '',
-          senderPhone: userData?.phone || ''
+          senderName,
+          senderEmail,
+          senderPhone
         }
       });
 

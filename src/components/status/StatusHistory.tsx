@@ -57,7 +57,8 @@ export const StatusHistory: React.FC<StatusHistoryProps> = ({ quoteId }) => {
           return;
         }
 
-        setStatusHistory(data || []);
+        // Corrigindo o tipo do resultado para corresponder à StatusChange[]
+        setStatusHistory(data as StatusChange[] || []);
       } catch (err) {
         console.error('Erro ao processar histórico de status:', err);
         setError('Ocorreu um erro ao processar os dados de histórico.');

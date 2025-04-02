@@ -22,6 +22,7 @@ import { Quote } from '@/lib/models';
 import StatusHistory from '@/components/status/StatusHistory';
 import StatusFlow from '@/components/status/StatusFlow';
 import { useQuote } from '@/context/QuoteContext';
+import { QuoteStatusFlow } from '@/lib/status-flow';
 
 // Componente EmailDialog
 const EmailDialog = ({ quoteId }: { quoteId: string }) => {
@@ -146,10 +147,13 @@ interface SupabaseQuote extends Omit<Quote, 'vehicles'> {
   title?: string;
   name?: string;
   created_at: string;
-  status_flow: string;
+  status_flow: QuoteStatusFlow; // Garantindo que o status_flow é do tipo correto
   monthly_values?: number;
   vehicles?: {
     vehicle_id: string;
+    vehicleId?: string; // Para compatibilidade
+    vehicleBrand?: string; // Para compatibilidade
+    vehicleModel?: string; // Para compatibilidade
     vehicle?: {
       brand: string;
       model: string;
@@ -328,8 +332,9 @@ const QuoteDetail = () => {
               {quote.vehicles && quote.vehicles.length > 0 ? (
                 <ul className="list-disc pl-5">
                   {quote.vehicles.map((vehicle) => (
-                    <li key={vehicle.vehicle_id}>
-                      {vehicle.vehicle?.brand} {vehicle.vehicle?.model} ({vehicle.vehicle?.plate_number || 'N/A'})
+                    <li key={vehicle.vehicle_id || vehicle.vehicleId}>
+                      {vehicle.vehicle?.brand || vehicle.vehicleBrand} {vehicle.vehicle?.model || vehicle.vehicleModel} 
+                      ({vehicle.vehicle?.plate_number || 'N/A'})
                     </li>
                   ))}
                 </ul>
