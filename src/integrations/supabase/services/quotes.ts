@@ -234,7 +234,20 @@ export async function getQuoteByIdFromSupabase(id: string) {
 // Função para deletar um orçamento
 export async function deleteQuoteFromSupabase(id: string) {
   try {
-    // Primeiro, registramos a ação antes de deletar
+    // Primeiro, excluímos os veículos associados ao orçamento
+    const { error: vehiclesError } = await supabase
+      .from('quote_vehicles')
+      .delete()
+      .eq('quote_id', id);
+    
+    if (vehiclesError) {
+      console.error(`Erro ao deletar veículos do orçamento ${id}:`, vehiclesError);
+      // Continuar mesmo se falhar, pois o orçamento ainda pode ser excluído
+    } else {
+      console.log(`Veículos do orçamento ${id} excluídos com sucesso`);
+    }
+
+    // Registramos para logs antes de deletar
     const { data: quoteData } = await supabase
       .from('quotes')
       .select('*')

@@ -181,30 +181,34 @@ export async function signUp(email: string, password: string, name: string): Pro
 }
 
 // Função para obter o perfil do usuário atual
-export async function getCurrentProfile(): Promise<{ success: boolean; profile?: any; error?: any }> {
+export async function getCurrentProfile() {
   try {
-    // Usar a importação do arquivo correto
     const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
-      return { success: false, error: 'Nenhuma sessão encontrada' };
+    if (!session || !session.user) {
+      console.log('Nenhuma sessão de usuário encontrada');
+      return { success: false, profile: null };
     }
-    
-    const { data: profile, error } = await supabase
+
+    const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', session.user.id)
-      .single();
-    
+      .maybeSingle();
+
     if (error) {
       console.error('Erro ao buscar perfil:', error);
-      return { success: false, error };
+      return { success: false, error, profile: null };
     }
     
-    return { success: true, profile };
+    if (!data) {
+      console.log('Perfil não encontrado, pode ser necessário criar');
+      return { success: false, profile: null };
+    }
+
+    return { success: true, profile: data };
   } catch (error) {
     console.error('Erro ao buscar perfil:', error);
-    return { success: false, error };
+    return { success: false, error, profile: null };
   }
 }
 
@@ -213,7 +217,6 @@ export async function signInAdmin(email: string, password: string): Promise<Auth
   try {
     const { supabase } = await import('@/integrations/supabase/client');
     
-    // Verificar se o usuário existe na tabela system_users
     const { data, error } = await supabase
       .from('system_users')
       .select('id, name, email, password, role, status')
@@ -226,13 +229,11 @@ export async function signInAdmin(email: string, password: string): Promise<Auth
       return { success: false, error: { message: 'Usuário não encontrado ou inativo' } };
     }
     
-    // Verificar a senha (deveria verificar hash, mas estamos simplificando)
     if (data.password !== password) {
       console.error('Senha incorreta');
       return { success: false, error: { message: 'Credenciais inválidas' } };
     }
     
-    // Armazenar os dados do usuário no localStorage para simular uma sessão
     localStorage.setItem('admin_user', JSON.stringify({
       id: data.id,
       name: data.name,
@@ -240,7 +241,6 @@ export async function signInAdmin(email: string, password: string): Promise<Auth
       role: data.role
     }));
     
-    // Atualizar o último login
     await supabase
       .from('system_users')
       .update({ last_login: new Date().toISOString() })
