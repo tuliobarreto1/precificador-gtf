@@ -7,7 +7,15 @@ export async function saveQuoteToSupabase(quoteData: any) {
   try {
     console.log("Iniciando salvamento de orçamento:", quoteData);
     
-    const quoteId = quoteData.id || uuidv4();
+    // Garantir que o quoteId seja um UUID válido
+    // Se o ID for um número (timestamp) ou não for um formato UUID válido, gerar um novo
+    let quoteId = quoteData.id;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    
+    if (!quoteId || !uuidRegex.test(quoteId.toString())) {
+      quoteId = uuidv4();
+      console.log("ID não é um UUID válido, gerando novo ID:", quoteId);
+    }
     
     // Validar e certificar que campos críticos são do tipo correto
     // Certifique-se de que os IDs estão no formato apropriado para UUID
