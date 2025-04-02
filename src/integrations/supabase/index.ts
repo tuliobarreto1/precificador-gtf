@@ -3,7 +3,7 @@
 import { supabase, checkSupabaseConnection } from './client';
 import { getVehiclesFromSupabase, createOrUpdateVehicle, findVehicleByPlate, findVehicleByBrandModel, getAllVehicles, getVehiclesFromLocavia } from './services/vehicles';
 import { saveClientToSupabase, getClientByDocument, getClientsFromSupabase } from './services/clients';
-import { saveQuoteToSupabase, getQuotesFromSupabase, getQuoteByIdFromSupabase } from './services/quotes';
+import { saveQuoteToSupabase, getQuotesFromSupabase, getQuoteByIdFromSupabase, deleteQuoteFromSupabase, getQuoteActionLogs } from './services/quotes';
 import { getQuoteVehicles, addVehicleToQuote } from './services/quoteVehicles';
 import { getVehicleGroups, getVehicleGroupById } from './services/vehicleGroups';
 
@@ -33,6 +33,8 @@ export {
   saveQuoteToSupabase,
   getQuotesFromSupabase,
   getQuoteByIdFromSupabase,
+  deleteQuoteFromSupabase,
+  getQuoteActionLogs,
   
   // Quote Vehicles
   getQuoteVehicles,

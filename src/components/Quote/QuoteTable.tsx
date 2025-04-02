@@ -17,8 +17,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from '@/context/AuthContext';
-import { deleteQuoteFromSupabase } from '@/integrations/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { deleteQuoteFromSupabase } from '@/integrations/supabase/services/quotes';
 
 export interface QuoteTableItem {
   id: string;
@@ -38,10 +38,14 @@ interface QuoteTableProps {
 }
 
 export const QuoteTable: React.FC<QuoteTableProps> = ({ quotes, loading, onDeleteQuote }) => {
-  const { user, adminUser, isAdmin, isSupervisor } = useAuth();
+  const { user, adminUser } = useAuth();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
+
+  // Verificar se o usuário é admin ou supervisor
+  const isAdmin = adminUser?.role === 'admin';
+  const isSupervisor = adminUser?.role === 'supervisor';
 
   const formatDate = (dateString: string) => {
     try {
@@ -79,7 +83,7 @@ export const QuoteTable: React.FC<QuoteTableProps> = ({ quotes, loading, onDelet
     
     try {
       const userId = user?.id || adminUser?.id;
-      const userName = user?.name || adminUser?.name || 'Usuário';
+      const userName = adminUser?.name || user?.email || 'Usuário';
       
       const { success, error } = await deleteQuoteFromSupabase(id, userId, userName);
       
@@ -122,7 +126,7 @@ export const QuoteTable: React.FC<QuoteTableProps> = ({ quotes, loading, onDelet
       case 'EM_VERIFICACAO':
         return <Badge variant="outline" className="bg-yellow-100">Em verificação</Badge>;
       case 'APROVADA':
-        return <Badge variant="success">Aprovada</Badge>;
+        return <Badge className="bg-green-100 text-green-800 border-green-300">Aprovada</Badge>;
       case 'CONTRATO_GERADO':
         return <Badge variant="outline" className="bg-blue-100">Contrato</Badge>;
       case 'ASSINATURA_CLIENTE':
@@ -134,7 +138,7 @@ export const QuoteTable: React.FC<QuoteTableProps> = ({ quotes, loading, onDelet
       case 'ENTREGA':
         return <Badge variant="outline" className="bg-green-100">Em entrega</Badge>;
       case 'CONCLUIDO':
-        return <Badge variant="primary">Concluído</Badge>;
+        return <Badge className="bg-blue-100 text-blue-800 border-blue-300">Concluído</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }

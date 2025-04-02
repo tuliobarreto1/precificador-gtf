@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MainLayout } from '@/layouts/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,7 +10,7 @@ import { QuoteTable } from '@/components/Quote/QuoteTable';
 import { useQuotes } from '@/hooks/useQuotes';
 import { useAuth } from '@/context/AuthContext';
 import { Separator } from '@/components/ui/separator';
-import { getQuoteActionLogs } from '@/integrations/supabase';
+import { getQuoteActionLogs } from '@/integrations/supabase/services/quotes';
 import {
   Table,
   TableBody,
@@ -21,16 +20,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import MainLayout from '@/components/layout/MainLayout';
 
 const Quotes: React.FC = () => {
   const navigate = useNavigate();
   const { allQuotes, totalQuotes, avgValue, handleRefresh, loading } = useQuotes();
-  const { isAdmin, isSupervisor } = useAuth();
+  const { user, adminUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredQuotes, setFilteredQuotes] = useState(allQuotes);
   const [activeTab, setActiveTab] = useState('orcamentos');
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [logs, setLogs] = useState<any[]>([]);
+
+  // Verificar se o usuário é admin ou supervisor
+  const isAdmin = adminUser?.role === 'admin';
+  const isSupervisor = adminUser?.role === 'supervisor';
 
   useEffect(() => {
     const filtered = allQuotes.filter(
