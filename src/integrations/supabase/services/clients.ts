@@ -1,4 +1,3 @@
-
 import { supabase } from '../client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -123,7 +122,7 @@ export async function getClientsFromSupabase() {
   }
 }
 
-// Função para excluir cliente - implementação robusta e corrigida
+// Função para excluir cliente - implementação robusta baseada em delete_quote
 export async function deleteClientFromSupabase(clientId: string) {
   try {
     console.log(`🗑️ Iniciando exclusão do cliente ${clientId}...`);
@@ -148,59 +147,42 @@ export async function deleteClientFromSupabase(clientId: string) {
       };
     }
 
-    // Abordagem 1: Executar a função SQL diretamente através da API REST
-    try {
-      // Chamar a função criada diretamente usando a API REST do Supabase
-      const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/rpc/delete_client`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': process.env.SUPABASE_ANON_KEY || '',
-          'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY || ''}`
-        },
-        body: JSON.stringify({ client_id: clientId })
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        if (result === true) {
-          console.log(`✅ Cliente excluído com sucesso via API REST!`);
-          return { success: true };
-        }
-      }
-    } catch (err) {
-      console.error('❌ Erro na exclusão via API REST:', err);
-      // Continuar com as próximas abordagens
-    }
-
-    // Abordagem 2: Usar delete direto na tabela
-    try {
-      const { error } = await supabase
-        .from('clients')
-        .delete()
-        .eq('id', clientId);
-        
-      if (!error) {
-        // Verificar se a exclusão foi bem-sucedida
-        const { data, error: checkError } = await supabase
-          .from('clients')
-          .select('id')
-          .eq('id', clientId);
-          
-        if (checkError) {
-          console.error('❌ Erro ao verificar exclusão:', checkError);
-        } else if (!data || data.length === 0) {
-          console.log(`✅ Cliente excluído com sucesso na segunda tentativa!`);
-          return { success: true };
-        }
-      } else {
-        console.error('❌ Erro ao excluir cliente:', error);
-      }
-    } catch (e) {
-      console.error('❌ Erro na exclusão (segunda tentativa):', e);
+    // Abordagem 1: Chamar a função RPC diretamente
+    const { data, error } = await supabase.rpc('delete_client', { client_id: clientId });
+    
+    if (!error && data === true) {
+      console.log(`✅ Cliente excluído com sucesso via RPC!`);
+      return { success: true };
     }
     
-    // Abordagem 3: Uso da técnica de tentativas múltiplas com intervalo exponencial
+    if (error) {
+      console.error(`❌ Erro ao deletar cliente ${clientId} via RPC:`, error);
+    }
+
+    // Abordagem 2: Tentar excluir diretamente
+    console.log(`⚠️ Tentando excluir diretamente...`);
+    const { error: directError } = await supabase
+      .from('clients')
+      .delete()
+      .eq('id', clientId);
+      
+    if (!directError) {
+      // Verificar se a exclusão foi bem-sucedida
+      const { data: checkData } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('id', clientId)
+        .maybeSingle();
+        
+      if (!checkData) {
+        console.log(`✅ Cliente exclu��do com sucesso na segunda tentativa!`);
+        return { success: true };
+      }
+    } else {
+      console.error(`❌ Erro ao excluir cliente diretamente:`, directError);
+    }
+    
+    // Abordagem 3: Último recurso - múltiplas tentativas com intervalo
     const MAX_RETRIES = 3;
     
     for (let i = 0; i < MAX_RETRIES; i++) {

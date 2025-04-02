@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, Plus, Search, Edit, Trash2, AlertCircle, Loader2 } from 'lucide-react';
@@ -309,18 +308,17 @@ const Clients = () => {
         </Card>
       </div>
 
-      {/* Dialog de confirmação de exclusão */}
       <AlertDialog open={alertDialogOpen} onOpenChange={setAlertDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir cliente</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja excluir o cliente <strong>{clientToDelete?.name}</strong>?
-              <div className="mt-2 flex items-center p-3 bg-amber-50 text-amber-800 rounded-md">
-                <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
-                <span>Esta ação não poderá ser desfeita.</span>
-              </div>
             </AlertDialogDescription>
+            <div className="mt-2 flex items-center p-3 bg-amber-50 text-amber-800 rounded-md">
+              <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+              <span>Esta ação não poderá ser desfeita.</span>
+            </div>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting} onClick={() => setAlertDialogOpen(false)}>

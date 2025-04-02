@@ -40,7 +40,7 @@ BEGIN
       SELECT 1 FROM public.clients WHERE id = client_id
     ) INTO client_exists;
     
-    RETURN client_exists;
+    RETURN NOT client_exists;
   EXCEPTION 
     WHEN OTHERS THEN
       RAISE NOTICE 'Erro na exclusão do cliente: %', SQLERRM;
