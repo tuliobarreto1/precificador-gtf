@@ -6,7 +6,7 @@ import { saveClientToSupabase, getClientByDocument, getClientsFromSupabase } fro
 import { saveQuoteToSupabase, getQuotesFromSupabase, getQuoteByIdFromSupabase, deleteQuoteFromSupabase } from './services/quotes';
 import { getQuoteVehicles, addVehicleToQuote } from './services/quoteVehicles';
 import { getVehicleGroups, getVehicleGroupById } from './services/vehicleGroups';
-import { createQuoteActionLog } from './services/quoteActionLogs';
+import { createQuoteActionLog, getQuoteActionLogs } from './services/quoteActionLogs';
 
 export {
   // Core
@@ -41,5 +41,6 @@ export {
   addVehicleToQuote,
   
   // Quote Action Logs
-  createQuoteActionLog
+  createQuoteActionLog,
+  getQuoteActionLogs
 };

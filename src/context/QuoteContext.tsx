@@ -5,6 +5,7 @@ import { DepreciationParams, MaintenanceParams, calculateLeaseCost, calculateExt
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from '@/integrations/supabase/client';
 import { getQuoteByIdFromSupabase } from '@/integrations/supabase/services/quotes';
+import { createQuoteActionLog } from '@/integrations/supabase/services/quoteActionLogs';
 
 // Item de veículo na cotação
 export type QuoteVehicleItem = {
