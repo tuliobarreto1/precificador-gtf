@@ -11,7 +11,6 @@ import { useQuote } from '@/context/QuoteContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { fetchSystemSettings } from '@/lib/settings';
-import { savedQuotes as mockSavedQuotes } from '@/lib/models';
 import { getQuotesFromSupabase } from '@/integrations/supabase';
 
 const Index = () => {
@@ -42,16 +41,12 @@ const Index = () => {
           console.error("Erro ao buscar orçamentos do Supabase:", error);
         }
         
-        // 3. Usar dados simulados como último recurso
+        // Combinar fontes de orçamentos - sem usar mockados
         const combinedQuotes = [...contextQuotes, ...supabaseQuotes];
-        
-        // Se não encontrarmos nada, usar dados mockados
-        const finalQuotes = combinedQuotes.length > 0 ? combinedQuotes : mockSavedQuotes;
-        
-        setAllQuotes(finalQuotes);
+        setAllQuotes(combinedQuotes);
       } catch (error) {
         console.error("Erro ao buscar orçamentos:", error);
-        setAllQuotes(mockSavedQuotes);
+        setAllQuotes([]);
       } finally {
         setLoading(false);
       }
@@ -105,7 +100,7 @@ const Index = () => {
       };
     });
   
-  // Estatísticas derivadas dos orçamentos
+  // Estatísticas derivadas dos orçamentos reais
   const totalQuotes = safeQuotes.length;
   const averageContractLength = totalQuotes > 0 
     ? safeQuotes.reduce((acc, q) => acc + (q.contractMonths || q.contract_months || 0), 0) / totalQuotes 
@@ -127,25 +122,25 @@ const Index = () => {
             title="Total de Orçamentos" 
             value={totalQuotes} 
             icon={<FileText size={20} />}
-            trend={{ value: 12, isPositive: true }}
+            trend={totalQuotes > 0 ? { value: 12, isPositive: true } : undefined}
           />
           <StatsCard 
             title="Valor Médio Mensal" 
             value={`R$ ${averageMonthlyValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} 
             icon={<TrendingUp size={20} />}
-            trend={{ value: 3.5, isPositive: true }}
+            trend={averageMonthlyValue > 0 ? { value: 3.5, isPositive: true } : undefined}
           />
           <StatsCard 
             title="Prazo Médio" 
             value={`${Math.round(averageContractLength)} meses`} 
             icon={<Calendar size={20} />}
-            trend={{ value: 2, isPositive: false }}
+            trend={averageContractLength > 0 ? { value: 2, isPositive: false } : undefined}
           />
           <StatsCard 
             title="Orçamentos Ativos" 
             value={activeQuotes} 
             icon={<Clock size={20} />}
-            trend={{ value: 8, isPositive: true }}
+            trend={activeQuotes > 0 ? { value: 8, isPositive: true } : undefined}
           />
         </div>
         

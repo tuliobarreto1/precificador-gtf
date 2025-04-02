@@ -93,17 +93,15 @@ export type SavedQuote = {
   source?: 'local' | 'supabase' | 'demo';
 };
 
-// Usuários do sistema (alinhados com a página de Usuários)
-export const mockUsers: User[] = [
-  { id: 1, name: 'Admin Principal', email: 'admin@carleasemaster.com.br', role: 'admin', status: 'active', lastLogin: '2023-10-15 14:30' },
-  { id: 2, name: 'Gerente de Vendas', email: 'gerente@carleasemaster.com.br', role: 'manager', status: 'active', lastLogin: '2023-10-14 09:15' },
-  { id: 3, name: 'Usuário Teste', email: 'teste@carleasemaster.com.br', role: 'user', status: 'active', lastLogin: '2023-10-10 16:45' },
-  { id: 4, name: 'Consultor 1', email: 'consultor1@carleasemaster.com.br', role: 'user', status: 'active', lastLogin: '2023-10-09 11:20' },
-  { id: 5, name: 'Usuário Inativo', email: 'inativo@carleasemaster.com.br', role: 'user', status: 'inactive', lastLogin: '2023-09-25 10:30' }
-];
-
-// Definir usuário padrão (primeiro usuário ativo admin)
-export const defaultUser = mockUsers.find(user => user.status === 'active' && user.role === 'admin') || mockUsers[0];
+// Usuário padrão do sistema (temporário até implementar autenticação)
+export const defaultUser: User = { 
+  id: 1, 
+  name: 'Usuário do Sistema', 
+  email: 'sistema@carleasemaster.com.br', 
+  role: 'admin', 
+  status: 'active', 
+  lastLogin: new Date().toISOString().replace('T', ' ').substring(0, 16) 
+};
 
 export interface QuoteContextType {
   quoteForm: QuoteFormData;
@@ -132,8 +130,8 @@ export interface QuoteContextType {
   availableUsers: User[];
   isEditMode: boolean;
   currentEditingQuoteId: string | null;
-  getClientById: (id: string) => Client;
-  getVehicleById: (id: string) => Vehicle;
+  getClientById: (id: string) => Promise<Client | null>;
+  getVehicleById: (id: string) => Promise<Vehicle | null>;
   loadQuoteForEditing: (quoteId: string) => Promise<boolean>;
   deleteQuote: (quoteId: string) => Promise<boolean>;
   canEditQuote: (quote: SavedQuote) => boolean;

@@ -29,7 +29,7 @@ export const fetchStatusHistory = async (quoteId: string): Promise<StatusHistory
       changed_by: item.changed_by,
       changed_at: item.changed_at,
       observation: item.observation,
-      user_name: undefined // Não temos essa informação no momento
+      user_name: 'Sistema' // Valor padrão
     }));
   } catch (error) {
     console.error('Erro ao buscar histórico de status:', error);
@@ -44,8 +44,22 @@ export const updateQuoteStatus = async (
   quoteId: string, 
   newStatus: QuoteStatusFlow, 
   observation?: string
-) => {
+): Promise<{ success: boolean; error?: any }> => {
   try {
+    // Buscar o status atual antes da atualização
+    const { data: quoteData, error: fetchError } = await supabase
+      .from('quotes')
+      .select('status_flow')
+      .eq('id', quoteId)
+      .single();
+    
+    if (fetchError) {
+      console.error('Erro ao buscar status atual:', fetchError);
+      return { success: false, error: fetchError };
+    }
+    
+    const previousStatus = quoteData?.status_flow as QuoteStatusFlow;
+    
     // Atualizar o status na tabela de orçamentos
     const { error: updateError } = await supabase
       .from('quotes')
@@ -57,11 +71,12 @@ export const updateQuoteStatus = async (
       return { success: false, error: updateError };
     }
     
-    // Inserir um registro no histórico manualmente (já que o trigger pode não estar funcionando)
+    // Inserir um registro no histórico
     const { error: historyError } = await supabase
       .from('quote_status_history')
       .insert({
         quote_id: quoteId,
+        previous_status: previousStatus,
         new_status: newStatus,
         observation: observation || null
       });

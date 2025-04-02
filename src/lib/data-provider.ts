@@ -1,6 +1,6 @@
 
 import { supabase } from '@/integrations/supabase';
-import { Client, Vehicle, VehicleGroup, Quote, mockClients, mockVehicleGroups, mockVehicles, mockQuotes, savedQuotes } from './models';
+import { Client, Vehicle, VehicleGroup, Quote, savedQuotes } from './models';
 
 // Funções para clientes
 export async function getClients(): Promise<Client[]> {
@@ -11,7 +11,7 @@ export async function getClients(): Promise<Client[]> {
       
     if (error || !data) {
       console.error("Erro ao buscar clientes do Supabase:", error);
-      return mockClients; // Fallback para dados mock
+      return []; // Retornar array vazio em vez de dados mockados
     }
     
     // Mapear os dados do Supabase para o formato Client
@@ -26,38 +26,101 @@ export async function getClients(): Promise<Client[]> {
     }));
   } catch (error) {
     console.error("Erro inesperado ao buscar clientes:", error);
-    return mockClients; // Fallback para dados mock
+    return []; // Retornar array vazio em vez de dados mockados
   }
 }
 
-export function getClientById(id: string): Client {
-  if (!id) return {} as Client;
+export async function getClientById(id: string): Promise<Client | null> {
+  if (!id) return null;
   
-  // Buscar nos dados simulados para evitar chamadas assíncronas
-  const mockClient = mockClients.find(c => c.id === id);
-  if (mockClient) {
-    return mockClient;
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error || !data) {
+      console.error("Erro ao buscar cliente por ID:", error);
+      return null;
+    }
+    
+    return {
+      id: data.id,
+      name: data.name,
+      type: (data.type === 'PF' || data.type === 'PJ') ? data.type : 'PJ',
+      document: data.document || '',
+      email: data.email,
+      contact: data.phone,
+      responsible: data.responsible_person
+    };
+  } catch (error) {
+    console.error("Erro inesperado ao buscar cliente por ID:", error);
+    return null;
   }
-  
-  // Retornar um cliente vazio se não encontrado
-  return {
-    id: '',
-    name: 'Cliente não encontrado',
-    type: 'PJ',
-    document: ''
-  } as Client;
 }
 
-export function addClient(client: Client): Client {
-  // No mundo real, adicionaria ao Supabase aqui
-  // Por enquanto, apenas retornamos o cliente
-  return client;
+export async function addClient(client: Client): Promise<Client | null> {
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .insert({
+        name: client.name,
+        type: client.type,
+        document: client.document,
+        email: client.email,
+        phone: client.contact,
+        responsible_person: client.responsible
+      })
+      .select()
+      .single();
+    
+    if (error || !data) {
+      console.error("Erro ao adicionar cliente:", error);
+      return null;
+    }
+    
+    return {
+      id: data.id,
+      name: data.name,
+      type: data.type as ClientType,
+      document: data.document || '',
+      email: data.email,
+      contact: data.phone,
+      responsible: data.responsible_person
+    };
+  } catch (error) {
+    console.error("Erro inesperado ao adicionar cliente:", error);
+    return null;
+  }
 }
 
-export function getClientByDocument(document: string): Client | null {
-  // Simulação para o formulário de cliente
-  const existingClient = mockClients.find(c => c.document === document);
-  return existingClient || null;
+export async function getClientByDocument(document: string): Promise<Client | null> {
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('document', document)
+      .single();
+    
+    if (error || !data) {
+      console.error("Erro ao buscar cliente por documento:", error);
+      return null;
+    }
+    
+    return {
+      id: data.id,
+      name: data.name,
+      type: data.type as ClientType,
+      document: data.document || '',
+      email: data.email,
+      contact: data.phone,
+      responsible: data.responsible_person
+    };
+  } catch (error) {
+    console.error("Erro inesperado ao buscar cliente por documento:", error);
+    return null;
+  }
 }
 
 // Funções para veículos
@@ -69,7 +132,7 @@ export async function getVehicles(): Promise<Vehicle[]> {
       
     if (error || !data) {
       console.error("Erro ao buscar veículos do Supabase:", error);
-      return mockVehicles; // Fallback para dados mock
+      return []; // Retornar array vazio em vez de dados mockados
     }
     
     // Mapear os dados do Supabase para o formato Vehicle
@@ -88,29 +151,42 @@ export async function getVehicles(): Promise<Vehicle[]> {
     }));
   } catch (error) {
     console.error("Erro inesperado ao buscar veículos:", error);
-    return mockVehicles; // Fallback para dados mock
+    return []; // Retornar array vazio em vez de dados mockados
   }
 }
 
-export function getVehicleById(id: string): Vehicle {
-  if (!id) return {} as Vehicle;
+export async function getVehicleById(id: string): Promise<Vehicle | null> {
+  if (!id) return null;
   
-  // Buscar nos dados simulados para evitar chamadas assíncronas
-  const mockVehicle = mockVehicles.find(v => v.id === id);
-  if (mockVehicle) {
-    return mockVehicle;
+  try {
+    const { data, error } = await supabase
+      .from('vehicles')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error || !data) {
+      console.error("Erro ao buscar veículo por ID:", error);
+      return null;
+    }
+    
+    return {
+      id: data.id,
+      brand: data.brand || '',
+      model: data.model || '',
+      year: data.year || new Date().getFullYear(),
+      value: data.value || 0,
+      isUsed: data.is_used || false,
+      plateNumber: data.plate_number,
+      color: data.color,
+      odometer: data.odometer,
+      fuelType: data.fuel_type,
+      groupId: data.group_id || 'A'
+    };
+  } catch (error) {
+    console.error("Erro inesperado ao buscar veículo por ID:", error);
+    return null;
   }
-  
-  // Retornar um veículo vazio se não encontrado
-  return {
-    id: '',
-    brand: 'Veículo não encontrado',
-    model: '',
-    year: new Date().getFullYear(),
-    value: 0,
-    isUsed: false,
-    groupId: 'A'
-  } as Vehicle;
 }
 
 // Funções para grupos de veículos
@@ -122,7 +198,7 @@ export async function getVehicleGroups(): Promise<VehicleGroup[]> {
       
     if (error || !data) {
       console.error("Erro ao buscar grupos de veículos do Supabase:", error);
-      return mockVehicleGroups; // Fallback para dados mock
+      return []; // Retornar array vazio em vez de dados mockados
     }
     
     // Mapear os dados do Supabase para o formato VehicleGroup
@@ -137,46 +213,55 @@ export async function getVehicleGroups(): Promise<VehicleGroup[]> {
     }));
   } catch (error) {
     console.error("Erro inesperado ao buscar grupos de veículos:", error);
-    return mockVehicleGroups; // Fallback para dados mock
+    return []; // Retornar array vazio em vez de dados mockados
   }
 }
 
-export function getVehicleGroupById(id: string): VehicleGroup {
-  if (!id) return {} as VehicleGroup;
+export async function getVehicleGroupById(id: string): Promise<VehicleGroup | null> {
+  if (!id) return null;
   
-  // Buscar nos dados simulados para evitar chamadas assíncronas
-  const mockGroup = mockVehicleGroups.find(g => g.id === id);
-  if (mockGroup) {
-    return mockGroup;
+  try {
+    const { data, error } = await supabase
+      .from('vehicle_groups')
+      .select('*')
+      .eq('code', id)
+      .single();
+    
+    if (error || !data) {
+      console.error("Erro ao buscar grupo de veículo por ID:", error);
+      return null;
+    }
+    
+    return {
+      id: data.code,
+      name: data.name,
+      description: data.description || '',
+      revisionKm: data.revision_km || 10000,
+      revisionCost: data.revision_cost || 500,
+      tireKm: data.tire_km || 40000,
+      tireCost: data.tire_cost || 2000
+    };
+  } catch (error) {
+    console.error("Erro inesperado ao buscar grupo de veículo por ID:", error);
+    return null;
   }
-  
-  // Retornar um grupo vazio se não encontrado
-  return {
-    id: '',
-    name: 'Grupo não encontrado',
-    description: '',
-    revisionKm: 10000,
-    revisionCost: 500,
-    tireKm: 40000,
-    tireCost: 2000
-  } as VehicleGroup;
 }
 
-// Funções para orçamentos
+// Função para orçamentos - apenas usando Supabase
 export async function getQuotes(): Promise<Quote[]> {
   try {
     const { quotes, success, error } = await import('@/integrations/supabase').then(m => m.getQuotesFromSupabase());
     
     if (!success || !quotes || quotes.length === 0) {
       console.error("Erro ao buscar orçamentos do Supabase:", error);
-      return mockQuotes; // Fallback para dados mock
+      return []; // Retornar array vazio em vez de dados mockados
     }
     
     return quotes as unknown as Quote[];
   } catch (error) {
     console.error("Erro inesperado ao buscar orçamentos:", error);
-    return mockQuotes; // Fallback para dados mock
+    return []; // Retornar array vazio em vez de dados mockados
   }
 }
 
-export { mockClients, mockVehicleGroups, mockVehicles, mockQuotes, savedQuotes };
+export { savedQuotes };

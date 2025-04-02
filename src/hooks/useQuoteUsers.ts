@@ -1,35 +1,67 @@
 
 import { useState, useEffect } from 'react';
-import { User, SavedQuote, defaultUser, mockUsers } from '@/context/types/quoteTypes';
+import { User, SavedQuote, defaultUser } from '@/context/types/quoteTypes';
+import { supabase } from '@/integrations/supabase/client';
 
 // Chave para armazenar o usuário atual no localStorage
 const CURRENT_USER_KEY = 'currentUser';
 
 export function useQuoteUsers() {
   const [user, setUser] = useState<User>(defaultUser);
+  const [availableUsers, setAvailableUsers] = useState<User[]>([defaultUser]);
 
-  // Carregar usuário do localStorage na inicialização
+  // Buscar usuários do sistema do Supabase
+  const fetchSystemUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('system_users')
+        .select('*')
+        .eq('status', 'active');
+      
+      if (error) {
+        console.error('Erro ao buscar usuários do sistema:', error);
+        return;
+      }
+      
+      if (data && data.length > 0) {
+        const mappedUsers: User[] = data.map(u => ({
+          id: typeof u.id === 'string' ? parseInt(u.id.replace(/-/g, '').substring(0, 8), 16) : 0,
+          name: u.name,
+          email: u.email,
+          role: u.role as UserRole,
+          status: u.status as 'active' | 'inactive',
+          lastLogin: u.last_login || new Date().toISOString()
+        }));
+        
+        setAvailableUsers(mappedUsers);
+        
+        // Se não houver usuário atual definido, usar o primeiro administrador ou o primeiro usuário disponível
+        const storedUser = localStorage.getItem(CURRENT_USER_KEY);
+        if (!storedUser) {
+          const adminUser = mappedUsers.find(u => u.role === 'admin') || mappedUsers[0];
+          if (adminUser) {
+            setUser(adminUser);
+            localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(adminUser));
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao buscar usuários:', error);
+    }
+  };
+
+  // Carregar usuário do localStorage na inicialização e buscar usuários do sistema
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem(CURRENT_USER_KEY);
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
-        // Validar se o usuário ainda existe na lista de usuários
-        const validUser = mockUsers.find(u => u.id === parsedUser.id);
-        if (validUser) {
-          setUser(validUser);
-          console.log('Usuário carregado do localStorage:', validUser);
-        } else {
-          // Se o usuário não existir mais, usar o usuário padrão
-          localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(defaultUser));
-          setUser(defaultUser);
-          console.log('Usuário não encontrado, usando padrão:', defaultUser);
-        }
-      } else {
-        // Se não houver usuário salvo, salvar o usuário padrão
-        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(defaultUser));
-        console.log('Usuário padrão definido:', defaultUser);
+        setUser(parsedUser);
+        console.log('Usuário carregado do localStorage:', parsedUser);
       }
+      
+      // Buscar usuários do sistema
+      fetchSystemUsers();
     } catch (error) {
       console.error('Erro ao carregar usuário do localStorage:', error);
       // Em caso de erro, definir o usuário padrão
@@ -49,12 +81,9 @@ export function useQuoteUsers() {
     console.log('Usuário atual alterado para:', newUser);
   };
 
-  // Lista de usuários disponíveis (somente usuários ativos)
-  const availableUsers = mockUsers.filter(user => user.status === 'active');
-
   // Function to authenticate a user by ID
   const authenticateUser = (userId: number, password?: string): boolean => {
-    const foundUser = mockUsers.find(u => u.id === userId && u.status === 'active');
+    const foundUser = availableUsers.find(u => u.id === userId && u.status === 'active');
     
     if (foundUser) {
       // Se a senha foi fornecida, verificar
@@ -99,9 +128,9 @@ export function useQuoteUsers() {
                 currentUser.role === 'admin')
     });
     
-    // Se não houver informações sobre quem criou, permitir edição para todos (para fins de demo)
+    // Se não houver informações sobre quem criou, verificar se o usuário atual tem permissões elevadas
     if (!quote.createdBy) {
-      return true;
+      return currentUser.role === 'manager' || currentUser.role === 'admin';
     }
     
     // Caso contrário, verificar se o usuário atual é o criador ou tem permissões elevadas
@@ -121,9 +150,9 @@ export function useQuoteUsers() {
                 currentUser.role === 'admin')
     });
     
-    // Se não houver informações sobre quem criou, permitir exclusão para todos (para fins de demo)
+    // Se não houver informações sobre quem criou, verificar se o usuário atual tem permissões elevadas
     if (!quote.createdBy) {
-      return true;
+      return currentUser.role === 'manager' || currentUser.role === 'admin';
     }
     
     // Caso contrário, verificar se o usuário atual é o criador ou tem permissões elevadas
