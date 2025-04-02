@@ -1,4 +1,3 @@
-
 import React from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import QuotesHeader from '@/components/quotes/QuotesHeader';
@@ -80,12 +79,11 @@ const Quotes = () => {
         // Pausa maior para garantir que o backend processou a exclusão
         setTimeout(() => {
           handleRefresh();
-        }, 1000);
-        
-        // Força uma segunda atualização após mais tempo
-        setTimeout(() => {
-          setRefreshTriggerDirectly();
-        }, 2000);
+          // Força uma segunda atualização após mais tempo
+          setTimeout(() => {
+            setRefreshTriggerDirectly();
+          }, 1500);
+        }, 1500);
       } else {
         toast({
           title: "Erro ao excluir",
