@@ -1,3 +1,4 @@
+
 import { supabase } from '../client';
 import { v4 as uuidv4 } from 'uuid';
 import { createOrUpdateVehicle } from './vehicles';
@@ -257,7 +258,7 @@ export async function deleteQuoteFromSupabase(id: string) {
       .single();
 
     // Pausa para garantir que a transação de exclusão dos veículos tenha terminado
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     // Tentamos deletar o orçamento usando a função RPC corrigida
     // Usando any para contornar o problema de tipagem temporariamente
@@ -267,6 +268,7 @@ export async function deleteQuoteFromSupabase(id: string) {
       console.error(`❌ Erro ao deletar orçamento ${id} via RPC:`, error);
       
       // Plano B: tentar deletar diretamente
+      console.log(`⚠️ Tentando excluir diretamente via SQL...`);
       const { error: directError } = await supabase
         .from('quotes')
         .delete()
@@ -277,6 +279,9 @@ export async function deleteQuoteFromSupabase(id: string) {
         return { success: false, error: directError };
       }
     }
+    
+    // Pausa maior para garantir que a exclusão seja concluída
+    await new Promise(resolve => setTimeout(resolve, 700));
     
     // Verificar se o orçamento foi realmente excluído
     const { data: checkData, error: checkError } = await supabase

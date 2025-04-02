@@ -82,8 +82,8 @@ const Quotes = () => {
           // Força uma segunda atualização após mais tempo
           setTimeout(() => {
             setRefreshTriggerDirectly();
-          }, 1500);
-        }, 1500);
+          }, 2000);
+        }, 2000);
       } else {
         toast({
           title: "Erro ao excluir",
