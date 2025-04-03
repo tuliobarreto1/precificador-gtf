@@ -7,6 +7,7 @@ import { fetchProtectionPlanDetails } from '@/integrations/supabase/services/pro
  */
 export function useProtectionCalculation() {
   const [protectionError, setProtectionError] = useState<string | null>(null);
+  const [protectionCostCache, setProtectionCostCache] = useState<Record<string, number>>({});
   
   /**
    * Busca e calcula o custo de proteção para um plano específico
@@ -14,10 +15,25 @@ export function useProtectionCalculation() {
   const calculateProtectionCost = async (protectionPlanId: string | null): Promise<number> => {
     if (!protectionPlanId) return 0;
     
+    // Verificar se já temos o custo em cache
+    if (protectionCostCache[protectionPlanId]) {
+      console.log(`Usando custo de proteção em cache para o plano ${protectionPlanId}: R$ ${protectionCostCache[protectionPlanId].toFixed(2)}`);
+      return protectionCostCache[protectionPlanId];
+    }
+    
     try {
       const planDetails = await fetchProtectionPlanDetails(protectionPlanId);
       if (planDetails) {
-        return planDetails.monthly_cost;
+        const cost = planDetails.monthly_cost || 0;
+        console.log(`Custo de proteção para o plano ${protectionPlanId} (${planDetails.name}): R$ ${cost.toFixed(2)}`);
+        
+        // Atualizar o cache
+        setProtectionCostCache(prev => ({
+          ...prev,
+          [protectionPlanId]: cost
+        }));
+        
+        return cost;
       }
       return 0;
     } catch (error) {
@@ -28,10 +44,19 @@ export function useProtectionCalculation() {
   };
   
   /**
-   * Versão síncrona do cálculo de proteção (retorna sempre 0)
+   * Versão síncrona do cálculo de proteção (usa o cache se disponível)
    */
   const getProtectionCostSync = (protectionPlanId: string | null): number => {
-    // Na versão síncrona, não conseguimos buscar o custo real
+    if (!protectionPlanId) return 0;
+    
+    // Se temos no cache, retornar o valor
+    if (protectionCostCache[protectionPlanId]) {
+      console.log(`Usando custo de proteção em cache (sync) para o plano ${protectionPlanId}: R$ ${protectionCostCache[protectionPlanId].toFixed(2)}`);
+      return protectionCostCache[protectionPlanId];
+    }
+    
+    // Se não temos no cache, retornar 0 (será atualizado na próxima renderização)
+    console.log(`Sem cache para plano de proteção ${protectionPlanId}, retornando 0 temporariamente`);
     return 0;
   };
   

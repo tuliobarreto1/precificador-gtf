@@ -45,11 +45,20 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         // Custo de rastreamento
         const trackingCost = basicCalculations.calculateTrackingCost(params.hasTracking);
         
-        // Custo da proteção
+        // Custo da proteção - garantir que seja buscado do servidor
         const protectionCost = await protectionCalculation.calculateProtectionCost(params.protectionPlanId);
         
         // Custo total mensal
         const totalCost = totalDepreciation + maintenanceCost + trackingCost + protectionCost;
+        
+        console.log(`Resumo para veículo ${item.vehicle.brand} ${item.vehicle.model}:`, {
+          depreciation: totalDepreciation.toFixed(2),
+          maintenance: maintenanceCost.toFixed(2),
+          tracking: trackingCost.toFixed(2),
+          protection: protectionCost.toFixed(2),
+          total: totalCost.toFixed(2),
+          protectionPlanId: params.protectionPlanId
+        });
         
         return {
           vehicleId: item.vehicle.id,
@@ -117,7 +126,7 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         // Custo de rastreamento
         const trackingCost = basicCalculations.calculateTrackingCost(params.hasTracking);
         
-        // Custo da proteção na versão síncrona (sempre 0)
+        // Custo da proteção na versão síncrona (usar cache se disponível)
         const protectionCost = protectionCalculation.getProtectionCostSync(params.protectionPlanId);
         
         // Custo total mensal

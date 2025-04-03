@@ -3,6 +3,7 @@ import { QuoteFormData, SavedQuote, QuoteCalculationResult, User, EditRecord } f
 import { supabase } from '@/integrations/supabase/client';
 import { getClientById, getVehicleById } from '@/lib/data-provider';
 import { Client, Vehicle } from '@/lib/models';
+import { v4 as uuidv4 } from 'uuid';
 
 const SAVED_QUOTES_KEY = 'savedQuotes';
 
@@ -52,7 +53,18 @@ export function useQuoteSaving(
       
       // Obter informações do usuário atual
       const currentUser = getCurrentUser();
-      const userId = typeof currentUser === 'string' ? currentUser : currentUser.id;
+      
+      // Garantir que o userId seja uma string UUID válida
+      let userId: string;
+      if (typeof currentUser === 'string') {
+        userId = currentUser;
+      } else if (typeof currentUser.id === 'string') {
+        userId = currentUser.id;
+      } else {
+        // Se não tiver um UUID válido, gerar um
+        userId = uuidv4();
+        console.log("ID de usuário inválido, gerando UUID temporário:", userId);
+      }
       
       // Preparar dados do orçamento
       const quoteData: any = {
@@ -113,6 +125,10 @@ export function useQuoteSaving(
       } else {
         // Criar novo orçamento
         console.log("🔄 Criando novo orçamento");
+        
+        // Gerar um UUID para o novo orçamento
+        const quoteId = uuidv4();
+        quoteData.id = quoteId;
         
         const { data, error } = await supabase
           .from('quotes')

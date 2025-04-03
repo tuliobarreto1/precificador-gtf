@@ -736,7 +736,7 @@ const QuoteForm = () => {
                           <p className="text-muted-foreground">Km excedente:</p>
                           <p className="font-medium">R$ {result.extraKmRate.toFixed(2)}</p>
                         </div>
-                        {result.protectionPlanId && result.protectionCost && result.protectionCost > 0 && (
+                        {result.protectionCost > 0 && (
                           <div className="text-sm">
                             <p className="text-muted-foreground">Proteção:</p>
                             <p className="font-medium">R$ {result.protectionCost.toLocaleString('pt-BR')}</p>
