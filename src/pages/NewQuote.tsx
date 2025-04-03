@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Info, Users, Car, Wrench, Calculator, Plus, Trash2, Settings, Mail } from 'lucide-react';
@@ -145,31 +144,47 @@ const QuoteForm = () => {
   const loadAttemptedRef = useRef(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  
+  const emptyQuoteForm = {
+    client: null,
+    vehicles: [],
+    useGlobalParams: true,
+    globalParams: {
+      contractMonths: 24,
+      monthlyKm: 3000,
+      operationSeverity: 3 as 1|2|3|4|5|6,
+      hasTracking: false,
+      protectionPlanId: null,
+    }
+  };
+  
+  const quoteContext = useQuote();
+  
   const { 
-    quoteForm, 
-    setClient, 
-    addVehicle, 
-    removeVehicle,
-    setGlobalContractMonths, 
-    setGlobalMonthlyKm, 
-    setGlobalOperationSeverity, 
-    setGlobalHasTracking,
-    setGlobalProtectionPlanId,
-    setUseGlobalParams,
-    setVehicleParams,
-    calculateQuote,
-    saveQuote,
-    loadQuoteForEditing,
-    isEditMode,
-    currentEditingQuoteId
-  } = useQuote();
+    quoteForm = emptyQuoteForm, 
+    setClient = () => {}, 
+    addVehicle = () => {},
+    removeVehicle = () => {},
+    setGlobalContractMonths = () => {}, 
+    setGlobalMonthlyKm = () => {}, 
+    setGlobalOperationSeverity = () => {}, 
+    setGlobalHasTracking = () => {},
+    setGlobalProtectionPlanId = () => {},
+    setUseGlobalParams = () => {},
+    setVehicleParams = () => {},
+    calculateQuote = () => null,
+    saveQuote = () => false,
+    loadQuoteForEditing = () => false,
+    isEditMode = false,
+    currentEditingQuoteId = null
+  } = quoteContext || {};
 
   const logState = () => {
     console.log("Estado atual do formulário:", {
       currentStep,
       isEditMode,
-      client: quoteForm.client,
-      vehicles: quoteForm.vehicles.length,
+      client: quoteForm?.client,
+      vehicles: quoteForm?.vehicles?.length,
       loadingQuote,
       loadError,
       loadAttempted,
@@ -251,7 +266,7 @@ const QuoteForm = () => {
   }, [id, loadQuoteForEditing, toast]);
 
   useEffect(() => {
-    if (currentStep === 'params' && quoteForm.vehicles.length > 0) {
+    if (currentStep === 'params' && quoteForm?.vehicles && quoteForm.vehicles.length > 0) {
       if (!selectedVehicleTab) {
         setSelectedVehicleTab(quoteForm.vehicles[0].vehicle.id);
       } else {
@@ -261,14 +276,14 @@ const QuoteForm = () => {
         }
       }
     }
-  }, [currentStep, quoteForm.vehicles, selectedVehicleTab]);
+  }, [currentStep, quoteForm?.vehicles, selectedVehicleTab]);
 
   const handleNextStep = () => {
     logState();
     console.log(`👆 Botão CONTINUAR clicado: avançando de ${currentStep} para o próximo passo.`);
     
     if (currentStep === 'client') {
-      if (!quoteForm.client) {
+      if (!quoteForm?.client) {
         toast({
           title: "Selecione um cliente",
           description: "É necessário selecionar um cliente para continuar."
@@ -281,7 +296,7 @@ const QuoteForm = () => {
     }
     
     if (currentStep === 'vehicle') {
-      if (quoteForm.vehicles.length === 0) {
+      if (!quoteForm?.vehicles || quoteForm.vehicles.length === 0) {
         toast({
           title: "Selecione pelo menos um veículo",
           description: "É necessário selecionar pelo menos um veículo para continuar."
@@ -291,7 +306,7 @@ const QuoteForm = () => {
       console.log("✅ Avançando para etapa de parâmetros");
       setCurrentStep('params');
       
-      if (quoteForm.vehicles.length > 0) {
+      if (quoteForm?.vehicles && quoteForm.vehicles.length > 0) {
         setSelectedVehicleTab(quoteForm.vehicles[0].vehicle.id);
       }
       return;
@@ -356,16 +371,24 @@ const QuoteForm = () => {
   const renderVehicleStep = () => (
     <VehicleSelector 
       onSelectVehicle={addVehicle}
-      selectedVehicles={quoteForm.vehicles.map(item => item.vehicle)}
+      selectedVehicles={quoteForm?.vehicles ? quoteForm.vehicles.map(item => item.vehicle) : []}
       onRemoveVehicle={removeVehicle}
     />
   );
 
   const renderVehicleParams = (vehicleId: string) => {
+    if (!quoteForm?.vehicles) return null;
+    
     const vehicleItem = quoteForm.vehicles.find(v => v.vehicle.id === vehicleId);
     if (!vehicleItem) return null;
     
-    const params = vehicleItem.params || quoteForm.globalParams;
+    const params = vehicleItem.params || (quoteForm.globalParams || {
+      contractMonths: 24,
+      monthlyKm: 3000,
+      operationSeverity: 3 as 1|2|3|4|5|6,
+      hasTracking: false,
+      protectionPlanId: null
+    });
     
     return (
       <div className="space-y-6 p-4 border rounded-lg bg-background">
@@ -454,146 +477,161 @@ const QuoteForm = () => {
     );
   };
 
-  const renderParamsStep = () => (
-    <div className="space-y-8 animate-fadeIn">
-      <div className="bg-primary/5 border p-4 rounded-lg mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-medium">Parâmetros da Cotação</h3>
-          <div className="flex items-center space-x-2">
-            <Switch 
-              id="global-params"
-              checked={quoteForm.useGlobalParams}
-              onCheckedChange={setUseGlobalParams}
-            />
-            <Label htmlFor="global-params">Usar parâmetros globais</Label>
+  const renderParamsStep = () => {
+    if (!quoteForm) {
+      return (
+        <div className="p-8 text-center">
+          <div className="mb-4 text-red-500">
+            Erro ao carregar os dados do formulário.
           </div>
+          <Button onClick={goToPreviousStep}>
+            Voltar
+          </Button>
         </div>
-        
-        {quoteForm.useGlobalParams ? (
-          <p className="text-sm text-muted-foreground">
-            Os mesmos parâmetros serão aplicados a todos os veículos desta cotação.
-          </p>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Cada veículo terá seus próprios parâmetros configuráveis.
-          </p>
-        )}
-      </div>
+      );
+    }
 
-      {quoteForm.useGlobalParams ? (
-        <div className="space-y-4">
-          <div className="space-y-4">
-            <Label className="text-base">Prazo do Contrato</Label>
-            <div className="space-y-3">
-              <Slider
-                value={[quoteForm.globalParams.contractMonths]}
-                min={6}
-                max={24}
-                step={1}
-                onValueChange={(value) => setGlobalContractMonths(value[0])}
+    return (
+      <div className="space-y-8 animate-fadeIn">
+        <div className="bg-primary/5 border p-4 rounded-lg mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-medium">Parâmetros da Cotação</h3>
+            <div className="flex items-center space-x-2">
+              <Switch 
+                id="global-params"
+                checked={quoteForm.useGlobalParams}
+                onCheckedChange={setUseGlobalParams}
               />
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>6 meses</span>
-                <span>{quoteForm.globalParams.contractMonths} meses</span>
-                <span>24 meses</span>
-              </div>
+              <Label htmlFor="global-params">Usar parâmetros globais</Label>
             </div>
           </div>
           
-          <div className="space-y-4">
-            <Label className="text-base mb-2 block">Quilometragem Mensal</Label>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-              {KM_OPTIONS.map((km) => (
-                <Button 
-                  key={`global-km-${km}`}
-                  type="button"
-                  variant={quoteForm.globalParams.monthlyKm === km ? "default" : "outline"}
-                  onClick={() => setGlobalMonthlyKm(km)}
-                  className="w-full"
-                >
-                  {km.toLocaleString('pt-BR')} km
-                </Button>
-              ))}
-            </div>
-          </div>
-          
-          <div className="space-y-4">
-            <Label className="text-base">Severidade de Operação</Label>
-            <RadioGroup 
-              value={quoteForm.globalParams.operationSeverity.toString()} 
-              onValueChange={(value) => setGlobalOperationSeverity(parseInt(value) as 1|2|3|4|5|6)}
-              className="grid grid-cols-2 md:grid-cols-3 gap-3"
-            >
-              {[1, 2, 3, 4, 5, 6].map((level) => (
-                <div key={level} className="flex items-center space-x-2">
-                  <RadioGroupItem value={level.toString()} id={`severity-${level}`} />
-                  <Label htmlFor={`severity-${level}`} className="cursor-pointer">
-                    Nível {level}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-            <p className="text-sm text-muted-foreground flex items-center space-x-1">
-              <Info size={14} className="inline-block mr-1" />
-              <span>Quanto maior o nível, mais severo é o uso do veículo.</span>
+          {quoteForm.useGlobalParams ? (
+            <p className="text-sm text-muted-foreground">
+              Os mesmos parâmetros serão aplicados a todos os veículos desta cotação.
             </p>
-          </div>
-          
-          <div className="flex items-center space-x-2 mb-6">
-            <Switch 
-              id="tracking" 
-              checked={quoteForm.globalParams.hasTracking}
-              onCheckedChange={setGlobalHasTracking}
-            />
-            <Label htmlFor="tracking" className="cursor-pointer">Incluir rastreamento</Label>
-          </div>
-          
-          <div className="pt-6 border-t space-y-3">
-            <Label className="text-base">Plano de Proteção</Label>
-            <ProtectionPlanSelector
-              selectedPlanId={quoteForm.globalParams.protectionPlanId || null}
-              onChange={setGlobalProtectionPlanId}
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <h3 className="text-base font-medium">Parâmetros por Veículo</h3>
-          {quoteForm.vehicles.length > 0 && (
-            <Tabs 
-              value={selectedVehicleTab || quoteForm.vehicles[0].vehicle.id}
-              onValueChange={setSelectedVehicleTab}
-              defaultValue={selectedVehicleTab || quoteForm.vehicles[0].vehicle.id}
-            >
-              <TabsList className="mb-4 flex overflow-x-auto pb-1">
-                {quoteForm.vehicles.map(item => (
-                  <TabsTrigger 
-                    key={item.vehicle.id} 
-                    value={item.vehicle.id}
-                    className="whitespace-nowrap"
-                  >
-                    <Car className="h-4 w-4 mr-1" />
-                    {item.vehicle.brand} {item.vehicle.model} 
-                    {item.vehicle.plateNumber && ` (${item.vehicle.plateNumber})`}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-              
-              {quoteForm.vehicles.map(item => (
-                <TabsContent 
-                  key={item.vehicle.id} 
-                  value={item.vehicle.id}
-                  className="mt-4"
-                >
-                  {renderVehicleParams(item.vehicle.id)}
-                </TabsContent>
-              ))}
-            </Tabs>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Cada veículo terá seus próprios parâmetros configuráveis.
+            </p>
           )}
         </div>
-      )}
-    </div>
-  );
+
+        {quoteForm.useGlobalParams ? (
+          <div className="space-y-4">
+            <div className="space-y-4">
+              <Label className="text-base">Prazo do Contrato</Label>
+              <div className="space-y-3">
+                <Slider
+                  value={[quoteForm.globalParams?.contractMonths || 24]}
+                  min={6}
+                  max={24}
+                  step={1}
+                  onValueChange={(value) => setGlobalContractMonths(value[0])}
+                />
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>6 meses</span>
+                  <span>{quoteForm.globalParams?.contractMonths || 24} meses</span>
+                  <span>24 meses</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <Label className="text-base mb-2 block">Quilometragem Mensal</Label>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                {KM_OPTIONS.map((km) => (
+                  <Button 
+                    key={`global-km-${km}`}
+                    type="button"
+                    variant={(quoteForm.globalParams?.monthlyKm || 3000) === km ? "default" : "outline"}
+                    onClick={() => setGlobalMonthlyKm(km)}
+                    className="w-full"
+                  >
+                    {km.toLocaleString('pt-BR')} km
+                  </Button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <Label className="text-base">Severidade de Operação</Label>
+              <RadioGroup 
+                value={String(quoteForm.globalParams?.operationSeverity || 3)} 
+                onValueChange={(value) => setGlobalOperationSeverity(parseInt(value) as 1|2|3|4|5|6)}
+                className="grid grid-cols-2 md:grid-cols-3 gap-3"
+              >
+                {[1, 2, 3, 4, 5, 6].map((level) => (
+                  <div key={level} className="flex items-center space-x-2">
+                    <RadioGroupItem value={level.toString()} id={`severity-${level}`} />
+                    <Label htmlFor={`severity-${level}`} className="cursor-pointer">
+                      Nível {level}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+              <p className="text-sm text-muted-foreground flex items-center space-x-1">
+                <Info size={14} className="inline-block mr-1" />
+                <span>Quanto maior o nível, mais severo é o uso do veículo.</span>
+              </p>
+            </div>
+            
+            <div className="flex items-center space-x-2 mb-6">
+              <Switch 
+                id="tracking" 
+                checked={quoteForm.globalParams?.hasTracking || false}
+                onCheckedChange={setGlobalHasTracking}
+              />
+              <Label htmlFor="tracking" className="cursor-pointer">Incluir rastreamento</Label>
+            </div>
+            
+            <div className="pt-6 border-t space-y-3">
+              <Label className="text-base">Plano de Proteção</Label>
+              <ProtectionPlanSelector
+                selectedPlanId={quoteForm.globalParams?.protectionPlanId || null}
+                onChange={setGlobalProtectionPlanId}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <h3 className="text-base font-medium">Parâmetros por Veículo</h3>
+            {quoteForm.vehicles && quoteForm.vehicles.length > 0 && (
+              <Tabs 
+                value={selectedVehicleTab || quoteForm.vehicles[0].vehicle.id}
+                onValueChange={setSelectedVehicleTab}
+                defaultValue={selectedVehicleTab || quoteForm.vehicles[0].vehicle.id}
+              >
+                <TabsList className="mb-4 flex overflow-x-auto pb-1">
+                  {quoteForm.vehicles.map(item => (
+                    <TabsTrigger 
+                      key={item.vehicle.id} 
+                      value={item.vehicle.id}
+                      className="whitespace-nowrap"
+                    >
+                      <Car className="h-4 w-4 mr-1" />
+                      {item.vehicle.brand} {item.vehicle.model} 
+                      {item.vehicle.plateNumber && ` (${item.vehicle.plateNumber})`}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+                
+                {quoteForm.vehicles.map(item => (
+                  <TabsContent 
+                    key={item.vehicle.id} 
+                    value={item.vehicle.id}
+                    className="mt-4"
+                  >
+                    {renderVehicleParams(item.vehicle.id)}
+                  </TabsContent>
+                ))}
+              </Tabs>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderResultStep = () => {
     const result = calculateQuote();
@@ -626,25 +664,25 @@ const QuoteForm = () => {
     return (
       <div className="space-y-8 animate-fadeIn">
         <Card>
-          <CardHeader title={`Resumo do Orçamento - ${quoteForm.vehicles.length} veículo(s)`} />
+          <CardHeader title={`Resumo do Orçamento - ${quoteForm?.vehicles?.length || 0} veículo(s)`} />
           
           <div className="space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Cliente</p>
-                <p className="font-medium">{quoteForm.client?.name}</p>
+                <p className="font-medium">{quoteForm?.client?.name || 'N/A'}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Prazo</p>
-                <p className="font-medium">{quoteForm.globalParams.contractMonths} meses</p>
+                <p className="font-medium">{quoteForm?.globalParams?.contractMonths || 24} meses</p>
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Quilometragem</p>
-                <p className="font-medium">{quoteForm.globalParams.monthlyKm.toLocaleString('pt-BR')} km/mês</p>
+                <p className="font-medium">{(quoteForm?.globalParams?.monthlyKm || 3000).toLocaleString('pt-BR')} km/mês</p>
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Severidade</p>
-                <p className="font-medium">Nível {quoteForm.globalParams.operationSeverity}</p>
+                <p className="font-medium">Nível {quoteForm?.globalParams?.operationSeverity || 3}</p>
               </div>
             </div>
             
@@ -652,12 +690,20 @@ const QuoteForm = () => {
               <h3 className="font-medium mb-4">Veículos Cotados</h3>
               <div className="space-y-4">
                 {vehicleResults.map((result, index) => {
+                  if (!quoteForm?.vehicles) return null;
+                  
                   const vehicleItem = quoteForm.vehicles.find(v => v.vehicle.id === result.vehicleId);
                   if (!vehicleItem) return null;
                   
                   const params = quoteForm.useGlobalParams 
                     ? quoteForm.globalParams 
-                    : (vehicleItem.params || quoteForm.globalParams);
+                    : (vehicleItem.params || quoteForm.globalParams || {
+                      contractMonths: 24,
+                      monthlyKm: 3000,
+                      operationSeverity: 3 as 1|2|3|4|5|6,
+                      hasTracking: false,
+                      protectionPlanId: null,
+                    });
                   
                   return (
                     <div key={vehicleItem.vehicle.id} className="border rounded-lg p-4 bg-muted/20">
@@ -741,7 +787,7 @@ const QuoteForm = () => {
                 R$ {totalCost.toLocaleString('pt-BR')}
               </p>
               <p className="text-sm text-muted-foreground">
-                {quoteForm.vehicles.length} veículo(s)
+                {quoteForm?.vehicles?.length || 0} veículo(s)
               </p>
             </div>
           </div>
@@ -838,7 +884,7 @@ const QuoteForm = () => {
                   </div>
                   <span className="hidden md:inline">{step.name}</span>
                   
-                  {step.id === 'vehicle' && quoteForm.vehicles.length > 0 && (
+                  {step.id === 'vehicle' && quoteForm?.vehicles?.length > 0 && (
                     <span className="text-xs bg-secondary rounded-full px-1.5 py-0.5 min-w-5 flex items-center justify-center">
                       {quoteForm.vehicles.length}
                     </span>
@@ -866,7 +912,7 @@ const QuoteForm = () => {
               
               <Button
                 type="button"
-                disabled={currentStep === 'client' && !quoteForm.client}
+                disabled={currentStep === 'client' && !quoteForm?.client}
                 onClick={handleNextStep}
               >
                 {currentStep === 'result' ? 'Finalizar Orçamento' : 'Continuar'}
