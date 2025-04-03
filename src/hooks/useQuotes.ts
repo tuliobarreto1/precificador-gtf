@@ -245,6 +245,12 @@ export const useQuotes = (): UseQuotesReturn => {
       createdByInfo.name = quote.created_by_name;
     }
     
+    // Garantir que contractMonths seja sempre um número, mesmo que seja 0
+    const contractMonths = quote.contract_months || 
+                          quote.contractMonths || 
+                          (quote.globalParams ? quote.globalParams.contractMonths : 0) || 
+                          0;
+    
     return {
       id: quote.id,
       clientName: clientName,
@@ -252,6 +258,7 @@ export const useQuotes = (): UseQuotesReturn => {
       value: vehicleInfo.value || quote.total_value || 0,
       createdAt: quote.created_at || new Date().toISOString(),
       status: quote.status_flow || 'ORCAMENTO',
+      contractMonths: contractMonths,
       createdBy: createdByInfo
     };
   });

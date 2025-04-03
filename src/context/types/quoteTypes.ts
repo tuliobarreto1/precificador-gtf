@@ -152,7 +152,7 @@ export interface QuoteItem {
   value: number;
   createdAt: string;
   status: string;
-  contractMonths?: number; // Adicionada a propriedade contractMonths necessária para Index.tsx
+  contractMonths: number; // Agora definido como obrigatório (não opcional)
   createdBy?: {
     id: number;
     name: string;
