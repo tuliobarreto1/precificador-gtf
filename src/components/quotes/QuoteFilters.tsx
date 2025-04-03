@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { allStatusFlow } from '@/lib/status-flow';
+import { allStatus, statusInfo } from '@/lib/status-flow';
 
 interface QuoteFiltersProps {
   loading: boolean;
@@ -44,6 +44,14 @@ const QuoteFilters = ({
   };
 
   const activeFiltersCount = Object.values(filters).filter(Boolean).length;
+
+  // Criando uma versão formatada de allStatus para os itens do select
+  const statusOptions = allStatus
+    .filter(status => status !== 'draft') // Removendo o status 'draft' que é apenas interno
+    .map(status => ({
+      value: status,
+      label: statusInfo[status]?.label || status
+    }));
 
   return (
     <div className="p-4 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -94,7 +102,7 @@ const QuoteFilters = ({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">Todos os status</SelectItem>
-                    {allStatusFlow.map(status => (
+                    {statusOptions.map(status => (
                       <SelectItem key={status.value} value={status.value}>
                         {status.label}
                       </SelectItem>
