@@ -12,9 +12,9 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, Calendar, User } from 'lucide-react';
 import { useQuote } from '@/context/QuoteContext';
-import { User } from '@/context/types/quoteTypes';
+import { User as UserType } from '@/context/types/quoteTypes';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +26,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface QuoteItem {
   id: string;
@@ -34,7 +36,6 @@ interface QuoteItem {
   value: number;
   createdAt: string;
   status: string;
-  source: 'demo' | 'local' | 'supabase';
   createdBy?: {
     id: number;
     name: string;
@@ -121,6 +122,17 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
     console.warn(`Status inválido detectado: ${status}. Usando 'ORCAMENTO' como fallback.`);
     return 'ORCAMENTO';
   };
+  
+  // Função para formatar a data no formato brasileiro
+  const formatDate = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      return format(date, "dd/MM/yyyy HH:mm", { locale: ptBR });
+    } catch (error) {
+      console.error("Erro ao formatar data:", error);
+      return "Data inválida";
+    }
+  };
 
   return (
     <>
@@ -132,14 +144,25 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
               <TableHead>Veículo</TableHead>
               <TableHead>Valor</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Fonte</TableHead>
+              <TableHead>
+                <div className="flex items-center space-x-1">
+                  <Calendar className="h-4 w-4" />
+                  <span>Data/Hora</span>
+                </div>
+              </TableHead>
+              <TableHead>
+                <div className="flex items-center space-x-1">
+                  <User className="h-4 w-4" />
+                  <span>Criado por</span>
+                </div>
+              </TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {safeQuotes.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
                   Nenhum orçamento encontrado
                 </TableCell>
               </TableRow>
@@ -166,7 +189,6 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
                     lastLogin: ''
                   } : undefined,
                   vehicles: [],
-                  source: quote.source || 'local',
                   status: quote.status || 'ORCAMENTO'
                 };
                 
@@ -185,7 +207,7 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
                 const validatedStatus = validateStatus(quote.status || 'ORCAMENTO');
                 
                 return (
-                  <TableRow key={`${quote.source}-${quote.id}`}>
+                  <TableRow key={quote.id}>
                     <TableCell>
                       <Link to={`/orcamento/${quote.id}`}>
                         <span className="font-medium hover:text-primary">
@@ -201,13 +223,10 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
                       <StatusBadge status={validatedStatus} size="sm" />
                     </TableCell>
                     <TableCell>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        quote.source === 'supabase' ? 'bg-blue-50 text-blue-700' : 
-                        quote.source === 'local' ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-700'
-                      }`}>
-                        {quote.source === 'supabase' ? 'Supabase' : 
-                        quote.source === 'local' ? 'Local' : 'Demo'}
-                      </span>
+                      {formatDate(quote.createdAt)}
+                    </TableCell>
+                    <TableCell>
+                      {quote.createdBy?.name || "Sistema"}
                     </TableCell>
                     <TableCell className="text-right space-x-1">
                       <Link to={`/orcamento/${quote.id}`}>

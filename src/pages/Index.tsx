@@ -26,10 +26,7 @@ const Index = () => {
     const fetchAllQuotes = async () => {
       setLoading(true);
       try {
-        // 1. Buscar orçamentos do contexto
-        const contextQuotes = quoteContext?.savedQuotes || [];
-        
-        // 2. Buscar orçamentos do Supabase
+        // Buscar orçamentos do Supabase
         let supabaseQuotes = [];
         try {
           const { quotes, success } = await getQuotesFromSupabase();
@@ -41,9 +38,7 @@ const Index = () => {
           console.error("Erro ao buscar orçamentos do Supabase:", error);
         }
         
-        // Combinar fontes de orçamentos - sem usar mockados
-        const combinedQuotes = [...contextQuotes, ...supabaseQuotes];
-        setAllQuotes(combinedQuotes);
+        setAllQuotes(supabaseQuotes);
       } catch (error) {
         console.error("Erro ao buscar orçamentos:", error);
         setAllQuotes([]);
@@ -53,7 +48,7 @@ const Index = () => {
     };
     
     fetchAllQuotes();
-  }, [quoteContext?.savedQuotes]);
+  }, []);
   
   // Carregar configurações básicas
   useEffect(() => {
@@ -79,35 +74,37 @@ const Index = () => {
   
   // Obter orçamentos recentes (5 mais recentes)
   const recentQuotes = safeQuotes
-    .sort((a, b) => new Date(b.createdAt || b.created_at || '').getTime() - new Date(a.createdAt || a.created_at || '').getTime())
+    .sort((a, b) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime())
     .slice(0, 5)
     .map(quote => {
       // Lidar com diferentes formatos de dados
       const vehicleName = quote.vehicles && quote.vehicles.length > 0 
-        ? `${quote.vehicles[0].vehicleBrand || quote.vehicles[0].vehicle?.brand || ''} ${quote.vehicles[0].vehicleModel || quote.vehicles[0].vehicle?.model || ''}` 
-        : quote.vehicleBrand && quote.vehicleModel 
-          ? `${quote.vehicleBrand} ${quote.vehicleModel}`
-          : 'Veículo não especificado';
+        ? `${quote.vehicles[0].vehicle?.brand || ''} ${quote.vehicles[0].vehicle?.model || ''}` 
+        : 'Veículo não especificado';
 
       return {
         id: quote.id,
-        clientName: quote.clientName || quote.client?.name || 'Cliente não especificado',
+        clientName: quote.client?.name || 'Cliente não especificado',
         vehicleName: vehicleName,
-        value: quote.totalCost || quote.total_value || 0,
-        createdAt: quote.createdAt || quote.created_at || new Date().toISOString(),
-        status: quote.status || quote.status_flow || 'ORCAMENTO',
-        source: quote.source || 'supabase'
+        value: quote.total_value || 0,
+        createdAt: quote.created_at || new Date().toISOString(),
+        status: quote.status_flow || 'ORCAMENTO',
+        createdBy: {
+          id: 0,
+          name: quote.created_by_name || 'Sistema',
+          role: 'user'
+        }
       };
     });
   
   // Estatísticas derivadas dos orçamentos reais
   const totalQuotes = safeQuotes.length;
   const averageContractLength = totalQuotes > 0 
-    ? safeQuotes.reduce((acc, q) => acc + (q.contractMonths || q.contract_months || 0), 0) / totalQuotes 
+    ? safeQuotes.reduce((acc, q) => acc + (q.contract_months || 0), 0) / totalQuotes 
     : 0;
-  const totalValue = safeQuotes.reduce((acc, q) => acc + (q.totalCost || q.total_value || 0), 0);
+  const totalValue = safeQuotes.reduce((acc, q) => acc + (q.total_value || 0), 0);
   const averageMonthlyValue = totalQuotes > 0 ? totalValue / totalQuotes : 0;
-  const activeQuotes = safeQuotes.filter(q => (q.status !== 'CONCLUIDO' && q.status_flow !== 'CONCLUIDO')).length;
+  const activeQuotes = safeQuotes.filter(q => (q.status_flow !== 'CONCLUIDO')).length;
 
   return (
     <MainLayout>

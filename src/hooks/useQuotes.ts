@@ -2,13 +2,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuote } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
-import { getQuotes, getClientById, getVehicleById, savedQuotes, getVehicleGroupById } from '@/lib/data-provider';
+import { getQuotes, getClientById, getVehicleById, getVehicleGroupById } from '@/lib/data-provider';
 import { Client, Vehicle } from '@/lib/models';
 import { 
   checkSupabaseConnection, 
   getQuotesFromSupabase, 
   getVehiclesFromSupabase 
 } from '@/integrations/supabase';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface QuoteItem {
   id: string;
@@ -17,7 +19,11 @@ interface QuoteItem {
   value: number;
   createdAt: string;
   status: string;
-  source: 'demo' | 'local' | 'supabase';
+  createdBy?: {
+    id: number;
+    name: string;
+    role: string;
+  };
 }
 
 export const useQuotes = () => {
@@ -27,7 +33,6 @@ export const useQuotes = () => {
   const [supabaseConnected, setSupabaseConnected] = useState(false);
   const [supabaseQuotes, setSupabaseQuotes] = useState<any[]>([]);
   const [supabaseVehicles, setSupabaseVehicles] = useState<any[]>([]);
-  const [demoQuotes, setDemoQuotes] = useState<any[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   const { toast } = useToast();
@@ -41,15 +46,6 @@ export const useQuotes = () => {
 
   useEffect(() => {
     console.log('Hook useQuotes montado ou refreshTrigger atualizado:', refreshTrigger);
-    
-    const loadDemoQuotes = async () => {
-      try {
-        const quotes = await getQuotes();
-        setDemoQuotes(quotes);
-      } catch (err) {
-        console.error('Erro ao carregar orçamentos demo:', err);
-      }
-    };
     
     const checkConnection = async () => {
       try {
@@ -66,12 +62,10 @@ export const useQuotes = () => {
         } else {
           console.error('Falha ao conectar ao Supabase');
           setSupabaseConnected(false);
-          await loadDemoQuotes();
         }
       } catch (error) {
         console.error('Erro ao verificar conexão:', error);
         setSupabaseConnected(false);
-        await loadDemoQuotes();
       } finally {
         setLoadingSupabase(false);
       }
@@ -199,108 +193,52 @@ export const useQuotes = () => {
     return { name: 'Veículo não especificado', value: quote.total_value || quote.totalCost || 0 };
   };
 
-  const transformQuotes = () => {
-    // Função para buscar cliente e veículo diretamente no Supabase
-    const getClientNameAsync = async (clientId: string): Promise<string> => {
-      try {
-        const client = await getClientById(clientId);
-        return client?.name || 'Cliente não encontrado';
-      } catch (error) {
-        console.error(`Erro ao buscar cliente ${clientId}:`, error);
-        return 'Cliente não encontrado';
-      }
-    };
-
-    const getVehicleDetailsAsync = async (vehicleId: string): Promise<{brand: string, model: string}> => {
-      try {
-        const vehicle = await getVehicleById(vehicleId);
-        return {
-          brand: vehicle?.brand || 'Marca desconhecida',
-          model: vehicle?.model || 'Modelo desconhecido'
-        };
-      } catch (error) {
-        console.error(`Erro ao buscar veículo ${vehicleId}:`, error);
-        return {
-          brand: 'Marca desconhecida',
-          model: 'Modelo desconhecido'
-        };
-      }
-    };
-
-    // Transforma dados de orçamentos de demonstração
-    const demoQuotesTransformed = demoQuotes.map(async (quote) => {
-      const clientName = await getClientNameAsync(quote.clientId);
-      const vehicleDetails = await getVehicleDetailsAsync(quote.vehicleId);
-      
-      return {
-        id: quote.id,
-        clientName,
-        vehicleName: `${vehicleDetails.brand} ${vehicleDetails.model}`,
-        value: quote.totalCost,
-        createdAt: quote.createdAt || new Date().toISOString(),
-        status: 'ORCAMENTO',
-        source: 'demo' as const
-      };
-    });
+  // Transforma dados de orçamentos do Supabase
+  const supabaseQuotesTransformed = supabaseQuotes.map(quote => {
+    console.log('Processando orçamento do Supabase:', quote.id);
     
-    // Transforma dados de orçamentos locais
-    const localQuotesTransformed = ((quoteContext?.savedQuotes || []) as any[]).map(quote => ({
+    const clientName = quote.client_name || (quote.client && quote.client.name) || 'Cliente não especificado';
+    console.log('Nome do cliente:', clientName);
+    
+    const vehicleInfo = getVehicleInfo(quote);
+    console.log('Informações de veículo para orçamento:', quote.id, vehicleInfo);
+    
+    // Tentar obter informações sobre quem criou o orçamento
+    const createdByInfo = {
+      id: 0,
+      name: 'Sistema',
+      role: 'system'
+    };
+    
+    // Se tivermos informações sobre quem criou, usá-las
+    if (quote.created_by_name) {
+      createdByInfo.name = quote.created_by_name;
+    }
+    
+    return {
       id: quote.id,
-      clientName: quote.clientName || 'Cliente não especificado',
-      vehicleName: quote.vehicles && quote.vehicles.length > 0 ? 
-        `${quote.vehicles[0].vehicleBrand} ${quote.vehicles[0].vehicleModel}` : 
-        'Veículo não especificado',
-      value: quote.totalCost || 0,
-      createdAt: quote.createdAt || new Date().toISOString(),
-      status: quote.status || 'ORCAMENTO',
-      source: 'local' as const
-    }));
-    
-    // Transforma dados de orçamentos do Supabase
-    const supabaseQuotesTransformed = supabaseQuotes.map(quote => {
-      console.log('Processando orçamento do Supabase:', quote.id);
-      
-      const clientName = quote.client_name || (quote.client && quote.client.name) || 'Cliente não especificado';
-      console.log('Nome do cliente:', clientName);
-      
-      const vehicleInfo = getVehicleInfo(quote);
-      console.log('Informações de veículo para orçamento:', quote.id, vehicleInfo);
-      
-      return {
-        id: quote.id,
-        clientName: clientName,
-        vehicleName: vehicleInfo.name,
-        value: vehicleInfo.value || quote.total_value || 0,
-        createdAt: quote.created_at || new Date().toISOString(),
-        status: quote.status_flow || 'ORCAMENTO',
-        source: 'supabase' as const
-      };
-    });
-
-    // Combinar todas as cotações transformadas
-    return Promise.all([
-      ...demoQuotesTransformed,
-      ...localQuotesTransformed,
-      ...supabaseQuotesTransformed
-    ]);
-  };
+      clientName: clientName,
+      vehicleName: vehicleInfo.name,
+      value: vehicleInfo.value || quote.total_value || 0,
+      createdAt: quote.created_at || new Date().toISOString(),
+      status: quote.status_flow || 'ORCAMENTO',
+      createdBy: createdByInfo
+    };
+  });
 
   const [allQuotes, setAllQuotes] = useState<QuoteItem[]>([]);
   
   useEffect(() => {
-    const updateQuotes = async () => {
-      try {
-        const quotes = await transformQuotes();
-        quotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        console.log(`🔄 Lista de orçamentos atualizada: ${quotes.length} orçamentos`);
-        setAllQuotes(quotes);
-      } catch (error) {
-        console.error('Erro ao transformar orçamentos:', error);
-      }
-    };
-    
-    updateQuotes();
-  }, [demoQuotes, supabaseQuotes, quoteContext?.savedQuotes, refreshTrigger]);
+    try {
+      // Ordenar orçamentos por data de criação (mais recente primeiro)
+      const quotes = [...supabaseQuotesTransformed];
+      quotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      console.log(`🔄 Lista de orçamentos atualizada: ${quotes.length} orçamentos`);
+      setAllQuotes(quotes);
+    } catch (error) {
+      console.error('Erro ao transformar orçamentos:', error);
+    }
+  }, [supabaseQuotes, refreshTrigger]);
   
   const totalQuotes = allQuotes.length;
   const totalValue = allQuotes.reduce((sum, quote) => sum + Number(quote.value), 0);
