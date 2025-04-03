@@ -1,10 +1,13 @@
 
 import { useState } from 'react';
 import { QuoteFormData, QuoteCalculationResult, QuoteResultVehicle } from '@/context/types/quoteTypes';
-import { fetchProtectionPlanDetails } from '@/integrations/supabase/services/protectionPlans';
+import { useBasicCalculations } from './calculation/useBasicCalculations';
+import { useProtectionCalculation } from './calculation/useProtectionCalculation';
 
 export function useQuoteCalculation(quoteForm: QuoteFormData) {
   const [calculationError, setCalculationError] = useState<string | null>(null);
+  const basicCalculations = useBasicCalculations();
+  const protectionCalculation = useProtectionCalculation();
 
   const calculateQuote = async (): Promise<QuoteCalculationResult | null> => {
     setCalculationError(null);
@@ -21,42 +24,29 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         const params = quoteForm.useGlobalParams ? quoteForm.globalParams : item.params || quoteForm.globalParams;
         
         // Calcular custo de depreciação
-        const depreciationRate = 0.015; // Taxa base
-        const mileageMultiplier = 0.05; // Influência da quilometragem
-        const severityMultiplier = 0.1; // Influência da severidade
-        
-        const mileageFactor = params.monthlyKm / 1000 * mileageMultiplier;
-        const severityFactor = (params.operationSeverity - 1) * severityMultiplier;
-        
-        const monthlyDepreciationRate = depreciationRate + mileageFactor + severityFactor;
-        const totalDepreciation = item.vehicle.value * monthlyDepreciationRate;
+        const totalDepreciation = basicCalculations.calculateDepreciation(
+          item.vehicle.value, 
+          params.monthlyKm,
+          params.operationSeverity
+        );
         
         // Calcular custo de manutenção
-        const monthlyKm = params.monthlyKm;
-        const revisionCost = (monthlyKm / item.vehicleGroup.revisionKm) * item.vehicleGroup.revisionCost;
-        const tireCost = (monthlyKm / item.vehicleGroup.tireKm) * item.vehicleGroup.tireCost;
-        const maintenanceCost = revisionCost + tireCost;
+        const maintenanceCost = basicCalculations.calculateMaintenanceCost(
+          params.monthlyKm,
+          item.vehicleGroup.revisionKm,
+          item.vehicleGroup.revisionCost,
+          item.vehicleGroup.tireKm,
+          item.vehicleGroup.tireCost
+        );
         
         // Taxa para km excedente
-        const extraKmRate = item.vehicle.value * 0.0000075;
+        const extraKmRate = basicCalculations.calculateExtraKmRate(item.vehicle.value);
         
         // Custo de rastreamento
-        const trackingCost = params.hasTracking ? 50 : 0;
+        const trackingCost = basicCalculations.calculateTrackingCost(params.hasTracking);
         
         // Custo da proteção
-        let protectionCost = 0;
-        let protectionPlanId = params.protectionPlanId;
-        
-        if (protectionPlanId) {
-          try {
-            const planDetails = await fetchProtectionPlanDetails(protectionPlanId);
-            if (planDetails) {
-              protectionCost = planDetails.monthly_cost;
-            }
-          } catch (error) {
-            console.error('Erro ao buscar detalhes do plano de proteção:', error);
-          }
-        }
+        const protectionCost = await protectionCalculation.calculateProtectionCost(params.protectionPlanId);
         
         // Custo total mensal
         const totalCost = totalDepreciation + maintenanceCost + trackingCost + protectionCost;
@@ -68,7 +58,7 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           maintenanceCost,
           extraKmRate,
           protectionCost,
-          protectionPlanId
+          protectionPlanId: params.protectionPlanId
         };
       });
       
@@ -106,30 +96,32 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         const params = quoteForm.useGlobalParams ? quoteForm.globalParams : item.params || quoteForm.globalParams;
         
         // Calcular custo de depreciação
-        const depreciationRate = 0.015; // Taxa base
-        const mileageMultiplier = 0.05; // Influência da quilometragem
-        const severityMultiplier = 0.1; // Influência da severidade
-        
-        const mileageFactor = params.monthlyKm / 1000 * mileageMultiplier;
-        const severityFactor = (params.operationSeverity - 1) * severityMultiplier;
-        
-        const monthlyDepreciationRate = depreciationRate + mileageFactor + severityFactor;
-        const totalDepreciation = item.vehicle.value * monthlyDepreciationRate;
+        const totalDepreciation = basicCalculations.calculateDepreciation(
+          item.vehicle.value, 
+          params.monthlyKm,
+          params.operationSeverity
+        );
         
         // Calcular custo de manutenção
-        const monthlyKm = params.monthlyKm;
-        const revisionCost = (monthlyKm / item.vehicleGroup.revisionKm) * item.vehicleGroup.revisionCost;
-        const tireCost = (monthlyKm / item.vehicleGroup.tireKm) * item.vehicleGroup.tireCost;
-        const maintenanceCost = revisionCost + tireCost;
+        const maintenanceCost = basicCalculations.calculateMaintenanceCost(
+          params.monthlyKm,
+          item.vehicleGroup.revisionKm,
+          item.vehicleGroup.revisionCost,
+          item.vehicleGroup.tireKm,
+          item.vehicleGroup.tireCost
+        );
         
         // Taxa para km excedente
-        const extraKmRate = item.vehicle.value * 0.0000075;
+        const extraKmRate = basicCalculations.calculateExtraKmRate(item.vehicle.value);
         
         // Custo de rastreamento
-        const trackingCost = params.hasTracking ? 50 : 0;
+        const trackingCost = basicCalculations.calculateTrackingCost(params.hasTracking);
         
-        // Custo total mensal (sem proteção na versão síncrona)
-        const totalCost = totalDepreciation + maintenanceCost + trackingCost;
+        // Custo da proteção na versão síncrona (sempre 0)
+        const protectionCost = protectionCalculation.getProtectionCostSync(params.protectionPlanId);
+        
+        // Custo total mensal
+        const totalCost = totalDepreciation + maintenanceCost + trackingCost + protectionCost;
         
         // Adicionar ao array de resultados
         vehicleResults.push({
@@ -138,7 +130,7 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           depreciationCost: totalDepreciation,
           maintenanceCost,
           extraKmRate,
-          protectionCost: 0, // Na versão síncrona, não calculamos proteção
+          protectionCost,
           protectionPlanId: params.protectionPlanId
         });
       });
@@ -166,7 +158,7 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
 
   return {
     calculateQuote,
-    calculateQuoteSync, // Nova função síncrona
+    calculateQuoteSync,
     calculationError,
     sendQuoteByEmail
   };
