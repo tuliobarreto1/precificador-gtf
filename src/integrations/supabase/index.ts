@@ -7,6 +7,7 @@ import { saveQuoteToSupabase, getQuotesFromSupabase, getQuoteByIdFromSupabase, d
 import { getQuoteVehicles, addVehicleToQuote } from './services/quoteVehicles';
 import { getVehicleGroups, getVehicleGroupById } from './services/vehicleGroups';
 import { createQuoteActionLog, getQuoteActionLogs } from './services/quoteActionLogs';
+import { fetchProtectionPlans, fetchProtectionPlanDetails, updateProtectionPlan } from './services/protectionPlans';
 
 export {
   // Core
@@ -44,5 +45,10 @@ export {
   
   // Quote Action Logs
   createQuoteActionLog,
-  getQuoteActionLogs
+  getQuoteActionLogs,
+  
+  // Protection Plans
+  fetchProtectionPlans,
+  fetchProtectionPlanDetails,
+  updateProtectionPlan
 };

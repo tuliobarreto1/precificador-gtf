@@ -1,107 +1,72 @@
 
 import { Client, Vehicle, VehicleGroup } from '@/lib/models';
 
-// Tipos de usuário
-export type UserRole = 'user' | 'manager' | 'admin';
+export interface QuoteParams {
+  contractMonths: number;
+  monthlyKm: number;
+  operationSeverity: 1|2|3|4|5|6;
+  hasTracking: boolean;
+  protectionPlanId?: string | null; // Nova propriedade para o plano de proteção
+}
 
-// Tipo de usuário
-export type User = {
-  id: number;
-  name: string;
-  email: string;
-  role: UserRole;
-  status: 'active' | 'inactive';
-  lastLogin: string;
-};
-
-// Item de veículo na cotação
-export type QuoteVehicleItem = {
+export interface QuoteVehicleItem {
   vehicle: Vehicle;
   vehicleGroup: VehicleGroup;
-  params?: {
-    contractMonths: number;
-    monthlyKm: number;
-    operationSeverity: 1 | 2 | 3 | 4 | 5 | 6;
-    hasTracking: boolean;
-  };
-};
+  params?: QuoteParams;
+}
 
-// Quote form state
-export type QuoteFormData = {
+export interface QuoteFormData {
   client: Client | null;
   vehicles: QuoteVehicleItem[];
   useGlobalParams: boolean;
-  globalParams: {
-    contractMonths: number;
-    monthlyKm: number;
-    operationSeverity: 1 | 2 | 3 | 4 | 5 | 6;
-    hasTracking: boolean;
-  };
-};
+  globalParams: QuoteParams;
+}
 
-// Tipo para registro de edição
-export type EditRecord = {
-  editedAt: string;
-  editedBy: {
-    id: number;
-    name: string;
-    role: UserRole;
-  };
-  changes: string;
-};
-
-// Resultado do cálculo para um veículo
-export type VehicleQuoteResult = {
+export interface QuoteResultVehicle {
   vehicleId: string;
+  totalCost: number;
   depreciationCost: number;
   maintenanceCost: number;
-  trackingCost: number;
-  totalCost: number;
-  costPerKm: number;
   extraKmRate: number;
-};
+  protectionCost?: number; // Novo campo para custo da proteção
+  protectionPlanId?: string | null; // ID do plano de proteção
+}
 
-// Interface para orçamentos salvos
-export type SavedQuote = {
-  id: string;
-  clientId: string;
-  clientName: string;
+export interface QuoteCalculationResult {
+  vehicleResults: QuoteResultVehicle[];
+  totalCost: number;
+}
+
+export interface SavedVehicle {
   vehicleId: string;
   vehicleBrand: string;
   vehicleModel: string;
-  contractMonths: number;
-  monthlyKm: number;
   totalCost: number;
-  createdAt: string;
-  createdBy?: User;
-  editHistory?: EditRecord[];
-  vehicles: {
-    vehicleId: string;
-    vehicleBrand: string;
-    vehicleModel: string;
-    plateNumber?: string;
-    groupId: string;
-    totalCost: number;
-    depreciationCost: number;
-    maintenanceCost: number;
-    extraKmRate: number;
-  }[];
-  operationSeverity?: 1 | 2 | 3 | 4 | 5 | 6;
-  hasTracking?: boolean;
-  trackingCost?: number;
-  status?: string;
-  source?: 'local' | 'supabase' | 'demo';
-};
+  contractMonths?: number;
+  monthlyKm?: number;
+  plateNumber?: string;
+  groupId?: string;
+  protectionPlanId?: string | null; // Nova propriedade para o plano de proteção
+  protectionCost?: number; // Novo campo para custo da proteção
+}
 
-// Usuário padrão do sistema (temporário até implementar autenticação)
-export const defaultUser: User = { 
-  id: 1, 
-  name: 'Usuário do Sistema', 
-  email: 'sistema@carleasemaster.com.br', 
-  role: 'admin', 
-  status: 'active', 
-  lastLogin: new Date().toISOString().replace('T', ' ').substring(0, 16) 
-};
+export interface SavedQuote {
+  id: string;
+  clientId: string;
+  clientName: string;
+  vehicles: SavedVehicle[];
+  totalValue: number;
+  createdAt: string;
+  updatedAt?: string;
+  status?: string;
+  globalParams?: {
+    contractMonths: number;
+    monthlyKm: number;
+    operationSeverity: number;
+    hasTracking: boolean;
+    protectionPlanId?: string | null; // Nova propriedade para o plano de proteção global
+  };
+}
 
 export interface QuoteContextType {
   quoteForm: QuoteFormData;
@@ -110,32 +75,25 @@ export interface QuoteContextType {
   removeVehicle: (vehicleId: string) => void;
   setGlobalContractMonths: (contractMonths: number) => void;
   setGlobalMonthlyKm: (monthlyKm: number) => void;
-  setGlobalOperationSeverity: (operationSeverity: 1 | 2 | 3 | 4 | 5 | 6) => void;
+  setGlobalOperationSeverity: (operationSeverity: 1|2|3|4|5|6) => void;
   setGlobalHasTracking: (hasTracking: boolean) => void;
+  setGlobalProtectionPlanId: (protectionPlanId: string | null) => void; // Novo método
   setUseGlobalParams: (useGlobalParams: boolean) => void;
-  setVehicleParams: (vehicleId: string, params: {
-    contractMonths?: number;
-    monthlyKm?: number;
-    operationSeverity?: 1 | 2 | 3 | 4 | 5 | 6;
-    hasTracking?: boolean;
-  }) => void;
+  setVehicleParams: (vehicleId: string, params: Partial<QuoteParams>) => void;
   resetForm: () => void;
-  calculateQuote: () => {
-    vehicleResults: VehicleQuoteResult[];
-    totalCost: number;
-  } | null;
+  calculateQuote: () => QuoteCalculationResult | null;
   saveQuote: () => boolean;
-  getCurrentUser: () => User;
-  setCurrentUser: (user: User) => void;
-  availableUsers: User[];
+  getCurrentUser: () => string;
+  setCurrentUser: (user: string) => void;
+  availableUsers: string[];
   isEditMode: boolean;
   currentEditingQuoteId: string | null;
-  getClientById: (id: string) => Promise<Client | null>;
-  getVehicleById: (id: string) => Promise<Vehicle | null>;
-  loadQuoteForEditing: (quoteId: string) => Promise<boolean>;
+  getClientById: (clientId: string) => Promise<Client | null>;
+  getVehicleById: (vehicleId: string) => Promise<Vehicle | null>;
+  loadQuoteForEditing: (quoteId: string) => boolean;
   deleteQuote: (quoteId: string) => Promise<boolean>;
-  canEditQuote: (quote: SavedQuote) => boolean;
-  canDeleteQuote: (quote: SavedQuote) => boolean;
-  sendQuoteByEmail: (quoteId: string, email: string, message: string) => Promise<boolean>;
+  canEditQuote: (quoteId: string) => boolean;
+  canDeleteQuote: (quoteId: string) => boolean;
+  sendQuoteByEmail: (quoteId: string, email: string, message?: string) => Promise<boolean>;
   savedQuotes: SavedQuote[];
 }

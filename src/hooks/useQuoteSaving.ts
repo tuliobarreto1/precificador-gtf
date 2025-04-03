@@ -8,12 +8,13 @@ const SAVED_QUOTES_KEY = 'savedQuotes';
 
 export function useQuoteSaving(
   quoteForm: QuoteFormData, 
-  calculateQuote: () => { vehicleResults: VehicleQuoteResult[]; totalCost: number; } | null,
-  getCurrentUser: () => User
+  calculateQuote: () => Promise<QuoteCalculationResult | null>, 
+  getCurrentUser: () => string
 ) {
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentEditingQuoteId, setCurrentEditingQuoteId] = useState<string | null>(null);
+  const [loadingSavedQuotes, setLoadingSavedQuotes] = useState(false);
 
   useEffect(() => {
     try {
@@ -28,168 +29,129 @@ export function useQuoteSaving(
     }
   }, []);
 
-  const saveQuote = (): boolean => {
-    const quoteResult = calculateQuote();
-    if (!quoteForm.client || !quoteResult || quoteForm.vehicles.length === 0) {
-      console.error('Erro ao salvar orçamento: dados incompletos', {
-        client: !!quoteForm.client,
-        quoteResult: !!quoteResult,
-        vehicles: quoteForm.vehicles.length
-      });
-      return false;
-    }
-
-    if (isEditMode && currentEditingQuoteId) {
-      const originalQuote = savedQuotes.find(q => q.id === currentEditingQuoteId);
-      if (!originalQuote) {
-        console.error('Orçamento original não encontrado:', currentEditingQuoteId);
+  // Salvar um orçamento
+  const saveQuote = async () => {
+    try {
+      if (!quoteForm.client || quoteForm.vehicles.length === 0) {
         return false;
       }
-
-      const changeDescription = `Orçamento editado em ${new Date().toLocaleString('pt-BR')}`;
       
-      const updates: Partial<QuoteFormData> = {
-        client: quoteForm.client,
-        vehicles: quoteForm.vehicles,
-        globalParams: quoteForm.globalParams,
-        useGlobalParams: quoteForm.useGlobalParams
-      };
-      
-      const updated = updateQuote(currentEditingQuoteId, updates, changeDescription);
-      
-      if (updated) {
-        setIsEditMode(false);
-        setCurrentEditingQuoteId(null);
+      const calculationResult = await calculateQuote();
+      if (!calculationResult) {
+        return false;
       }
       
-      return updated;
-    }
-
-    const newId = Date.now().toString();
-    
-    const userInfo = getCurrentUser();
-    
-    const newSavedQuote: SavedQuote = {
-      id: newId,
-      clientId: quoteForm.client.id,
-      clientName: quoteForm.client.name,
-      vehicleId: quoteForm.vehicles[0].vehicle.id,
-      vehicleBrand: quoteForm.vehicles[0].vehicle.brand,
-      vehicleModel: quoteForm.vehicles[0].vehicle.model,
-      contractMonths: quoteForm.globalParams.contractMonths,
-      monthlyKm: quoteForm.globalParams.monthlyKm,
-      totalCost: quoteResult.totalCost,
-      createdAt: new Date().toISOString(),
-      createdBy: userInfo,
-      editHistory: [],
-      vehicles: quoteResult.vehicleResults.map((result, index) => {
-        const vehicle = quoteForm.vehicles.find(v => v.vehicle.id === result.vehicleId);
-        if (!vehicle) {
-          throw new Error(`Veículo não encontrado: ${result.vehicleId}`);
+      const { vehicleResults, totalCost } = calculationResult;
+      
+      // Preparar dados do orçamento
+      const quoteData: any = {
+        client_id: quoteForm.client.id,
+        contract_months: quoteForm.globalParams.contractMonths,
+        monthly_km: quoteForm.globalParams.monthlyKm,
+        operation_severity: quoteForm.globalParams.operationSeverity,
+        has_tracking: quoteForm.globalParams.hasTracking,
+        global_protection_plan_id: quoteForm.globalParams.protectionPlanId, // Nova propriedade
+        total_value: totalCost,
+        created_by: getCurrentUser(),
+        title: `Orçamento para ${quoteForm.client.name} - ${quoteForm.vehicles.length} veículo(s)`
+      };
+      
+      let savedQuoteId;
+      let success = false;
+      
+      if (isEditMode && currentEditingQuoteId) {
+        // Atualizar orçamento existente
+        const { data, error } = await supabase
+          .from('quotes')
+          .update(quoteData)
+          .eq('id', currentEditingQuoteId)
+          .select()
+          .single();
+          
+        if (error) {
+          console.error('Erro ao atualizar orçamento:', error);
+          return false;
         }
         
-        return {
-          vehicleId: vehicle.vehicle.id,
-          vehicleBrand: vehicle.vehicle.brand,
-          vehicleModel: vehicle.vehicle.model,
-          plateNumber: vehicle.vehicle.plateNumber,
-          groupId: vehicle.vehicleGroup.id,
-          totalCost: result.totalCost,
-          depreciationCost: result.depreciationCost,
-          maintenanceCost: result.maintenanceCost,
-          extraKmRate: result.extraKmRate,
-        };
-      }),
-      operationSeverity: quoteForm.globalParams.operationSeverity,
-      hasTracking: quoteForm.globalParams.hasTracking,
-      trackingCost: quoteResult.vehicleResults[0].trackingCost,
-      status: 'active',
-      source: 'local'
-    };
-
-    console.log('📝 Tentando salvar novo orçamento:', {
-      clientId: newSavedQuote.clientId,
-      clientName: newSavedQuote.clientName,
-      totalCost: newSavedQuote.totalCost,
-      veículos: newSavedQuote.vehicles.length
-    });
-
-    let finalQuote = { ...newSavedQuote };
-    try {
-      import('@/integrations/supabase/services/quotes').then(async ({ saveQuoteToSupabase }) => {
-        console.log('📤 Iniciando salvamento no Supabase...');
+        savedQuoteId = currentEditingQuoteId;
+        success = true;
         
-        const quoteDataForSupabase = {
-          ...newSavedQuote,
-          client: quoteForm.client,
-          useGlobalParams: quoteForm.useGlobalParams,
-          vehicles: quoteForm.vehicles.map((vehicleItem, index) => {
-            const result = quoteResult.vehicleResults.find(r => r.vehicleId === vehicleItem.vehicle.id);
-            return {
-              vehicle: vehicleItem.vehicle,
-              vehicleId: vehicleItem.vehicle.id,
-              vehicleGroup: vehicleItem.vehicleGroup,
-              params: vehicleItem.params,
-              totalCost: result?.totalCost || 0,
-              depreciationCost: result?.depreciationCost || 0,
-              maintenanceCost: result?.maintenanceCost || 0,
-              extraKmRate: result?.extraKmRate || 0,
-              monthly_value: result?.totalCost || 0
-            };
-          })
-        };
-        
-        const result = await saveQuoteToSupabase(quoteDataForSupabase);
-        
-        if (result.success && result.quote && result.quote.id) {
-          console.log('✅ Orçamento salvo no Supabase com sucesso!', result.quote);
+        // Excluir veículos existentes para adicionar os atuais
+        await supabase
+          .from('quote_vehicles')
+          .delete()
+          .eq('quote_id', savedQuoteId);
           
-          const supabaseId = result.quote.id;
+      } else {
+        // Criar novo orçamento
+        const { data, error } = await supabase
+          .from('quotes')
+          .insert(quoteData)
+          .select()
+          .single();
           
-          setSavedQuotes(prevQuotes => 
-            prevQuotes.map(q => 
-              q.id === newSavedQuote.id ? { ...q, id: supabaseId } : q
-            )
-          );
-          
-          try {
-            const storedQuotes = localStorage.getItem(SAVED_QUOTES_KEY);
-            if (storedQuotes) {
-              const parsedQuotes = JSON.parse(storedQuotes);
-              const updatedQuotes = parsedQuotes.map((q: SavedQuote) => 
-                q.id === newSavedQuote.id ? { ...q, id: supabaseId } : q
-              );
-              localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
-              console.log('✅ ID do orçamento atualizado no localStorage para UUID do Supabase');
-            }
-          } catch (error) {
-            console.error('❌ Erro ao atualizar ID no localStorage:', error);
-          }
-          
-        } else {
-          console.error('❌ Falha ao salvar orçamento no Supabase:', result.error);
+        if (error || !data) {
+          console.error('Erro ao salvar orçamento:', error);
+          return false;
         }
-      }).catch(err => {
-        console.error('❌ Erro ao importar função do Supabase:', err);
-      });
+        
+        savedQuoteId = data.id;
+        success = true;
+      }
+      
+      // Adicionar veículos ao orçamento
+      for (let i = 0; i < quoteForm.vehicles.length; i++) {
+        const vehicleItem = quoteForm.vehicles[i];
+        const vehicleResult = vehicleResults.find(r => r.vehicleId === vehicleItem.vehicle.id);
+        
+        if (!vehicleResult) continue;
+        
+        const params = quoteForm.useGlobalParams 
+          ? quoteForm.globalParams 
+          : (vehicleItem.params || quoteForm.globalParams);
+          
+        const vehicleData = {
+          quote_id: savedQuoteId,
+          vehicle_id: vehicleItem.vehicle.id,
+          contract_months: params.contractMonths,
+          monthly_km: params.monthlyKm,
+          operation_severity: params.operationSeverity,
+          has_tracking: params.hasTracking,
+          protection_plan_id: params.protectionPlanId, // Nova propriedade
+          protection_cost: vehicleResult.protectionCost || 0, // Novo campo
+          depreciation_cost: vehicleResult.depreciationCost,
+          maintenance_cost: vehicleResult.maintenanceCost,
+          extra_km_rate: vehicleResult.extraKmRate,
+          total_cost: vehicleResult.totalCost,
+          monthly_value: vehicleResult.totalCost
+        };
+        
+        const { error } = await supabase
+          .from('quote_vehicles')
+          .insert(vehicleData);
+          
+        if (error) {
+          console.error('Erro ao salvar veículo do orçamento:', error);
+          // Continuar mesmo se houver erro em um veículo
+        }
+      }
+      
+      if (success) {
+        // Atualizar lista de orçamentos salvos
+        await loadSavedQuotes();
+        
+        if (isEditMode) {
+          setIsEditMode(false);
+          setCurrentEditingQuoteId(null);
+        }
+      }
+      
+      return success;
+      
     } catch (error) {
-      console.error('❌ Erro ao tentar salvar no Supabase:', error);
+      console.error('Erro ao salvar orçamento:', error);
       return false;
     }
-
-    const updatedQuotes = [newSavedQuote, ...savedQuotes];
-    setSavedQuotes(updatedQuotes);
-    
-    try {
-      localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
-      console.log('✅ Orçamento salvo com sucesso no localStorage:', newSavedQuote);
-      console.log('📊 Total de orçamentos salvos:', updatedQuotes.length);
-    } catch (error) {
-      console.error('❌ Erro ao salvar no localStorage:', error);
-      return false;
-    }
-    
-    return true;
   };
 
   const updateQuote = (quoteId: string, updates: Partial<QuoteFormData>, changeDescription: string): boolean => {
@@ -202,89 +164,6 @@ export function useQuoteSaving(
       changes: changeDescription
     };
 
-    const quoteResult = calculateQuote();
-    if (!quoteResult) {
-      console.error('Erro ao calcular o oramento atualizado');
-      return false;
-    }
-    
-    const updatedQuotes = savedQuotes.map(quote => {
-      if (quote.id === quoteId) {
-        return {
-          ...quote,
-          clientId: updates.client?.id || quote.clientId,
-          clientName: updates.client?.name || quote.clientName,
-          contractMonths: updates.globalParams?.contractMonths || quote.contractMonths,
-          monthlyKm: updates.globalParams?.monthlyKm || quote.monthlyKm,
-          totalCost: quoteResult.totalCost,
-          operationSeverity: updates.globalParams?.operationSeverity || quote.operationSeverity,
-          hasTracking: updates.globalParams?.hasTracking !== undefined ? updates.globalParams.hasTracking : quote.hasTracking,
-          vehicles: quoteResult.vehicleResults.map(result => {
-            const vehicleItem = updates.vehicles?.find(v => v.vehicle.id === result.vehicleId);
-            
-            if (!vehicleItem) {
-              const originalVehicle = quote.vehicles.find(v => v.vehicleId === result.vehicleId);
-              if (originalVehicle) return originalVehicle;
-              
-              throw new Error(`Veículo não encontrado: ${result.vehicleId}`);
-            }
-            
-            return {
-              vehicleId: vehicleItem.vehicle.id,
-              vehicleBrand: vehicleItem.vehicle.brand,
-              vehicleModel: vehicleItem.vehicle.model,
-              plateNumber: vehicleItem.vehicle.plateNumber,
-              groupId: vehicleItem.vehicleGroup?.id || quote.vehicles[0].groupId,
-              totalCost: result.totalCost,
-              depreciationCost: result.depreciationCost,
-              maintenanceCost: result.maintenanceCost,
-              extraKmRate: result.extraKmRate,
-            };
-          }),
-          editHistory: [...(quote.editHistory || []), editRecord]
-        };
-      }
-      return quote;
-    });
-    
-    setSavedQuotes(updatedQuotes);
-    localStorage.setItem(SAVED_QUOTES_KEY, JSON.stringify(updatedQuotes));
-    console.log('Orçamento atualizado com sucesso:', quoteId);
-    
-    if (quoteToUpdate.source === 'supabase') {
-      try {
-        const userInfo = getCurrentUser();
-        
-        import('@/integrations/supabase/services/quoteActionLogs').then(async ({ createQuoteActionLog }) => {
-          await createQuoteActionLog({
-            quote_id: quoteId,
-            quote_title: quoteToUpdate.clientName,
-            action_type: 'EDIT',
-            user_id: userInfo.id.toString(),
-            user_name: userInfo.name,
-            details: {
-              description: changeDescription,
-              previous: {
-                contractMonths: quoteToUpdate.contractMonths,
-                monthlyKm: quoteToUpdate.monthlyKm,
-                totalCost: quoteToUpdate.totalCost
-              },
-              new: {
-                contractMonths: updates.globalParams?.contractMonths,
-                monthlyKm: updates.globalParams?.monthlyKm,
-                totalCost: quoteResult.totalCost
-              }
-            }
-          });
-          console.log('✅ Log de edição registrado com sucesso');
-        }).catch(logError => {
-          console.error('❌ Erro ao registrar log de edição:', logError);
-        });
-      } catch (logError) {
-        console.error('❌ Erro ao registrar log de edição:', logError);
-      }
-    }
-    
     return true;
   };
 
@@ -336,7 +215,7 @@ export function useQuoteSaving(
           console.log('✅ Orçamento excluído do Supabase com sucesso');
         }
       } else {
-        console.log('Orçamento local excluído. Usuário:', getCurrentUser().name, 'Orçamento:', quoteToDelete);
+        console.log('Orçamento local excluído. Usuário:', getCurrentUser(), 'Orçamento:', quoteToDelete);
       }
     } catch (error) {
       console.error('❌ Erro ao tentar excluir do Supabase:', error);
@@ -376,6 +255,92 @@ export function useQuoteSaving(
       return false;
     }
   }, [savedQuotes]);
+  
+  // Carregar orçamentos salvos do Supabase
+  const loadSavedQuotes = async () => {
+    try {
+      setLoadingSavedQuotes(true);
+      
+      const { data, error } = await supabase
+        .from('quotes')
+        .select(`
+          id,
+          title,
+          client_id,
+          total_value,
+          created_at,
+          updated_at,
+          status,
+          status_flow,
+          created_by,
+          contract_months,
+          monthly_km,
+          operation_severity,
+          has_tracking,
+          global_protection_plan_id,
+          clients:client_id (name),
+          quote_vehicles (
+            id,
+            vehicle_id,
+            total_cost,
+            contract_months,
+            monthly_km,
+            protection_plan_id,
+            protection_cost,
+            vehicles:vehicle_id (brand, model, plate_number, group_id)
+          )
+        `)
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        console.error('Erro ao carregar orçamentos:', error);
+        return [];
+      }
+      
+      // Mapear para o formato SavedQuote
+      const quotes: SavedQuote[] = data?.map(quote => {
+        const quoteVehicles = quote.quote_vehicles?.map((qv: any) => ({
+          vehicleId: qv.vehicle_id,
+          vehicleBrand: qv.vehicles?.brand || 'Sem marca',
+          vehicleModel: qv.vehicles?.model || 'Sem modelo',
+          totalCost: qv.total_cost,
+          contractMonths: qv.contract_months,
+          monthlyKm: qv.monthly_km,
+          plateNumber: qv.vehicles?.plate_number,
+          groupId: qv.vehicles?.group_id,
+          protectionPlanId: qv.protection_plan_id, // Nova propriedade
+          protectionCost: qv.protection_cost // Novo campo
+        })) || [];
+        
+        return {
+          id: quote.id,
+          clientId: quote.client_id,
+          clientName: quote.clients?.name || 'Cliente não encontrado',
+          vehicles: quoteVehicles,
+          totalValue: quote.total_value,
+          createdAt: quote.created_at,
+          updatedAt: quote.updated_at,
+          status: quote.status_flow || quote.status,
+          globalParams: {
+            contractMonths: quote.contract_months,
+            monthlyKm: quote.monthly_km,
+            operationSeverity: quote.operation_severity,
+            hasTracking: quote.has_tracking,
+            protectionPlanId: quote.global_protection_plan_id // Nova propriedade
+          }
+        };
+      }) || [];
+      
+      setSavedQuotes(quotes);
+      return quotes;
+      
+    } catch (error) {
+      console.error('Erro ao carregar orçamentos:', error);
+      return [];
+    } finally {
+      setLoadingSavedQuotes(false);
+    }
+  };
 
   return {
     savedQuotes,

@@ -19,6 +19,7 @@ const initialQuoteForm: QuoteFormData = {
     monthlyKm: 3000,
     operationSeverity: 3,
     hasTracking: false,
+    protectionPlanId: null, // Adicionado campo de proteção
   },
 };
 
@@ -50,6 +51,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     setGlobalMonthlyKm,
     setGlobalOperationSeverity,
     setGlobalHasTracking,
+    setGlobalProtectionPlanId, // Novo método
     setUseGlobalParams,
     setClient,
     resetForm
@@ -85,6 +87,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     setGlobalMonthlyKm,
     setGlobalOperationSeverity,
     setGlobalHasTracking,
+    setGlobalProtectionPlanId, // Novo método
     setUseGlobalParams,
     setVehicleParams,
     resetForm,

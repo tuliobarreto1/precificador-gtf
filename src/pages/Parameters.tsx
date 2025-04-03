@@ -23,6 +23,7 @@ import {
   VehicleGroup,
   CalculationParams
 } from '@/lib/settings';
+import ProtectionPlansTab from '@/components/protection/ProtectionPlansTab';
 
 const vehicleGroupSchema = z.object({
   code: z.string().min(1, { message: 'Código do grupo é obrigatório' }).max(3, { message: 'Código deve ter no máximo 3 caracteres' }),
@@ -305,13 +306,14 @@ const Parameters = () => {
       <div className="py-8">
         <PageTitle 
           title="Parâmetros do Sistema" 
-          subtitle="Configure os grupos de veículos e parâmetros gerais de cálculo" 
+          subtitle="Configure os grupos de veículos, parâmetros gerais e planos de proteção" 
         />
         
         <Tabs defaultValue="vehicle-groups" value={currentTab} onValueChange={setCurrentTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="vehicle-groups">Grupos de Veículos</TabsTrigger>
             <TabsTrigger value="global-params">Parâmetros Globais</TabsTrigger>
+            <TabsTrigger value="protection-plans">Planos de Proteção</TabsTrigger>
           </TabsList>
           
           <TabsContent value="vehicle-groups" className="space-y-4">
@@ -503,6 +505,10 @@ const Parameters = () => {
                 )}
               </div>
             </Card>
+          </TabsContent>
+          
+          <TabsContent value="protection-plans" className="space-y-4">
+            <ProtectionPlansTab />
           </TabsContent>
         </Tabs>
       </div>

@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, List, Settings, PieChart, TrendingUp, Clock, Calendar } from 'lucide-react';
+import { FileText, List, Settings, PieChart, TrendingUp, Clock, Calendar, Shield } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
@@ -11,6 +11,7 @@ import { useQuotes } from '@/hooks/useQuotes';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { fetchSystemSettings } from '@/lib/settings';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const Index = () => {
   const [companyName, setCompanyName] = useState('Car Lease Master');
@@ -77,6 +78,14 @@ const Index = () => {
           title={`Bem-vindo ao ${companyName}`} 
           subtitle="Gerencie seus orçamentos de locação de veículos" 
         />
+        
+        <Alert className="mb-6 border-primary/50 bg-primary/5">
+          <Shield className="h-4 w-4 text-primary" />
+          <AlertTitle>Novo Recurso: Planos de Proteção</AlertTitle>
+          <AlertDescription>
+            Agora você pode adicionar planos de proteção aos seus orçamentos. Configure os valores na página de Parâmetros e adicione proteção aos veículos durante a criação de orçamentos.
+          </AlertDescription>
+        </Alert>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatsCard 

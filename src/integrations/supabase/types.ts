@@ -126,6 +126,109 @@ export type Database = {
         }
         Relationships: []
       }
+      protection_benefits: {
+        Row: {
+          benefit_name: string
+          created_at: string
+          details: string | null
+          id: string
+          is_included: boolean
+          plan_id: string
+          updated_at: string
+        }
+        Insert: {
+          benefit_name: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          is_included?: boolean
+          plan_id: string
+          updated_at?: string
+        }
+        Update: {
+          benefit_name?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          is_included?: boolean
+          plan_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protection_benefits_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "protection_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      protection_deductibles: {
+        Row: {
+          created_at: string
+          id: string
+          incident_type: string
+          percentage: number
+          plan_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          incident_type: string
+          percentage: number
+          plan_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          incident_type?: string
+          percentage?: number
+          plan_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protection_deductibles_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "protection_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      protection_plans: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          monthly_cost: number
+          name: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          monthly_cost?: number
+          name: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          monthly_cost?: number
+          name?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       quote_action_logs: {
         Row: {
           action_date: string | null
@@ -220,6 +323,8 @@ export type Database = {
           monthly_km: number | null
           monthly_value: number
           operation_severity: number | null
+          protection_cost: number | null
+          protection_plan_id: string | null
           quote_id: string | null
           total_cost: number | null
           updated_at: string
@@ -236,6 +341,8 @@ export type Database = {
           monthly_km?: number | null
           monthly_value?: number
           operation_severity?: number | null
+          protection_cost?: number | null
+          protection_plan_id?: string | null
           quote_id?: string | null
           total_cost?: number | null
           updated_at?: string
@@ -252,12 +359,21 @@ export type Database = {
           monthly_km?: number | null
           monthly_value?: number
           operation_severity?: number | null
+          protection_cost?: number | null
+          protection_plan_id?: string | null
           quote_id?: string | null
           total_cost?: number | null
           updated_at?: string
           vehicle_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "quote_vehicles_protection_plan_id_fkey"
+            columns: ["protection_plan_id"]
+            isOneToOne: false
+            referencedRelation: "protection_plans"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "quote_vehicles_quote_id_fkey"
             columns: ["quote_id"]
@@ -280,6 +396,7 @@ export type Database = {
           contract_months: number
           created_at: string
           created_by: string | null
+          global_protection_plan_id: string | null
           has_tracking: boolean
           id: string
           monthly_km: number
@@ -297,6 +414,7 @@ export type Database = {
           contract_months?: number
           created_at?: string
           created_by?: string | null
+          global_protection_plan_id?: string | null
           has_tracking?: boolean
           id?: string
           monthly_km?: number
@@ -314,6 +432,7 @@ export type Database = {
           contract_months?: number
           created_at?: string
           created_by?: string | null
+          global_protection_plan_id?: string | null
           has_tracking?: boolean
           id?: string
           monthly_km?: number
@@ -332,6 +451,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_global_protection_plan_id_fkey"
+            columns: ["global_protection_plan_id"]
+            isOneToOne: false
+            referencedRelation: "protection_plans"
             referencedColumns: ["id"]
           },
           {

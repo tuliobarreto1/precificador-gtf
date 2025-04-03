@@ -1,214 +1,77 @@
 
-import { useState } from 'react';
-import { QuoteFormData, QuoteVehicleItem } from '@/context/types/quoteTypes';
+import { QuoteFormData, QuoteParams } from '@/context/types/quoteTypes';
 import { Vehicle, VehicleGroup } from '@/lib/models';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 export function useQuoteVehicles(quoteForm: QuoteFormData, setQuoteForm: React.Dispatch<React.SetStateAction<QuoteFormData>>) {
-  const { toast } = useToast();
-
+  
   const addVehicle = (vehicle: Vehicle, vehicleGroup: VehicleGroup) => {
-    console.log('Adicionando veículo ao orçamento:', vehicle);
-    console.log('Grupo do veículo:', vehicleGroup);
+    // Verificar se o veículo já está na lista
+    const exists = quoteForm.vehicles.some(item => item.vehicle.id === vehicle.id);
+    if (exists) return;
     
-    // Verificar se o veículo já existe no orçamento
-    if (quoteForm.vehicles.some(item => item.vehicle.id === vehicle.id)) {
-      toast({
-        title: "Veículo já adicionado",
-        description: "Este veículo já foi adicionado ao orçamento.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setQuoteForm(prev => ({
-      ...prev,
-      vehicles: [
-        ...prev.vehicles,
-        { 
-          vehicle, 
-          vehicleGroup,
-          params: null
-        }
-      ]
-    }));
-
-    console.log('Verificando se o veículo está no banco de dados:', vehicle);
-    
-    // Verificar se o veículo existe no banco de dados usando placa (se tiver) ou combinação de marca/modelo
-    const checkVehicle = () => {
-      if (vehicle.plateNumber) {
-        return supabase
-          .from('vehicles')
-          .select()
-          .eq('plate_number', vehicle.plateNumber)
-          .maybeSingle();
-      } else {
-        return supabase
-          .from('vehicles')
-          .select()
-          .eq('brand', vehicle.brand)
-          .eq('model', vehicle.model)
-          .eq('year', vehicle.year)
-          .maybeSingle();
-      }
-    };
-
-    checkVehicle().then(({ data, error }) => {
-      if (error) {
-        console.error('Erro ao verificar veículo no banco de dados:', error);
-        return;
-      }
-      
-      if (!data) {
-        console.log('Veículo não encontrado no banco de dados, vamos inserir:', vehicle);
-        
-        // O veículo não existe no banco de dados, vamos inseri-lo
-        supabase
-          .from('vehicles')
-          .insert({
-            brand: vehicle.brand,
-            model: vehicle.model,
-            year: vehicle.year,
-            value: vehicle.value,
-            is_used: vehicle.plateNumber ? true : false, // Define como usado apenas se tiver placa
-            plate_number: vehicle.plateNumber || null,
-            color: vehicle.color || '',
-            odometer: vehicle.odometer || 0,
-            group_id: vehicle.groupId || vehicleGroup.id
-          })
-          .then(({ error: insertError }) => {
-            if (insertError) {
-              console.error('Erro ao inserir veículo no banco de dados:', insertError);
-            } else {
-              console.log('Veículo inserido com sucesso no banco de dados!');
-            }
-          });
-      } else {
-        console.log('Veículo já existe no banco de dados, verificando atualização:', data);
-        
-        // O veículo existe, mas vamos atualizar se necessário
-        const updates: any = {};
-        let needsUpdate = false;
-        
-        // Verificar cada campo para ver se precisa ser atualizado
-        if (vehicle.brand && vehicle.brand !== data.brand) {
-          updates.brand = vehicle.brand;
-          needsUpdate = true;
-        }
-        
-        if (vehicle.model && vehicle.model !== data.model) {
-          updates.model = vehicle.model;
-          needsUpdate = true;
-        }
-        
-        if (vehicle.year && vehicle.year !== data.year) {
-          updates.year = vehicle.year;
-          needsUpdate = true;
-        }
-        
-        if (vehicle.value && vehicle.value !== data.value) {
-          updates.value = vehicle.value;
-          needsUpdate = true;
-        }
-        
-        if (vehicle.color && vehicle.color !== data.color) {
-          updates.color = vehicle.color;
-          needsUpdate = true;
-        }
-        
-        if (vehicle.odometer && vehicle.odometer !== data.odometer) {
-          updates.odometer = vehicle.odometer;
-          needsUpdate = true;
-        }
-        
-        if (vehicle.groupId && vehicle.groupId !== data.group_id) {
-          updates.group_id = vehicle.groupId;
-          needsUpdate = true;
-        }
-        
-        // Certifique-se de que is_used é true para veículos com placa
-        if (data.is_used !== true && vehicle.plateNumber) {
-          updates.is_used = true;
-          needsUpdate = true;
-        }
-        
-        if (needsUpdate) {
-          console.log('Atualizando veículo no banco de dados com:', updates);
-          
-          supabase
-            .from('vehicles')
-            .update(updates)
-            .eq('id', data.id)
-            .then(({ error: updateError }) => {
-              if (updateError) {
-                console.error('Erro ao atualizar veículo no banco de dados:', updateError);
-              } else {
-                console.log('Veículo atualizado com sucesso no banco de dados!');
-              }
-            });
-        } else {
-          console.log('Nenhuma atualização necessária para o veículo.');
-        }
-      }
-    });
-  };
-
-  const removeVehicle = (vehicleId: string) => {
-    setQuoteForm(prev => ({
-      ...prev,
-      vehicles: prev.vehicles.filter(item => item.vehicle.id !== vehicleId),
-    }));
-  };
-
-  const setVehicleParams = (
-    vehicleId: string, 
-    params: {
-      contractMonths?: number;
-      monthlyKm?: number;
-      operationSeverity?: 1 | 2 | 3 | 4 | 5 | 6;
-      hasTracking?: boolean;
-    }
-  ) => {
-    console.log(`Configurando parâmetros para veículo ${vehicleId}:`, params);
-    
+    // Adicionar o veículo à lista
     setQuoteForm(prev => {
-      // Criar uma cópia profunda para não afetar o objeto original
-      const newVehicles = prev.vehicles.map(item => {
-        if (item.vehicle.id === vehicleId) {
-          console.log(`Atualizando veículo ${item.vehicle.brand} ${item.vehicle.model}`, {
-            paramsAntes: item.params,
-            novosParams: params
-          });
-          
-          return {
-            ...item,
-            params: {
-              // Se já há parâmetros específicos para o veículo, usar eles
-              // Senão usar os parâmetros globais como base
-              ...(item.params || prev.globalParams),
-              // Aplicar os novos parâmetros por cima
-              ...params
-            }
-          };
-        }
-        return item;
-      });
-      
-      console.log("Veículos após atualização:", newVehicles.map(v => ({
-        id: v.vehicle.id, 
-        modelo: v.vehicle.model, 
-        params: v.params
-      })));
+      // Configurar os parâmetros do veículo como uma cópia dos globais caso não esteja usando parâmetros globais
+      const vehicleParams = !prev.useGlobalParams ? { ...prev.globalParams } : undefined;
       
       return {
         ...prev,
-        vehicles: newVehicles
+        vehicles: [
+          ...prev.vehicles,
+          {
+            vehicle,
+            vehicleGroup,
+            params: vehicleParams
+          }
+        ]
       };
     });
   };
-
+  
+  const removeVehicle = (vehicleId: string) => {
+    setQuoteForm(prev => ({
+      ...prev,
+      vehicles: prev.vehicles.filter(item => item.vehicle.id !== vehicleId)
+    }));
+  };
+  
+  const setVehicleParams = (vehicleId: string, params: Partial<QuoteParams>) => {
+    setQuoteForm(prev => {
+      // Encontrar o veículo para atualizar os parâmetros
+      const vehicleIndex = prev.vehicles.findIndex(item => item.vehicle.id === vehicleId);
+      if (vehicleIndex === -1) return prev;
+      
+      // Copiar o array de veículos
+      const updatedVehicles = [...prev.vehicles];
+      
+      // Verificar se o veículo já tem parâmetros definidos
+      if (updatedVehicles[vehicleIndex].params) {
+        // Atualizar os parâmetros existentes
+        updatedVehicles[vehicleIndex] = {
+          ...updatedVehicles[vehicleIndex],
+          params: {
+            ...updatedVehicles[vehicleIndex].params!,
+            ...params
+          }
+        };
+      } else {
+        // Criar novos parâmetros baseados nos globais e nos parâmetros fornecidos
+        updatedVehicles[vehicleIndex] = {
+          ...updatedVehicles[vehicleIndex],
+          params: {
+            ...prev.globalParams,
+            ...params
+          }
+        };
+      }
+      
+      return {
+        ...prev,
+        vehicles: updatedVehicles
+      };
+    });
+  };
+  
   return {
     addVehicle,
     removeVehicle,

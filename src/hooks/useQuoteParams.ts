@@ -1,41 +1,72 @@
 
-import { QuoteFormData } from '@/context/types/quoteTypes';
+import { QuoteFormData, QuoteParams } from '@/context/types/quoteTypes';
+import { Client } from '@/lib/models';
 
 export function useQuoteParams(quoteForm: QuoteFormData, setQuoteForm: React.Dispatch<React.SetStateAction<QuoteFormData>>) {
+  
   const setGlobalContractMonths = (contractMonths: number) => {
     setQuoteForm(prev => ({
       ...prev,
-      globalParams: { ...prev.globalParams, contractMonths },
+      globalParams: {
+        ...prev.globalParams,
+        contractMonths
+      }
     }));
   };
 
   const setGlobalMonthlyKm = (monthlyKm: number) => {
     setQuoteForm(prev => ({
       ...prev,
-      globalParams: { ...prev.globalParams, monthlyKm },
+      globalParams: {
+        ...prev.globalParams,
+        monthlyKm
+      }
     }));
   };
 
-  const setGlobalOperationSeverity = (operationSeverity: 1 | 2 | 3 | 4 | 5 | 6) => {
+  const setGlobalOperationSeverity = (operationSeverity: 1|2|3|4|5|6) => {
     setQuoteForm(prev => ({
       ...prev,
-      globalParams: { ...prev.globalParams, operationSeverity },
+      globalParams: {
+        ...prev.globalParams,
+        operationSeverity
+      }
     }));
   };
 
   const setGlobalHasTracking = (hasTracking: boolean) => {
     setQuoteForm(prev => ({
       ...prev,
-      globalParams: { ...prev.globalParams, hasTracking },
+      globalParams: {
+        ...prev.globalParams,
+        hasTracking
+      }
+    }));
+  };
+  
+  // Nova função para configurar o plano de proteção global
+  const setGlobalProtectionPlanId = (protectionPlanId: string | null) => {
+    setQuoteForm(prev => ({
+      ...prev,
+      globalParams: {
+        ...prev.globalParams,
+        protectionPlanId
+      }
     }));
   };
 
   const setUseGlobalParams = (useGlobalParams: boolean) => {
-    setQuoteForm(prev => ({ ...prev, useGlobalParams }));
+    setQuoteForm(prev => ({
+      ...prev,
+      useGlobalParams
+    }));
   };
 
-  const setClient = (client: any) => {
-    setQuoteForm(prev => ({ ...prev, client }));
+  const setClient = (client: Client | null) => {
+    setQuoteForm(prev => ({
+      ...prev,
+      client
+    }));
   };
 
   const resetForm = () => {
@@ -48,7 +79,8 @@ export function useQuoteParams(quoteForm: QuoteFormData, setQuoteForm: React.Dis
         monthlyKm: 3000,
         operationSeverity: 3,
         hasTracking: false,
-      },
+        protectionPlanId: null
+      }
     });
   };
 
@@ -57,6 +89,7 @@ export function useQuoteParams(quoteForm: QuoteFormData, setQuoteForm: React.Dis
     setGlobalMonthlyKm,
     setGlobalOperationSeverity,
     setGlobalHasTracking,
+    setGlobalProtectionPlanId,
     setUseGlobalParams,
     setClient,
     resetForm

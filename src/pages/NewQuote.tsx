@@ -23,6 +23,8 @@ import { useQuote, QuoteProvider } from '@/context/QuoteContext';
 import { CustomClient } from '@/components/quote/ClientForm';
 import { getAllVehicles } from '@/integrations/supabase';
 import { getClientsFromSupabase } from '@/integrations/supabase/services/clients';
+import ProtectionPlanSelector from '@/components/protection/ProtectionPlanSelector';
+import ProtectionDetails from '@/components/protection/ProtectionDetails';
 
 const STEPS = [
   { id: 'client', name: 'Cliente', icon: <Users size={18} /> },
@@ -150,7 +152,8 @@ const QuoteForm = () => {
     setGlobalContractMonths, 
     setGlobalMonthlyKm, 
     setGlobalOperationSeverity, 
-    setGlobalHasTracking, 
+    setGlobalHasTracking,
+    setGlobalProtectionPlanId,
     setUseGlobalParams,
     setVehicleParams,
     calculateQuote,
@@ -428,7 +431,7 @@ const QuoteForm = () => {
           </RadioGroup>
         </div>
         
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 mb-4">
           <Switch 
             id={`tracking-${vehicleId}`} 
             checked={params.hasTracking}
@@ -437,6 +440,14 @@ const QuoteForm = () => {
           <Label htmlFor={`tracking-${vehicleId}`} className="cursor-pointer text-sm">
             Incluir rastreamento
           </Label>
+        </div>
+        
+        <div className="space-y-3 pt-3 border-t">
+          <Label className="text-sm">Plano de Proteção</Label>
+          <ProtectionPlanSelector
+            selectedPlanId={params.protectionPlanId || null}
+            onChange={(planId) => setVehicleParams(vehicleId, { protectionPlanId: planId })}
+          />
         </div>
       </div>
     );
@@ -527,13 +538,21 @@ const QuoteForm = () => {
             </p>
           </div>
           
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 mb-6">
             <Switch 
               id="tracking" 
               checked={quoteForm.globalParams.hasTracking}
               onCheckedChange={setGlobalHasTracking}
             />
             <Label htmlFor="tracking" className="cursor-pointer">Incluir rastreamento</Label>
+          </div>
+          
+          <div className="pt-6 border-t space-y-3">
+            <Label className="text-base">Plano de Proteção</Label>
+            <ProtectionPlanSelector
+              selectedPlanId={quoteForm.globalParams.protectionPlanId || null}
+              onChange={setGlobalProtectionPlanId}
+            />
           </div>
         </div>
       ) : (
@@ -633,7 +652,7 @@ const QuoteForm = () => {
                         </div>
                       </div>
                       
-                      <div className="mt-3 pt-3 border-t grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <div className="mt-3 pt-3 border-t grid grid-cols-1 md:grid-cols-4 gap-2">
                         <div className="text-sm">
                           <p className="text-muted-foreground">Depreciação:</p>
                           <p className="font-medium">R$ {result.depreciationCost.toLocaleString('pt-BR')}</p>
@@ -646,7 +665,19 @@ const QuoteForm = () => {
                           <p className="text-muted-foreground">Km excedente:</p>
                           <p className="font-medium">R$ {result.extraKmRate.toFixed(2)}</p>
                         </div>
+                        {result.protectionCost && result.protectionCost > 0 && (
+                          <div className="text-sm">
+                            <p className="text-muted-foreground">Proteção:</p>
+                            <p className="font-medium">R$ {result.protectionCost.toLocaleString('pt-BR')}</p>
+                          </div>
+                        )}
                       </div>
+                      
+                      {result.protectionPlanId && (
+                        <div className="mt-3 pt-3 border-t">
+                          <ProtectionDetails planId={result.protectionPlanId} />
+                        </div>
+                      )}
                       
                       {!quoteForm.useGlobalParams && (
                         <div className="mt-3 pt-3 border-t grid grid-cols-1 md:grid-cols-4 gap-2 text-xs">
