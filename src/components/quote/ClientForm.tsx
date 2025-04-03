@@ -31,7 +31,6 @@ export default function ClientForm({ onClientSelect, existingClients = [] }: Cli
   const documentType = formData.document.replace(/\D/g, '').length === 11 ? 'PF' : 'PJ';
   const { toast } = useToast();
 
-  // Carregar clientes do Supabase se não foram fornecidos
   useEffect(() => {
     if (existingClients.length === 0) {
       const fetchClients = async () => {
@@ -181,8 +180,8 @@ export default function ClientForm({ onClientSelect, existingClients = [] }: Cli
         type: data.type as 'PF' | 'PJ',
         document: data.document || '',
         email: data.email || '',
-        contact: data.contact || '',
-        responsible: data.responsible
+        contact: data.phone || '',
+        responsible: data.responsible_person
       };
 
       // Atualizar lista local de clientes
