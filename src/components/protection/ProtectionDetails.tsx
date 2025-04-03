@@ -1,103 +1,118 @@
 
 import React, { useState, useEffect } from 'react';
-import { Shield, CheckCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
-import { ProtectionPlanDetails } from '@/lib/types/protection';
 import { fetchProtectionPlanDetails } from '@/integrations/supabase/services/protectionPlans';
+import { ProtectionPlanDetails as ProtectionPlanDetailsType } from '@/lib/types/protection';
+import { Check, X, Shield, ChevronDown, ChevronUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 interface ProtectionDetailsProps {
-  planId: string | null;
-  className?: string;
+  planId: string;
 }
 
-const ProtectionDetails = ({ planId, className = '' }: ProtectionDetailsProps) => {
-  const [planDetails, setPlanDetails] = useState<ProtectionPlanDetails | null>(null);
+const ProtectionDetails = ({ planId }: ProtectionDetailsProps) => {
+  const [details, setDetails] = useState<ProtectionPlanDetailsType | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  
+  const [expanded, setExpanded] = useState(false);
+
   useEffect(() => {
     if (planId) {
-      loadPlanDetails(planId);
-    } else {
-      setPlanDetails(null);
+      loadProtectionDetails();
     }
   }, [planId]);
-  
-  const loadPlanDetails = async (id: string) => {
+
+  const loadProtectionDetails = async () => {
     setLoading(true);
     try {
-      const details = await fetchProtectionPlanDetails(id);
-      setPlanDetails(details);
+      const planDetails = await fetchProtectionPlanDetails(planId);
+      setDetails(planDetails);
     } catch (error) {
-      console.error('Erro ao carregar detalhes do plano:', error);
+      console.error('Erro ao carregar detalhes do plano de proteção:', error);
     } finally {
       setLoading(false);
     }
   };
-  
-  if (!planId) {
-    return <div className="text-muted-foreground text-sm">Nenhuma proteção selecionada</div>;
-  }
+
+  if (!planId) return null;
   
   if (loading) {
-    return <div className="flex items-center gap-2">
-      <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
-      <span className="text-sm">Carregando...</span>
-    </div>;
-  }
-  
-  if (!planDetails) {
-    return <div className="text-muted-foreground text-sm">Não foi possível carregar os detalhes do plano</div>;
-  }
-  
-  return (
-    <div className={`border rounded-md ${className}`}>
-      <div 
-        className="p-3 flex justify-between items-center cursor-pointer bg-muted/30 hover:bg-muted/50"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex items-center gap-2">
-          <Shield className="h-5 w-5 text-primary" />
-          <span className="font-medium">{planDetails.name}</span>
-          <span className="text-sm text-muted-foreground">(R$ {planDetails.monthly_cost}/mês)</span>
-        </div>
-        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+    return (
+      <div className="text-center py-2 text-muted-foreground text-sm">
+        Carregando detalhes da proteção...
       </div>
-      
-      {isExpanded && (
-        <div className="p-4 space-y-4">
-          {planDetails.description && (
-            <div>
-              <p className="text-sm text-muted-foreground">{planDetails.description}</p>
-            </div>
+    );
+  }
+
+  if (!details) {
+    return (
+      <div className="text-center py-2 text-muted-foreground text-sm">
+        Detalhes da proteção não disponíveis
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <Shield className="h-4 w-4 text-primary" />
+          <span className="font-medium text-sm">Proteção {details.name}</span>
+          <Badge variant={details.type === 'basic' ? 'outline' : details.type === 'intermediate' ? 'secondary' : 'default'} className="ml-1">
+            {details.type === 'basic' ? 'Básica' : details.type === 'intermediate' ? 'Intermediária' : 'Premium'}
+          </Badge>
+        </div>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => setExpanded(!expanded)}
+          className="h-8 p-0 px-2"
+        >
+          {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          <span className="ml-1 text-xs">{expanded ? 'Ocultar' : 'Ver'} detalhes</span>
+        </Button>
+      </div>
+
+      {expanded && (
+        <div className="text-sm animate-fadeIn">
+          {details.description && (
+            <p className="text-muted-foreground mb-3">{details.description}</p>
           )}
           
-          <div>
-            <h4 className="text-sm font-medium mb-2">Coberturas Incluídas</h4>
-            <div className="space-y-1">
-              {planDetails.benefits.map(benefit => (
-                <div key={benefit.id} className="flex items-center gap-2 text-sm">
-                  {benefit.is_included ? 
-                    <CheckCircle className="h-4 w-4 text-green-500" /> :
-                    <XCircle className="h-4 w-4 text-gray-300" />
-                  }
-                  <span className={benefit.is_included ? '' : 'text-gray-400'}>
-                    {benefit.benefit_name}
-                  </span>
-                </div>
-              ))}
+          <div className="space-y-3">
+            <div>
+              <h4 className="text-xs font-medium mb-1">Benefícios inclusos</h4>
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-1">
+                {details.benefits.map(benefit => (
+                  <li 
+                    key={benefit.id}
+                    className="flex items-center gap-2 text-xs"
+                  >
+                    {benefit.is_included ? (
+                      <Check className="h-3 w-3 text-green-600" />
+                    ) : (
+                      <X className="h-3 w-3 text-red-600" />
+                    )}
+                    <span className={benefit.is_included ? '' : 'text-muted-foreground line-through'}>
+                      {benefit.benefit_name}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
-          </div>
-          
-          <div>
-            <h4 className="text-sm font-medium mb-2">Franquias</h4>
-            <div className="space-y-1">
-              {planDetails.deductibles.map(deductible => (
-                <div key={deductible.id} className="flex justify-between text-sm">
-                  <span>{deductible.incident_type === 'total_loss' ? 'Perda Total' : 'Danos Parciais'}</span>
-                  <span className="font-medium">{deductible.percentage}% do valor do veículo</span>
-                </div>
-              ))}
-            </div>
+
+            {details.deductibles.length > 0 && (
+              <div>
+                <h4 className="text-xs font-medium mb-1">Franquias</h4>
+                <ul className="space-y-1">
+                  {details.deductibles.map(deductible => (
+                    <li key={deductible.id} className="text-xs flex justify-between">
+                      <span>{deductible.incident_type === 'total_loss' ? 'Perda total' : 'Dano parcial'}</span>
+                      <span className="font-medium">{deductible.percentage}%</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
       )}

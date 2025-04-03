@@ -1,5 +1,6 @@
+
 import { useState, useEffect, useCallback } from 'react';
-import { QuoteFormData, SavedQuote, EditRecord, User, VehicleQuoteResult } from '@/context/types/quoteTypes';
+import { QuoteFormData, SavedQuote, QuoteCalculationResult } from '@/context/types/quoteTypes';
 import { supabase } from '@/integrations/supabase/client';
 import { getClientById, getVehicleById } from '@/lib/data-provider';
 import { Client, Vehicle } from '@/lib/models';
@@ -8,8 +9,8 @@ const SAVED_QUOTES_KEY = 'savedQuotes';
 
 export function useQuoteSaving(
   quoteForm: QuoteFormData, 
-  calculateQuote: () => Promise<QuoteCalculationResult | null>, 
-  getCurrentUser: () => string
+  calculateQuote: () => QuoteCalculationResult | null | Promise<QuoteCalculationResult | null>, 
+  getCurrentUser: () => string | any
 ) {
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -177,7 +178,10 @@ export function useQuoteSaving(
     }
     
     try {
-      if (quoteToDelete.source === 'supabase') {
+      // Verificar origem do orçamento para determinar como excluir
+      const quoteSource = quoteToDelete.source || 'local';
+      
+      if (quoteSource === 'supabase') {
         console.log("🔄 Excluindo orçamento do Supabase...");
         
         const userInfo = getCurrentUser();
@@ -187,11 +191,11 @@ export function useQuoteSaving(
               quote_id: quoteId,
               quote_title: quoteToDelete.clientName,
               action_type: 'DELETE',
-              user_id: userInfo.id.toString(),
-              user_name: userInfo.name,
+              user_id: typeof userInfo === 'string' ? userInfo : userInfo.id.toString(),
+              user_name: typeof userInfo === 'string' ? userInfo : userInfo.name,
               details: {
                 status: quoteToDelete.status,
-                value: quoteToDelete.totalCost
+                value: quoteToDelete.totalValue || quoteToDelete.totalCost || 0
               },
               deleted_data: quoteToDelete
             });
@@ -298,7 +302,7 @@ export function useQuoteSaving(
       }
       
       // Mapear para o formato SavedQuote
-      const quotes: SavedQuote[] = data?.map(quote => {
+      const quotes: SavedQuote[] = data?.map((quote: any) => {
         const quoteVehicles = quote.quote_vehicles?.map((qv: any) => ({
           vehicleId: qv.vehicle_id,
           vehicleBrand: qv.vehicles?.brand || 'Sem marca',
@@ -321,6 +325,7 @@ export function useQuoteSaving(
           createdAt: quote.created_at,
           updatedAt: quote.updated_at,
           status: quote.status_flow || quote.status,
+          source: 'supabase',
           globalParams: {
             contractMonths: quote.contract_months,
             monthlyKm: quote.monthly_km,

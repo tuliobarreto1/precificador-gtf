@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -14,7 +13,7 @@ import {
 } from '@/components/ui/table';
 import { Edit, Trash2, Calendar, User } from 'lucide-react';
 import { useQuote } from '@/context/QuoteContext';
-import { User as UserType } from '@/context/types/quoteTypes';
+import { SavedQuote } from '@/context/types/quoteTypes';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,22 +55,18 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
   const { canEditQuote, canDeleteQuote, deleteQuote } = quoteContext || {};
   const { toast } = useToast();
 
-  // Garantir que quotes é sempre um array
   const safeQuotes = Array.isArray(quotes) ? quotes : [];
 
-  // Verificar se as funções necessárias estão disponíveis
   const isQuoteContextAvailable = typeof canEditQuote === 'function' && 
                                  typeof canDeleteQuote === 'function' &&
                                  typeof deleteQuote === 'function';
 
   const handleDeleteClick = (quoteId: string) => {
-    // Se temos uma função de delete externa, usar ela
     if (onDeleteClick) {
       onDeleteClick(quoteId);
       return;
     }
     
-    // Caso contrário, usar o fluxo interno
     setQuoteToDelete(quoteId);
     setDeleteDialogOpen(true);
   };
@@ -104,26 +99,21 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
     setQuoteToDelete(null);
   };
 
-  // Validar status antes de passar para o componente StatusBadge
   const validateStatus = (status: string): QuoteStatusFlow => {
-    // Lista dos status válidos (os que estão definidos em statusInfo)
     const validStatuses: QuoteStatusFlow[] = [
       'ORCAMENTO', 'PROPOSTA_GERADA', 'EM_VERIFICACAO', 'APROVADA',
       'CONTRATO_GERADO', 'ASSINATURA_CLIENTE', 'ASSINATURA_DIRETORIA',
       'AGENDAMENTO_ENTREGA', 'ENTREGA', 'CONCLUIDO', 'draft'
     ];
     
-    // Verificar se o status está na lista de status válidos
     if (validStatuses.includes(status as QuoteStatusFlow)) {
       return status as QuoteStatusFlow;
     }
     
-    // Status padrão para valores inválidos
     console.warn(`Status inválido detectado: ${status}. Usando 'ORCAMENTO' como fallback.`);
     return 'ORCAMENTO';
   };
-  
-  // Função para formatar a data no formato brasileiro
+
   const formatDate = (dateString: string): string => {
     try {
       const date = new Date(dateString);
@@ -168,7 +158,6 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
               </TableRow>
             ) : (
               safeQuotes.map((quote) => {
-                // Converter o objeto quote para um formato compatível com as funções canEditQuote e canDeleteQuote
                 const quoteForPermissionCheck = {
                   id: quote.id,
                   clientId: '',
@@ -192,9 +181,8 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
                   status: quote.status || 'ORCAMENTO'
                 };
                 
-                // Valores padrão caso o contexto não esteja disponível
-                let canEdit = true; // Por padrão, permitir edição
-                let canDelete = true; // Por padrão, permitir exclusão
+                let canEdit = true;
+                let canDelete = true;
                 
                 if (isQuoteContextAvailable) {
                   canEdit = canEditQuote(quoteForPermissionCheck);
@@ -203,7 +191,6 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
                 
                 const isEditable = quote.status === 'ORCAMENTO' || quote.status === 'draft';
                 
-                // Validar o status antes de passar para o StatusBadge
                 const validatedStatus = validateStatus(quote.status || 'ORCAMENTO');
                 
                 return (

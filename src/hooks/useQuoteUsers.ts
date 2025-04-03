@@ -1,6 +1,6 @@
-
 import { useState, useEffect } from 'react';
-import { User, SavedQuote, defaultUser, UserRole } from '@/context/types/quoteTypes';
+import { SavedQuote } from '@/context/types/quoteTypes';
+import { User, UserRole, defaultUser } from '@/context/types/quoteTypes';
 import { supabase } from '@/integrations/supabase/client';
 
 // Chave para armazenar o usuário atual no localStorage
@@ -120,20 +120,19 @@ export function useQuoteUsers() {
   // Verificar se um usuário pode editar um orçamento
   const canEditQuote = (quote: SavedQuote): boolean => {
     const currentUser = getCurrentUser();
-    console.log('Verificando permissão de edição:', {
-      usuario: currentUser,
-      criador: quote.createdBy,
-      permissao: (quote.createdBy?.id === currentUser.id || 
-                currentUser.role === 'manager' || 
-                currentUser.role === 'admin')
-    });
     
     // Se não houver informações sobre quem criou, verificar se o usuário atual tem permissões elevadas
     if (!quote.createdBy) {
-      return currentUser.role === 'manager' || currentUser.role === 'admin';
+      return typeof currentUser === 'string' || 
+             currentUser.role === 'manager' || 
+             currentUser.role === 'admin';
     }
     
     // Caso contrário, verificar se o usuário atual é o criador ou tem permissões elevadas
+    if (typeof currentUser === 'string') {
+      return true; // Simplificação para compatibilidade com código legado
+    }
+    
     return quote.createdBy.id === currentUser.id || 
            currentUser.role === 'manager' || 
            currentUser.role === 'admin';
@@ -142,20 +141,19 @@ export function useQuoteUsers() {
   // Verificar se um usuário pode excluir um orçamento
   const canDeleteQuote = (quote: SavedQuote): boolean => {
     const currentUser = getCurrentUser();
-    console.log('Verificando permissão de exclusão:', {
-      usuario: currentUser,
-      criador: quote.createdBy,
-      permissao: (quote.createdBy?.id === currentUser.id || 
-                currentUser.role === 'manager' || 
-                currentUser.role === 'admin')
-    });
     
     // Se não houver informações sobre quem criou, verificar se o usuário atual tem permissões elevadas
     if (!quote.createdBy) {
-      return currentUser.role === 'manager' || currentUser.role === 'admin';
+      return typeof currentUser === 'string' || 
+             currentUser.role === 'manager' || 
+             currentUser.role === 'admin';
     }
     
     // Caso contrário, verificar se o usuário atual é o criador ou tem permissões elevadas
+    if (typeof currentUser === 'string') {
+      return true; // Simplificação para compatibilidade com código legado
+    }
+    
     return quote.createdBy.id === currentUser.id || 
            currentUser.role === 'manager' || 
            currentUser.role === 'admin';

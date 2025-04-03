@@ -59,6 +59,16 @@ export interface SavedQuote {
   createdAt: string;
   updatedAt?: string;
   status?: string;
+  totalCost?: number; // Para compatibilidade
+  source?: string; // Para indicar a origem do orçamento (supabase, etc)
+  createdBy?: {
+    id: number;
+    name: string;
+    role: string;
+    email?: string;
+    status?: 'active' | 'inactive';
+    lastLogin?: string;
+  };
   globalParams?: {
     contractMonths: number;
     monthlyKm: number;
@@ -96,4 +106,53 @@ export interface QuoteContextType {
   canDeleteQuote: (quoteId: string) => boolean;
   sendQuoteByEmail: (quoteId: string, email: string, message?: string) => Promise<boolean>;
   savedQuotes: SavedQuote[];
+}
+
+// Tipos adicionais para compatibilidade
+export type UserRole = 'user' | 'admin' | 'manager' | 'supervisor';
+
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  status: 'active' | 'inactive';
+  lastLogin: string;
+}
+
+export const defaultUser: User = {
+  id: 0,
+  name: 'Sistema',
+  email: 'sistema@sistema.com',
+  role: 'user',
+  status: 'active',
+  lastLogin: new Date().toISOString()
+};
+
+export interface EditRecord {
+  editedAt: string;
+  editedBy: string;
+  changes: string;
+}
+
+export interface VehicleQuoteResult {
+  vehicleId: string;
+  totalCost: number;
+  depreciationCost: number;
+  maintenanceCost: number;
+  extraKmRate: number;
+}
+
+export interface QuoteItem {
+  id: string;
+  clientName: string;
+  vehicleName: string;
+  value: number;
+  createdAt: string;
+  status: string;
+  createdBy?: {
+    id: number;
+    name: string;
+    role: string;
+  };
 }

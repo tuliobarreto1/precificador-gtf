@@ -60,10 +60,10 @@ export async function fetchProtectionPlanDetails(planId: string): Promise<Protec
     }
     
     return {
-      ...plan,
-      benefits: benefits || [],
-      deductibles: deductibles || []
-    } as ProtectionPlanDetails;
+      ...plan as ProtectionPlan,
+      benefits: benefits as ProtectionBenefit[] || [],
+      deductibles: deductibles as ProtectionDeductible[] || []
+    };
   } catch (error) {
     console.error('Erro inesperado ao buscar detalhes do plano de proteção:', error);
     return null;

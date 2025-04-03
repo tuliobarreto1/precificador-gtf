@@ -1,30 +1,27 @@
 
 import React, { useState, useEffect } from 'react';
-import { Shield } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Shield, Check } from 'lucide-react';
 import { ProtectionPlan } from '@/lib/types/protection';
 import { fetchProtectionPlans } from '@/integrations/supabase/services/protectionPlans';
-import ProtectionDetails from './ProtectionDetails';
 
 interface ProtectionPlanSelectorProps {
   selectedPlanId: string | null;
   onChange: (planId: string | null) => void;
-  className?: string;
 }
 
-const ProtectionPlanSelector = ({ selectedPlanId, onChange, className = '' }: ProtectionPlanSelectorProps) => {
+const ProtectionPlanSelector = ({ selectedPlanId, onChange }: ProtectionPlanSelectorProps) => {
   const [plans, setPlans] = useState<ProtectionPlan[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadProtectionPlans();
   }, []);
 
   const loadProtectionPlans = async () => {
-    setLoading(true);
     try {
-      const data = await fetchProtectionPlans();
-      setPlans(data);
+      setLoading(true);
+      const plansData = await fetchProtectionPlans();
+      setPlans(plansData);
     } catch (error) {
       console.error('Erro ao carregar planos de proteção:', error);
     } finally {
@@ -32,39 +29,73 @@ const ProtectionPlanSelector = ({ selectedPlanId, onChange, className = '' }: Pr
     }
   };
 
+  if (loading) {
+    return (
+      <div className="text-center py-4 text-muted-foreground">
+        Carregando planos de proteção...
+      </div>
+    );
+  }
+
+  if (plans.length === 0) {
+    return (
+      <div className="text-center py-4 text-muted-foreground">
+        Nenhum plano de proteção disponível
+      </div>
+    );
+  }
+
   return (
-    <div className={`space-y-3 ${className}`}>
-      <div>
-        <Select 
-          value={selectedPlanId || ''} 
-          onValueChange={(value) => onChange(value ? value : null)}
-        >
-          <SelectTrigger className="w-full" disabled={loading}>
-            <SelectValue placeholder="Selecione um plano de proteção">
-              {loading ? 'Carregando...' : ''}
-              {selectedPlanId && !loading ? plans.find(p => p.id === selectedPlanId)?.name || 'Plano de proteção' : ''}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">Sem proteção</SelectItem>
-            {plans.map((plan) => (
-              <SelectItem key={plan.id} value={plan.id} className="flex items-center gap-2">
-                <div className="flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-primary" />
-                  <span>{plan.name}</span>
-                  <span className="text-muted-foreground ml-2">
-                    R$ {plan.monthly_cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/mês
-                  </span>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div 
+        className={`border rounded-lg p-3 cursor-pointer transition-colors hover:bg-muted/50 ${
+          selectedPlanId === null ? 'border-primary bg-primary/5' : ''
+        }`}
+        onClick={() => onChange(null)}
+      >
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Shield className="h-4 w-4 text-muted-foreground" />
+            <span className="font-medium">Sem Proteção</span>
+          </div>
+          {selectedPlanId === null && (
+            <Check className="h-4 w-4 text-primary" />
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Sem cobertura adicional
+        </p>
+        <p className="text-sm font-medium mt-3">R$ 0,00</p>
       </div>
 
-      {selectedPlanId && (
-        <ProtectionDetails planId={selectedPlanId} />
-      )}
+      {plans.map(plan => (
+        <div 
+          key={plan.id}
+          className={`border rounded-lg p-3 cursor-pointer transition-colors hover:bg-muted/50 ${
+            selectedPlanId === plan.id ? 'border-primary bg-primary/5' : ''
+          }`}
+          onClick={() => onChange(plan.id)}
+        >
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <Shield className={`h-4 w-4 ${
+                plan.type === 'basic' ? 'text-blue-500' : 
+                plan.type === 'intermediate' ? 'text-amber-500' : 'text-green-500'
+              }`} />
+              <span className="font-medium">{plan.name}</span>
+            </div>
+            {selectedPlanId === plan.id && (
+              <Check className="h-4 w-4 text-primary" />
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+            {plan.description || `Plano de proteção ${plan.name}`}
+          </p>
+          <p className="text-sm font-medium mt-3">
+            R$ {plan.monthly_cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </p>
+        </div>
+      ))}
     </div>
   );
 };

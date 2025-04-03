@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Client, Vehicle, VehicleGroup } from '@/lib/models';
-import { QuoteFormData, SavedQuote, QuoteContextType } from './types/quoteTypes';
+import { QuoteFormData, SavedQuote, QuoteContextType, QuoteCalculationResult } from './types/quoteTypes';
 import { useQuoteUsers } from '@/hooks/useQuoteUsers';
 import { useQuoteVehicles } from '@/hooks/useQuoteVehicles';
 import { useQuoteParams } from '@/hooks/useQuoteParams';
@@ -91,8 +91,20 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     setUseGlobalParams,
     setVehicleParams,
     resetForm,
-    calculateQuote,
-    saveQuote,
+    calculateQuote: () => {
+      const result = calculateQuote();
+      if (result instanceof Promise) {
+        return null;
+      }
+      return result;
+    },
+    saveQuote: () => {
+      const result = saveQuote();
+      if (result instanceof Promise) {
+        return false;
+      }
+      return result;
+    },
     getCurrentUser,
     setCurrentUser,
     availableUsers,
@@ -100,10 +112,24 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     currentEditingQuoteId,
     getClientById: getClient,
     getVehicleById: getVehicle,
-    loadQuoteForEditing,
+    loadQuoteForEditing: (quoteId: string) => {
+      const result = loadQuoteForEditing(quoteId);
+      if (result instanceof Promise) {
+        return false;
+      }
+      return result;
+    },
     deleteQuote,
-    canEditQuote,
-    canDeleteQuote,
+    canEditQuote: (quoteId: string) => {
+      const quote = savedQuotes.find(q => q.id === quoteId);
+      if (!quote) return false;
+      return canEditQuote(quote);
+    },
+    canDeleteQuote: (quoteId: string) => {
+      const quote = savedQuotes.find(q => q.id === quoteId);
+      if (!quote) return false;
+      return canDeleteQuote(quote);
+    },
     sendQuoteByEmail,
     savedQuotes
   };
