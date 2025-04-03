@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Info, Users, Car, Wrench, Calculator, Plus, Trash2, Settings, Mail } from 'lucide-react';
@@ -602,7 +603,7 @@ const QuoteForm = () => {
         <div className="p-8 text-center">
           <div className="mb-4">
             <span className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-100 text-red-500">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-alert-circle">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-alert-circle">
                 <circle cx="12" cy="12" r="10" />
                 <line x1="12" x2="12" y1="8" y2="12" />
                 <line x1="12" x2="12.01" y1="16" y2="16" />
@@ -687,7 +688,7 @@ const QuoteForm = () => {
                           <p className="text-muted-foreground">Km excedente:</p>
                           <p className="font-medium">R$ {result.extraKmRate.toFixed(2)}</p>
                         </div>
-                        {result.protectionPlanId && (
+                        {result.protectionPlanId && result.protectionCost && result.protectionCost > 0 && (
                           <div className="text-sm">
                             <p className="text-muted-foreground">Proteção:</p>
                             <p className="font-medium">R$ {result.protectionCost.toLocaleString('pt-BR')}</p>
@@ -838,4 +839,53 @@ const QuoteForm = () => {
                   <span className="hidden md:inline">{step.name}</span>
                   
                   {step.id === 'vehicle' && quoteForm.vehicles.length > 0 && (
-                    <span className="text-xs bg-secondary rounded-full px-1.5 py-0.5 min-w-5 flex items-center justify-center
+                    <span className="text-xs bg-secondary rounded-full px-1.5 py-0.5 min-w-5 flex items-center justify-center">
+                      {quoteForm.vehicles.length}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <div className="space-y-8">
+            {renderStepContent()}
+            
+            <div className="flex justify-between pt-4 border-t mt-6">
+              {currentStep !== 'client' ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={goToPreviousStep}
+                >
+                  Voltar
+                </Button>
+              ) : (
+                <div></div>
+              )}
+              
+              <Button
+                type="button"
+                disabled={currentStep === 'client' && !quoteForm.client}
+                onClick={handleNextStep}
+              >
+                {currentStep === 'result' ? 'Finalizar Orçamento' : 'Continuar'}
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+const NewQuote = () => {
+  return (
+    <MainLayout>
+      <PageTitle title="Novo Orçamento" subtitle="Preencha os dados para criar um novo orçamento" />
+      <QuoteForm />
+    </MainLayout>
+  );
+};
+
+export default NewQuote;
