@@ -16,13 +16,18 @@ import { deleteQuoteFromSupabase } from '@/integrations/supabase/services/quotes
 
 const Quotes = () => {
   const { 
-    allQuotes, 
+    filteredQuotes, 
     totalQuotes, 
     totalValue, 
     avgValue, 
     loading, 
     handleRefresh,
-    setRefreshTriggerDirectly
+    setRefreshTriggerDirectly,
+    searchTerm,
+    setSearchTerm,
+    filters,
+    setFilter,
+    clearFilters
   } = useQuotes();
 
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -32,8 +37,21 @@ const Quotes = () => {
   const quoteContext = useQuote();
   const { deleteQuote: deleteQuoteFromContext } = quoteContext || {};
 
-  // Garantir que allQuotes é sempre um array
-  const safeQuotes = Array.isArray(allQuotes) ? allQuotes : [];
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+  };
+
+  const handleFilterChange = (key: 'status' | 'dateRange' | 'createdBy', value: string | null) => {
+    setFilter(key, value);
+  };
+
+  const handleClearFilters = () => {
+    clearFilters();
+    setSearchTerm('');
+  };
+
+  // Garantir que filteredQuotes é sempre um array
+  const safeQuotes = Array.isArray(filteredQuotes) ? filteredQuotes : [];
 
   const handleDeleteClick = (quoteId: string) => {
     setQuoteToDelete(quoteId);
@@ -126,6 +144,11 @@ const Quotes = () => {
           <QuoteFilters 
             loading={loading} 
             onRefresh={handleRefresh} 
+            searchTerm={searchTerm}
+            onSearchChange={handleSearchChange}
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            onClearFilters={handleClearFilters}
           />
           
           {safeQuotes.length === 0 ? (

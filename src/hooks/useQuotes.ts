@@ -2,15 +2,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuote } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
-import { getQuotes, getClientById, getVehicleById, getVehicleGroupById } from '@/lib/data-provider';
-import { Client, Vehicle } from '@/lib/models';
+import { format, isToday, isYesterday, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { 
   checkSupabaseConnection, 
   getQuotesFromSupabase, 
   getVehiclesFromSupabase 
 } from '@/integrations/supabase';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 interface QuoteItem {
   id: string;
@@ -26,7 +24,33 @@ interface QuoteItem {
   };
 }
 
-export const useQuotes = () => {
+// Definir tipos para os filtros
+interface QuoteFilters {
+  status: string | null;
+  dateRange: string | null;
+  createdBy: string | null;
+}
+
+// Interface que será exportada pelo hook
+export interface UseQuotesReturn {
+  allQuotes: QuoteItem[];
+  filteredQuotes: QuoteItem[];
+  totalQuotes: number;
+  totalValue: number;
+  avgValue: number;
+  loading: boolean;
+  loadingSupabase: boolean;
+  error: string | null;
+  searchTerm: string;
+  filters: QuoteFilters;
+  handleRefresh: () => void;
+  setSearchTerm: (term: string) => void;
+  setFilter: (key: keyof QuoteFilters, value: string | null) => void;
+  clearFilters: () => void;
+  setRefreshTriggerDirectly: () => void;
+}
+
+export const useQuotes = (): UseQuotesReturn => {
   const [loading, setLoading] = useState(false);
   const [loadingSupabase, setLoadingSupabase] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +58,12 @@ export const useQuotes = () => {
   const [supabaseQuotes, setSupabaseQuotes] = useState<any[]>([]);
   const [supabaseVehicles, setSupabaseVehicles] = useState<any[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState<QuoteFilters>({
+    status: null,
+    dateRange: null,
+    createdBy: null
+  });
   
   const { toast } = useToast();
   const quoteContext = useQuote();
@@ -240,20 +270,90 @@ export const useQuotes = () => {
     }
   }, [supabaseQuotes, refreshTrigger]);
   
+  // Função para aplicar os filtros de data
+  const applyDateFilter = (quote: QuoteItem, dateRange: string | null): boolean => {
+    if (!dateRange) return true;
+    
+    const quoteDate = new Date(quote.createdAt);
+    const today = new Date();
+    
+    switch (dateRange) {
+      case 'today':
+        return isToday(quoteDate);
+      case 'yesterday':
+        return isYesterday(quoteDate);
+      case 'last7days':
+        return quoteDate >= subDays(today, 7);
+      case 'last30days':
+        return quoteDate >= subDays(today, 30);
+      case 'thisMonth':
+        return quoteDate >= startOfMonth(today) && quoteDate <= endOfMonth(today);
+      case 'lastMonth': {
+        const lastMonth = subMonths(today, 1);
+        return quoteDate >= startOfMonth(lastMonth) && quoteDate <= endOfMonth(lastMonth);
+      }
+      default:
+        return true;
+    }
+  };
+  
+  // Aplicar filtros e busca
+  const filteredQuotes = allQuotes.filter(quote => {
+    // Aplicar termo de busca
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = searchTerm === '' || 
+      quote.clientName.toLowerCase().includes(searchLower) ||
+      quote.vehicleName.toLowerCase().includes(searchLower) ||
+      quote.id.toString().toLowerCase().includes(searchLower) ||
+      (quote.createdBy?.name && quote.createdBy.name.toLowerCase().includes(searchLower));
+    
+    // Aplicar filtro de status
+    const matchesStatus = !filters.status || quote.status === filters.status;
+    
+    // Aplicar filtro de data
+    const matchesDateRange = applyDateFilter(quote, filters.dateRange);
+    
+    // Aplicar filtro de criado por
+    const matchesCreatedBy = !filters.createdBy || 
+      (filters.createdBy === 'system' && quote.createdBy?.name === 'Sistema') ||
+      (filters.createdBy === 'current' && quote.createdBy?.id === 1); // Assumindo id 1 como usuário atual
+    
+    return matchesSearch && matchesStatus && matchesDateRange && matchesCreatedBy;
+  });
+  
+  // Atualizar filtro específico
+  const setFilter = (key: keyof QuoteFilters, value: string | null) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+  
+  // Limpar todos os filtros
+  const clearFilters = () => {
+    setFilters({
+      status: null,
+      dateRange: null,
+      createdBy: null
+    });
+  };
+  
   const totalQuotes = allQuotes.length;
   const totalValue = allQuotes.reduce((sum, quote) => sum + Number(quote.value), 0);
   const avgValue = totalQuotes > 0 ? totalValue / totalQuotes : 0;
   
   return {
     allQuotes,
+    filteredQuotes,
     totalQuotes,
     totalValue,
     avgValue,
     loading,
     loadingSupabase,
     error,
-    supabaseConnected,
+    searchTerm,
+    filters,
     handleRefresh,
+    setSearchTerm,
+    setFilter,
+    clearFilters,
     setRefreshTriggerDirectly
   };
 };

@@ -7,48 +7,24 @@ import PageTitle from '@/components/ui-custom/PageTitle';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
 import StatsCard from '@/components/ui-custom/StatsCard';
 import QuoteTable from '@/components/quotes/QuoteTable';
-import { useQuote } from '@/context/QuoteContext';
+import { useQuotes } from '@/hooks/useQuotes';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { fetchSystemSettings } from '@/lib/settings';
-import { getQuotesFromSupabase } from '@/integrations/supabase';
 
 const Index = () => {
   const [companyName, setCompanyName] = useState('Car Lease Master');
   const [loading, setLoading] = useState(true);
-  const [allQuotes, setAllQuotes] = useState([]);
   
-  // Garantir que temos acesso ao contexto de orçamentos
-  const quoteContext = useQuote();
-  
-  // Buscamos todas as fontes de dados disponíveis
-  useEffect(() => {
-    const fetchAllQuotes = async () => {
-      setLoading(true);
-      try {
-        // Buscar orçamentos do Supabase
-        let supabaseQuotes = [];
-        try {
-          const { quotes, success } = await getQuotesFromSupabase();
-          if (success && Array.isArray(quotes)) {
-            supabaseQuotes = quotes;
-            console.log("Orçamentos do Supabase carregados:", quotes.length);
-          }
-        } catch (error) {
-          console.error("Erro ao buscar orçamentos do Supabase:", error);
-        }
-        
-        setAllQuotes(supabaseQuotes);
-      } catch (error) {
-        console.error("Erro ao buscar orçamentos:", error);
-        setAllQuotes([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchAllQuotes();
-  }, []);
+  // Utilizar o hook useQuotes com os novos recursos
+  const { 
+    filteredQuotes, 
+    totalQuotes, 
+    totalValue, 
+    avgValue, 
+    searchTerm,
+    setSearchTerm
+  } = useQuotes();
   
   // Carregar configurações básicas
   useEffect(() => {
@@ -70,41 +46,29 @@ const Index = () => {
   }, []);
   
   // Garantir que allQuotes é sempre um array
-  const safeQuotes = Array.isArray(allQuotes) ? allQuotes : [];
+  const safeQuotes = Array.isArray(filteredQuotes) ? filteredQuotes : [];
   
   // Obter orçamentos recentes (5 mais recentes)
   const recentQuotes = safeQuotes
-    .sort((a, b) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime())
     .slice(0, 5)
     .map(quote => {
-      // Lidar com diferentes formatos de dados
-      const vehicleName = quote.vehicles && quote.vehicles.length > 0 
-        ? `${quote.vehicles[0].vehicle?.brand || ''} ${quote.vehicles[0].vehicle?.model || ''}` 
-        : 'Veículo não especificado';
-
       return {
         id: quote.id,
-        clientName: quote.client?.name || 'Cliente não especificado',
-        vehicleName: vehicleName,
-        value: quote.total_value || 0,
-        createdAt: quote.created_at || new Date().toISOString(),
-        status: quote.status_flow || 'ORCAMENTO',
-        createdBy: {
-          id: 0,
-          name: quote.created_by_name || 'Sistema',
-          role: 'user'
-        }
+        clientName: quote.clientName,
+        vehicleName: quote.vehicleName,
+        value: quote.value,
+        createdAt: quote.createdAt,
+        status: quote.status,
+        createdBy: quote.createdBy
       };
     });
   
   // Estatísticas derivadas dos orçamentos reais
-  const totalQuotes = safeQuotes.length;
   const averageContractLength = totalQuotes > 0 
-    ? safeQuotes.reduce((acc, q) => acc + (q.contract_months || 0), 0) / totalQuotes 
+    ? safeQuotes.reduce((acc, q) => acc + (q.contractMonths || 0), 0) / totalQuotes 
     : 0;
-  const totalValue = safeQuotes.reduce((acc, q) => acc + (q.total_value || 0), 0);
   const averageMonthlyValue = totalQuotes > 0 ? totalValue / totalQuotes : 0;
-  const activeQuotes = safeQuotes.filter(q => (q.status_flow !== 'CONCLUIDO')).length;
+  const activeQuotes = safeQuotes.filter(q => (q.status !== 'CONCLUIDO')).length;
 
   return (
     <MainLayout>
