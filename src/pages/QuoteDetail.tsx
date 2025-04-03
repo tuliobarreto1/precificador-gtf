@@ -10,7 +10,6 @@ import StatusUpdater from '@/components/status/StatusUpdater';
 import StatusBreadcrumb from '@/components/status/StatusBreadcrumb';
 import StatusHistory from '@/components/status/StatusHistory';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { getQuoteByIdFromSupabase, getQuoteVehicles } from '@/integrations/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { QuoteStatusFlow } from '@/lib/status-flow';
@@ -46,6 +45,8 @@ interface VehicleData {
   maintenance_cost?: number;
   extra_km_rate?: number;
   total_cost?: number;
+  protection_cost?: number;
+  protection_plan_id?: string | null;
 }
 
 const QuoteDetail = () => {
@@ -59,6 +60,11 @@ const QuoteDetail = () => {
 
   // Função para calcular os custos para cada veículo
   const calculateCosts = (vehicles: VehicleData[]): VehicleData[] => {
+    if (!vehicles || !Array.isArray(vehicles)) {
+      console.error('Veículos inválidos para calcular custos:', vehicles);
+      return [];
+    }
+    
     return vehicles.map(vehicle => {
       // Verificar se o objeto vehicle e vehicle.vehicle existem antes de acessar suas propriedades
       if (!vehicle || !vehicle.vehicle) {
@@ -92,14 +98,18 @@ const QuoteDetail = () => {
       // Calcular taxa de km excedente
       const extraKmRate = calculateExtraKmRateSync(vehicleValue);
       
-      // Calcular custo total
-      const totalCost = depreciationCost + maintenanceCost;
+      // Obter o custo de proteção do objeto original ou usar 0
+      const protectionCost = vehicle.protection_cost || 0;
+      
+      // Calcular custo total (incluindo proteção se existir)
+      const totalCost = depreciationCost + maintenanceCost + protectionCost;
       
       return {
         ...vehicle,
         depreciation_cost: depreciationCost,
         maintenance_cost: maintenanceCost,
         extra_km_rate: extraKmRate,
+        protection_cost: protectionCost,
         total_cost: totalCost
       };
     });

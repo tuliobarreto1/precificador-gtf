@@ -33,7 +33,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
   onDelete,
   disabled = false
 }) => {
-  // Verificação segura para garantir que vehicle e vehicle.vehicle existem
+  // Se o veículo for nulo ou undefined, retornamos um card vazio
   if (!vehicle) {
     console.error('VehicleCard recebeu um vehicle nulo ou indefinido');
     return (
@@ -45,9 +45,10 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
     );
   }
   
-  // Referência ao objeto de veículo, que pode estar em vehicle.vehicle ou diretamente em vehicle
+  // Verificamos se temos um objeto vehicle dentro do vehicle (formatos diferentes podem ser recebidos)
   const vehicleObj = vehicle.vehicle || vehicle;
   
+  // Se após essa verificação ainda não temos um objeto válido, retornamos um card de erro
   if (!vehicleObj) {
     console.error('VehicleCard: Dados de veículo inválidos', vehicle);
     return (
@@ -59,7 +60,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
     );
   }
 
-  // Agora podemos acessar as propriedades com segurança
+  // Agora extraímos as propriedades com segurança, sempre fornecendo valores padrão
   const brand = vehicleObj.brand || 'Marca não disponível';
   const model = vehicleObj.model || 'Modelo não disponível';
   const year = vehicleObj.year || new Date().getFullYear();
@@ -67,7 +68,7 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
   const isUsed = vehicleObj.isUsed || vehicleObj.is_used || false;
   const value = vehicleObj.value || 0;
   
-  // Valores de custo do veículo
+  // Valores de custo do veículo, verificando se existem no objeto original
   const depreciationCost = vehicle.depreciation_cost || vehicle.depreciationCost || 0;
   const maintenanceCost = vehicle.maintenance_cost || vehicle.maintenanceCost || 0;
   const protectionCost = vehicle.protection_cost || vehicle.protectionCost || 0;
