@@ -76,7 +76,7 @@ export interface SavedQuote {
     hasTracking: boolean;
     protectionPlanId?: string | null; // Nova propriedade para o plano de proteção global
   };
-  contractMonths?: number; // Para compatibilidade com a interface do Index.tsx
+  contractMonths?: number; // Adicionando como propriedade obrigatória
 }
 
 // Interface para o context
@@ -89,7 +89,7 @@ export interface QuoteContextType {
   setGlobalMonthlyKm: (monthlyKm: number) => void;
   setGlobalOperationSeverity: (operationSeverity: 1|2|3|4|5|6) => void;
   setGlobalHasTracking: (hasTracking: boolean) => void;
-  setGlobalProtectionPlanId: (protectionPlanId: string | null) => void; // Novo método
+  setGlobalProtectionPlanId: (protectionPlanId: string | null) => void; // Método para plano de proteção
   setUseGlobalParams: (useGlobalParams: boolean) => void;
   setVehicleParams: (vehicleId: string, params: Partial<QuoteParams>) => void;
   resetForm: () => void;

@@ -596,7 +596,29 @@ const QuoteForm = () => {
 
   const renderResultStep = () => {
     const result = calculateQuote();
-    if (!result) return <div>Não foi possível calcular o orçamento.</div>;
+    
+    if (!result) {
+      return (
+        <div className="p-8 text-center">
+          <div className="mb-4">
+            <span className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-100 text-red-500">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="lucide lucide-alert-circle">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" x2="12" y1="8" y2="12" />
+                <line x1="12" x2="12.01" y1="16" y2="16" />
+              </svg>
+            </span>
+          </div>
+          <h3 className="text-lg font-medium mb-2">Não foi possível calcular o orçamento</h3>
+          <p className="text-muted-foreground mb-6">
+            Verifique se todos os dados estão preenchidos corretamente e se há pelo menos um veículo adicionado.
+          </p>
+          <Button variant="outline" onClick={goToPreviousStep}>
+            Voltar para parâmetros
+          </Button>
+        </div>
+      );
+    }
     
     const { vehicleResults, totalCost } = result;
     

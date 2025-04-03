@@ -89,6 +89,75 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
     }
   };
   
+  // Versão síncrona do cálculo para uso no contexto
+  const calculateQuoteSync = (): QuoteCalculationResult | null => {
+    try {
+      if (!quoteForm.client || quoteForm.vehicles.length === 0) {
+        setCalculationError("Dados insuficientes para calcular orçamento");
+        return null;
+      }
+      
+      // Array para armazenar resultados dos veículos
+      const vehicleResults: QuoteResultVehicle[] = [];
+      
+      // Calcular resultados para cada veículo sem proteção (versão síncrona)
+      quoteForm.vehicles.forEach(item => {
+        // Determinar parâmetros a serem usados
+        const params = quoteForm.useGlobalParams ? quoteForm.globalParams : item.params || quoteForm.globalParams;
+        
+        // Calcular custo de depreciação
+        const depreciationRate = 0.015; // Taxa base
+        const mileageMultiplier = 0.05; // Influência da quilometragem
+        const severityMultiplier = 0.1; // Influência da severidade
+        
+        const mileageFactor = params.monthlyKm / 1000 * mileageMultiplier;
+        const severityFactor = (params.operationSeverity - 1) * severityMultiplier;
+        
+        const monthlyDepreciationRate = depreciationRate + mileageFactor + severityFactor;
+        const totalDepreciation = item.vehicle.value * monthlyDepreciationRate;
+        
+        // Calcular custo de manutenção
+        const monthlyKm = params.monthlyKm;
+        const revisionCost = (monthlyKm / item.vehicleGroup.revisionKm) * item.vehicleGroup.revisionCost;
+        const tireCost = (monthlyKm / item.vehicleGroup.tireKm) * item.vehicleGroup.tireCost;
+        const maintenanceCost = revisionCost + tireCost;
+        
+        // Taxa para km excedente
+        const extraKmRate = item.vehicle.value * 0.0000075;
+        
+        // Custo de rastreamento
+        const trackingCost = params.hasTracking ? 50 : 0;
+        
+        // Custo total mensal (sem proteção na versão síncrona)
+        const totalCost = totalDepreciation + maintenanceCost + trackingCost;
+        
+        // Adicionar ao array de resultados
+        vehicleResults.push({
+          vehicleId: item.vehicle.id,
+          totalCost,
+          depreciationCost: totalDepreciation,
+          maintenanceCost,
+          extraKmRate,
+          protectionCost: 0, // Na versão síncrona, não calculamos proteção
+          protectionPlanId: params.protectionPlanId
+        });
+      });
+      
+      // Calcular custo total combinado
+      const totalCost = vehicleResults.reduce((sum, vehicle) => sum + vehicle.totalCost, 0);
+      
+      return {
+        vehicleResults,
+        totalCost
+      };
+      
+    } catch (error) {
+      console.error("Erro ao calcular orçamento (síncrono):", error);
+      setCalculationError("Ocorreu um erro ao calcular o orçamento");
+      return null;
+    }
+  };
+  
   // Função para enviar orçamento por email
   const sendQuoteByEmail = async (quoteId: string, email: string, message?: string): Promise<boolean> => {
     // Manter implementação existente
@@ -97,6 +166,7 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
 
   return {
     calculateQuote,
+    calculateQuoteSync, // Nova função síncrona
     calculationError,
     sendQuoteByEmail
   };

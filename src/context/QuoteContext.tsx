@@ -59,6 +59,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   
   const {
     calculateQuote,
+    calculateQuoteSync,
     sendQuoteByEmail
   } = useQuoteCalculation(quoteForm);
   
@@ -92,11 +93,8 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     setVehicleParams,
     resetForm,
     calculateQuote: () => {
-      const result = calculateQuote();
-      if (result instanceof Promise) {
-        return null;
-      }
-      return result;
+      // Use a versão síncrona para evitar problemas de assincronicidade no contexto
+      return calculateQuoteSync();
     },
     saveQuote: () => {
       const result = saveQuote();
