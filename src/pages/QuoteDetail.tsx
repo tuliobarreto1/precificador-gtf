@@ -60,6 +60,12 @@ const QuoteDetail = () => {
   // Função para calcular os custos para cada veículo
   const calculateCosts = (vehicles: VehicleData[]): VehicleData[] => {
     return vehicles.map(vehicle => {
+      // Verificar se o objeto vehicle e vehicle.vehicle existem antes de acessar suas propriedades
+      if (!vehicle || !vehicle.vehicle) {
+        console.error('Dados de veículo inválidos:', vehicle);
+        return vehicle; // Retornar o veículo como está para evitar erros
+      }
+      
       const vehicleValue = vehicle.vehicle.value || 0;
       const contractMonths = vehicle.contract_months || 12;
       const monthlyKm = vehicle.monthly_km || 2000;
@@ -105,7 +111,7 @@ const QuoteDetail = () => {
 
       try {
         setLoading(true);
-        const { success, quote: quoteData } = await getQuoteByIdFromSupabase(id);
+        const { success, quote: quoteData, error: quoteError } = await getQuoteByIdFromSupabase(id);
         
         if (success && quoteData) {
           console.log("Dados do orçamento carregados:", quoteData);
@@ -113,7 +119,7 @@ const QuoteDetail = () => {
           
           // Buscar veículos separadamente
           console.log("Buscando veículos para o orçamento:", id);
-          const { success: vehiclesSuccess, vehicles: vehiclesData } = await getQuoteVehicles(id);
+          const { success: vehiclesSuccess, vehicles: vehiclesData, error: vehiclesError } = await getQuoteVehicles(id);
           
           if (vehiclesSuccess && vehiclesData && Array.isArray(vehiclesData)) {
             console.log("Veículos do orçamento carregados:", vehiclesData);
@@ -129,15 +135,26 @@ const QuoteDetail = () => {
             }
           } else {
             console.log("Nenhum veículo encontrado para o orçamento:", id);
+            if (vehiclesError) {
+              console.error("Erro ao buscar veículos:", vehiclesError);
+            }
             setVehicles([]);
           }
           
           // Buscar histórico de status
-          const historyData = await fetchStatusHistory(id);
-          if (historyData) {
-            setStatusHistory(historyData);
+          try {
+            const historyData = await fetchStatusHistory(id);
+            if (historyData) {
+              setStatusHistory(historyData);
+            } else {
+              setStatusHistory([]);
+            }
+          } catch (historyError) {
+            console.error("Erro ao buscar histórico de status:", historyError);
+            setStatusHistory([]);
           }
         } else {
+          console.error("Erro ao carregar dados do orçamento:", quoteError);
           setError("Não foi possível carregar os dados do orçamento.");
           toast({
             title: "Erro ao carregar",
@@ -199,11 +216,11 @@ const QuoteDetail = () => {
     );
   }
 
-  // Obter informações do cliente
-  const client = quote?.client || {};
+  // Obter informações do cliente com verificações de segurança
+  const client = quote.client || {};
   
-  // Obter status
-  const status = quote?.status_flow || 'ORCAMENTO';
+  // Obter status com valor padrão
+  const status = quote.status_flow || 'ORCAMENTO';
   
   // Função para atualizar quando o status for alterado
   const handleStatusChange = (newStatus: QuoteStatusFlow) => {
@@ -213,8 +230,12 @@ const QuoteDetail = () => {
   // Função para recarregar os dados quando algo for atualizado
   const handleUpdate = async () => {
     if (id) {
-      const historyData = await fetchStatusHistory(id);
-      setStatusHistory(historyData || []);
+      try {
+        const historyData = await fetchStatusHistory(id);
+        setStatusHistory(historyData || []);
+      } catch (error) {
+        console.error("Erro ao atualizar histórico:", error);
+      }
     }
   };
 
@@ -239,7 +260,7 @@ const QuoteDetail = () => {
             </div>
             <PageTitle 
               title={`Orçamento #${id?.substring(0, 8)}`} 
-              subtitle={`Cliente: ${client.name || 'Não especificado'}`}
+              subtitle={`Cliente: ${client?.name || 'Não especificado'}`}
             />
           </div>
           
@@ -258,26 +279,26 @@ const QuoteDetail = () => {
                       <User className="h-4 w-4 mr-2" />
                       Cliente
                     </h3>
-                    <p className="mt-1">{client.name || 'Não especificado'}</p>
-                    {client.document && <p className="text-sm text-muted-foreground">CNPJ/CPF: {client.document}</p>}
+                    <p className="mt-1">{client?.name || 'Não especificado'}</p>
+                    {client?.document && <p className="text-sm text-muted-foreground">CNPJ/CPF: {client.document}</p>}
                   </div>
                   
-                  {client.email && (
+                  {client?.email && (
                     <div>
                       <h3 className="text-sm font-medium text-muted-foreground">Contato</h3>
                       <p className="mt-1">{client.email}</p>
-                      {client.phone && <p className="text-sm">{client.phone}</p>}
+                      {client?.phone && <p className="text-sm">{client.phone}</p>}
                     </div>
                   )}
                   
-                  {(client.city || client.state) && (
+                  {(client?.city || client?.state) && (
                     <div>
                       <h3 className="text-sm font-medium text-muted-foreground">Localização</h3>
                       <p className="mt-1">
                         {client.city && client.state ? `${client.city} - ${client.state}` : 
                          client.city || client.state}
                       </p>
-                      {client.address && <p className="text-sm text-muted-foreground">{client.address}</p>}
+                      {client?.address && <p className="text-sm text-muted-foreground">{client.address}</p>}
                     </div>
                   )}
                 </div>
@@ -289,9 +310,9 @@ const QuoteDetail = () => {
                       Parâmetros
                     </h3>
                     <div className="mt-1 space-y-1">
-                      <p>Prazo: {quote?.contract_months} meses</p>
-                      <p>Quilometragem: {quote?.monthly_km?.toLocaleString('pt-BR')} km/mês</p>
-                      <p>Severidade: Nível {quote?.operation_severity}</p>
+                      <p>Prazo: {quote?.contract_months || 0} meses</p>
+                      <p>Quilometragem: {(quote?.monthly_km || 0).toLocaleString('pt-BR')} km/mês</p>
+                      <p>Severidade: Nível {quote?.operation_severity || 3}</p>
                       <p>Rastreamento: {quote?.has_tracking ? 'Sim' : 'Não'}</p>
                     </div>
                   </div>
@@ -325,13 +346,13 @@ const QuoteDetail = () => {
             
             <Card>
               <CardHeader 
-                title={`Veículos (${vehicles.length})`} 
+                title={`Veículos (${vehicles?.length || 0})`} 
                 subtitle="Veículos incluídos neste orçamento"
                 icon={<Car size={18} />}
               />
               
               <div className="p-6 space-y-4">
-                {vehicles.length === 0 ? (
+                {!vehicles || vehicles.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Car className="h-12 w-12 mx-auto mb-2 opacity-30" />
                     <p>Nenhum veículo encontrado neste orçamento</p>
@@ -340,7 +361,7 @@ const QuoteDetail = () => {
                   <div className="space-y-4">
                     {vehicles.map((item) => (
                       <VehicleCard 
-                        key={item.id} 
+                        key={item.id || `vehicle-${Math.random()}`} 
                         vehicle={item} 
                         showDetailedInfo={true}
                         showCosts={true}
@@ -349,11 +370,11 @@ const QuoteDetail = () => {
                           <div className="flex justify-between">
                             <div>
                               <p className="text-sm text-muted-foreground">Valor mensal:</p>
-                              <p className="font-medium">R$ {Number(item.monthly_value).toLocaleString('pt-BR')}</p>
+                              <p className="font-medium">R$ {Number(item?.monthly_value || 0).toLocaleString('pt-BR')}</p>
                             </div>
                             <div className="text-right">
                               <p className="text-sm text-muted-foreground">Parâmetros:</p>
-                              <p className="text-sm">{item.contract_months} meses / {item.monthly_km.toLocaleString('pt-BR')} km</p>
+                              <p className="text-sm">{item?.contract_months || 0} meses / {(item?.monthly_km || 0).toLocaleString('pt-BR')} km</p>
                             </div>
                           </div>
                         </div>
