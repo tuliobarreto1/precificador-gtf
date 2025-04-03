@@ -1,4 +1,3 @@
-
 import { Client, Vehicle, VehicleGroup } from '@/lib/models';
 
 export interface QuoteParams {
