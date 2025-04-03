@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { SavedQuote, User, UserRole, defaultUser } from '@/context/types/quoteTypes';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,6 +9,7 @@ const CURRENT_USER_KEY = 'currentUser';
 export function useQuoteUsers() {
   const [user, setUser] = useState<User>(defaultUser);
   const [availableUsers, setAvailableUsers] = useState<User[]>([defaultUser]);
+  const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
 
   // Buscar usuários do sistema do Supabase
   const fetchSystemUsers = async () => {
@@ -48,6 +50,54 @@ export function useQuoteUsers() {
       console.error('Erro ao buscar usuários:', error);
     }
   };
+  
+  // Carregar cotações do Supabase
+  const fetchQuotes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('quotes')
+        .select(`
+          id,
+          client_id,
+          status,
+          status_flow,
+          created_by,
+          created_at,
+          clients:client_id (name)
+        `)
+        .order('created_at', { ascending: false });
+        
+      if (error || !data) {
+        console.error('Erro ao buscar cotações:', error);
+        return;
+      }
+      
+      // Mapear para SavedQuote
+      const quotes: SavedQuote[] = data.map(quote => ({
+        id: quote.id,
+        clientId: quote.client_id,
+        clientName: quote.clients?.name || 'Cliente não encontrado',
+        vehicles: [],
+        totalValue: 0,
+        createdAt: quote.created_at,
+        status: quote.status_flow || quote.status,
+        createdBy: quote.created_by ? {
+          id: typeof quote.created_by === 'string' 
+            ? parseInt(quote.created_by.replace(/-/g, '').substring(0, 8), 16) 
+            : 0,
+          name: '',
+          role: 'user',
+          email: '',
+          status: 'active',
+          lastLogin: ''
+        } : undefined
+      }));
+      
+      setSavedQuotes(quotes);
+    } catch (error) {
+      console.error('Erro ao buscar cotações:', error);
+    }
+  };
 
   // Carregar usuário do localStorage na inicialização e buscar usuários do sistema
   useEffect(() => {
@@ -61,6 +111,9 @@ export function useQuoteUsers() {
       
       // Buscar usuários do sistema
       fetchSystemUsers();
+      
+      // Buscar cotações
+      fetchQuotes();
     } catch (error) {
       console.error('Erro ao carregar usuário do localStorage:', error);
       // Em caso de erro, definir o usuário padrão
@@ -162,6 +215,7 @@ export function useQuoteUsers() {
     setCurrentUser,
     availableUsers,
     canEditQuote,
-    canDeleteQuote
+    canDeleteQuote,
+    savedQuotes
   };
 }
