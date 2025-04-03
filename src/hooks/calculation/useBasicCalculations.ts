@@ -13,15 +13,25 @@ export function useBasicCalculations() {
     monthlyKm: number, 
     operationSeverity: 1|2|3|4|5|6
   ): number => {
-    const depreciationRate = 0.015; // Taxa base
-    const mileageMultiplier = 0.05; // Influência da quilometragem
-    const severityMultiplier = 0.1; // Influência da severidade
+    // Taxa base mensal de depreciação (reduzida significativamente)
+    const depreciationRate = 0.0015; 
     
-    const mileageFactor = monthlyKm / 1000 * mileageMultiplier;
+    // Fatores de ajuste para quilometragem e severidade
+    const mileageMultiplier = 0.0005; // Reduzido
+    const severityMultiplier = 0.001; // Reduzido
+    
+    // Ajustes baseados na quilometragem mensal e severidade de operação
+    const mileageFactor = (monthlyKm / 1000) * mileageMultiplier;
     const severityFactor = (operationSeverity - 1) * severityMultiplier;
     
+    // Taxa final de depreciação mensal (%)
     const monthlyDepreciationRate = depreciationRate + mileageFactor + severityFactor;
-    return vehicleValue * monthlyDepreciationRate;
+    
+    // Valor da depreciação mensal
+    const monthlyDepreciation = vehicleValue * monthlyDepreciationRate;
+    console.log(`Cálculo de depreciação: Valor do veículo: R$ ${vehicleValue}, Taxa: ${(monthlyDepreciationRate*100).toFixed(4)}%, Depreciação mensal: R$ ${monthlyDepreciation.toFixed(2)}`);
+    
+    return monthlyDepreciation;
   };
   
   /**
@@ -34,23 +44,35 @@ export function useBasicCalculations() {
     tireKm: number,
     tireCost: number
   ): number => {
+    // Cálculo dos custos mensais baseados na quilometragem
     const revisionCostPerMonth = (monthlyKm / revisionKm) * revisionCost;
     const tireCostPerMonth = (monthlyKm / tireKm) * tireCost;
-    return revisionCostPerMonth + tireCostPerMonth;
+    
+    const totalMaintenanceCost = revisionCostPerMonth + tireCostPerMonth;
+    console.log(`Cálculo de manutenção: Revisões: R$ ${revisionCostPerMonth.toFixed(2)}, Pneus: R$ ${tireCostPerMonth.toFixed(2)}, Total: R$ ${totalMaintenanceCost.toFixed(2)}`);
+    
+    return totalMaintenanceCost;
   };
   
   /**
    * Calcula a taxa para quilometragem excedente
    */
   const calculateExtraKmRate = (vehicleValue: number): number => {
-    return vehicleValue * 0.0000075;
+    // Taxa por km excedente (reduzida)
+    const rate = 0.0000075;
+    const extraKmRate = vehicleValue * rate;
+    
+    console.log(`Taxa de km excedente: R$ ${extraKmRate.toFixed(2)} por km`);
+    return extraKmRate;
   };
   
   /**
    * Calcula o custo de rastreamento
    */
   const calculateTrackingCost = (hasTracking: boolean): number => {
-    return hasTracking ? 50 : 0;
+    const trackingCost = hasTracking ? 50 : 0;
+    console.log(`Custo do rastreamento: R$ ${trackingCost.toFixed(2)}`);
+    return trackingCost;
   };
   
   return {

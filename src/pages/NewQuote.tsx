@@ -848,74 +848,76 @@ const QuoteForm = () => {
       {loadingQuote ? (
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">
-              {loadError ? "Erro ao carregar o orçamento" : "Carregando orçamento..."}
-            </p>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
+            <p className="mt-4 text-muted-foreground">Carregando orçamento...</p>
           </div>
+        </div>
+      ) : loadError ? (
+        <div className="p-8 text-center">
+          <div className="mb-4 text-red-500">
+            {loadError}
+          </div>
+          <Button onClick={() => navigate('/orcamentos')}>
+            Voltar para lista de orçamentos
+          </Button>
         </div>
       ) : (
         <>
-          <div className="flex flex-col md:flex-row justify-between gap-6 items-start">
+          <div className="flex flex-col md:flex-row justify-between items-start gap-4">
             <div>
-              <h1 className="text-2xl font-semibold">
-                {isEditMode ? "Editar Orçamento" : "Novo Orçamento"}
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                {isEditMode 
-                  ? "Atualize os detalhes deste orçamento" 
-                  : "Preencha os dados para criar um novo orçamento"}
-              </p>
+              <PageTitle 
+                title={isEditMode ? "Editar Orçamento" : "Novo Orçamento"} 
+                subtitle={isEditMode 
+                  ? "Atualize os detalhes do orçamento existente" 
+                  : "Preencha os dados para criar um novo orçamento"
+                } 
+                breadcrumbs={[
+                  { label: "Orçamentos", url: "/orcamentos" },
+                  { label: isEditMode ? "Editar" : "Novo", url: "#" }
+                ]}
+              />
             </div>
-            
-            <div className="flex flex-wrap gap-2 items-center">
-              <Button
-                variant="outline"
-                onClick={goToPreviousStep}
-                disabled={currentStep === 'client' || loadingQuote}
-              >
-                Voltar
-              </Button>
-
-              <Button
-                onClick={handleNextStep}
-                disabled={loadingQuote}
-              >
-                {currentStep === 'result' ? (isEditMode ? "Salvar Alterações" : "Concluir") : "Continuar"}
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
-            {STEPS.map((step, index) => (
-              <div 
-                key={step.id} 
-                className={`flex items-center p-3 md:p-4 border rounded-lg ${
-                  currentStep === step.id 
-                    ? "bg-primary/10 border-primary/30" 
-                    : "bg-muted/20"
-                }`}
-              >
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full mr-3 ${
-                  currentStep === step.id 
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground"
-                }`}>
-                  {step.icon}
-                </div>
-                <span className={`${
-                  currentStep === step.id 
-                    ? "font-medium" 
-                    : "text-muted-foreground"
-                }`}>
-                  {step.name}
-                </span>
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1">
+                {STEPS.map((step, index) => (
+                  <React.Fragment key={step.id}>
+                    {index > 0 && <span className="w-4 h-0.5 bg-gray-200"></span>}
+                    <div 
+                      className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                        currentStep === step.id 
+                          ? 'bg-primary text-primary-foreground' 
+                          : 'bg-muted text-muted-foreground'
+                      }`}
+                      title={step.name}
+                    >
+                      {step.icon}
+                    </div>
+                  </React.Fragment>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
           
-          <div>
-            {renderStepContent()}
+          {renderStepContent()}
+          
+          <div className="flex justify-between pt-6 border-t">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={currentStep === 'client' ? () => navigate('/orcamentos') : goToPreviousStep}
+            >
+              {currentStep === 'client' ? 'Cancelar' : 'Voltar'}
+            </Button>
+            <Button 
+              type="button" 
+              onClick={handleNextStep} 
+              disabled={
+                (currentStep === 'client' && !quoteForm?.client) || 
+                (currentStep === 'vehicle' && (!quoteForm?.vehicles || quoteForm.vehicles.length === 0))
+              }
+            >
+              {currentStep === 'result' ? (isEditMode ? 'Atualizar' : 'Finalizar') : 'Continuar'}
+            </Button>
           </div>
         </>
       )}

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { QuoteFormData, SavedQuote, QuoteCalculationResult, User, EditRecord } from '@/context/types/quoteTypes';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,11 +33,18 @@ export function useQuoteSaving(
   const saveQuote = async () => {
     try {
       if (!quoteForm.client || quoteForm.vehicles.length === 0) {
+        console.error("Dados insuficientes para salvar orçamento: cliente ou veículos ausentes");
         return false;
       }
       
+      console.log("🔄 Iniciando salvamento de orçamento:", {
+        cliente: quoteForm.client.name,
+        veículos: quoteForm.vehicles.length
+      });
+      
       const calculationResult = await calculateQuote();
       if (!calculationResult) {
+        console.error("Erro no cálculo do orçamento antes de salvar");
         return false;
       }
       
@@ -57,51 +63,77 @@ export function useQuoteSaving(
         has_tracking: quoteForm.globalParams.hasTracking,
         global_protection_plan_id: quoteForm.globalParams.protectionPlanId,
         total_value: totalCost,
-        created_by: userId, // Usar apenas o ID do usuário
-        title: `Orçamento para ${quoteForm.client.name} - ${quoteForm.vehicles.length} veículo(s)`
+        created_by: userId,
+        title: `Orçamento para ${quoteForm.client.name} - ${quoteForm.vehicles.length} veículo(s)`,
+        monthly_values: totalCost // Garantir que o valor mensal seja salvo
       };
+      
+      console.log("📊 Dados do orçamento a serem enviados:", quoteData);
       
       let savedQuoteId;
       let success = false;
       
       if (isEditMode && currentEditingQuoteId) {
         // Atualizar orçamento existente
+        console.log("🔄 Atualizando orçamento existente:", currentEditingQuoteId);
+        
         const { data, error } = await supabase
           .from('quotes')
           .update(quoteData)
           .eq('id', currentEditingQuoteId)
-          .select()
-          .single();
+          .select();
           
         if (error) {
-          console.error('Erro ao atualizar orçamento:', error);
+          console.error('❌ Erro ao atualizar orçamento:', error);
+          console.error('Detalhes do erro:', JSON.stringify(error, null, 2));
+          return false;
+        }
+        
+        if (!data || data.length === 0) {
+          console.error('❌ Nenhum dado retornado após atualização do orçamento');
           return false;
         }
         
         savedQuoteId = currentEditingQuoteId;
         success = true;
+        console.log('✅ Orçamento atualizado com sucesso:', data[0]);
         
         // Excluir veículos existentes para adicionar os atuais
-        await supabase
+        const { error: deleteError } = await supabase
           .from('quote_vehicles')
           .delete()
           .eq('quote_id', savedQuoteId);
           
+        if (deleteError) {
+          console.error('⚠️ Erro ao remover veículos antigos:', deleteError);
+          // Continuar mesmo com erro
+        } else {
+          console.log('✅ Veículos antigos removidos com sucesso');
+        }
       } else {
         // Criar novo orçamento
+        console.log("🔄 Criando novo orçamento");
+        
         const { data, error } = await supabase
           .from('quotes')
           .insert(quoteData)
-          .select()
-          .single();
+          .select();
           
-        if (error || !data) {
-          console.error('Erro ao salvar orçamento:', error);
+        if (error) {
+          console.error('❌ Erro ao salvar orçamento:', error);
+          console.error('Detalhes do erro:', JSON.stringify(error, null, 2));
+          console.error('Dados que tentamos inserir:', JSON.stringify(quoteData, null, 2));
           return false;
         }
         
-        savedQuoteId = data.id;
+        if (!data || data.length === 0) {
+          console.error('❌ Nenhum dado retornado após criação do orçamento');
+          return false;
+        }
+        
+        savedQuoteId = data[0].id;
         success = true;
+        console.log('✅ Orçamento criado com sucesso:', data[0]);
       }
       
       // Adicionar veículos ao orçamento
@@ -109,7 +141,10 @@ export function useQuoteSaving(
         const vehicleItem = quoteForm.vehicles[i];
         const vehicleResult = vehicleResults.find(r => r.vehicleId === vehicleItem.vehicle.id);
         
-        if (!vehicleResult) continue;
+        if (!vehicleResult) {
+          console.error(`⚠️ Resultado não encontrado para veículo ${vehicleItem.vehicle.id}`);
+          continue;
+        }
         
         const params = quoteForm.useGlobalParams 
           ? quoteForm.globalParams 
@@ -131,19 +166,28 @@ export function useQuoteSaving(
           monthly_value: vehicleResult.totalCost
         };
         
+        console.log(`🚗 Adicionando veículo ${i+1}/${quoteForm.vehicles.length}:`, 
+          `${vehicleItem.vehicle.brand} ${vehicleItem.vehicle.model}`,
+          `- Custo mensal: R$ ${vehicleResult.totalCost.toFixed(2)}`);
+        
         const { error } = await supabase
           .from('quote_vehicles')
           .insert(vehicleData);
           
         if (error) {
-          console.error('Erro ao salvar veículo do orçamento:', error);
+          console.error(`❌ Erro ao salvar veículo ${vehicleItem.vehicle.id}:`, error);
+          console.error('Detalhes do erro:', JSON.stringify(error, null, 2));
           // Continuar mesmo se houver erro em um veículo
+        } else {
+          console.log(`✅ Veículo ${i+1} salvo com sucesso`);
         }
       }
       
       if (success) {
         // Atualizar lista de orçamentos salvos
         await loadSavedQuotes();
+        
+        console.log('🎉 Orçamento salvo com sucesso!', savedQuoteId);
         
         if (isEditMode) {
           setIsEditMode(false);
@@ -154,7 +198,7 @@ export function useQuoteSaving(
       return success;
       
     } catch (error) {
-      console.error('Erro ao salvar orçamento:', error);
+      console.error('❌ Erro inesperado ao salvar orçamento:', error);
       return false;
     }
   };
@@ -165,7 +209,7 @@ export function useQuoteSaving(
     
     const editRecord: EditRecord = {
       editedAt: new Date().toISOString(),
-      editedBy: getCurrentUser().name, // Usar nome do usuário
+      editedBy: getCurrentUser().name,
       changes: changeDescription
     };
 
@@ -316,8 +360,8 @@ export function useQuoteSaving(
           monthlyKm: qv.monthly_km,
           plateNumber: qv.vehicles?.plate_number,
           groupId: qv.vehicles?.group_id,
-          protectionPlanId: qv.protection_plan_id, // Nova propriedade
-          protectionCost: qv.protection_cost // Novo campo
+          protectionPlanId: qv.protection_plan_id,
+          protectionCost: qv.protection_cost
         })) || [];
         
         return {
@@ -335,7 +379,7 @@ export function useQuoteSaving(
             monthlyKm: quote.monthly_km,
             operationSeverity: quote.operation_severity,
             hasTracking: quote.has_tracking,
-            protectionPlanId: quote.global_protection_plan_id // Nova propriedade
+            protectionPlanId: quote.global_protection_plan_id
           }
         };
       }) || [];
