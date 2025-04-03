@@ -1,91 +1,92 @@
 
 import { supabase } from '../client';
-import { ProtectionPlan, ProtectionBenefit, ProtectionDeductible, ProtectionPlanDetails } from '@/lib/types/protection';
+import { ProtectionPlan, ProtectionPlanDetails, ProtectionBenefit, ProtectionDeductible } from '@/lib/types/protection';
 
-// Buscar todos os planos de proteção
 export async function fetchProtectionPlans(): Promise<ProtectionPlan[]> {
   try {
     const { data, error } = await supabase
       .from('protection_plans')
       .select('*')
-      .order('monthly_cost');
+      .order('monthly_cost', { ascending: true });
     
-    if (error) {
-      console.error('Erro ao buscar planos de proteção:', error);
-      return [];
-    }
-    
-    return data as ProtectionPlan[];
+    if (error) throw error;
+    return data || [];
   } catch (error) {
-    console.error('Erro inesperado ao buscar planos de proteção:', error);
+    console.error('Erro ao buscar planos de proteção:', error);
     return [];
   }
 }
 
-// Buscar um plano de proteção pelo ID com seus benefícios e franquias
-export async function fetchProtectionPlanDetails(planId: string): Promise<ProtectionPlanDetails | null> {
+export async function fetchProtectionPlanDetails(planId: string): Promise<ProtectionPlanDetails> {
   try {
-    // Buscar o plano
-    const { data: plan, error: planError } = await supabase
+    // Buscar informações do plano
+    const { data: planData, error: planError } = await supabase
       .from('protection_plans')
       .select('*')
       .eq('id', planId)
       .single();
     
-    if (planError || !plan) {
-      console.error('Erro ao buscar plano de proteção:', planError);
-      return null;
-    }
+    if (planError) throw planError;
     
-    // Buscar os benefícios do plano
-    const { data: benefits, error: benefitsError } = await supabase
+    // Buscar benefícios do plano
+    const { data: benefitsData, error: benefitsError } = await supabase
       .from('protection_benefits')
       .select('*')
       .eq('plan_id', planId);
     
-    if (benefitsError) {
-      console.error('Erro ao buscar benefícios do plano:', benefitsError);
-      return null;
-    }
+    if (benefitsError) throw benefitsError;
     
-    // Buscar as franquias do plano
-    const { data: deductibles, error: deductiblesError } = await supabase
+    // Buscar franquias do plano
+    const { data: deductiblesData, error: deductiblesError } = await supabase
       .from('protection_deductibles')
       .select('*')
       .eq('plan_id', planId);
     
-    if (deductiblesError) {
-      console.error('Erro ao buscar franquias do plano:', deductiblesError);
-      return null;
-    }
+    if (deductiblesError) throw deductiblesError;
     
     return {
-      ...plan as ProtectionPlan,
-      benefits: benefits as ProtectionBenefit[] || [],
-      deductibles: deductibles as ProtectionDeductible[] || []
+      ...planData,
+      benefits: benefitsData || [],
+      deductibles: deductiblesData || []
     };
   } catch (error) {
-    console.error('Erro inesperado ao buscar detalhes do plano de proteção:', error);
-    return null;
+    console.error('Erro ao buscar detalhes do plano de proteção:', error);
+    throw error;
   }
 }
 
-// Atualizar um plano de proteção
-export async function updateProtectionPlan(planId: string, data: Partial<ProtectionPlan>): Promise<boolean> {
+export async function updateProtectionPlan(
+  planId: string, 
+  updates: Partial<ProtectionPlan>
+): Promise<boolean> {
   try {
     const { error } = await supabase
       .from('protection_plans')
-      .update(data)
+      .update(updates)
       .eq('id', planId);
     
-    if (error) {
-      console.error('Erro ao atualizar plano de proteção:', error);
-      return false;
-    }
-    
+    if (error) throw error;
     return true;
   } catch (error) {
-    console.error('Erro inesperado ao atualizar plano de proteção:', error);
+    console.error('Erro ao atualizar plano de proteção:', error);
+    return false;
+  }
+}
+
+export async function updateProtectionDeductible(
+  deductibleId: string, 
+  updates: Partial<ProtectionDeductible>
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('protection_deductibles')
+      .update(updates)
+      .eq('id', deductibleId);
+    
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Erro ao atualizar franquia:', error);
     return false;
   }
 }

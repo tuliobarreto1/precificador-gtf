@@ -44,6 +44,10 @@ export function useQuoteSaving(
       
       const { vehicleResults, totalCost } = calculationResult;
       
+      // Obter informações do usuário atual
+      const currentUser = getCurrentUser();
+      const userId = typeof currentUser === 'string' ? currentUser : currentUser.id;
+      
       // Preparar dados do orçamento
       const quoteData: any = {
         client_id: quoteForm.client.id,
@@ -51,9 +55,9 @@ export function useQuoteSaving(
         monthly_km: quoteForm.globalParams.monthlyKm,
         operation_severity: quoteForm.globalParams.operationSeverity,
         has_tracking: quoteForm.globalParams.hasTracking,
-        global_protection_plan_id: quoteForm.globalParams.protectionPlanId, // Nova propriedade
+        global_protection_plan_id: quoteForm.globalParams.protectionPlanId,
         total_value: totalCost,
-        created_by: getCurrentUser(),
+        created_by: userId, // Usar apenas o ID do usuário
         title: `Orçamento para ${quoteForm.client.name} - ${quoteForm.vehicles.length} veículo(s)`
       };
       
@@ -118,8 +122,8 @@ export function useQuoteSaving(
           monthly_km: params.monthlyKm,
           operation_severity: params.operationSeverity,
           has_tracking: params.hasTracking,
-          protection_plan_id: params.protectionPlanId, // Nova propriedade
-          protection_cost: vehicleResult.protectionCost || 0, // Novo campo
+          protection_plan_id: params.protectionPlanId,
+          protection_cost: vehicleResult.protectionCost || 0,
           depreciation_cost: vehicleResult.depreciationCost,
           maintenance_cost: vehicleResult.maintenanceCost,
           extra_km_rate: vehicleResult.extraKmRate,

@@ -687,7 +687,7 @@ const QuoteForm = () => {
                           <p className="text-muted-foreground">Km excedente:</p>
                           <p className="font-medium">R$ {result.extraKmRate.toFixed(2)}</p>
                         </div>
-                        {result.protectionCost && result.protectionCost > 0 && (
+                        {result.protectionPlanId && (
                           <div className="text-sm">
                             <p className="text-muted-foreground">Proteção:</p>
                             <p className="font-medium">R$ {result.protectionCost.toLocaleString('pt-BR')}</p>
@@ -838,65 +838,4 @@ const QuoteForm = () => {
                   <span className="hidden md:inline">{step.name}</span>
                   
                   {step.id === 'vehicle' && quoteForm.vehicles.length > 0 && (
-                    <span className="text-xs bg-secondary rounded-full px-1.5 py-0.5 min-w-5 flex items-center justify-center">
-                      {quoteForm.vehicles.length}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          <div className="min-h-[400px]">
-            {renderStepContent()}
-          </div>
-          
-          <div className="flex justify-between pt-6 border-t">
-            <Button
-              variant="outline"
-              onClick={goToPreviousStep}
-              disabled={currentStep === 'client'}
-            >
-              Voltar
-            </Button>
-            <Button 
-              onClick={handleNextStep}
-              type="button"
-              className="min-w-28 font-medium"
-            >
-              {currentStep === 'result' 
-                ? (isEditMode ? "Atualizar Orçamento" : "Salvar Orçamento") 
-                : "Continuar"}
-            </Button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
-
-const NewQuote = () => {
-  const { id } = useParams<{ id: string }>();
-  
-  return (
-    <MainLayout>
-      <div className="py-8">
-        <PageTitle 
-          title={id ? "Editar Orçamento" : "Novo Orçamento"} 
-          subtitle={id 
-            ? "Atualize os dados do orçamento existente" 
-            : "Preencha os dados para gerar um novo orçamento de locação"
-          } 
-        />
-        
-        <Card>
-          <QuoteProvider>
-            <QuoteForm />
-          </QuoteProvider>
-        </Card>
-      </div>
-    </MainLayout>
-  );
-};
-
-export default NewQuote;
+                    <span className="text-xs bg-secondary rounded-full px-1.5 py-0.5 min-w-5 flex items-center justify-center
