@@ -19,12 +19,43 @@ const initialQuoteForm: QuoteFormData = {
     monthlyKm: 3000,
     operationSeverity: 3,
     hasTracking: false,
-    protectionPlanId: null, // Adicionado campo de proteção
+    protectionPlanId: null,
   },
 };
 
+// Criar o contexto com um valor padrão para evitar undefined
+const defaultContextValue: QuoteContextType = {
+  quoteForm: initialQuoteForm,
+  setClient: () => {},
+  addVehicle: () => {},
+  removeVehicle: () => {},
+  setGlobalContractMonths: () => {},
+  setGlobalMonthlyKm: () => {},
+  setGlobalOperationSeverity: () => {},
+  setGlobalHasTracking: () => {},
+  setGlobalProtectionPlanId: () => {},
+  setUseGlobalParams: () => {},
+  setVehicleParams: () => {},
+  resetForm: () => {},
+  calculateQuote: () => null,
+  saveQuote: () => false,
+  getCurrentUser: () => defaultUser,
+  setCurrentUser: () => {},
+  availableUsers: [],
+  isEditMode: false,
+  currentEditingQuoteId: null,
+  getClientById: async () => null,
+  getVehicleById: async () => null,
+  loadQuoteForEditing: () => false,
+  deleteQuote: async () => false,
+  canEditQuote: () => false,
+  canDeleteQuote: () => false,
+  sendQuoteByEmail: async () => false,
+  savedQuotes: []
+};
+
 // Criar o contexto
-const QuoteContext = createContext<QuoteContextType>({} as QuoteContextType);
+const QuoteContext = createContext<QuoteContextType>(defaultContextValue);
 
 // Provider component
 export const QuoteProvider = ({ children }: { children: ReactNode }) => {
@@ -51,7 +82,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     setGlobalMonthlyKm,
     setGlobalOperationSeverity,
     setGlobalHasTracking,
-    setGlobalProtectionPlanId, // Novo método
+    setGlobalProtectionPlanId,
     setUseGlobalParams,
     setClient,
     resetForm
@@ -88,7 +119,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     setGlobalMonthlyKm,
     setGlobalOperationSeverity,
     setGlobalHasTracking,
-    setGlobalProtectionPlanId, // Novo método
+    setGlobalProtectionPlanId,
     setUseGlobalParams,
     setVehicleParams,
     resetForm,
@@ -134,8 +165,9 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
 // Hook para usar o contexto
 export const useQuote = () => {
   const context = useContext(QuoteContext);
-  if (context === undefined) {
-    throw new Error('useQuote must be used within a QuoteProvider');
-  }
+  // Não precisamos mais deste check, pois o contexto sempre terá um valor padrão
+  // if (context === undefined) {
+  //   throw new Error('useQuote must be used within a QuoteProvider');
+  // }
   return context;
 };

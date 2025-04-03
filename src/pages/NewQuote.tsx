@@ -356,7 +356,9 @@ const QuoteForm = () => {
 
   const handleClientSelect = (client: Client | CustomClient) => {
     console.log("Cliente selecionado:", client);
-    setClient(client);
+    if (client) {
+      setClient(client);
+    }
   };
 
   const renderClientStep = () => (
@@ -844,94 +846,4 @@ const QuoteForm = () => {
   return (
     <div className="space-y-8">
       {loadingQuote ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Carregando orçamento...</p>
-          </div>
-        </div>
-      ) : loadError ? (
-        <div className="bg-destructive/80 text-white p-6 rounded-lg">
-          <h3 className="text-xl font-bold mb-2">Erro ao carregar</h3>
-          <p>{loadError}</p>
-          <div className="mt-4">
-            <Button 
-              variant="outline" 
-              className="bg-white/10 hover:bg-white/20 text-white"
-              onClick={() => navigate('/orcamentos')}
-            >
-              Voltar para a lista de orçamentos
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="flex items-center justify-between bg-muted/30 p-1 rounded-lg">
-            {STEPS.map((step, index) => (
-              <div key={step.id} className="flex-1 first:flex-none last:flex-none">
-                {index > 0 && (
-                  <div className="h-[2px] flex-1 bg-border" />
-                )}
-                <div 
-                  className={`flex items-center space-x-2 rounded-md px-3 py-2 ${
-                    currentStep === step.id 
-                      ? 'bg-primary text-primary-foreground' 
-                      : 'text-muted-foreground'
-                  }`}
-                >
-                  <div className="w-5 h-5 flex items-center justify-center">
-                    {step.icon}
-                  </div>
-                  <span className="hidden md:inline">{step.name}</span>
-                  
-                  {step.id === 'vehicle' && quoteForm?.vehicles?.length > 0 && (
-                    <span className="text-xs bg-secondary rounded-full px-1.5 py-0.5 min-w-5 flex items-center justify-center">
-                      {quoteForm.vehicles.length}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          <div className="space-y-8">
-            {renderStepContent()}
-            
-            <div className="flex justify-between pt-4 border-t mt-6">
-              {currentStep !== 'client' ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={goToPreviousStep}
-                >
-                  Voltar
-                </Button>
-              ) : (
-                <div></div>
-              )}
-              
-              <Button
-                type="button"
-                disabled={currentStep === 'client' && !quoteForm?.client}
-                onClick={handleNextStep}
-              >
-                {currentStep === 'result' ? 'Finalizar Orçamento' : 'Continuar'}
-              </Button>
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
-
-const NewQuote = () => {
-  return (
-    <MainLayout>
-      <PageTitle title="Novo Orçamento" subtitle="Preencha os dados para criar um novo orçamento" />
-      <QuoteForm />
-    </MainLayout>
-  );
-};
-
-export default NewQuote;
+        <div className="flex items-center justify-center py

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -182,8 +181,8 @@ export default function ClientForm({ onClientSelect, existingClients = [] }: Cli
         type: data.type as 'PF' | 'PJ',
         document: data.document || '',
         email: data.email || '',
-        contact: data.phone || '',
-        responsible: data.responsible_person || ''
+        contact: data.contact || '',
+        responsible: data.responsible
       };
 
       // Atualizar lista local de clientes
@@ -226,6 +225,7 @@ export default function ClientForm({ onClientSelect, existingClients = [] }: Cli
 
   const handleSelectClient = (client: Client) => {
     if (onClientSelect) {
+      console.log("Cliente selecionado no ClientForm:", client);
       onClientSelect(client);
       setSelectedClientId(client.id);
     }
