@@ -1,3 +1,4 @@
+
 import { Client, Vehicle, VehicleGroup } from '@/lib/models';
 
 export interface QuoteParams {
@@ -151,7 +152,7 @@ export interface QuoteItem {
   value: number;
   createdAt: string;
   status: string;
-  contractMonths?: number; // Adicionado para uso no Index.tsx
+  contractMonths?: number; // Adicionada a propriedade contractMonths necessária para Index.tsx
   createdBy?: {
     id: number;
     name: string;
