@@ -152,7 +152,7 @@ export interface QuoteItem {
   value: number;
   createdAt: string;
   status: string;
-  contractMonths: number; // Agora definido como obrigatório (não opcional)
+  contractMonths: number; // Definido como obrigatório para garantir compatibilidade
   createdBy?: {
     id: number;
     name: string;

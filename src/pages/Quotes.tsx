@@ -1,4 +1,3 @@
-
 import React from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import QuotesHeader from '@/components/quotes/QuotesHeader';
@@ -13,6 +12,7 @@ import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useQuote } from '@/context/QuoteContext';
 import { deleteQuoteFromSupabase } from '@/integrations/supabase/services/quotes';
+import { QuoteItem } from '@/context/types/quoteTypes';
 
 const Quotes = () => {
   const { 
@@ -50,8 +50,10 @@ const Quotes = () => {
     setSearchTerm('');
   };
 
-  // Garantir que filteredQuotes é sempre um array
-  const safeQuotes = Array.isArray(filteredQuotes) ? filteredQuotes : [];
+  const safeQuotes: QuoteItem[] = Array.isArray(filteredQuotes) ? filteredQuotes.map(quote => ({
+    ...quote,
+    contractMonths: quote.contractMonths || 0
+  })) : [];
 
   const handleDeleteClick = (quoteId: string) => {
     setQuoteToDelete(quoteId);
@@ -66,7 +68,6 @@ const Quotes = () => {
     try {
       console.log("🗑️ Iniciando processo de exclusão para orçamento:", quoteToDelete);
       
-      // Tentativa 1: Via contexto (para orçamentos locais)
       let success = false;
       
       if (typeof deleteQuoteFromContext === 'function') {
@@ -75,7 +76,6 @@ const Quotes = () => {
         console.log("📝 Resultado da exclusão via contexto:", success);
       }
 
-      // Tentativa 2: Diretamente via Supabase (se o contexto falhar ou não estiver disponível)
       if (!success) {
         console.log("📌 Tentando excluir diretamente via Supabase:", quoteToDelete);
         const result = await deleteQuoteFromSupabase(quoteToDelete);
@@ -89,16 +89,10 @@ const Quotes = () => {
           description: "O orçamento foi excluído com sucesso."
         });
         
-        // Atualizar a lista após a exclusão bem-sucedida com força total
-        console.log("🔄 Atualizando lista de orçamentos após exclusão");
-        
-        // Forçar atualização direta do trigger para recarregar dados
         setRefreshTriggerDirectly();
         
-        // Pausa maior para garantir que o backend processou a exclusão
         setTimeout(() => {
           handleRefresh();
-          // Força uma segunda atualização após mais tempo
           setTimeout(() => {
             setRefreshTriggerDirectly();
           }, 2000);

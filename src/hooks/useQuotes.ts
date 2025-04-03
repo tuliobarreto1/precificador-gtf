@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useQuote } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
@@ -24,14 +23,12 @@ interface QuoteItem {
   };
 }
 
-// Definir tipos para os filtros
 interface QuoteFilters {
   status: string | null;
   dateRange: string | null;
   createdBy: string | null;
 }
 
-// Interface que será exportada pelo hook
 export interface UseQuotesReturn {
   allQuotes: QuoteItem[];
   filteredQuotes: QuoteItem[];
@@ -68,7 +65,6 @@ export const useQuotes = (): UseQuotesReturn => {
   const { toast } = useToast();
   const quoteContext = useQuote();
 
-  // Método para atualizar diretamente o refreshTrigger (útil para chamadas externas)
   const setRefreshTriggerDirectly = () => {
     console.log("🔄 Atualizando trigger de atualização diretamente");
     setRefreshTrigger(prev => prev + 1);
@@ -151,7 +147,6 @@ export const useQuotes = (): UseQuotesReturn => {
     setLoading(true);
     console.log('🔄 Atualizando lista de orçamentos via handleRefresh...');
     
-    // Incrementar o contador para forçar a recarga de dados
     setRefreshTrigger(prev => prev + 1);
     
     setTimeout(() => {
@@ -223,7 +218,6 @@ export const useQuotes = (): UseQuotesReturn => {
     return { name: 'Veículo não especificado', value: quote.total_value || quote.totalCost || 0 };
   };
 
-  // Transforma dados de orçamentos do Supabase
   const supabaseQuotesTransformed = supabaseQuotes.map(quote => {
     console.log('Processando orçamento do Supabase:', quote.id);
     
@@ -233,19 +227,16 @@ export const useQuotes = (): UseQuotesReturn => {
     const vehicleInfo = getVehicleInfo(quote);
     console.log('Informações de veículo para orçamento:', quote.id, vehicleInfo);
     
-    // Tentar obter informações sobre quem criou o orçamento
     const createdByInfo = {
       id: 0,
       name: 'Sistema',
       role: 'system'
     };
     
-    // Se tivermos informações sobre quem criou, usá-las
     if (quote.created_by_name) {
       createdByInfo.name = quote.created_by_name;
     }
     
-    // Garantir que contractMonths seja sempre um número, mesmo que seja 0
     const contractMonths = quote.contract_months || 
                           quote.contractMonths || 
                           (quote.globalParams ? quote.globalParams.contractMonths : 0) || 
@@ -267,7 +258,6 @@ export const useQuotes = (): UseQuotesReturn => {
   
   useEffect(() => {
     try {
-      // Ordenar orçamentos por data de criação (mais recente primeiro)
       const quotes = [...supabaseQuotesTransformed];
       quotes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       console.log(`🔄 Lista de orçamentos atualizada: ${quotes.length} orçamentos`);
@@ -277,7 +267,6 @@ export const useQuotes = (): UseQuotesReturn => {
     }
   }, [supabaseQuotes, refreshTrigger]);
   
-  // Função para aplicar os filtros de data
   const applyDateFilter = (quote: QuoteItem, dateRange: string | null): boolean => {
     if (!dateRange) return true;
     
@@ -304,9 +293,7 @@ export const useQuotes = (): UseQuotesReturn => {
     }
   };
   
-  // Aplicar filtros e busca
   const filteredQuotes = allQuotes.filter(quote => {
-    // Aplicar termo de busca
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = searchTerm === '' || 
       quote.clientName.toLowerCase().includes(searchLower) ||
@@ -314,26 +301,21 @@ export const useQuotes = (): UseQuotesReturn => {
       quote.id.toString().toLowerCase().includes(searchLower) ||
       (quote.createdBy?.name && quote.createdBy.name.toLowerCase().includes(searchLower));
     
-    // Aplicar filtro de status
     const matchesStatus = !filters.status || quote.status === filters.status;
     
-    // Aplicar filtro de data
     const matchesDateRange = applyDateFilter(quote, filters.dateRange);
     
-    // Aplicar filtro de criado por
     const matchesCreatedBy = !filters.createdBy || 
       (filters.createdBy === 'system' && quote.createdBy?.name === 'Sistema') ||
-      (filters.createdBy === 'current' && quote.createdBy?.id === 1); // Assumindo id 1 como usuário atual
+      (filters.createdBy === 'current' && quote.createdBy?.id === 1);
     
     return matchesSearch && matchesStatus && matchesDateRange && matchesCreatedBy;
   });
   
-  // Atualizar filtro específico
   const setFilter = (key: keyof QuoteFilters, value: string | null) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
   
-  // Limpar todos os filtros
   const clearFilters = () => {
     setFilters({
       status: null,
