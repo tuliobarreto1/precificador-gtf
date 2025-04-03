@@ -76,8 +76,10 @@ export interface SavedQuote {
     hasTracking: boolean;
     protectionPlanId?: string | null; // Nova propriedade para o plano de proteção global
   };
+  contractMonths?: number; // Para compatibilidade com a interface do Index.tsx
 }
 
+// Interface para o context
 export interface QuoteContextType {
   quoteForm: QuoteFormData;
   setClient: (client: Client | null) => void;
@@ -93,9 +95,9 @@ export interface QuoteContextType {
   resetForm: () => void;
   calculateQuote: () => QuoteCalculationResult | null;
   saveQuote: () => boolean;
-  getCurrentUser: () => string;
-  setCurrentUser: (user: string) => void;
-  availableUsers: string[];
+  getCurrentUser: () => User;
+  setCurrentUser: (user: User) => void;
+  availableUsers: User[];
   isEditMode: boolean;
   currentEditingQuoteId: string | null;
   getClientById: (clientId: string) => Promise<Client | null>;
@@ -150,6 +152,7 @@ export interface QuoteItem {
   value: number;
   createdAt: string;
   status: string;
+  contractMonths?: number; // Adicionado para uso no Index.tsx
   createdBy?: {
     id: number;
     name: string;

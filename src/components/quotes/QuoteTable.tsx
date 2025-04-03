@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,7 @@ import {
 } from '@/components/ui/table';
 import { Edit, Trash2, Calendar, User } from 'lucide-react';
 import { useQuote } from '@/context/QuoteContext';
-import { SavedQuote } from '@/context/types/quoteTypes';
+import { SavedQuote, QuoteItem } from '@/context/types/quoteTypes';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,20 +28,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-
-interface QuoteItem {
-  id: string;
-  clientName: string;
-  vehicleName: string;
-  value: number;
-  createdAt: string;
-  status: string;
-  createdBy?: {
-    id: number;
-    name: string;
-    role: string;
-  };
-}
 
 interface QuoteTableProps {
   quotes: QuoteItem[];
@@ -158,35 +145,12 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
               </TableRow>
             ) : (
               safeQuotes.map((quote) => {
-                const quoteForPermissionCheck = {
-                  id: quote.id,
-                  clientId: '',
-                  clientName: quote.clientName || '',
-                  vehicleId: '',
-                  vehicleBrand: '',
-                  vehicleModel: '',
-                  contractMonths: 0,
-                  monthlyKm: 0,
-                  totalCost: quote.value || 0,
-                  createdAt: quote.createdAt || '',
-                  createdBy: quote.createdBy ? {
-                    id: quote.createdBy.id,
-                    name: quote.createdBy.name,
-                    role: quote.createdBy.role as any,
-                    email: '',
-                    status: 'active' as 'active' | 'inactive',
-                    lastLogin: ''
-                  } : undefined,
-                  vehicles: [],
-                  status: quote.status || 'ORCAMENTO'
-                };
-                
                 let canEdit = true;
                 let canDelete = true;
                 
                 if (isQuoteContextAvailable) {
-                  canEdit = canEditQuote(quoteForPermissionCheck);
-                  canDelete = canDeleteQuote(quoteForPermissionCheck);
+                  canEdit = canEditQuote(quote.id);
+                  canDelete = canDeleteQuote(quote.id);
                 }
                 
                 const isEditable = quote.status === 'ORCAMENTO' || quote.status === 'draft';

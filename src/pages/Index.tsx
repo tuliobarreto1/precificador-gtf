@@ -60,6 +60,7 @@ const Index = () => {
         value: quote.value,
         createdAt: quote.createdAt,
         status: quote.status,
+        contractMonths: quote.contractMonths || 0, // Garantir que existe
         createdBy: quote.createdBy
       };
     });

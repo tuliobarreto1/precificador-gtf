@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { QuoteFormData, SavedQuote, QuoteCalculationResult } from '@/context/types/quoteTypes';
+import { QuoteFormData, SavedQuote, QuoteCalculationResult, User, EditRecord } from '@/context/types/quoteTypes';
 import { supabase } from '@/integrations/supabase/client';
 import { getClientById, getVehicleById } from '@/lib/data-provider';
 import { Client, Vehicle } from '@/lib/models';
@@ -10,7 +10,7 @@ const SAVED_QUOTES_KEY = 'savedQuotes';
 export function useQuoteSaving(
   quoteForm: QuoteFormData, 
   calculateQuote: () => QuoteCalculationResult | null | Promise<QuoteCalculationResult | null>, 
-  getCurrentUser: () => string | any
+  getCurrentUser: () => User
 ) {
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -161,7 +161,7 @@ export function useQuoteSaving(
     
     const editRecord: EditRecord = {
       editedAt: new Date().toISOString(),
-      editedBy: getCurrentUser(),
+      editedBy: getCurrentUser().name, // Usar nome do usuário
       changes: changeDescription
     };
 

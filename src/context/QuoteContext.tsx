@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Client, Vehicle, VehicleGroup } from '@/lib/models';
-import { QuoteFormData, SavedQuote, QuoteContextType, QuoteCalculationResult } from './types/quoteTypes';
+import { QuoteFormData, SavedQuote, QuoteContextType, QuoteCalculationResult, User, defaultUser } from './types/quoteTypes';
 import { useQuoteUsers } from '@/hooks/useQuoteUsers';
 import { useQuoteVehicles } from '@/hooks/useQuoteVehicles';
 import { useQuoteParams } from '@/hooks/useQuoteParams';
@@ -120,16 +120,8 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       return result;
     },
     deleteQuote,
-    canEditQuote: (quoteId: string) => {
-      const quote = savedQuotes.find(q => q.id === quoteId);
-      if (!quote) return false;
-      return canEditQuote(quote);
-    },
-    canDeleteQuote: (quoteId: string) => {
-      const quote = savedQuotes.find(q => q.id === quoteId);
-      if (!quote) return false;
-      return canDeleteQuote(quote);
-    },
+    canEditQuote,
+    canDeleteQuote,
     sendQuoteByEmail,
     savedQuotes
   };
