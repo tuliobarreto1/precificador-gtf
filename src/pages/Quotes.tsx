@@ -1,3 +1,4 @@
+
 import React from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import QuotesHeader from '@/components/quotes/QuotesHeader';
@@ -50,6 +51,7 @@ const Quotes = () => {
     setSearchTerm('');
   };
 
+  // Garantir que todos os orçamentos tenham contractMonths definido
   const safeQuotes: QuoteItem[] = Array.isArray(filteredQuotes) ? filteredQuotes.map(quote => ({
     ...quote,
     contractMonths: quote.contractMonths || 0

@@ -16,6 +16,7 @@ interface QuoteItem {
   value: number;
   createdAt: string;
   status: string;
+  contractMonths: number;
   createdBy?: {
     id: number;
     name: string;
@@ -238,7 +239,7 @@ export const useQuotes = (): UseQuotesReturn => {
     }
     
     const contractMonths = quote.contract_months || 
-                          quote.contractMonths || 
+                           quote.contractMonths || 
                           (quote.globalParams ? quote.globalParams.contractMonths : 0) || 
                           0;
     
