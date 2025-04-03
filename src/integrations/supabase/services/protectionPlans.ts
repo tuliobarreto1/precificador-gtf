@@ -10,11 +10,36 @@ export async function fetchProtectionPlans(): Promise<ProtectionPlan[]> {
       .order('monthly_cost', { ascending: true });
     
     if (error) throw error;
-    return data || [];
+    
+    // Validar e converter o tipo para garantir compatibilidade com a interface
+    return data?.map(plan => ({
+      ...plan,
+      type: validatePlanType(plan.type)
+    })) || [];
   } catch (error) {
     console.error('Erro ao buscar planos de proteção:', error);
     return [];
   }
+}
+
+// Função auxiliar para validar o tipo do plano
+function validatePlanType(type: string): 'basic' | 'intermediate' | 'premium' {
+  if (type === 'basic' || type === 'intermediate' || type === 'premium') {
+    return type;
+  }
+  // Valor padrão caso o tipo não seja válido
+  console.warn(`Tipo de plano inválido: ${type}. Usando 'basic' como padrão.`);
+  return 'basic';
+}
+
+// Função auxiliar para validar o tipo de incidente
+function validateIncidentType(type: string): 'total_loss' | 'partial_damage' {
+  if (type === 'total_loss' || type === 'partial_damage') {
+    return type;
+  }
+  // Valor padrão caso o tipo não seja válido
+  console.warn(`Tipo de incidente inválido: ${type}. Usando 'partial_damage' como padrão.`);
+  return 'partial_damage';
 }
 
 export async function fetchProtectionPlanDetails(planId: string): Promise<ProtectionPlanDetails> {
@@ -44,10 +69,21 @@ export async function fetchProtectionPlanDetails(planId: string): Promise<Protec
     
     if (deductiblesError) throw deductiblesError;
     
-    return {
+    // Converter para os tipos corretos
+    const validatedPlan: ProtectionPlan = {
       ...planData,
+      type: validatePlanType(planData.type)
+    };
+    
+    const validatedDeductibles: ProtectionDeductible[] = deductiblesData?.map(deductible => ({
+      ...deductible,
+      incident_type: validateIncidentType(deductible.incident_type)
+    })) || [];
+    
+    return {
+      ...validatedPlan,
       benefits: benefitsData || [],
-      deductibles: deductiblesData || []
+      deductibles: validatedDeductibles
     };
   } catch (error) {
     console.error('Erro ao buscar detalhes do plano de proteção:', error);
