@@ -102,9 +102,9 @@ const QuoteFilters = ({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">Todos os status</SelectItem>
-                    {statusOptions.map(status => (
-                      <SelectItem key={status.value} value={status.value}>
-                        {status.label}
+                    {statusOptions.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
