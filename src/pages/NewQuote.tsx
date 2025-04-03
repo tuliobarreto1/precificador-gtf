@@ -846,4 +846,100 @@ const QuoteForm = () => {
   return (
     <div className="space-y-8">
       {loadingQuote ? (
-        <div className="flex items-center justify-center py
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">
+              {loadError ? "Erro ao carregar o orçamento" : "Carregando orçamento..."}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-col md:flex-row justify-between gap-6 items-start">
+            <div>
+              <h1 className="text-2xl font-semibold">
+                {isEditMode ? "Editar Orçamento" : "Novo Orçamento"}
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                {isEditMode 
+                  ? "Atualize os detalhes deste orçamento" 
+                  : "Preencha os dados para criar um novo orçamento"}
+              </p>
+            </div>
+            
+            <div className="flex flex-wrap gap-2 items-center">
+              <Button
+                variant="outline"
+                onClick={goToPreviousStep}
+                disabled={currentStep === 'client' || loadingQuote}
+              >
+                Voltar
+              </Button>
+
+              <Button
+                onClick={handleNextStep}
+                disabled={loadingQuote}
+              >
+                {currentStep === 'result' ? (isEditMode ? "Salvar Alterações" : "Concluir") : "Continuar"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+            {STEPS.map((step, index) => (
+              <div 
+                key={step.id} 
+                className={`flex items-center p-3 md:p-4 border rounded-lg ${
+                  currentStep === step.id 
+                    ? "bg-primary/10 border-primary/30" 
+                    : "bg-muted/20"
+                }`}
+              >
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full mr-3 ${
+                  currentStep === step.id 
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
+                }`}>
+                  {step.icon}
+                </div>
+                <span className={`${
+                  currentStep === step.id 
+                    ? "font-medium" 
+                    : "text-muted-foreground"
+                }`}>
+                  {step.name}
+                </span>
+              </div>
+            ))}
+          </div>
+          
+          <div>
+            {renderStepContent()}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+const NewQuote = () => {
+  return (
+    <MainLayout>
+      <QuoteProvider>
+        <PageTitle
+          title="Criar orçamento"
+          breadcrumbs={[
+            { label: "Home", url: "/" },
+            { label: "Orçamentos", url: "/orcamentos" },
+            { label: "Novo Orçamento", url: "/orcamento/novo" }
+          ]}
+        />
+        
+        <QuoteForm />
+      </QuoteProvider>
+    </MainLayout>
+  );
+};
+
+export default NewQuote;
