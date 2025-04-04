@@ -49,7 +49,8 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         const protectionCost = await protectionCalculation.calculateProtectionCost(params.protectionPlanId);
         
         // Custos de IPVA e Licenciamento
-        const ipvaCost = params.includeIpva ? (item.vehicleGroup.ipvaCost || 0) / 12 : 0;
+        // IPVA agora é calculado como uma porcentagem do valor do veículo
+        const ipvaCost = params.includeIpva ? (item.vehicle.value * (item.vehicleGroup.ipvaCost || 0)) / 12 : 0;
         const licensingCost = params.includeLicensing ? (item.vehicleGroup.licensingCost || 0) / 12 : 0;
         
         // Custo total mensal
@@ -61,6 +62,8 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           tracking: trackingCost.toFixed(2),
           protection: protectionCost.toFixed(2),
           ipva: ipvaCost.toFixed(2),
+          ipvaPercentage: (item.vehicleGroup.ipvaCost || 0) * 100,
+          vehicleValue: item.vehicle.value.toFixed(2),
           licensing: licensingCost.toFixed(2),
           total: totalCost.toFixed(2),
           protectionPlanId: params.protectionPlanId,
@@ -141,7 +144,8 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         const protectionCost = 0; // Valor temporário, será substituído na versão assíncrona
         
         // Custos de IPVA e Licenciamento
-        const ipvaCost = params.includeIpva ? (item.vehicleGroup.ipvaCost || 0) / 12 : 0;
+        // IPVA agora é calculado como uma porcentagem do valor do veículo
+        const ipvaCost = params.includeIpva ? (item.vehicle.value * (item.vehicleGroup.ipvaCost || 0)) / 12 : 0;
         const licensingCost = params.includeLicensing ? (item.vehicleGroup.licensingCost || 0) / 12 : 0;
         
         // Custo total mensal

@@ -11,7 +11,7 @@ export interface VehicleGroup {
   tireCost: number;
   description?: string;
   code?: string;
-  ipvaCost?: number;          // Novos campos
+  ipvaCost?: number;          // Agora será uma porcentagem (ex: 0.03 = 3%)
   licensingCost?: number;
 }
 
@@ -56,7 +56,7 @@ export async function getVehicleGroups() {
         revisionCost: 300,
         tireCost: 1200,
         description: 'Veículos de pequeno porte',
-        ipvaCost: 0,
+        ipvaCost: 0.03, // 3% como padrão
         licensingCost: 0
       },
       {
@@ -67,7 +67,7 @@ export async function getVehicleGroups() {
         revisionCost: 350,
         tireCost: 1400,
         description: 'Veículos de médio porte',
-        ipvaCost: 0,
+        ipvaCost: 0.03, // 3% como padrão
         licensingCost: 0
       },
       {
@@ -78,7 +78,7 @@ export async function getVehicleGroups() {
         revisionCost: 400,
         tireCost: 1600,
         description: 'Veículos de grande porte',
-        ipvaCost: 0,
+        ipvaCost: 0.03, // 3% como padrão
         licensingCost: 0
       }
     ];
