@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { QuoteFormData, SavedQuote, QuoteCalculationResult, User, EditRecord } from '@/context/types/quoteTypes';
 import { supabase } from '@/integrations/supabase/client';
@@ -242,6 +243,16 @@ export function useQuoteSaving(
       console.log('✅ Orçamento salvo com sucesso via abordagem adaptada:', savedQuote);
       
       // Agora vamos adicionar os veículos
+      // Aqui está o erro: a variável não está definida nesse escopo
+      // Precisamos obter os resultados de cálculo novamente
+      const calculationResult = await calculateQuote();
+      if (!calculationResult) {
+        console.error("❌ Erro ao calcular orçamento para veículos");
+        return false;
+      }
+      
+      const { vehicleResults } = calculationResult;
+      
       for (let i = 0; i < quoteForm.vehicles.length; i++) {
         const vehicleItem = quoteForm.vehicles[i];
         const vehicleResult = vehicleResults.find(r => r.vehicleId === vehicleItem.vehicle.id);
