@@ -161,10 +161,45 @@ export function useQuoteSaving(
         const params = quoteForm.useGlobalParams 
           ? quoteForm.globalParams 
           : (vehicleItem.params || quoteForm.globalParams);
+        
+        // Verificar se o ID do veículo é temporário (começa com "new-")
+        let vehicleId = vehicleItem.vehicle.id;
+        
+        if (vehicleId.startsWith('new-')) {
+          // Criar um novo UUID para o veículo e inseri-lo no banco
+          vehicleId = uuidv4();
+          
+          try {
+            const { data: newVehicle, error: vehicleError } = await supabase
+              .from('vehicles')
+              .insert({
+                id: vehicleId,
+                brand: vehicleItem.vehicle.brand || 'Não especificado',
+                model: vehicleItem.vehicle.model || 'Não especificado',
+                year: vehicleItem.vehicle.year || new Date().getFullYear(),
+                value: vehicleItem.vehicle.value || 0,
+                plate_number: vehicleItem.vehicle.plateNumber,
+                is_used: vehicleItem.vehicle.isUsed || false,
+                group_id: vehicleItem.vehicleGroup?.id || 'A'
+              })
+              .select();
+              
+            if (vehicleError) {
+              console.error('❌ Erro ao criar veículo:', vehicleError);
+              continue; // Pular para o próximo veículo
+            }
+            
+            console.log('✅ Novo veículo criado com sucesso:', newVehicle);
+          } catch (vehicleCreateError) {
+            console.error('❌ Erro ao criar veículo:', vehicleCreateError);
+            continue; // Pular para o próximo veículo
+          }
+        }
           
         const vehicleData = {
+          id: uuidv4(), // Gerando UUID para o quote_vehicle
           quote_id: savedQuoteId,
-          vehicle_id: vehicleItem.vehicle.id,
+          vehicle_id: vehicleId,
           contract_months: params.contractMonths,
           monthly_km: params.monthlyKm,
           operation_severity: params.operationSeverity,
@@ -182,13 +217,13 @@ export function useQuoteSaving(
           `${vehicleItem.vehicle.brand} ${vehicleItem.vehicle.model}`,
           `- Custo mensal: R$ ${vehicleResult.totalCost.toFixed(2)}`);
         
-        const { error } = await supabase
+        const { error: vehicleError } = await supabase
           .from('quote_vehicles')
           .insert(vehicleData);
           
-        if (error) {
-          console.error(`❌ Erro ao salvar veículo ${vehicleItem.vehicle.id}:`, error);
-          console.error('Detalhes do erro:', JSON.stringify(error, null, 2));
+        if (vehicleError) {
+          console.error(`❌ Erro ao salvar veículo ${vehicleId}:`, vehicleError);
+          console.error('Detalhes do erro:', JSON.stringify(vehicleError, null, 2));
           // Continuar mesmo se houver erro em um veículo
         } else {
           console.log(`✅ Veículo ${i+1} salvo com sucesso`);
@@ -243,7 +278,6 @@ export function useQuoteSaving(
       console.log('✅ Orçamento salvo com sucesso via abordagem adaptada:', savedQuote);
       
       // Agora vamos adicionar os veículos
-      // Aqui está o erro: a variável não está definida nesse escopo
       // Precisamos obter os resultados de cálculo novamente
       const calculationResult = await calculateQuote();
       if (!calculationResult) {
@@ -387,6 +421,23 @@ export function useQuoteSaving(
           console.error('❌ Erro ao registrar log de exclusão:', logError);
         }
         
+        // Primeiro excluir os veículos relacionados
+        try {
+          const { error: vehiclesError } = await supabase
+            .from('quote_vehicles')
+            .delete()
+            .eq('quote_id', quoteId);
+            
+          if (vehiclesError) {
+            console.error('❌ Erro ao excluir veículos do orçamento:', vehiclesError);
+          } else {
+            console.log('✅ Veículos excluídos com sucesso');
+          }
+        } catch (vehicleError) {
+          console.error('❌ Erro ao excluir veículos:', vehicleError);
+        }
+        
+        // Após excluir os veículos, excluir o orçamento
         const { error } = await supabase
           .from('quotes')
           .delete()
