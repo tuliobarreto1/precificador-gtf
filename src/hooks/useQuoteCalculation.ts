@@ -136,8 +136,9 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         // Custo de rastreamento
         const trackingCost = basicCalculations.calculateTrackingCost(params.hasTracking);
         
-        // Custo da proteção na versão síncrona (usar cache se disponível)
-        const protectionCost = protectionCalculation.getProtectionCostSync(params.protectionPlanId);
+        // Para cálculo síncrono, usamos um valor fallback para proteção
+        // Na versão assíncrona, buscamos do servidor
+        const protectionCost = 0; // Valor temporário, será substituído na versão assíncrona
         
         // Custos de IPVA e Licenciamento
         const ipvaCost = params.includeIpva ? (item.vehicleGroup.ipvaCost || 0) / 12 : 0;
@@ -146,7 +147,6 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         // Custo total mensal
         const totalCost = totalDepreciation + maintenanceCost + trackingCost + protectionCost + ipvaCost + licensingCost;
         
-        // Adicionar ao array de resultados
         vehicleResults.push({
           vehicleId: item.vehicle.id,
           totalCost,
@@ -175,10 +175,16 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
     }
   };
   
-  // Função para enviar orçamento por email
+  // Função para enviar orçamento por e-mail
   const sendQuoteByEmail = async (quoteId: string, email: string, message?: string): Promise<boolean> => {
-    // Manter implementação existente
-    return true;
+    try {
+      // Esta função seria integrada com o backend para envio de e-mails
+      console.log(`Enviando orçamento ${quoteId} para ${email}`, { message });
+      return true;
+    } catch (error) {
+      console.error("Erro ao enviar orçamento por e-mail:", error);
+      return false;
+    }
   };
 
   return {

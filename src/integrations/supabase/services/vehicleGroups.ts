@@ -131,4 +131,3 @@ export async function getVehicleGroupById(id: string): Promise<VehicleGroup | nu
     return null;
   }
 }
-
