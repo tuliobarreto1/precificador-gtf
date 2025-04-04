@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { QuoteFormData, SavedQuote, QuoteCalculationResult, User, EditRecord } from '@/context/types/quoteTypes';
 import { supabase } from '@/integrations/supabase/client';
@@ -51,13 +52,6 @@ export function useQuoteSaving(
       
       const { vehicleResults, totalCost } = calculationResult;
       
-      // Obter informações do usuário atual
-      const currentUser = getCurrentUser();
-      
-      // Criar novo UUID para created_by em vez de usar o ID do usuário
-      // Isso evita o erro de chave estrangeira para auth.users
-      const createdById = uuidv4();
-      
       // Preparar dados do orçamento
       const quoteData: any = {
         client_id: quoteForm.client.id,
@@ -67,8 +61,7 @@ export function useQuoteSaving(
         has_tracking: quoteForm.globalParams.hasTracking,
         global_protection_plan_id: quoteForm.globalParams.protectionPlanId,
         total_value: totalCost,
-        // Usar o UUID gerado em vez do ID do usuário
-        created_by: createdById, 
+        // Removendo a referência ao created_by para evitar problemas de chave estrangeira
         title: `Orçamento para ${quoteForm.client.name} - ${quoteForm.vehicles.length} veículo(s)`,
         monthly_values: totalCost // Garantir que o valor mensal seja salvo
       };
@@ -123,26 +116,23 @@ export function useQuoteSaving(
         const quoteId = uuidv4();
         quoteData.id = quoteId;
         
-        const { data, error } = await supabase
-          .from('quotes')
-          .insert(quoteData)
-          .select();
-          
-        if (error) {
-          console.error('❌ Erro ao salvar orçamento:', error);
-          console.error('Detalhes do erro:', JSON.stringify(error, null, 2));
-          console.error('Dados que tentamos inserir:', JSON.stringify(quoteData, null, 2));
+        // Usando a integração de serviço saveQuoteToSupabase em vez da inserção direta
+        // para evitar problemas com a foreign key
+        const { success: saveSuccess, quote, error } = await saveQuoteToSupabase(quoteData);
+        
+        if (error || !saveSuccess) {
+          console.error('❌ Erro ao salvar orçamento:', error || "Falha desconhecida");
           return false;
         }
         
-        if (!data || data.length === 0) {
+        if (!quote) {
           console.error('❌ Nenhum dado retornado após criação do orçamento');
           return false;
         }
         
-        savedQuoteId = data[0].id;
+        savedQuoteId = quoteId;
         success = true;
-        console.log('✅ Orçamento criado com sucesso:', data[0]);
+        console.log('✅ Orçamento criado com sucesso:', quote);
       }
       
       // Adicionar veículos ao orçamento
@@ -401,6 +391,32 @@ export function useQuoteSaving(
       return [];
     } finally {
       setLoadingSavedQuotes(false);
+    }
+  };
+
+  // Importando a função saveQuoteToSupabase para usar diretamente
+  const saveQuoteToSupabase = async (quoteData: any) => {
+    try {
+      // Remover completamente o campo created_by para evitar o erro de chave estrangeira
+      const { created_by, ...quoteDataWithoutCreatedBy } = quoteData;
+      
+      console.log("Preparando dados para salvar no Supabase (sem created_by):", quoteDataWithoutCreatedBy);
+      
+      const { data, error } = await supabase
+        .from('quotes')
+        .insert(quoteDataWithoutCreatedBy)
+        .select();
+        
+      if (error) {
+        console.error("Erro ao salvar orçamento via serviço integrado:", error);
+        return { success: false, error };
+      }
+      
+      console.log("Orçamento salvo com sucesso via serviço integrado:", data);
+      return { success: true, quote: data[0] };
+    } catch (error) {
+      console.error("Erro inesperado ao salvar orçamento via serviço integrado:", error);
+      return { success: false, error };
     }
   };
 
