@@ -265,10 +265,42 @@ export function useQuoteSaving(
         const params = quoteForm.useGlobalParams 
           ? quoteForm.globalParams 
           : (vehicleItem.params || quoteForm.globalParams);
+        
+        // Certifique-se que o vehicle.id é um UUID válido
+        let vehicleId = vehicleItem.vehicle.id;
+        
+        // Se o ID do veículo tiver o prefixo "new-", geramos um novo UUID válido
+        if (vehicleId.startsWith('new-')) {
+          vehicleId = uuidv4();
+          
+          // Precisamos primeiro criar o veículo
+          const { data: newVehicle, error: vehicleError } = await supabase
+            .from('vehicles')
+            .insert({
+              id: vehicleId,
+              brand: vehicleItem.vehicle.brand || 'Não especificado',
+              model: vehicleItem.vehicle.model || 'Não especificado',
+              year: vehicleItem.vehicle.year || new Date().getFullYear(),
+              value: vehicleItem.vehicle.value || 0,
+              plate_number: vehicleItem.vehicle.plateNumber,
+              is_used: vehicleItem.vehicle.isUsed || false,
+              group_id: vehicleItem.vehicleGroup?.id || 'A'
+            })
+            .select();
+            
+          if (vehicleError) {
+            console.error('❌ Erro ao criar veículo:', vehicleError);
+            // Continue com o próximo veículo
+            continue;
+          }
+          
+          console.log('✅ Novo veículo criado:', newVehicle);
+        }
           
         const vehicleData = {
+          id: uuidv4(), // Gerando UUID válido para o quote_vehicle
           quote_id: savedQuote.id,
-          vehicle_id: vehicleItem.vehicle.id,
+          vehicle_id: vehicleId,
           contract_months: params.contractMonths,
           monthly_km: params.monthlyKm,
           operation_severity: params.operationSeverity,
@@ -287,7 +319,7 @@ export function useQuoteSaving(
           .insert(vehicleData);
           
         if (vehicleError) {
-          console.error(`❌ Erro ao salvar veículo ${vehicleItem.vehicle.id}:`, vehicleError);
+          console.error(`❌ Erro ao salvar veículo ${vehicleId}:`, vehicleError);
         } else {
           console.log(`✅ Veículo ${i+1} salvo com sucesso`);
         }
