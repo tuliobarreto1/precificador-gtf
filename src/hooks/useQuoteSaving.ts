@@ -54,17 +54,9 @@ export function useQuoteSaving(
       // Obter informações do usuário atual
       const currentUser = getCurrentUser();
       
-      // Garantir que o userId seja uma string UUID válida
-      let userId: string;
-      if (typeof currentUser === 'string') {
-        userId = currentUser;
-      } else if (typeof currentUser.id === 'string') {
-        userId = currentUser.id;
-      } else {
-        // Se não tiver um UUID válido, gerar um
-        userId = uuidv4();
-        console.log("ID de usuário inválido, gerando UUID temporário:", userId);
-      }
+      // Criar novo UUID para created_by em vez de usar o ID do usuário
+      // Isso evita o erro de chave estrangeira para auth.users
+      const createdById = uuidv4();
       
       // Preparar dados do orçamento
       const quoteData: any = {
@@ -75,7 +67,8 @@ export function useQuoteSaving(
         has_tracking: quoteForm.globalParams.hasTracking,
         global_protection_plan_id: quoteForm.globalParams.protectionPlanId,
         total_value: totalCost,
-        created_by: userId,
+        // Usar o UUID gerado em vez do ID do usuário
+        created_by: createdById, 
         title: `Orçamento para ${quoteForm.client.name} - ${quoteForm.vehicles.length} veículo(s)`,
         monthly_values: totalCost // Garantir que o valor mensal seja salvo
       };
