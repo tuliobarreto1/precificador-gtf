@@ -422,7 +422,7 @@ const QuoteForm = () => {
         </div>
         
         <div className="space-y-4">
-          <Label className="text-sm mb-2 block">Quilometragem Mensal</Label>
+          <Label className="text-sm">Quilometragem Mensal</Label>
           <div className="grid grid-cols-5 gap-2">
             {KM_OPTIONS.map((km) => (
               <Button 
