@@ -20,6 +20,8 @@ export interface VehicleGroup {
   revisionCost: number;
   tireKm: number;
   tireCost: number;
+  ipvaCost?: number; // Novo campo para custo do IPVA
+  licensingCost?: number; // Novo campo para custo do Licenciamento
 }
 
 export interface Vehicle {
@@ -47,6 +49,8 @@ export interface Quote {
   status?: string;
   operationSeverity?: number;
   hasTracking?: boolean;
+  includeIpva?: boolean; // Novo campo para IPVA
+  includeLicensing?: boolean; // Novo campo para Licenciamento
   client?: Client;
   vehicles?: {
     vehicleId: string;

@@ -1,3 +1,4 @@
+
 import { supabase } from '../client';
 
 // Interface para grupo de veículo
@@ -10,6 +11,8 @@ export interface VehicleGroup {
   tireCost: number;
   description?: string;
   code?: string;
+  ipvaCost?: number;          // Novos campos
+  licensingCost?: number;
 }
 
 // Função para buscar grupos de veículos
@@ -34,7 +37,9 @@ export async function getVehicleGroups() {
       revisionCost: group.revision_cost || 300,
       tireCost: group.tire_cost || 1200,
       description: group.description,
-      code: group.code
+      code: group.code,
+      ipvaCost: group.ipva_cost || 0,
+      licensingCost: group.licensing_cost || 0
     }));
     
     return { success: true, groups };
@@ -50,7 +55,9 @@ export async function getVehicleGroups() {
         tireKm: 40000,
         revisionCost: 300,
         tireCost: 1200,
-        description: 'Veículos de pequeno porte'
+        description: 'Veículos de pequeno porte',
+        ipvaCost: 0,
+        licensingCost: 0
       },
       {
         id: 'B',
@@ -59,7 +66,9 @@ export async function getVehicleGroups() {
         tireKm: 45000,
         revisionCost: 350,
         tireCost: 1400,
-        description: 'Veículos de médio porte'
+        description: 'Veículos de médio porte',
+        ipvaCost: 0,
+        licensingCost: 0
       },
       {
         id: 'C',
@@ -68,7 +77,9 @@ export async function getVehicleGroups() {
         tireKm: 50000,
         revisionCost: 400,
         tireCost: 1600,
-        description: 'Veículos de grande porte'
+        description: 'Veículos de grande porte',
+        ipvaCost: 0,
+        licensingCost: 0
       }
     ];
     
@@ -111,10 +122,13 @@ export async function getVehicleGroupById(id: string): Promise<VehicleGroup | nu
       revisionCost: data.revision_cost || 300,
       tireCost: data.tire_cost || 1200,
       description: data.description,
-      code: data.code
+      code: data.code,
+      ipvaCost: data.ipva_cost || 0,
+      licensingCost: data.licensing_cost || 0
     };
   } catch (error) {
     console.error('Erro inesperado ao buscar grupo de veículo:', error);
     return null;
   }
 }
+

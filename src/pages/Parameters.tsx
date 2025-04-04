@@ -33,6 +33,8 @@ const vehicleGroupSchema = z.object({
   revision_cost: z.number().min(1, { message: 'Custo de revisão é obrigatório' }),
   tire_km: z.number().min(1, { message: 'Intervalo de troca de pneus é obrigatório' }),
   tire_cost: z.number().min(1, { message: 'Custo de troca de pneus é obrigatório' }),
+  ipva_cost: z.number().min(0, { message: 'Valor do IPVA deve ser positivo' }),
+  licensing_cost: z.number().min(0, { message: 'Valor do Licenciamento deve ser positivo' }),
 });
 
 const globalParamsSchema = z.object({
@@ -69,6 +71,8 @@ const Parameters = () => {
       revision_cost: 300,
       tire_km: 40000,
       tire_cost: 1200,
+      ipva_cost: 0,
+      licensing_cost: 0,
     },
   });
 
@@ -142,6 +146,8 @@ const Parameters = () => {
       revision_cost: 300,
       tire_km: 40000,
       tire_cost: 1200,
+      ipva_cost: 0,
+      licensing_cost: 0,
     });
     setEditMode(false);
     setIsDialogOpen(true);
@@ -158,6 +164,8 @@ const Parameters = () => {
         revision_cost: group.revision_cost,
         tire_km: group.tire_km,
         tire_cost: group.tire_cost,
+        ipva_cost: group.ipva_cost || 0,
+        licensing_cost: group.licensing_cost || 0,
       });
       setCurrentGroupId(groupId);
       setEditMode(true);
@@ -230,7 +238,9 @@ const Parameters = () => {
           revision_km: values.revision_km,
           revision_cost: values.revision_cost,
           tire_km: values.tire_km,
-          tire_cost: values.tire_cost
+          tire_cost: values.tire_cost,
+          ipva_cost: values.ipva_cost,
+          licensing_cost: values.licensing_cost
         };
         
         const newGroup = await addVehicleGroup(newGroupData);
@@ -340,9 +350,11 @@ const Parameters = () => {
                       <div>
                         <h3 className="font-medium">{group.name} ({group.code})</h3>
                         <p className="text-sm text-muted-foreground">{group.description}</p>
-                        <div className="mt-1 flex space-x-4 text-xs text-muted-foreground">
+                        <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
                           <span>Revisão: {group.revision_km.toLocaleString()} km (R$ {group.revision_cost})</span>
                           <span>Pneus: {group.tire_km.toLocaleString()} km (R$ {group.tire_cost})</span>
+                          <span>IPVA: R$ {(group.ipva_cost || 0).toFixed(2)}/ano</span>
+                          <span>Licenciamento: R$ {(group.licensing_cost || 0).toFixed(2)}/ano</span>
                         </div>
                       </div>
                       <div className="flex space-x-2">
@@ -634,6 +646,48 @@ const Parameters = () => {
                         <Input 
                           type="number" 
                           min="1" 
+                          step="0.01" 
+                          {...field} 
+                          onChange={(e) => field.onChange(Number(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={groupForm.control}
+                  name="ipva_cost"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Custo Anual do IPVA (R$)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min="0" 
+                          step="0.01" 
+                          {...field} 
+                          onChange={(e) => field.onChange(Number(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={groupForm.control}
+                  name="licensing_cost"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Custo Anual do Licenciamento (R$)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min="0" 
                           step="0.01" 
                           {...field} 
                           onChange={(e) => field.onChange(Number(e.target.value))}

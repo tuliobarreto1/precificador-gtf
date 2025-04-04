@@ -1,4 +1,3 @@
-
 import { Client, Vehicle, VehicleGroup } from '@/lib/models';
 
 export interface QuoteParams {
@@ -6,7 +5,9 @@ export interface QuoteParams {
   monthlyKm: number;
   operationSeverity: 1|2|3|4|5|6;
   hasTracking: boolean;
-  protectionPlanId?: string | null; // Nova propriedade para o plano de proteção
+  protectionPlanId?: string | null;
+  includeIpva?: boolean;
+  includeLicensing?: boolean;
 }
 
 export interface QuoteVehicleItem {
@@ -28,8 +29,10 @@ export interface QuoteResultVehicle {
   depreciationCost: number;
   maintenanceCost: number;
   extraKmRate: number;
-  protectionCost?: number; // Novo campo para custo da proteção
-  protectionPlanId?: string | null; // ID do plano de proteção
+  protectionCost?: number;
+  protectionPlanId?: string | null;
+  ipvaCost?: number;
+  licensingCost?: number;
 }
 
 export interface QuoteCalculationResult {
@@ -46,8 +49,12 @@ export interface SavedVehicle {
   monthlyKm?: number;
   plateNumber?: string;
   groupId?: string;
-  protectionPlanId?: string | null; // Nova propriedade para o plano de proteção
-  protectionCost?: number; // Novo campo para custo da proteção
+  protectionPlanId?: string | null;
+  protectionCost?: number;
+  includeIpva?: boolean;
+  includeLicensing?: boolean;
+  ipvaCost?: number;
+  licensingCost?: number;
 }
 
 export interface SavedQuote {
@@ -59,8 +66,8 @@ export interface SavedQuote {
   createdAt: string;
   updatedAt?: string;
   status?: string;
-  totalCost?: number; // Para compatibilidade
-  source?: string; // Para indicar a origem do orçamento (supabase, etc)
+  totalCost?: number;
+  source?: string;
   createdBy?: {
     id: number;
     name: string;
@@ -74,12 +81,13 @@ export interface SavedQuote {
     monthlyKm: number;
     operationSeverity: number;
     hasTracking: boolean;
-    protectionPlanId?: string | null; // Nova propriedade para o plano de proteção global
+    protectionPlanId?: string | null;
+    includeIpva?: boolean;
+    includeLicensing?: boolean;
   };
-  contractMonths?: number; // Adicionando como propriedade obrigatória
+  contractMonths?: number;
 }
 
-// Interface para o context
 export interface QuoteContextType {
   quoteForm: QuoteFormData;
   setClient: (client: Client | null) => void;
@@ -89,12 +97,14 @@ export interface QuoteContextType {
   setGlobalMonthlyKm: (monthlyKm: number) => void;
   setGlobalOperationSeverity: (operationSeverity: 1|2|3|4|5|6) => void;
   setGlobalHasTracking: (hasTracking: boolean) => void;
-  setGlobalProtectionPlanId: (protectionPlanId: string | null) => void; // Método para plano de proteção
+  setGlobalProtectionPlanId: (protectionPlanId: string | null) => void;
+  setGlobalIncludeIpva: (includeIpva: boolean) => void;
+  setGlobalIncludeLicensing: (includeLicensing: boolean) => void;
   setUseGlobalParams: (useGlobalParams: boolean) => void;
   setVehicleParams: (vehicleId: string, params: Partial<QuoteParams>) => void;
   resetForm: () => void;
   calculateQuote: () => QuoteCalculationResult | null;
-  saveQuote: () => Promise<boolean>; // Modificado para retornar Promise<boolean>
+  saveQuote: () => Promise<boolean>;
   getCurrentUser: () => User;
   setCurrentUser: (user: User) => void;
   availableUsers: User[];
@@ -102,7 +112,7 @@ export interface QuoteContextType {
   currentEditingQuoteId: string | null;
   getClientById: (clientId: string) => Promise<Client | null>;
   getVehicleById: (vehicleId: string) => Promise<Vehicle | null>;
-  loadQuoteForEditing: (quoteId: string) => Promise<boolean>; // Modificado para retornar Promise<boolean>
+  loadQuoteForEditing: (quoteId: string) => Promise<boolean>;
   deleteQuote: (quoteId: string) => Promise<boolean>;
   canEditQuote: (quoteId: string) => boolean;
   canDeleteQuote: (quoteId: string) => boolean;
@@ -110,7 +120,6 @@ export interface QuoteContextType {
   savedQuotes: SavedQuote[];
 }
 
-// Tipos adicionais para compatibilidade
 export type UserRole = 'user' | 'admin' | 'manager' | 'supervisor';
 
 export interface User {
@@ -152,7 +161,7 @@ export interface QuoteItem {
   value: number;
   createdAt: string;
   status: string;
-  contractMonths: number; // Adicionando como propriedade obrigatória
+  contractMonths: number;
   createdBy?: {
     id: number;
     name: string;

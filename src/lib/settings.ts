@@ -1,4 +1,3 @@
-
 // Serviço para gerenciar configurações do sistema
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -22,6 +21,8 @@ export interface VehicleGroup {
   revision_cost: number;
   tire_km: number;
   tire_cost: number;
+  ipva_cost: number;        // Novos campos
+  licensing_cost: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -124,68 +125,84 @@ export const updateSystemSettings = async (settings: Record<string, string>): Pr
 };
 
 // Funções para grupos de veículos
-export const fetchVehicleGroups = async (): Promise<VehicleGroup[]> => {
+export async function fetchVehicleGroups(): Promise<VehicleGroup[]> {
   try {
     const { data, error } = await supabase
       .from('vehicle_groups')
       .select('*')
-      .order('code', { ascending: true });
+      .order('name');
       
     if (error) {
       console.error('Erro ao buscar grupos de veículos:', error);
-      throw error;
+      throw new Error(error.message);
     }
     
     return data || [];
   } catch (error) {
     console.error('Erro ao buscar grupos de veículos:', error);
-    toast.error('Erro ao buscar grupos de veículos');
-    return [];
+    throw error;
   }
-};
+}
 
-export const addVehicleGroup = async (group: Omit<VehicleGroup, 'id' | 'created_at' | 'updated_at'>): Promise<VehicleGroup | null> => {
+export async function addVehicleGroup(groupData: Omit<VehicleGroup, 'id' | 'created_at' | 'updated_at'>): Promise<VehicleGroup | null> {
   try {
     const { data, error } = await supabase
       .from('vehicle_groups')
-      .insert(group)
+      .insert({
+        code: groupData.code,
+        name: groupData.name,
+        description: groupData.description,
+        revision_km: groupData.revision_km,
+        revision_cost: groupData.revision_cost,
+        tire_km: groupData.tire_km,
+        tire_cost: groupData.tire_cost,
+        ipva_cost: groupData.ipva_cost,        // Novos campos
+        licensing_cost: groupData.licensing_cost
+      })
       .select()
       .single();
       
     if (error) {
-      console.error('Erro ao adicionar grupo de veículos:', error);
-      throw error;
+      console.error('Erro ao adicionar grupo de veículo:', error);
+      return null;
     }
     
     return data;
   } catch (error) {
-    console.error('Erro ao adicionar grupo de veículos:', error);
-    toast.error('Erro ao adicionar grupo de veículos');
+    console.error('Erro ao adicionar grupo de veículo:', error);
     return null;
   }
-};
+}
 
-export const updateVehicleGroup = async (id: string, group: Partial<VehicleGroup>): Promise<boolean> => {
+export async function updateVehicleGroup(id: string, groupData: Partial<VehicleGroup>): Promise<boolean> {
   try {
     const { error } = await supabase
       .from('vehicle_groups')
-      .update(group)
+      .update({
+        name: groupData.name,
+        description: groupData.description,
+        revision_km: groupData.revision_km,
+        revision_cost: groupData.revision_cost,
+        tire_km: groupData.tire_km,
+        tire_cost: groupData.tire_cost,
+        ipva_cost: groupData.ipva_cost,        // Novos campos
+        licensing_cost: groupData.licensing_cost
+      })
       .eq('id', id);
       
     if (error) {
-      console.error('Erro ao atualizar grupo de veículos:', error);
-      throw error;
+      console.error('Erro ao atualizar grupo de veículo:', error);
+      return false;
     }
     
     return true;
   } catch (error) {
-    console.error('Erro ao atualizar grupo de veículos:', error);
-    toast.error('Erro ao atualizar grupo de veículos');
+    console.error('Erro ao atualizar grupo de veículo:', error);
     return false;
   }
-};
+}
 
-export const deleteVehicleGroup = async (id: string): Promise<boolean> => {
+export async function deleteVehicleGroup(id: string): Promise<boolean> {
   try {
     const { error } = await supabase
       .from('vehicle_groups')
@@ -203,7 +220,7 @@ export const deleteVehicleGroup = async (id: string): Promise<boolean> => {
     toast.error('Erro ao excluir grupo de veículos');
     return false;
   }
-};
+}
 
 // Funções para parâmetros de cálculo
 export const fetchCalculationParams = async (): Promise<CalculationParams | null> => {

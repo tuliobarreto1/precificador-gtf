@@ -48,16 +48,24 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         // Custo da proteção - garantir que seja buscado do servidor
         const protectionCost = await protectionCalculation.calculateProtectionCost(params.protectionPlanId);
         
+        // Custos de IPVA e Licenciamento
+        const ipvaCost = params.includeIpva ? (item.vehicleGroup.ipvaCost || 0) / 12 : 0;
+        const licensingCost = params.includeLicensing ? (item.vehicleGroup.licensingCost || 0) / 12 : 0;
+        
         // Custo total mensal
-        const totalCost = totalDepreciation + maintenanceCost + trackingCost + protectionCost;
+        const totalCost = totalDepreciation + maintenanceCost + trackingCost + protectionCost + ipvaCost + licensingCost;
         
         console.log(`Resumo para veículo ${item.vehicle.brand} ${item.vehicle.model}:`, {
           depreciation: totalDepreciation.toFixed(2),
           maintenance: maintenanceCost.toFixed(2),
           tracking: trackingCost.toFixed(2),
           protection: protectionCost.toFixed(2),
+          ipva: ipvaCost.toFixed(2),
+          licensing: licensingCost.toFixed(2),
           total: totalCost.toFixed(2),
-          protectionPlanId: params.protectionPlanId
+          protectionPlanId: params.protectionPlanId,
+          includeIpva: params.includeIpva,
+          includeLicensing: params.includeLicensing
         });
         
         return {
@@ -67,7 +75,9 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           maintenanceCost,
           extraKmRate,
           protectionCost,
-          protectionPlanId: params.protectionPlanId
+          protectionPlanId: params.protectionPlanId,
+          ipvaCost,
+          licensingCost
         };
       });
       
@@ -129,8 +139,12 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         // Custo da proteção na versão síncrona (usar cache se disponível)
         const protectionCost = protectionCalculation.getProtectionCostSync(params.protectionPlanId);
         
+        // Custos de IPVA e Licenciamento
+        const ipvaCost = params.includeIpva ? (item.vehicleGroup.ipvaCost || 0) / 12 : 0;
+        const licensingCost = params.includeLicensing ? (item.vehicleGroup.licensingCost || 0) / 12 : 0;
+        
         // Custo total mensal
-        const totalCost = totalDepreciation + maintenanceCost + trackingCost + protectionCost;
+        const totalCost = totalDepreciation + maintenanceCost + trackingCost + protectionCost + ipvaCost + licensingCost;
         
         // Adicionar ao array de resultados
         vehicleResults.push({
@@ -140,7 +154,9 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           maintenanceCost,
           extraKmRate,
           protectionCost,
-          protectionPlanId: params.protectionPlanId
+          protectionPlanId: params.protectionPlanId,
+          ipvaCost,
+          licensingCost
         });
       });
       

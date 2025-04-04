@@ -1,4 +1,3 @@
-
 import { supabase } from '../client';
 import { v4 as uuidv4 } from 'uuid';
 import { createOrUpdateVehicle } from './vehicles';
@@ -61,6 +60,8 @@ export async function saveQuoteToSupabase(quoteData: any) {
       monthly_km: quoteData.monthlyKm || 2000,
       operation_severity: quoteData.operationSeverity || 3,
       has_tracking: quoteData.hasTracking || false,
+      include_ipva: quoteData.includeIpva || false,  // Novos campos
+      include_licensing: quoteData.includeLicensing || false,
       total_value: quoteData.totalCost || 0,
       monthly_values: quoteData.monthlyValue || 0,
       status: quoteData.status || 'ORCAMENTO',
@@ -134,20 +135,26 @@ export async function saveQuoteToSupabase(quoteData: any) {
                 monthly_km: quoteData.monthlyKm || 2000,
                 contract_months: quoteData.contractMonths || 12,
                 operation_severity: quoteData.operationSeverity || 3,
-                has_tracking: quoteData.hasTracking || false
+                has_tracking: quoteData.hasTracking || false,
+                include_ipva: quoteData.includeIpva || false,  // Novos campos
+                include_licensing: quoteData.includeLicensing || false
               }
             : (vehicleItem.params 
                 ? {
                     monthly_km: vehicleItem.params.monthlyKm || quoteData.monthlyKm || 2000,
                     contract_months: vehicleItem.params.contractMonths || quoteData.contractMonths || 12,
                     operation_severity: vehicleItem.params.operationSeverity || quoteData.operationSeverity || 3,
-                    has_tracking: vehicleItem.params.hasTracking !== undefined ? vehicleItem.params.hasTracking : quoteData.hasTracking || false
+                    has_tracking: vehicleItem.params.hasTracking !== undefined ? vehicleItem.params.hasTracking : quoteData.hasTracking || false,
+                    include_ipva: vehicleItem.params.includeIpva !== undefined ? vehicleItem.params.includeIpva : quoteData.includeIpva || false,  // Novos campos
+                    include_licensing: vehicleItem.params.includeLicensing !== undefined ? vehicleItem.params.includeLicensing : quoteData.includeLicensing || false
                   }
                 : {
                     monthly_km: quoteData.monthlyKm || 2000,
                     contract_months: quoteData.contractMonths || 12,
                     operation_severity: quoteData.operationSeverity || 3,
-                    has_tracking: quoteData.hasTracking || false
+                    has_tracking: quoteData.hasTracking || false,
+                    include_ipva: quoteData.includeIpva || false,  // Novos campos
+                    include_licensing: quoteData.includeLicensing || false
                   });
           
           console.log(`Parâmetros para o veículo ${savedVehicle.id}:`, params);
@@ -161,6 +168,10 @@ export async function saveQuoteToSupabase(quoteData: any) {
             contract_months: params.contract_months,
             operation_severity: params.operation_severity,
             has_tracking: params.has_tracking,
+            include_ipva: params.include_ipva,  // Novos campos
+            include_licensing: params.include_licensing,
+            ipva_cost: vehicleItem.ipvaCost || 0,
+            licensing_cost: vehicleItem.licensingCost || 0,
             depreciation_cost: vehicleItem.depreciationCost || 0,
             maintenance_cost: vehicleItem.maintenanceCost || 0,
             extra_km_rate: vehicleItem.extraKmRate || 0,

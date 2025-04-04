@@ -155,6 +155,8 @@ const QuoteForm = () => {
       operationSeverity: 3 as 1|2|3|4|5|6,
       hasTracking: false,
       protectionPlanId: null,
+      includeIpva: false,
+      includeLicensing: false,
     }
   };
   
@@ -399,6 +401,8 @@ const QuoteForm = () => {
       operationSeverity: 3 as 1|2|3|4|5|6,
       hasTracking: false,
       protectionPlanId: null,
+      includeIpva: false,
+      includeLicensing: false,
     });
     
     return (
@@ -474,6 +478,28 @@ const QuoteForm = () => {
           />
           <Label htmlFor={`tracking-${vehicleId}`} className="cursor-pointer text-sm">
             Incluir rastreamento
+          </Label>
+        </div>
+        
+        <div className="flex items-center space-x-2 mb-4">
+          <Switch 
+            id={`ipva-${vehicleId}`} 
+            checked={params.includeIpva || false}
+            onCheckedChange={(checked) => setVehicleParams(vehicleId, { includeIpva: checked })}
+          />
+          <Label htmlFor={`ipva-${vehicleId}`} className="cursor-pointer text-sm">
+            Incluir IPVA
+          </Label>
+        </div>
+        
+        <div className="flex items-center space-x-2 mb-4">
+          <Switch 
+            id={`licensing-${vehicleId}`} 
+            checked={params.includeLicensing || false}
+            onCheckedChange={(checked) => setVehicleParams(vehicleId, { includeLicensing: checked })}
+          />
+          <Label htmlFor={`licensing-${vehicleId}`} className="cursor-pointer text-sm">
+            Incluir Licenciamento
           </Label>
         </div>
         
@@ -596,6 +622,24 @@ const QuoteForm = () => {
               <Label htmlFor="tracking" className="cursor-pointer">Incluir rastreamento</Label>
             </div>
             
+            <div className="flex items-center space-x-2 mb-6">
+              <Switch 
+                id="ipva" 
+                checked={quoteForm.globalParams?.includeIpva || false}
+                onCheckedChange={setGlobalIncludeIpva}
+              />
+              <Label htmlFor="ipva" className="cursor-pointer">Incluir IPVA</Label>
+            </div>
+            
+            <div className="flex items-center space-x-2 mb-6">
+              <Switch 
+                id="licensing" 
+                checked={quoteForm.globalParams?.includeLicensing || false}
+                onCheckedChange={setGlobalIncludeLicensing}
+              />
+              <Label htmlFor="licensing" className="cursor-pointer">Incluir Licenciamento</Label>
+            </div>
+            
             <div className="pt-6 border-t space-y-3">
               <Label className="text-base">Plano de Proteção</Label>
               <ProtectionPlanSelector
@@ -714,6 +758,8 @@ const QuoteForm = () => {
                       operationSeverity: 3 as 1|2|3|4|5|6,
                       hasTracking: false,
                       protectionPlanId: null,
+                      includeIpva: false,
+                      includeLicensing: false,
                     });
                   
                   return (
@@ -753,6 +799,23 @@ const QuoteForm = () => {
                         )}
                       </div>
                       
+                      {(params.includeIpva || params.includeLicensing) && (
+                        <div className="mt-3 pt-3 border-t grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {params.includeIpva && result.ipvaCost > 0 && (
+                            <div className="text-sm">
+                              <p className="text-muted-foreground">IPVA (mensal):</p>
+                              <p className="font-medium">R$ {result.ipvaCost.toLocaleString('pt-BR')}</p>
+                            </div>
+                          )}
+                          {params.includeLicensing && result.licensingCost > 0 && (
+                            <div className="text-sm">
+                              <p className="text-muted-foreground">Licenciamento (mensal):</p>
+                              <p className="font-medium">R$ {result.licensingCost.toLocaleString('pt-BR')}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
                       {result.protectionPlanId && (
                         <div className="mt-3 pt-3 border-t">
                           <ProtectionDetails planId={result.protectionPlanId} />
@@ -776,6 +839,14 @@ const QuoteForm = () => {
                           <div>
                             <p className="text-muted-foreground">Rastreamento:</p>
                             <p>{params.hasTracking ? 'Sim' : 'Não'}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">IPVA:</p>
+                            <p>{params.includeIpva ? 'Sim' : 'Não'}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Licenciamento:</p>
+                            <p>{params.includeLicensing ? 'Sim' : 'Não'}</p>
                           </div>
                         </div>
                       )}

@@ -319,6 +319,10 @@ export type Database = {
           extra_km_rate: number | null
           has_tracking: boolean | null
           id: string
+          include_ipva: boolean
+          include_licensing: boolean
+          ipva_cost: number | null
+          licensing_cost: number | null
           maintenance_cost: number | null
           monthly_km: number | null
           monthly_value: number
@@ -337,6 +341,10 @@ export type Database = {
           extra_km_rate?: number | null
           has_tracking?: boolean | null
           id?: string
+          include_ipva?: boolean
+          include_licensing?: boolean
+          ipva_cost?: number | null
+          licensing_cost?: number | null
           maintenance_cost?: number | null
           monthly_km?: number | null
           monthly_value?: number
@@ -355,6 +363,10 @@ export type Database = {
           extra_km_rate?: number | null
           has_tracking?: boolean | null
           id?: string
+          include_ipva?: boolean
+          include_licensing?: boolean
+          ipva_cost?: number | null
+          licensing_cost?: number | null
           maintenance_cost?: number | null
           monthly_km?: number | null
           monthly_value?: number
@@ -399,6 +411,8 @@ export type Database = {
           global_protection_plan_id: string | null
           has_tracking: boolean
           id: string
+          include_ipva: boolean
+          include_licensing: boolean
           monthly_km: number
           monthly_values: number | null
           operation_severity: number
@@ -417,6 +431,8 @@ export type Database = {
           global_protection_plan_id?: string | null
           has_tracking?: boolean
           id?: string
+          include_ipva?: boolean
+          include_licensing?: boolean
           monthly_km?: number
           monthly_values?: number | null
           operation_severity?: number
@@ -435,6 +451,8 @@ export type Database = {
           global_protection_plan_id?: string | null
           has_tracking?: boolean
           id?: string
+          include_ipva?: boolean
+          include_licensing?: boolean
           monthly_km?: number
           monthly_values?: number | null
           operation_severity?: number
@@ -538,6 +556,8 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          ipva_cost: number
+          licensing_cost: number
           name: string
           revision_cost: number
           revision_km: number
@@ -550,6 +570,8 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          ipva_cost?: number
+          licensing_cost?: number
           name: string
           revision_cost: number
           revision_km: number
@@ -562,6 +584,8 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          ipva_cost?: number
+          licensing_cost?: number
           name?: string
           revision_cost?: number
           revision_km?: number

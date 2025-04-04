@@ -1,9 +1,21 @@
 
 import { QuoteFormData, QuoteParams } from '@/context/types/quoteTypes';
 import { Client } from '@/lib/models';
+import { Dispatch, SetStateAction } from 'react';
 
-export function useQuoteParams(quoteForm: QuoteFormData, setQuoteForm: React.Dispatch<React.SetStateAction<QuoteFormData>>) {
-  
+export function useQuoteParams(
+  quoteForm: QuoteFormData,
+  setQuoteForm: Dispatch<SetStateAction<QuoteFormData>>
+) {
+  // Cliente
+  const setClient = (client: Client | null) => {
+    setQuoteForm(prev => ({
+      ...prev,
+      client
+    }));
+  };
+
+  // Parâmetros globais
   const setGlobalContractMonths = (contractMonths: number) => {
     setQuoteForm(prev => ({
       ...prev,
@@ -43,8 +55,7 @@ export function useQuoteParams(quoteForm: QuoteFormData, setQuoteForm: React.Dis
       }
     }));
   };
-  
-  // Nova função para configurar o plano de proteção global
+
   const setGlobalProtectionPlanId = (protectionPlanId: string | null) => {
     setQuoteForm(prev => ({
       ...prev,
@@ -55,6 +66,28 @@ export function useQuoteParams(quoteForm: QuoteFormData, setQuoteForm: React.Dis
     }));
   };
 
+  // Novos métodos para IPVA e Licenciamento
+  const setGlobalIncludeIpva = (includeIpva: boolean) => {
+    setQuoteForm(prev => ({
+      ...prev,
+      globalParams: {
+        ...prev.globalParams,
+        includeIpva
+      }
+    }));
+  };
+
+  const setGlobalIncludeLicensing = (includeLicensing: boolean) => {
+    setQuoteForm(prev => ({
+      ...prev,
+      globalParams: {
+        ...prev.globalParams,
+        includeLicensing
+      }
+    }));
+  };
+
+  // Controle global/individual
   const setUseGlobalParams = (useGlobalParams: boolean) => {
     setQuoteForm(prev => ({
       ...prev,
@@ -62,13 +95,7 @@ export function useQuoteParams(quoteForm: QuoteFormData, setQuoteForm: React.Dis
     }));
   };
 
-  const setClient = (client: Client | null) => {
-    setQuoteForm(prev => ({
-      ...prev,
-      client
-    }));
-  };
-
+  // Reset
   const resetForm = () => {
     setQuoteForm({
       client: null,
@@ -79,19 +106,23 @@ export function useQuoteParams(quoteForm: QuoteFormData, setQuoteForm: React.Dis
         monthlyKm: 3000,
         operationSeverity: 3,
         hasTracking: false,
-        protectionPlanId: null
+        protectionPlanId: null,
+        includeIpva: false,       // Novos campos
+        includeLicensing: false,
       }
     });
   };
 
   return {
+    setClient,
     setGlobalContractMonths,
     setGlobalMonthlyKm,
     setGlobalOperationSeverity,
     setGlobalHasTracking,
     setGlobalProtectionPlanId,
+    setGlobalIncludeIpva,       // Novos métodos
+    setGlobalIncludeLicensing,
     setUseGlobalParams,
-    setClient,
     resetForm
   };
 }

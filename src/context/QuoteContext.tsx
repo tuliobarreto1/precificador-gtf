@@ -20,6 +20,8 @@ const initialQuoteForm: QuoteFormData = {
     operationSeverity: 3,
     hasTracking: false,
     protectionPlanId: null,
+    includeIpva: false,     // Novos campos inicializados como false
+    includeLicensing: false,
   },
 };
 
@@ -34,6 +36,8 @@ const defaultContextValue: QuoteContextType = {
   setGlobalOperationSeverity: () => {},
   setGlobalHasTracking: () => {},
   setGlobalProtectionPlanId: () => {},
+  setGlobalIncludeIpva: () => {},     // Novos métodos
+  setGlobalIncludeLicensing: () => {},
   setUseGlobalParams: () => {},
   setVehicleParams: () => {},
   resetForm: () => {},
@@ -84,6 +88,8 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     setGlobalOperationSeverity,
     setGlobalHasTracking,
     setGlobalProtectionPlanId,
+    setGlobalIncludeIpva,       // Novos métodos
+    setGlobalIncludeLicensing,
     setUseGlobalParams,
     setClient,
     resetForm
@@ -120,6 +126,8 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     setGlobalOperationSeverity,
     setGlobalHasTracking,
     setGlobalProtectionPlanId,
+    setGlobalIncludeIpva,        // Novos métodos
+    setGlobalIncludeLicensing,
     setUseGlobalParams,
     setVehicleParams,
     resetForm,
