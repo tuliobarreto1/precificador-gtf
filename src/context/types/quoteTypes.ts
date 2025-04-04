@@ -94,7 +94,7 @@ export interface QuoteContextType {
   setVehicleParams: (vehicleId: string, params: Partial<QuoteParams>) => void;
   resetForm: () => void;
   calculateQuote: () => QuoteCalculationResult | null;
-  saveQuote: () => boolean;
+  saveQuote: () => Promise<boolean>; // Modificado para retornar Promise<boolean>
   getCurrentUser: () => User;
   setCurrentUser: (user: User) => void;
   availableUsers: User[];
@@ -102,7 +102,7 @@ export interface QuoteContextType {
   currentEditingQuoteId: string | null;
   getClientById: (clientId: string) => Promise<Client | null>;
   getVehicleById: (vehicleId: string) => Promise<Vehicle | null>;
-  loadQuoteForEditing: (quoteId: string) => boolean;
+  loadQuoteForEditing: (quoteId: string) => Promise<boolean>; // Modificado para retornar Promise<boolean>
   deleteQuote: (quoteId: string) => Promise<boolean>;
   canEditQuote: (quoteId: string) => boolean;
   canDeleteQuote: (quoteId: string) => boolean;

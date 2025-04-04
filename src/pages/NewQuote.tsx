@@ -225,9 +225,9 @@ const QuoteForm = () => {
       
       console.log('🔄 Tentando carregar orçamento:', id);
       
-      setTimeout(() => {
+      setTimeout(async () => {
         try {
-          const success = loadQuoteForEditing(id);
+          const success = await loadQuoteForEditing(id);
           
           if (success) {
             console.log('✅ Orçamento carregado com sucesso');
@@ -278,7 +278,7 @@ const QuoteForm = () => {
     }
   }, [currentStep, quoteForm?.vehicles, selectedVehicleTab]);
 
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
     logState();
     console.log(`👆 Botão CONTINUAR clicado: avançando de ${currentStep} para o próximo passo.`);
     
@@ -320,16 +320,25 @@ const QuoteForm = () => {
     
     if (currentStep === 'result') {
       console.log("✅ Finalizando orçamento");
-      const success = saveQuote();
-      if (success) {
-        toast({
-          title: isEditMode ? "Orçamento atualizado" : "Orçamento salvo",
-          description: isEditMode 
-            ? "Seu orçamento foi atualizado com sucesso." 
-            : "Seu orçamento foi salvo com sucesso."
-        });
-        navigate('/orcamentos');
-      } else {
+      try {
+        const success = await saveQuote();
+        if (success) {
+          toast({
+            title: isEditMode ? "Orçamento atualizado" : "Orçamento salvo",
+            description: isEditMode 
+              ? "Seu orçamento foi atualizado com sucesso." 
+              : "Seu orçamento foi salvo com sucesso."
+          });
+          navigate('/orcamentos');
+        } else {
+          toast({
+            title: "Erro ao salvar",
+            description: "Houve um problema ao salvar o orçamento.",
+            variant: "destructive"
+          });
+        }
+      } catch (error) {
+        console.error("Erro ao salvar orçamento:", error);
         toast({
           title: "Erro ao salvar",
           description: "Houve um problema ao salvar o orçamento.",
@@ -389,7 +398,7 @@ const QuoteForm = () => {
       monthlyKm: 3000,
       operationSeverity: 3 as 1|2|3|4|5|6,
       hasTracking: false,
-      protectionPlanId: null
+      protectionPlanId: null,
     });
     
     return (

@@ -38,7 +38,7 @@ const defaultContextValue: QuoteContextType = {
   setVehicleParams: () => {},
   resetForm: () => {},
   calculateQuote: () => null,
-  saveQuote: () => false,
+  saveQuote: async () => false,
   getCurrentUser: () => defaultUser,
   setCurrentUser: () => {},
   availableUsers: [],
@@ -46,7 +46,7 @@ const defaultContextValue: QuoteContextType = {
   currentEditingQuoteId: null,
   getClientById: async () => null,
   getVehicleById: async () => null,
-  loadQuoteForEditing: () => false,
+  loadQuoteForEditing: async () => false,
   deleteQuote: async () => false,
   canEditQuote: () => false,
   canDeleteQuote: () => false,
@@ -143,9 +143,9 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     currentEditingQuoteId,
     getClientById: getClient,
     getVehicleById: getVehicle,
-    loadQuoteForEditing: (quoteId: string) => {
+    loadQuoteForEditing: async (quoteId: string) => {
       try {
-        const result = loadQuoteForEditing(quoteId);
+        const result = await Promise.resolve(loadQuoteForEditing(quoteId));
         return result;
       } catch (error) {
         console.error("Erro ao carregar orçamento para edição:", error);
