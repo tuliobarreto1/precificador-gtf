@@ -127,12 +127,14 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       // Use a versão síncrona para evitar problemas de assincronicidade no contexto
       return calculateQuoteSync();
     },
-    saveQuote: () => {
-      const result = saveQuote();
-      if (result instanceof Promise) {
+    saveQuote: async () => {
+      try {
+        const result = await saveQuote();
+        return result;
+      } catch (error) {
+        console.error("Erro ao salvar orçamento:", error);
         return false;
       }
-      return result;
     },
     getCurrentUser,
     setCurrentUser,
@@ -142,11 +144,13 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     getClientById: getClient,
     getVehicleById: getVehicle,
     loadQuoteForEditing: (quoteId: string) => {
-      const result = loadQuoteForEditing(quoteId);
-      if (result instanceof Promise) {
+      try {
+        const result = loadQuoteForEditing(quoteId);
+        return result;
+      } catch (error) {
+        console.error("Erro ao carregar orçamento para edição:", error);
         return false;
       }
-      return result;
     },
     deleteQuote,
     canEditQuote,
@@ -165,9 +169,5 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
 // Hook para usar o contexto
 export const useQuote = () => {
   const context = useContext(QuoteContext);
-  // Não precisamos mais deste check, pois o contexto sempre terá um valor padrão
-  // if (context === undefined) {
-  //   throw new Error('useQuote must be used within a QuoteProvider');
-  // }
   return context;
 };
