@@ -172,6 +172,8 @@ const QuoteForm = () => {
     setGlobalOperationSeverity = () => {}, 
     setGlobalHasTracking = () => {},
     setGlobalProtectionPlanId = () => {},
+    setGlobalIncludeIpva = () => {},  // Adicionando a extração correta
+    setGlobalIncludeLicensing = () => {}, // Adicionando a extração correta
     setUseGlobalParams = () => {},
     setVehicleParams = () => {},
     calculateQuote = () => null,
