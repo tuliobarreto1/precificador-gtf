@@ -40,6 +40,19 @@ const ProtectionDetails = ({ planId, editable = false, onBenefitToggle }: Protec
     setLoading(true);
     try {
       const planDetails = await fetchProtectionPlanDetails(planId);
+      
+      // Ordenamos os benefícios: primeiro os incluídos, depois os não incluídos
+      if (planDetails && planDetails.benefits) {
+        planDetails.benefits.sort((a, b) => {
+          // Se a está incluído e b não, a vem primeiro
+          if (a.is_included && !b.is_included) return -1;
+          // Se b está incluído e a não, b vem primeiro
+          if (!a.is_included && b.is_included) return 1;
+          // Se ambos estão incluídos ou ambos não estão, ordene pelo nome
+          return a.benefit_name.localeCompare(b.benefit_name);
+        });
+      }
+      
       setDetails(planDetails);
     } catch (error) {
       console.error('Erro ao carregar detalhes do plano de proteção:', error);
@@ -50,9 +63,16 @@ const ProtectionDetails = ({ planId, editable = false, onBenefitToggle }: Protec
 
   const handleBenefitsChange = (updatedBenefits) => {
     if (details) {
+      // Ordenar os benefícios atualizados antes de atualizar o estado
+      const sortedBenefits = [...updatedBenefits].sort((a, b) => {
+        if (a.is_included && !b.is_included) return -1;
+        if (!a.is_included && b.is_included) return 1;
+        return a.benefit_name.localeCompare(b.benefit_name);
+      });
+      
       setDetails({
         ...details,
-        benefits: updatedBenefits
+        benefits: sortedBenefits
       });
     }
   };

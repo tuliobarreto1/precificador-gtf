@@ -42,6 +42,17 @@ const ProtectionBenefitSelector: React.FC<ProtectionBenefitSelectorProps> = ({
   const [deleteBenefitId, setDeleteBenefitId] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Função para ordenar benefícios - útil para reutilização
+  const sortBenefits = (benefitsToSort: ProtectionBenefit[]): ProtectionBenefit[] => {
+    return [...benefitsToSort].sort((a, b) => {
+      // Primeiro os incluídos, depois os não incluídos
+      if (a.is_included && !b.is_included) return -1;
+      if (!a.is_included && b.is_included) return 1;
+      // Se ambos têm o mesmo status, ordenar por nome
+      return a.benefit_name.localeCompare(b.benefit_name);
+    });
+  };
+
   useEffect(() => {
     if (planId) {
       loadBenefits();
@@ -53,10 +64,12 @@ const ProtectionBenefitSelector: React.FC<ProtectionBenefitSelectorProps> = ({
     try {
       const details = await fetchProtectionPlanDetails(planId);
       if (details && details.benefits) {
-        setBenefits(details.benefits);
+        // Ordenar os benefícios antes de atualizar o estado
+        const sortedBenefits = sortBenefits(details.benefits);
+        setBenefits(sortedBenefits);
         
         if (onBenefitsChange) {
-          onBenefitsChange(details.benefits);
+          onBenefitsChange(sortedBenefits);
         }
       }
     } catch (error) {
@@ -72,16 +85,19 @@ const ProtectionBenefitSelector: React.FC<ProtectionBenefitSelectorProps> = ({
       const success = await updateProtectionBenefit(benefitId, { is_included: isIncluded });
       
       if (success) {
+        // Atualizar o estado com o benefício modificado
         const updatedBenefits = benefits.map(benefit => 
           benefit.id === benefitId 
             ? { ...benefit, is_included: isIncluded } 
             : benefit
         );
         
-        setBenefits(updatedBenefits);
+        // Reordenar os benefícios após a atualização
+        const sortedBenefits = sortBenefits(updatedBenefits);
+        setBenefits(sortedBenefits);
         
         if (onBenefitsChange) {
-          onBenefitsChange(updatedBenefits);
+          onBenefitsChange(sortedBenefits);
         }
         
         toast({
@@ -119,11 +135,14 @@ const ProtectionBenefitSelector: React.FC<ProtectionBenefitSelectorProps> = ({
       });
       
       if (newBenefit) {
+        // Adicionar o novo benefício à lista e reordenar
         const updatedBenefits = [...benefits, newBenefit];
-        setBenefits(updatedBenefits);
+        const sortedBenefits = sortBenefits(updatedBenefits);
+        
+        setBenefits(sortedBenefits);
         
         if (onBenefitsChange) {
-          onBenefitsChange(updatedBenefits);
+          onBenefitsChange(sortedBenefits);
         }
         
         toast({
@@ -172,16 +191,19 @@ const ProtectionBenefitSelector: React.FC<ProtectionBenefitSelectorProps> = ({
       });
       
       if (success) {
+        // Atualizar a lista de benefícios com o nome editado
         const updatedBenefits = benefits.map(benefit => 
           benefit.id === editBenefitId 
             ? { ...benefit, benefit_name: editBenefitName.trim() } 
             : benefit
         );
         
-        setBenefits(updatedBenefits);
+        // Reordenar após a edição
+        const sortedBenefits = sortBenefits(updatedBenefits);
+        setBenefits(sortedBenefits);
         
         if (onBenefitsChange) {
-          onBenefitsChange(updatedBenefits);
+          onBenefitsChange(sortedBenefits);
         }
         
         toast({
@@ -225,11 +247,15 @@ const ProtectionBenefitSelector: React.FC<ProtectionBenefitSelectorProps> = ({
       const success = await deleteProtectionBenefit(deleteBenefitId);
       
       if (success) {
+        // Filtrar e remover o benefício excluído
         const updatedBenefits = benefits.filter(benefit => benefit.id !== deleteBenefitId);
-        setBenefits(updatedBenefits);
+        
+        // Reordenar os benefícios após a exclusão
+        const sortedBenefits = sortBenefits(updatedBenefits);
+        setBenefits(sortedBenefits);
         
         if (onBenefitsChange) {
-          onBenefitsChange(updatedBenefits);
+          onBenefitsChange(sortedBenefits);
         }
         
         toast({
