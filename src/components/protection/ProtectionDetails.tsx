@@ -17,6 +17,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import ProtectionBenefitSelector from './ProtectionBenefitSelector';
 
 interface ProtectionDetailsProps {
   planId: string;
@@ -44,6 +45,15 @@ const ProtectionDetails = ({ planId, editable = false, onBenefitToggle }: Protec
       console.error('Erro ao carregar detalhes do plano de proteção:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleBenefitsChange = (updatedBenefits) => {
+    if (details) {
+      setDetails({
+        ...details,
+        benefits: updatedBenefits
+      });
     }
   };
 
@@ -99,47 +109,34 @@ const ProtectionDetails = ({ planId, editable = false, onBenefitToggle }: Protec
                 Benefícios inclusos
               </AccordionTrigger>
               <AccordionContent>
-                <div className="space-y-2 pt-1">
-                  {details.benefits.map(benefit => (
-                    <div key={benefit.id} className="flex items-start gap-2">
-                      {editable ? (
-                        <Checkbox 
-                          id={`benefit-${benefit.id}`}
-                          checked={benefit.is_included}
-                          onCheckedChange={(checked) => {
-                            if (onBenefitToggle) {
-                              onBenefitToggle(benefit.id, !!checked);
-                            }
-                          }}
-                        />
-                      ) : (
-                        <div className="pt-0.5">
+                {editable ? (
+                  <ProtectionBenefitSelector 
+                    planId={planId} 
+                    onBenefitsChange={handleBenefitsChange}
+                  />
+                ) : (
+                  <div className="space-y-2 pt-1">
+                    {details.benefits.map(benefit => (
+                      <div key={benefit.id} className="flex items-start gap-2">
+                        <div className="mt-0.5">
                           {benefit.is_included ? (
                             <Check className="h-4 w-4 text-green-600" />
                           ) : (
                             <X className="h-4 w-4 text-red-600" />
                           )}
                         </div>
-                      )}
-                      <label 
-                        htmlFor={`benefit-${benefit.id}`}
-                        className={`text-sm ${!benefit.is_included && !editable ? 'text-muted-foreground line-through' : ''}`}
-                      >
-                        {benefit.benefit_name}
-                        {benefit.details && (
-                          <p className="text-xs text-muted-foreground">{benefit.details}</p>
-                        )}
-                      </label>
-                    </div>
-                  ))}
-                  
-                  {editable && (
-                    <Button variant="ghost" size="sm" className="w-full mt-2 text-xs flex items-center justify-center">
-                      <Plus className="h-3 w-3 mr-1" />
-                      Adicionar novo benefício
-                    </Button>
-                  )}
-                </div>
+                        <span 
+                          className={`text-sm ${!benefit.is_included ? 'text-muted-foreground line-through' : ''}`}
+                        >
+                          {benefit.benefit_name}
+                          {benefit.details && (
+                            <p className="text-xs text-muted-foreground">{benefit.details}</p>
+                          )}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </AccordionContent>
             </AccordionItem>
 

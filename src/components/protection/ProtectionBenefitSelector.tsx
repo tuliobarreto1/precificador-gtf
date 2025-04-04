@@ -102,10 +102,17 @@ const ProtectionBenefitSelector: React.FC<ProtectionBenefitSelectorProps> = ({
             />
             <label 
               htmlFor={`benefit-selector-${benefit.id}`}
-              className="text-sm cursor-pointer"
+              className={`text-sm cursor-pointer ${!benefit.is_included ? 'text-muted-foreground line-through' : ''}`}
             >
               {benefit.benefit_name}
             </label>
+            <div className="ml-auto">
+              {benefit.is_included ? (
+                <Check className="h-4 w-4 text-green-600" />
+              ) : (
+                <X className="h-4 w-4 text-red-600" />
+              )}
+            </div>
           </div>
         ))}
       </div>
