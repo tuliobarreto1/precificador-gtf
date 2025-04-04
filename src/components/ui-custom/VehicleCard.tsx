@@ -16,6 +16,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+import ProtectionDetails from '@/components/protection/ProtectionDetails';
+
 type VehicleCardProps = {
   vehicle: any;
   showDetailedInfo?: boolean;
@@ -73,6 +75,9 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
   const maintenanceCost = vehicle.maintenance_cost || vehicle.maintenanceCost || 0;
   const protectionCost = vehicle.protection_cost || vehicle.protectionCost || 0;
   const totalCost = vehicle.total_cost || vehicle.totalCost || 0;
+  
+  // Plano de proteção
+  const protectionPlanId = vehicle.protection_plan_id || vehicle.protectionPlanId || null;
   
   return (
     <Card className={`${disabled ? 'opacity-70' : ''}`}>
@@ -141,6 +146,13 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
                 <span>Total mensal:</span>
                 <span>R$ {totalCost.toLocaleString('pt-BR')}</span>
               </div>
+            </div>
+          )}
+          
+          {/* Exibir componente de detalhes da proteção se houver um plano de proteção */}
+          {protectionPlanId && (
+            <div className="border-t pt-3 mt-3">
+              <ProtectionDetails planId={protectionPlanId} />
             </div>
           )}
           
