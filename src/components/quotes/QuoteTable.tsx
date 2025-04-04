@@ -59,20 +59,29 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
   };
 
   const confirmDelete = async () => {
-    if (quoteToDelete && isQuoteContextAvailable) {
-      const success = await deleteQuote(quoteToDelete);
-      if (success) {
-        toast({
-          title: "Orçamento excluído",
-          description: "O orçamento foi excluído com sucesso."
-        });
-        if (onRefresh) {
-          onRefresh();
+    if (quoteToDelete && isQuoteContextAvailable && typeof deleteQuote === 'function') {
+      try {
+        const success = await deleteQuote(quoteToDelete);
+        if (success) {
+          toast({
+            title: "Orçamento excluído",
+            description: "O orçamento foi excluído com sucesso."
+          });
+          if (onRefresh) {
+            onRefresh();
+          }
+        } else {
+          toast({
+            title: "Erro ao excluir",
+            description: "Não foi possível excluir o orçamento.",
+            variant: "destructive"
+          });
         }
-      } else {
+      } catch (error) {
+        console.error("Erro ao excluir orçamento:", error);
         toast({
           title: "Erro ao excluir",
-          description: "Não foi possível excluir o orçamento.",
+          description: "Ocorreu um erro ao tentar excluir o orçamento.",
           variant: "destructive"
         });
       }
@@ -145,12 +154,17 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
               </TableRow>
             ) : (
               safeQuotes.map((quote) => {
+                // Valores padrão para permissões (permitir ações se o contexto não estiver disponível)
                 let canEdit = true;
                 let canDelete = true;
                 
                 if (isQuoteContextAvailable) {
-                  canEdit = canEditQuote(quote.id);
-                  canDelete = canDeleteQuote(quote.id);
+                  if (typeof canEditQuote === 'function') {
+                    canEdit = canEditQuote(quote.id);
+                  }
+                  if (typeof canDeleteQuote === 'function') {
+                    canDelete = canDeleteQuote(quote.id);
+                  }
                 }
                 
                 const isEditable = quote.status === 'ORCAMENTO' || quote.status === 'draft';
@@ -192,16 +206,15 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
                         </Link>
                       )}
                       
-                      {canDelete && (
-                        <Button 
-                          variant="outline" 
-                          size="icon" 
-                          className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDeleteClick(quote.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
+                      {/* Botão de exclusão - adicionando verificação mais robusta */}
+                      <Button 
+                        variant="outline" 
+                        size="icon" 
+                        className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                        onClick={() => handleDeleteClick(quote.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );

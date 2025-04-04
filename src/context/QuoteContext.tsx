@@ -68,7 +68,8 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     setCurrentUser,
     availableUsers,
     canEditQuote,
-    canDeleteQuote
+    canDeleteQuote,
+    savedQuotes
   } = useQuoteUsers();
   
   const {
@@ -95,7 +96,6 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   } = useQuoteCalculation(quoteForm);
   
   const {
-    savedQuotes,
     isEditMode,
     currentEditingQuoteId,
     saveQuote,
