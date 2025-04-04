@@ -9,15 +9,18 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
-import { ProtectionPlan, ProtectionDeductible } from '@/lib/types/protection';
+import { ProtectionPlan, ProtectionDeductible, ProtectionBenefit } from '@/lib/types/protection';
 import { fetchProtectionPlans, fetchProtectionPlanDetails, updateProtectionPlan, updateProtectionDeductible } from '@/integrations/supabase/services/protectionPlans';
+import ProtectionBenefitSelector from './ProtectionBenefitSelector';
 
 const ProtectionPlansTab = () => {
   const [plans, setPlans] = useState<ProtectionPlan[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [planDetails, setPlanDetails] = useState<{
     deductibles: ProtectionDeductible[];
+    benefits: ProtectionBenefit[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -62,6 +65,7 @@ const ProtectionPlansTab = () => {
       const details = await fetchProtectionPlanDetails(planId);
       setPlanDetails({
         deductibles: details.deductibles || [],
+        benefits: details.benefits || []
       });
     } catch (error) {
       console.error('Erro ao carregar detalhes do plano:', error);
@@ -148,6 +152,15 @@ const ProtectionPlansTab = () => {
     }
   };
 
+  const handleBenefitsChange = (updatedBenefits: ProtectionBenefit[]) => {
+    if (planDetails) {
+      setPlanDetails({
+        ...planDetails,
+        benefits: updatedBenefits
+      });
+    }
+  };
+
   const renderDeductiblesSection = () => {
     if (loadingDetails) {
       return (
@@ -203,6 +216,32 @@ const ProtectionPlansTab = () => {
           </div>
         ))}
       </div>
+    );
+  };
+
+  const renderBenefitsSection = () => {
+    if (loadingDetails) {
+      return (
+        <div className="flex justify-center items-center p-4">
+          <Loader2 className="h-4 w-4 animate-spin text-primary mr-2" />
+          <span>Carregando benefícios...</span>
+        </div>
+      );
+    }
+
+    if (!planDetails) {
+      return (
+        <p className="text-sm text-muted-foreground p-4">
+          Não há benefícios configurados para este plano.
+        </p>
+      );
+    }
+
+    return (
+      <ProtectionBenefitSelector 
+        planId={selectedPlanId!} 
+        onBenefitsChange={handleBenefitsChange}
+      />
     );
   };
 
@@ -290,10 +329,25 @@ const ProtectionPlansTab = () => {
                     
                     <Separator className="my-4" />
                     
-                    <div>
-                      <h5 className="font-medium mb-2">Franquias</h5>
-                      {renderDeductiblesSection()}
-                    </div>
+                    <Accordion type="multiple" className="w-full">
+                      <AccordionItem value="deductibles">
+                        <AccordionTrigger className="font-medium text-sm py-2">
+                          Franquias
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          {renderDeductiblesSection()}
+                        </AccordionContent>
+                      </AccordionItem>
+                      
+                      <AccordionItem value="benefits">
+                        <AccordionTrigger className="font-medium text-sm py-2">
+                          Benefícios
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          {renderBenefitsSection()}
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
                     
                     {updating === plan.id && (
                       <div className="flex items-center text-xs text-primary mt-2">
