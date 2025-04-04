@@ -1,4 +1,3 @@
-
 import { supabase } from '../client';
 import { ProtectionPlan, ProtectionPlanDetails, ProtectionBenefit, ProtectionDeductible } from '@/lib/types/protection';
 
@@ -123,6 +122,55 @@ export async function updateProtectionDeductible(
     return true;
   } catch (error) {
     console.error('Erro ao atualizar franquia:', error);
+    return false;
+  }
+}
+
+export async function addProtectionBenefit(benefit: Omit<ProtectionBenefit, 'id'>): Promise<ProtectionBenefit | null> {
+  try {
+    const { data, error } = await supabase
+      .from('protection_benefits')
+      .insert(benefit)
+      .select('*')
+      .single();
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Erro ao adicionar benefício de proteção:', error);
+    return null;
+  }
+}
+
+export async function updateProtectionBenefit(
+  benefitId: string, 
+  updates: Partial<ProtectionBenefit>
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('protection_benefits')
+      .update(updates)
+      .eq('id', benefitId);
+    
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Erro ao atualizar benefício de proteção:', error);
+    return false;
+  }
+}
+
+export async function deleteProtectionBenefit(benefitId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('protection_benefits')
+      .delete()
+      .eq('id', benefitId);
+    
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Erro ao excluir benefício de proteção:', error);
     return false;
   }
 }
