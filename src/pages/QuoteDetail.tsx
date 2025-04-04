@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, FileEdit, Car, Calendar, User, Landmark, Gauge } from 'lucide-react';
+import { ArrowLeft, FileEdit, Car, Calendar, User, Landmark, Gauge, Shield } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
@@ -19,6 +19,7 @@ import {
   calculateMaintenanceSync, 
   calculateExtraKmRateSync 
 } from '@/lib/calculation';
+import { fetchProtectionPlanDetails } from '@/integrations/supabase/services/protectionPlans';
 
 // Interface para os dados do veículo
 interface VehicleData {
@@ -49,11 +50,20 @@ interface VehicleData {
   protection_plan_id?: string | null;
 }
 
+interface ProtectionPlanInfo {
+  id: string;
+  name: string;
+  description: string | null;
+  monthly_cost: number;
+  type: 'basic' | 'intermediate' | 'premium';
+}
+
 const QuoteDetail = () => {
   const { id } = useParams();
   const [quote, setQuote] = useState<any>(null);
   const [vehicles, setVehicles] = useState<VehicleData[]>([]);
   const [statusHistory, setStatusHistory] = useState<any[]>([]);
+  const [protectionPlans, setProtectionPlans] = useState<Record<string, ProtectionPlanInfo>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -115,6 +125,23 @@ const QuoteDetail = () => {
     });
   };
 
+  // Função para carregar detalhes do plano de proteção
+  const loadProtectionPlanDetails = async (planId: string) => {
+    if (!planId || protectionPlans[planId]) return;
+    
+    try {
+      const planDetails = await fetchProtectionPlanDetails(planId);
+      if (planDetails) {
+        setProtectionPlans(prev => ({
+          ...prev,
+          [planId]: planDetails
+        }));
+      }
+    } catch (error) {
+      console.error(`Erro ao carregar detalhes do plano de proteção ${planId}:`, error);
+    }
+  };
+
   useEffect(() => {
     const fetchQuoteData = async () => {
       if (!id) return;
@@ -139,6 +166,13 @@ const QuoteDetail = () => {
               // Calcular os custos para cada veículo
               const vehiclesWithCosts = calculateCosts(vehiclesData);
               setVehicles(vehiclesWithCosts);
+              
+              // Carregar informações dos planos de proteção
+              for (const vehicle of vehiclesWithCosts) {
+                if (vehicle.protection_plan_id) {
+                  await loadProtectionPlanDetails(vehicle.protection_plan_id);
+                }
+              }
             } else {
               console.log("Nenhum veículo encontrado para o orçamento:", id);
               setVehicles([]);
@@ -247,6 +281,33 @@ const QuoteDetail = () => {
         console.error("Erro ao atualizar histórico:", error);
       }
     }
+  };
+
+  // Renderizar detalhes do plano de proteção se houver
+  const renderProtectionPlanInfo = (planId: string | null | undefined) => {
+    if (!planId || !protectionPlans[planId]) return null;
+    
+    const plan = protectionPlans[planId];
+    return (
+      <div className="mt-2 text-sm">
+        <span className="text-muted-foreground mr-1">Plano:</span>
+        <span className="font-medium">{plan.name}</span>
+        {plan.type && (
+          <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+            plan.type === 'basic' ? 'bg-blue-100 text-blue-800' : 
+            plan.type === 'intermediate' ? 'bg-green-100 text-green-800' : 
+            'bg-purple-100 text-purple-800'
+          }`}>
+            {plan.type === 'basic' ? 'Básico' : 
+             plan.type === 'intermediate' ? 'Intermediário' : 
+             'Premium'}
+          </span>
+        )}
+        {plan.description && (
+          <p className="text-xs text-muted-foreground mt-1">{plan.description}</p>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -387,6 +448,19 @@ const QuoteDetail = () => {
                               <p className="text-sm">{item?.contract_months || 0} meses / {(item?.monthly_km || 0).toLocaleString('pt-BR')} km</p>
                             </div>
                           </div>
+
+                          {item.protection_plan_id && (
+                            <div className="mt-3 pt-3 border-t">
+                              <div className="flex items-center text-sm">
+                                <Shield className="h-4 w-4 mr-1 text-green-600" />
+                                <span className="text-muted-foreground mr-1">Proteção:</span>
+                                <span className="font-medium">
+                                  R$ {Number(item?.protection_cost || 0).toLocaleString('pt-BR')}
+                                </span>
+                              </div>
+                              {renderProtectionPlanInfo(item.protection_plan_id)}
+                            </div>
+                          )}
                         </div>
                       </VehicleCard>
                     ))}

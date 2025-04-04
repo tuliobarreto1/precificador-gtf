@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Car, Info } from 'lucide-react';
+import { Car, Info, Shield } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -130,7 +130,10 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
               </div>
               {protectionCost > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Proteção:</span>
+                  <span className="text-muted-foreground flex items-center">
+                    <Shield className="h-3 w-3 mr-1 text-green-600" />
+                    Proteção:
+                  </span>
                   <span>R$ {protectionCost.toLocaleString('pt-BR')}</span>
                 </div>
               )}
