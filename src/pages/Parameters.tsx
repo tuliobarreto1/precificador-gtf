@@ -33,7 +33,7 @@ const vehicleGroupSchema = z.object({
   revision_cost: z.number().min(1, { message: 'Custo de revisão é obrigatório' }),
   tire_km: z.number().min(1, { message: 'Intervalo de troca de pneus é obrigatório' }),
   tire_cost: z.number().min(1, { message: 'Custo de troca de pneus é obrigatório' }),
-  ipva_cost: z.number().min(0, { message: 'Percentual do IPVA deve ser positivo' }).max(1, { message: 'Percentual do IPVA deve ser entre 0 e 1' }),
+  ipva_cost: z.number().min(0, { message: 'Percentual do IPVA deve ser positivo' }).max(0.2, { message: 'Percentual do IPVA deve ser entre 0 e 20%' }),
   licensing_cost: z.number().min(0, { message: 'Valor do Licenciamento deve ser positivo' }),
 });
 
@@ -71,7 +71,7 @@ const Parameters = () => {
       revision_cost: 300,
       tire_km: 40000,
       tire_cost: 1200,
-      ipva_cost: 0,
+      ipva_cost: 0.03,
       licensing_cost: 0,
     },
   });
@@ -146,7 +146,7 @@ const Parameters = () => {
       revision_cost: 300,
       tire_km: 40000,
       tire_cost: 1200,
-      ipva_cost: 0,
+      ipva_cost: 0.03,
       licensing_cost: 0,
     });
     setEditMode(false);
@@ -668,15 +668,20 @@ const Parameters = () => {
                         <Input 
                           type="number" 
                           min="0" 
-                          max="1"
-                          step="0.01" 
+                          max="0.2"
+                          step="0.001" 
                           {...field} 
-                          onChange={(e) => field.onChange(Number(e.target.value))}
+                          onChange={(e) => {
+                            const value = Number(e.target.value);
+                            if (value >= 0 && value <= 0.2) {
+                              field.onChange(value);
+                            }
+                          }}
                         />
                       </FormControl>
                       <FormMessage />
                       <p className="text-xs text-muted-foreground">
-                        Ex: 0.04 = 4% do valor do veículo
+                        Ex: 0.024 = 2.4% do valor do veículo (valores válidos: 0 a 20%)
                       </p>
                     </FormItem>
                   )}
