@@ -48,6 +48,10 @@ interface VehicleData {
   total_cost?: number;
   protection_cost?: number;
   protection_plan_id?: string | null;
+  ipva_cost?: number;           // Adicionado campo para custo de IPVA
+  licensing_cost?: number;      // Adicionado campo para custo de licenciamento
+  include_ipva?: boolean;       // Adicionado campo para indicar se inclui IPVA
+  include_licensing?: boolean;  // Adicionado campo para indicar se inclui licenciamento
 }
 
 interface ProtectionPlanInfo {
@@ -111,8 +115,12 @@ const QuoteDetail = () => {
       // Obter o custo de proteção do objeto original ou usar 0
       const protectionCost = vehicle.protection_cost || 0;
       
-      // Calcular custo total (incluindo proteção se existir)
-      const totalCost = depreciationCost + maintenanceCost + protectionCost;
+      // Usar os valores existentes de IPVA e licenciamento se disponíveis
+      const ipvaCost = vehicle.ipva_cost !== undefined ? vehicle.ipva_cost : 0;
+      const licensingCost = vehicle.licensing_cost !== undefined ? vehicle.licensing_cost : 0;
+      
+      // Calcular custo total (incluindo proteção, IPVA e licenciamento)
+      const totalCost = depreciationCost + maintenanceCost + protectionCost + ipvaCost + licensingCost;
       
       return {
         ...vehicle,
@@ -120,6 +128,8 @@ const QuoteDetail = () => {
         maintenance_cost: maintenanceCost,
         extra_km_rate: extraKmRate,
         protection_cost: protectionCost,
+        ipva_cost: ipvaCost,
+        licensing_cost: licensingCost,
         total_cost: totalCost
       };
     });
@@ -385,6 +395,8 @@ const QuoteDetail = () => {
                       <p>Quilometragem: {(quote?.monthly_km || 0).toLocaleString('pt-BR')} km/mês</p>
                       <p>Severidade: Nível {quote?.operation_severity || 3}</p>
                       <p>Rastreamento: {quote?.has_tracking ? 'Sim' : 'Não'}</p>
+                      <p>IPVA: {quote?.include_ipva ? 'Incluído' : 'Não incluído'}</p>
+                      <p>Licenciamento: {quote?.include_licensing ? 'Incluído' : 'Não incluído'}</p>
                     </div>
                   </div>
                   
@@ -447,6 +459,34 @@ const QuoteDetail = () => {
                               <p className="text-sm text-muted-foreground">Parâmetros:</p>
                               <p className="text-sm">{item?.contract_months || 0} meses / {(item?.monthly_km || 0).toLocaleString('pt-BR')} km</p>
                             </div>
+                          </div>
+
+                          {/* Detalhes de custos */}
+                          <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <p className="text-muted-foreground">Depreciação:</p>
+                              <p>R$ {Number(item?.depreciation_cost || 0).toLocaleString('pt-BR')}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Manutenção:</p>
+                              <p>R$ {Number(item?.maintenance_cost || 0).toLocaleString('pt-BR')}</p>
+                            </div>
+                            
+                            {/* Mostrar IPVA se incluído */}
+                            {item.include_ipva && (
+                              <div>
+                                <p className="text-muted-foreground">IPVA (mensal):</p>
+                                <p>R$ {Number(item?.ipva_cost || 0).toLocaleString('pt-BR')}</p>
+                              </div>
+                            )}
+                            
+                            {/* Mostrar Licenciamento se incluído */}
+                            {item.include_licensing && (
+                              <div>
+                                <p className="text-muted-foreground">Licenciamento (mensal):</p>
+                                <p>R$ {Number(item?.licensing_cost || 0).toLocaleString('pt-BR')}</p>
+                              </div>
+                            )}
                           </div>
 
                           {item.protection_plan_id && (

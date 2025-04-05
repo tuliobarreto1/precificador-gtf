@@ -1,3 +1,4 @@
+
 import { supabase } from '../client';
 import { v4 as uuidv4 } from 'uuid';
 import { createOrUpdateVehicle } from './vehicles';
@@ -175,7 +176,9 @@ export async function saveQuoteToSupabase(quoteData: any) {
             depreciation_cost: vehicleItem.depreciationCost || 0,
             maintenance_cost: vehicleItem.maintenanceCost || 0,
             extra_km_rate: vehicleItem.extraKmRate || 0,
-            total_cost: vehicleItem.totalCost || 0
+            total_cost: vehicleItem.totalCost || 0,
+            protection_cost: vehicleItem.protectionCost || 0,
+            protection_plan_id: vehicleItem.protectionPlanId || null
           };
           
           console.log(`Adicionando veículo ao orçamento:`, vehicleDataToSave);

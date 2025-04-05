@@ -80,7 +80,9 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           protectionCost,
           protectionPlanId: params.protectionPlanId,
           ipvaCost,
-          licensingCost
+          licensingCost,
+          includeIpva: params.includeIpva,
+          includeLicensing: params.includeLicensing
         };
       });
       
@@ -160,7 +162,9 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           protectionCost,
           protectionPlanId: params.protectionPlanId,
           ipvaCost,
-          licensingCost
+          licensingCost,
+          includeIpva: params.includeIpva,
+          includeLicensing: params.includeLicensing
         });
       });
       

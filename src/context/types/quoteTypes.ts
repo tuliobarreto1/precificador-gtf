@@ -33,6 +33,8 @@ export interface QuoteResultVehicle {
   protectionPlanId?: string | null;
   ipvaCost?: number;
   licensingCost?: number;
+  includeIpva?: boolean;
+  includeLicensing?: boolean;
 }
 
 export interface QuoteCalculationResult {
