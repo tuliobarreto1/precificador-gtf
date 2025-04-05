@@ -172,8 +172,8 @@ const QuoteForm = () => {
     setGlobalOperationSeverity = () => {}, 
     setGlobalHasTracking = () => {},
     setGlobalProtectionPlanId = () => {},
-    setGlobalIncludeIpva = () => {},  // Adicionando a extração correta
-    setGlobalIncludeLicensing = () => {}, // Adicionando a extração correta
+    setGlobalIncludeIpva = () => {}, 
+    setGlobalIncludeLicensing = () => {},
     setUseGlobalParams = () => {},
     setVehicleParams = () => {},
     calculateQuote = () => null,
@@ -490,7 +490,7 @@ const QuoteForm = () => {
             onCheckedChange={(checked) => setVehicleParams(vehicleId, { includeIpva: checked })}
           />
           <Label htmlFor={`ipva-${vehicleId}`} className="cursor-pointer text-sm">
-            Incluir IPVA ({(vehicleItem.vehicleGroup.ipvaCost || 0) * 100}% do valor do veículo)
+            Incluir IPVA ({((vehicleItem.vehicleGroup.ipvaCost || 0) * 100).toFixed(2)}% do valor do veículo)
           </Label>
         </div>
         
@@ -806,7 +806,7 @@ const QuoteForm = () => {
                           {params.includeIpva && result.ipvaCost > 0 && (
                             <div className="text-sm">
                               <p className="text-muted-foreground">IPVA (mensal):</p>
-                              <p className="font-medium">R$ {result.ipvaCost.toLocaleString('pt-BR')} <span className="text-xs text-muted-foreground">({(vehicleItem.vehicleGroup.ipvaCost || 0) * 100}% a.a.)</span></p>
+                              <p className="font-medium">R$ {result.ipvaCost.toLocaleString('pt-BR')} <span className="text-xs text-muted-foreground">({((vehicleItem.vehicleGroup.ipvaCost || 0) * 100).toFixed(2)}% a.a.)</span></p>
                             </div>
                           )}
                           {params.includeLicensing && result.licensingCost > 0 && (

@@ -11,7 +11,7 @@ export interface VehicleGroup {
   tireCost: number;
   description?: string;
   code?: string;
-  ipvaCost?: number;          // Agora será uma porcentagem (ex: 0.03 = 3%)
+  ipvaCost?: number;          // Porcentagem (ex: 0.03 = 3%)
   licensingCost?: number;
 }
 

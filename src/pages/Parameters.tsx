@@ -33,7 +33,7 @@ const vehicleGroupSchema = z.object({
   revision_cost: z.number().min(1, { message: 'Custo de revisão é obrigatório' }),
   tire_km: z.number().min(1, { message: 'Intervalo de troca de pneus é obrigatório' }),
   tire_cost: z.number().min(1, { message: 'Custo de troca de pneus é obrigatório' }),
-  ipva_cost: z.number().min(0, { message: 'Valor do IPVA deve ser positivo' }),
+  ipva_cost: z.number().min(0, { message: 'Percentual do IPVA deve ser positivo' }).max(1, { message: 'Percentual do IPVA deve ser entre 0 e 1' }),
   licensing_cost: z.number().min(0, { message: 'Valor do Licenciamento deve ser positivo' }),
 });
 
@@ -353,7 +353,7 @@ const Parameters = () => {
                         <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
                           <span>Revisão: {group.revision_km.toLocaleString()} km (R$ {group.revision_cost})</span>
                           <span>Pneus: {group.tire_km.toLocaleString()} km (R$ {group.tire_cost})</span>
-                          <span>IPVA: R$ {(group.ipva_cost || 0).toFixed(2)}/ano</span>
+                          <span>IPVA: {((group.ipva_cost || 0) * 100).toFixed(2)}% a.a.</span>
                           <span>Licenciamento: R$ {(group.licensing_cost || 0).toFixed(2)}/ano</span>
                         </div>
                       </div>
@@ -663,17 +663,21 @@ const Parameters = () => {
                   name="ipva_cost"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Custo Anual do IPVA (R$)</FormLabel>
+                      <FormLabel>IPVA (% do valor do veículo)</FormLabel>
                       <FormControl>
                         <Input 
                           type="number" 
                           min="0" 
+                          max="1"
                           step="0.01" 
                           {...field} 
                           onChange={(e) => field.onChange(Number(e.target.value))}
                         />
                       </FormControl>
                       <FormMessage />
+                      <p className="text-xs text-muted-foreground">
+                        Ex: 0.04 = 4% do valor do veículo
+                      </p>
                     </FormItem>
                   )}
                 />

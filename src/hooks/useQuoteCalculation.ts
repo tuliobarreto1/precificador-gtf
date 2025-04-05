@@ -49,7 +49,7 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         const protectionCost = await protectionCalculation.calculateProtectionCost(params.protectionPlanId);
         
         // Custos de IPVA e Licenciamento
-        // IPVA agora é calculado como uma porcentagem do valor do veículo
+        // IPVA é calculado como uma porcentagem do valor do veículo
         const ipvaCost = params.includeIpva ? (item.vehicle.value * (item.vehicleGroup.ipvaCost || 0)) / 12 : 0;
         const licensingCost = params.includeLicensing ? (item.vehicleGroup.licensingCost || 0) / 12 : 0;
         
@@ -144,7 +144,7 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         const protectionCost = 0; // Valor temporário, será substituído na versão assíncrona
         
         // Custos de IPVA e Licenciamento
-        // IPVA agora é calculado como uma porcentagem do valor do veículo
+        // IPVA é calculado como uma porcentagem do valor do veículo
         const ipvaCost = params.includeIpva ? (item.vehicle.value * (item.vehicleGroup.ipvaCost || 0)) / 12 : 0;
         const licensingCost = params.includeLicensing ? (item.vehicleGroup.licensingCost || 0) / 12 : 0;
         
