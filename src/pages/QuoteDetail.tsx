@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, FileEdit, Car, Calendar, User, Landmark, Gauge, Shield } from 'lucide-react';
@@ -21,6 +20,8 @@ import {
 } from '@/lib/calculation';
 import { fetchProtectionPlanDetails } from '@/integrations/supabase/services/protectionPlans';
 import { useTaxIndices } from '@/hooks/useTaxIndices';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface VehicleData {
   id: string;
@@ -313,6 +314,24 @@ const QuoteDetail = () => {
     );
   };
 
+  const renderTaxDetails = (vehicle: VehicleData) => {
+    if (!vehicle.include_taxes || !vehicle.tax_cost || vehicle.tax_cost <= 0) return null;
+    
+    const taxInfo = getTaxBreakdown(vehicle.vehicle.value || 0, vehicle.contract_months || 24);
+    
+    return (
+      <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
+        <p className="mb-1">Custos financeiros baseados em:</p>
+        <div className="grid grid-cols-2 gap-1">
+          <div>Taxa total: {taxInfo.totalTaxRate.toFixed(2)}% a.a.</div>
+          <div>SELIC: {taxInfo.selicRate.toFixed(2)}%</div>
+          <div>Spread: {taxInfo.spread.toFixed(2)}%</div>
+          <div>Custo mensal: R$ {taxInfo.monthlyCost.toLocaleString('pt-BR')}</div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <MainLayout>
       <div className="py-8">
@@ -500,23 +519,49 @@ const QuoteDetail = () => {
                             </div>
                           )}
                           
-                          {item.include_taxes && item.tax_cost && item.tax_cost > 0 && item.vehicle && item.vehicle.value && (
-                            <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
-                              <p className="mb-1">Custos financeiros baseados em:</p>
-                              <div className="grid grid-cols-2 gap-1">
-                                {(() => {
-                                  const taxInfo = getTaxBreakdown(item.vehicle.value, item.contract_months);
-                                  return (
-                                    <>
-                                      <div>Taxa total: {taxInfo.totalTaxRate.toFixed(2)}% a.a.</div>
-                                      <div>SELIC: {taxInfo.selicRate.toFixed(2)}%</div>
-                                      <div>Spread: {taxInfo.spread.toFixed(2)}%</div>
-                                      <div>Custo mensal: R$ {taxInfo.monthlyCost.toLocaleString('pt-BR')}</div>
-                                    </>
-                                  );
-                                })()}
-                              </div>
-                            </div>
+                          {item.include_taxes && item.tax_cost && item.tax_cost > 0 && (
+                            <Collapsible className="mt-3 pt-3 border-t">
+                              <CollapsibleTrigger className="flex items-center justify-between w-full text-sm">
+                                <div className="flex items-center">
+                                  <span className="text-muted-foreground mr-1">Custos financeiros:</span>
+                                  <span className="font-medium">
+                                    R$ {Number(item?.tax_cost || 0).toLocaleString('pt-BR')}
+                                  </span>
+                                </div>
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              </CollapsibleTrigger>
+                              <CollapsibleContent className="pt-2">
+                                {item.vehicle && item.vehicle.value && (
+                                  <div className="text-xs text-muted-foreground bg-slate-50 p-2 rounded-md">
+                                    <div className="grid grid-cols-2 gap-1">
+                                      {(() => {
+                                        const taxInfo = getTaxBreakdown(item.vehicle.value, item.contract_months);
+                                        return (
+                                          <>
+                                            <div className="flex justify-between">
+                                              <span>Taxa SELIC:</span>
+                                              <span>{taxInfo.selicRate.toFixed(2)}% a.a.</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span>Spread financeiro:</span>
+                                              <span>{taxInfo.spread.toFixed(2)}% a.a.</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span>Taxa total anual:</span>
+                                              <span>{taxInfo.totalTaxRate.toFixed(2)}% a.a.</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span>Custo anual:</span>
+                                              <span>R$ {taxInfo.annualCost.toLocaleString('pt-BR')}</span>
+                                            </div>
+                                          </>
+                                        );
+                                      })()}
+                                    </div>
+                                  </div>
+                                )}
+                              </CollapsibleContent>
+                            </Collapsible>
                           )}
                         </div>
                       </VehicleCard>
