@@ -61,6 +61,8 @@ export interface SavedVehicle {
   includeLicensing?: boolean;
   ipvaCost?: number;
   licensingCost?: number;
+  includeTaxes?: boolean; // Adicionado campo para indicar se inclui impostos
+  taxCost?: number; // Adicionado campo para custo de impostos
 }
 
 export interface SavedQuote {

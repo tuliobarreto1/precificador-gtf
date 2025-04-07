@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { QuoteResultVehicle } from '@/context/types/quoteTypes';
-import { Card } from '@/components/ui-custom/Card';
+import Card from '@/components/ui-custom/Card';
 import { Vehicle } from '@/lib/models';
 import { formatCurrency } from '@/lib/utils';
 import { useTaxIndices } from '@/hooks/useTaxIndices';

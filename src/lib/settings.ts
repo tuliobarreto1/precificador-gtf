@@ -45,6 +45,7 @@ export interface CalculationParams {
   selic_month12?: number;
   selic_month18?: number;
   selic_month24?: number;
+  last_tax_update?: string | Date; // Adicionando last_tax_update
 }
 
 export const fetchSystemSettings = async (): Promise<SystemSetting[]> => {

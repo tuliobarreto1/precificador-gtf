@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { QuoteParams } from '@/context/types/quoteTypes';
-import { Card } from '@/components/ui-custom/Card';
+import Card from '@/components/ui-custom/Card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
