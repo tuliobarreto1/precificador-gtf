@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -191,12 +192,8 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
                 let canDelete = true;
                 
                 if (isQuoteContextAvailable) {
-                  if (typeof canEditQuote === 'function') {
-                    canEdit = canEditQuote(quote.id);
-                  }
-                  if (typeof canDeleteQuote === 'function') {
-                    canDelete = canDeleteQuote(quote.id);
-                  }
+                  canEdit = checkCanEdit(quote.id);
+                  canDelete = checkCanDelete(quote.id);
                 }
                 
                 const isEditable = quote.status === 'ORCAMENTO' || quote.status === 'draft';
@@ -220,7 +217,7 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
                       <StatusBadge status={validatedStatus} size="sm" />
                     </TableCell>
                     <TableCell>
-                      {formatDate(quote.createdAt)}
+                      {formatDate(quote.createdAt || new Date())}
                     </TableCell>
                     <TableCell>
                       {quote.createdBy?.name || "Sistema"}

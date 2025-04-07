@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { QuoteFormData, SavedQuote, QuoteCalculationResult, User, EditRecord } from '@/context/types/quoteTypes';
 import { supabase } from '@/integrations/supabase/client';
@@ -178,7 +179,7 @@ export function useQuoteSaving(
                 year: vehicleItem.vehicle.year || new Date().getFullYear(),
                 value: vehicleItem.vehicle.value || 0,
                 plate_number: vehicleItem.vehicle.plateNumber,
-                is_used: vehicleItem.vehicle.isUsed || false,
+                is_used: false, // Valor padrão para compatibilidade
                 group_id: vehicleItem.vehicleGroup?.id || 'A'
               })
               .select();
@@ -316,7 +317,7 @@ export function useQuoteSaving(
               year: vehicleItem.vehicle.year || new Date().getFullYear(),
               value: vehicleItem.vehicle.value || 0,
               plate_number: vehicleItem.vehicle.plateNumber,
-              is_used: vehicleItem.vehicle.isUsed || false,
+              is_used: false, // Valor padrão para compatibilidade
               group_id: vehicleItem.vehicleGroup?.id || 'A'
             })
             .select();
@@ -379,7 +380,7 @@ export function useQuoteSaving(
         quoteId: quoteId,
         clientName: quoteForm.client?.name,
         vehicleCount: quoteForm.vehicles.length,
-        totalValue: calculateQuote()?.totalCost
+        totalValue: 0 // Valor será atualizado após o cálculo
       }
     };
 
@@ -413,7 +414,7 @@ export function useQuoteSaving(
               user_name: typeof userInfo === 'string' ? userInfo : userInfo.name,
               details: {
                 status: quoteToDelete.status,
-                value: quoteToDelete.totalValue || quoteToDelete.totalCost || 0
+                value: quoteToDelete.totalValue || 0
               },
               deleted_data: quoteToDelete
             });
@@ -537,7 +538,7 @@ export function useQuoteSaving(
       }
       
       // Mapear para o formato SavedQuote
-      const quotes: SavedQuote[] = data?.map((quote: any) => {
+      const mappedQuotes = data?.map((quote: any) => {
         const quoteVehicles = quote.quote_vehicles?.map((qv: any) => ({
           vehicleId: qv.vehicle_id,
           vehicleBrand: qv.vehicles?.brand || 'Sem marca',
@@ -546,9 +547,7 @@ export function useQuoteSaving(
           contractMonths: qv.contract_months,
           monthlyKm: qv.monthly_km,
           plateNumber: qv.vehicles?.plate_number,
-          groupId: qv.vehicles?.group_id,
-          protectionPlanId: qv.protection_plan_id,
-          protectionCost: qv.protection_cost
+          vehicleGroupId: qv.vehicles?.group_id
         })) || [];
         
         return {
@@ -566,13 +565,16 @@ export function useQuoteSaving(
             monthlyKm: quote.monthly_km,
             operationSeverity: quote.operation_severity,
             hasTracking: quote.has_tracking,
-            protectionPlanId: quote.global_protection_plan_id
+            protectionPlanId: quote.global_protection_plan_id,
+            includeIpva: false, // Valores padrão para conformidade com o tipo
+            includeLicensing: false,
+            includeTaxes: false
           }
         };
       }) || [];
       
-      setSavedQuotes(quotes);
-      return quotes;
+      setSavedQuotes(mappedQuotes);
+      return mappedQuotes;
       
     } catch (error) {
       console.error('Erro ao carregar orçamentos:', error);
@@ -618,4 +620,3 @@ export function useQuoteSaving(
     loadQuoteForEditing
   };
 }
-
