@@ -73,7 +73,12 @@ export interface SavedQuote {
   status: string;
   vehicles: SavedVehicle[];
   createdAt: Date | string;
-  createdBy?: User;
+  createdBy?: {
+    id: number;
+    name: string;
+    email?: string;
+    role?: string;
+  };
   globalParams?: VehicleParams;
   source?: string; // Adicionando para compatibilidade
 }
@@ -162,7 +167,12 @@ export interface QuoteItem {
   status: string;
   createdAt: string | Date;
   contractMonths?: number;
-  createdBy?: User;
+  createdBy?: {
+    id: number;
+    name: string;
+    email?: string;
+    role?: string;
+  };
 }
 
 // Interface para item de veículo no orçamento

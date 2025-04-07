@@ -91,17 +91,13 @@ const Index = () => {
             <QuoteTable 
               quotes={recentQuotes.map(quote => {
                 // Criar um objeto User completo com valores padrão para propriedades ausentes
-                const userObj: User = {
-                  id: quote.createdBy?.id ? String(quote.createdBy.id) : "system",
-                  name: quote.createdBy?.name || "Sistema",
-                  email: quote.createdBy?.email || "system@example.com",
-                  role: quote.createdBy?.role || "system",
-                  status: "active"
-                };
-                
                 return {
                   ...quote,
-                  createdBy: userObj
+                  createdBy: {
+                    id: quote.createdBy?.id || 0,
+                    name: quote.createdBy?.name || "Sistema",
+                    role: quote.createdBy?.role || "system"
+                  }
                 };
               })}
               onRefresh={handleRefresh} 
