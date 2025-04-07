@@ -90,26 +90,34 @@ const Index = () => {
           <div className="rounded-md border">
             <QuoteTable 
               quotes={recentQuotes.map(quote => {
-                // Criar um objeto User completo que inclui a propriedade email
-                const createdBy: User = {
-                  id: quote.createdBy && typeof quote.createdBy === 'object' && quote.createdBy.id 
-                    ? String(quote.createdBy.id) 
-                    : "system",
-                  name: quote.createdBy && typeof quote.createdBy === 'object' && quote.createdBy.name 
-                    ? quote.createdBy.name 
-                    : "Sistema",
-                  email: quote.createdBy && typeof quote.createdBy === 'object' && quote.createdBy.email 
-                    ? quote.createdBy.email 
-                    : "system@example.com",
-                  role: quote.createdBy && typeof quote.createdBy === 'object' && quote.createdBy.role 
-                    ? quote.createdBy.role 
-                    : "system",
-                  status: "active"
-                };
+                // Verificar se createdBy existe e tem as propriedades necessárias
+                let createdByObj: User;
+                
+                if (quote.createdBy && typeof quote.createdBy === 'object') {
+                  // Criar um objeto User completo com todas as propriedades obrigatórias
+                  createdByObj = {
+                    id: typeof quote.createdBy.id === 'number' ? 
+                         String(quote.createdBy.id) : 
+                         String(quote.createdBy.id || "system"),
+                    name: quote.createdBy.name || "Sistema",
+                    email: quote.createdBy.email || "system@example.com", // Garantir que email exista
+                    role: quote.createdBy.role || "system",
+                    status: "active"
+                  };
+                } else {
+                  // Fornecer um objeto User padrão se createdBy não existir
+                  createdByObj = {
+                    id: "system",
+                    name: "Sistema",
+                    email: "system@example.com",
+                    role: "system",
+                    status: "active"
+                  };
+                }
                 
                 return {
                   ...quote,
-                  createdBy
+                  createdBy: createdByObj
                 };
               })}
               onRefresh={handleRefresh} 
