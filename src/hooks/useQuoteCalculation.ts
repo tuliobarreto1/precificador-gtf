@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { QuoteFormData, QuoteCalculationResult, QuoteResultVehicle } from '@/context/types/quoteTypes';
 import { useBasicCalculations } from './calculation/useBasicCalculations';
@@ -196,6 +197,10 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           }
         });
         
+        // Custo total mensal incluindo impostos - CORRIGIDO: Calculando antes de usar
+        const totalCost = totalDepreciation + maintenanceCost + trackingCost + 
+                       protectionCost + ipvaCost + licensingCost + taxCost;
+        
         vehicleResults.push({
           vehicleId: item.vehicle.id,
           totalCost,
@@ -210,7 +215,8 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           includeIpva: params.includeIpva,
           includeLicensing: params.includeLicensing,
           includeTaxes: params.includeTaxes,
-          contractMonths: params.contractMonths
+          contractMonths: params.contractMonths,
+          monthlyKm: params.monthlyKm
         });
       });
       
