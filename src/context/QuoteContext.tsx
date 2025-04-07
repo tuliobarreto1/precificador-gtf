@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Client, Vehicle, VehicleGroup } from '@/lib/models';
 import { QuoteFormData, SavedQuote, QuoteContextType, QuoteCalculationResult, User, defaultUser } from './types/quoteTypes';
@@ -73,8 +72,8 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     getCurrentUser,
     setCurrentUser,
     availableUsers,
-    canEditQuote,
-    canDeleteQuote,
+    canEditQuote: canEditQuoteById,
+    canDeleteQuote: canDeleteQuoteById,
     savedQuotes
   } = useQuoteUsers();
   
@@ -92,7 +91,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     setGlobalProtectionPlanId,
     setGlobalIncludeIpva,
     setGlobalIncludeLicensing,
-    setGlobalIncludeTaxes, // Novo método para impostos
+    setGlobalIncludeTaxes, 
     setUseGlobalParams,
     setClient,
     resetForm
@@ -117,6 +116,15 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     getClient,
     getVehicle
   } = useQuoteData();
+
+  // Adaptadores para as funções canEditQuote e canDeleteQuote para atender à interface esperada
+  const canEditQuoteAdapter = (quote: SavedQuote, user: User): boolean => {
+    return canEditQuoteById(quote.id);
+  };
+
+  const canDeleteQuoteAdapter = (quote: SavedQuote, user: User): boolean => {
+    return canDeleteQuoteById(quote.id);
+  };
 
   // Export the context
   const contextValue: QuoteContextType = {
@@ -165,8 +173,8 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       }
     },
     deleteQuote,
-    canEditQuote,
-    canDeleteQuote,
+    canEditQuote: canEditQuoteAdapter,
+    canDeleteQuote: canDeleteQuoteAdapter,
     sendQuoteByEmail,
     savedQuotes
   };

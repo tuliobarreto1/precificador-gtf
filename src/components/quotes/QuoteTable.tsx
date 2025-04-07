@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -124,7 +123,6 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
   const checkCanEdit = (quoteId: string): boolean => {
     if (!isQuoteContextAvailable || !canEditQuote || !currentUser) return false;
     
-    // Criar um objeto SavedQuote mínimo para atender à assinatura da função
     const dummyQuote: SavedQuote = {
       id: quoteId,
       clientName: "",
@@ -140,7 +138,6 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
   const checkCanDelete = (quoteId: string): boolean => {
     if (!isQuoteContextAvailable || !canDeleteQuote || !currentUser) return false;
     
-    // Criar um objeto SavedQuote mínimo para atender à assinatura da função
     const dummyQuote: SavedQuote = {
       id: quoteId,
       clientName: "",
@@ -187,7 +184,6 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
               </TableRow>
             ) : (
               safeQuotes.map((quote) => {
-                // Valores padrão para permissões (permitir ações se o contexto não estiver disponível)
                 let canEdit = true;
                 let canDelete = true;
                 
@@ -235,7 +231,6 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
                         </Link>
                       )}
                       
-                      {/* Botão de exclusão - adicionando verificação mais robusta */}
                       <Button 
                         variant="outline" 
                         size="icon" 
