@@ -1,6 +1,6 @@
 
 import { supabase } from '@/integrations/supabase';
-import { Client, Vehicle, VehicleGroup, Quote, savedQuotes, ClientType } from './models';
+import { Client, Vehicle, VehicleGroup, Quote, ClientType } from './models';
 
 // Funções para clientes
 export async function getClients(): Promise<Client[]> {
@@ -11,7 +11,7 @@ export async function getClients(): Promise<Client[]> {
       
     if (error || !data) {
       console.error("Erro ao buscar clientes do Supabase:", error);
-      return []; // Retornar array vazio em vez de dados mockados
+      return []; // Retornar array vazio
     }
     
     // Mapear os dados do Supabase para o formato Client
@@ -26,7 +26,7 @@ export async function getClients(): Promise<Client[]> {
     }));
   } catch (error) {
     console.error("Erro inesperado ao buscar clientes:", error);
-    return []; // Retornar array vazio em vez de dados mockados
+    return []; // Retornar array vazio
   }
 }
 
@@ -132,7 +132,7 @@ export async function getVehicles(): Promise<Vehicle[]> {
       
     if (error || !data) {
       console.error("Erro ao buscar veículos do Supabase:", error);
-      return []; // Retornar array vazio em vez de dados mockados
+      return []; // Retornar array vazio
     }
     
     // Mapear os dados do Supabase para o formato Vehicle
@@ -151,7 +151,7 @@ export async function getVehicles(): Promise<Vehicle[]> {
     }));
   } catch (error) {
     console.error("Erro inesperado ao buscar veículos:", error);
-    return []; // Retornar array vazio em vez de dados mockados
+    return []; // Retornar array vazio
   }
 }
 
@@ -198,7 +198,7 @@ export async function getVehicleGroups(): Promise<VehicleGroup[]> {
       
     if (error || !data) {
       console.error("Erro ao buscar grupos de veículos do Supabase:", error);
-      return []; // Retornar array vazio em vez de dados mockados
+      return []; // Retornar array vazio
     }
     
     // Mapear os dados do Supabase para o formato VehicleGroup
@@ -209,11 +209,13 @@ export async function getVehicleGroups(): Promise<VehicleGroup[]> {
       revisionKm: group.revision_km || 10000,
       revisionCost: group.revision_cost || 500,
       tireKm: group.tire_km || 40000,
-      tireCost: group.tire_cost || 2000
+      tireCost: group.tire_cost || 2000,
+      ipvaCost: group.ipva_cost || 0,
+      licensingCost: group.licensing_cost || 0
     }));
   } catch (error) {
     console.error("Erro inesperado ao buscar grupos de veículos:", error);
-    return []; // Retornar array vazio em vez de dados mockados
+    return []; // Retornar array vazio
   }
 }
 
@@ -239,7 +241,9 @@ export async function getVehicleGroupById(id: string): Promise<VehicleGroup | nu
       revisionKm: data.revision_km || 10000,
       revisionCost: data.revision_cost || 500,
       tireKm: data.tire_km || 40000,
-      tireCost: data.tire_cost || 2000
+      tireCost: data.tire_cost || 2000,
+      ipvaCost: data.ipva_cost || 0,
+      licensingCost: data.licensing_cost || 0
     };
   } catch (error) {
     console.error("Erro inesperado ao buscar grupo de veículo por ID:", error);
@@ -254,14 +258,15 @@ export async function getQuotes(): Promise<Quote[]> {
     
     if (!success || !quotes || quotes.length === 0) {
       console.error("Erro ao buscar orçamentos do Supabase:", error);
-      return []; // Retornar array vazio em vez de dados mockados
+      return []; // Retornar array vazio
     }
     
     return quotes as unknown as Quote[];
   } catch (error) {
     console.error("Erro inesperado ao buscar orçamentos:", error);
-    return []; // Retornar array vazio em vez de dados mockados
+    return []; // Retornar array vazio
   }
 }
 
-export { savedQuotes };
+// Removendo a exportação de dados mockados
+export const savedQuotes: Quote[] = [];

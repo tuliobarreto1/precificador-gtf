@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useTaxIndices } from '@/hooks/useTaxIndices';
+import { ChevronDown, ChevronUp, Shield } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface QuoteDetailProps {
   quote: SavedQuote;
@@ -207,6 +209,7 @@ interface VehicleDetailCardProps {
 
 const VehicleDetailCard: React.FC<VehicleDetailCardProps> = ({ vehicle, contractMonths }) => {
   const { getTaxBreakdown } = useTaxIndices();
+  const [taxDetailsOpen, setTaxDetailsOpen] = useState(false);
   
   const showTaxDetails = vehicle.includeTaxes && vehicle.taxCost !== undefined && vehicle.taxCost > 0;
   
@@ -242,6 +245,16 @@ const VehicleDetailCard: React.FC<VehicleDetailCardProps> = ({ vehicle, contract
           </div>
         )}
         
+        <div className="flex justify-between text-sm">
+          <span>Depreciação:</span>
+          <span>{formatCurrency(vehicle.depreciationCost || 0)}/mês</span>
+        </div>
+        
+        <div className="flex justify-between text-sm">
+          <span>Manutenção:</span>
+          <span>{formatCurrency(vehicle.maintenanceCost || 0)}/mês</span>
+        </div>
+        
         {vehicle.protectionCost !== undefined && vehicle.protectionCost > 0 && (
           <div className="flex justify-between text-sm">
             <span>Proteção:</span>
@@ -264,25 +277,40 @@ const VehicleDetailCard: React.FC<VehicleDetailCardProps> = ({ vehicle, contract
         )}
         
         {showTaxDetails && (
-          <div className="flex justify-between text-sm">
-            <span>Custos financeiros:</span>
-            <span>{formatCurrency(vehicle.taxCost || 0)}/mês</span>
-          </div>
+          <Collapsible open={taxDetailsOpen} onOpenChange={setTaxDetailsOpen} className="border-t border-b py-2 my-2">
+            <div className="flex justify-between items-center">
+              <CollapsibleTrigger className="flex items-center text-primary font-medium hover:underline">
+                <span>Custos financeiros:</span>
+                {taxDetailsOpen ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
+              </CollapsibleTrigger>
+              <span>{formatCurrency(vehicle.taxCost || 0)}/mês</span>
+            </div>
+            
+            <CollapsibleContent className="pt-2">
+              {taxBreakdown && (
+                <div className="text-xs space-y-1 text-muted-foreground bg-slate-50 p-2 rounded-md">
+                  <div className="flex justify-between">
+                    <span>Taxa SELIC ({vehicle.contractMonths >= 24 ? '24 meses' : vehicle.contractMonths >= 18 ? '18 meses' : '12 meses'}):</span>
+                    <span>{taxBreakdown.selicRate.toFixed(2)}% a.a.</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Spread financeiro:</span>
+                    <span>{taxBreakdown.spread.toFixed(2)}% a.a.</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Taxa total anual:</span>
+                    <span>{taxBreakdown.totalTaxRate.toFixed(2)}% a.a.</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Custo anual:</span>
+                    <span>{formatCurrency(taxBreakdown.annualCost)}</span>
+                  </div>
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
         )}
       </div>
-      
-      {showTaxDetails && taxBreakdown && (
-        <div className="mt-4 pt-3 border-t border-gray-100 text-xs text-muted-foreground">
-          <div className="flex justify-between">
-            <span>Taxa financeira total:</span>
-            <span>{taxBreakdown.totalTaxRate.toFixed(2)}% a.a.</span>
-          </div>
-          <div className="flex justify-between">
-            <span>SELIC + spread:</span>
-            <span>{taxBreakdown.selicRate.toFixed(2)}% + {taxBreakdown.spread.toFixed(2)}%</span>
-          </div>
-        </div>
-      )}
       
       <div className="mt-4 pt-2 border-t flex justify-between">
         <span className="font-medium">Total:</span>
