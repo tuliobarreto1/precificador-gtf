@@ -80,13 +80,10 @@ export function useQuoteUsers() {
         createdAt: new Date(quote.created_at), // Convertendo para Date
         status: quote.status_flow || quote.status,
         createdBy: quote.created_by ? {
-          id: typeof quote.created_by === 'string' 
-            ? quote.created_by 
-            : `user-${Math.random().toString(36).substring(2, 9)}`,
+          id: quote.created_by.toString(), // Converter para string
           name: '',
           email: '',
           role: 'user',
-          status: 'active'
         } : undefined
       }));
       

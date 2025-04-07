@@ -1,4 +1,3 @@
-
 // Removendo a referência ao '@prisma/client' que está causando erros
 
 export interface Client {
@@ -74,7 +73,7 @@ export interface SavedQuote {
   vehicles: SavedVehicle[];
   createdAt: Date | string;
   createdBy?: {
-    id: number;
+    id: string; // Mudando para string para compatibilidade
     name: string;
     email?: string;
     role?: string;
@@ -168,7 +167,7 @@ export interface QuoteItem {
   createdAt: string | Date;
   contractMonths?: number;
   createdBy?: {
-    id: number;
+    id: string; // Mudando para string para compatibilidade
     name: string;
     email?: string;
     role?: string;
