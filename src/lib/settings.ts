@@ -16,9 +16,9 @@ export interface VehicleGroup {
   revision_cost: number;
   tire_km: number;
   tire_cost: number;
-  ipvaCost?: number;
-  licensingCost?: number;
-  name?: string;
+  ipvaCost?: number;          // Percentual (ex: 0.024 = 2.4%)
+  licensingCost?: number;     // Valor fixo anual
+  name?: string;              // Nome do grupo
 }
 
 export interface CalculationParams {
@@ -30,6 +30,7 @@ export interface CalculationParams {
   depreciation_mileage_multiplier: number;
   depreciation_base: number;
   tracking_cost: number;
+  // Novos campos para depreciação personalizada
   depreciation_base_rate?: number;
   severity_multiplier_1?: number;
   severity_multiplier_2?: number;
@@ -37,6 +38,7 @@ export interface CalculationParams {
   severity_multiplier_4?: number;
   severity_multiplier_5?: number;
   severity_multiplier_6?: number;
+  // Campos para taxas e índices
   ipca_rate?: number;
   igpm_rate?: number;
   tax_spread?: number;

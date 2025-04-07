@@ -34,8 +34,8 @@ const vehicleGroupSchema = z.object({
   revision_cost: z.number().min(1, { message: 'Custo de revisão é obrigatório' }),
   tire_km: z.number().min(1, { message: 'Intervalo de troca de pneus é obrigatório' }),
   tire_cost: z.number().min(1, { message: 'Custo de troca de pneus é obrigatório' }),
-  ipva_cost: z.number().min(0, { message: 'Percentual do IPVA deve ser positivo' }).max(0.2, { message: 'Percentual do IPVA deve ser entre 0 e 20%' }),
-  licensing_cost: z.number().min(0, { message: 'Valor do Licenciamento deve ser positivo' }),
+  ipvaCost: z.number().min(0, { message: 'Percentual do IPVA deve ser positivo' }).max(0.2, { message: 'Percentual do IPVA deve ser entre 0 e 20%' }),
+  licensingCost: z.number().min(0, { message: 'Valor do Licenciamento deve ser positivo' }),
 });
 
 const globalParamsSchema = z.object({
@@ -69,8 +69,8 @@ const Parameters = () => {
       revision_cost: 300,
       tire_km: 40000,
       tire_cost: 1200,
-      ipva_cost: 0.03,
-      licensing_cost: 0,
+      ipvaCost: 0.03,
+      licensingCost: 0,
     },
   });
 
@@ -138,8 +138,8 @@ const Parameters = () => {
       revision_cost: 300,
       tire_km: 40000,
       tire_cost: 1200,
-      ipva_cost: 0.03,
-      licensing_cost: 0,
+      ipvaCost: 0.03,
+      licensingCost: 0,
     });
     setEditMode(false);
     setIsDialogOpen(true);
@@ -231,8 +231,8 @@ const Parameters = () => {
           revision_cost: values.revision_cost,
           tire_km: values.tire_km,
           tire_cost: values.tire_cost,
-          ipvaCost: values.ipva_cost,
-          licensingCost: values.licensing_cost
+          ipvaCost: values.ipvaCost,
+          licensingCost: values.licensingCost
         };
         
         const newGroup = await addVehicleGroup(newGroupData);
@@ -266,17 +266,14 @@ const Parameters = () => {
   const onGlobalParamsSubmit = async (values: GlobalFormValues) => {
     setSavingParams(true);
     try {
-      // Buscar parâmetros existentes para preservar outros valores
       const existingParams = await fetchCalculationParams();
       
-      // Combinar valores existentes com os novos (preservando os parâmetros de depreciação)
       const updatedParams: Partial<CalculationParams> = {
         tracking_cost: values.tracking_cost,
         depreciation_base: existingParams?.depreciation_base || 0.015,
         depreciation_mileage_multiplier: existingParams?.depreciation_mileage_multiplier || 0.05,
         depreciation_severity_multiplier: existingParams?.depreciation_severity_multiplier || 0.1,
         extra_km_percentage: values.extra_km_percentage,
-        // Manter os campos de depreciação personalizados
         depreciation_base_rate: existingParams?.depreciation_base_rate,
         severity_multiplier_1: existingParams?.severity_multiplier_1,
         severity_multiplier_2: existingParams?.severity_multiplier_2,
@@ -599,7 +596,7 @@ const Parameters = () => {
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={groupForm.control}
-                  name="ipva_cost"
+                  name="ipvaCost"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>IPVA (% do valor do veículo)</FormLabel>
@@ -628,7 +625,7 @@ const Parameters = () => {
                 
                 <FormField
                   control={groupForm.control}
-                  name="licensing_cost"
+                  name="licensingCost"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Custo Anual do Licenciamento (R$)</FormLabel>
