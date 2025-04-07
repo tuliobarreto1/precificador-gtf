@@ -1,10 +1,12 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { QuoteResultVehicle } from '@/context/types/quoteTypes';
 import Card from '@/components/ui-custom/Card';
 import { Vehicle } from '@/lib/models';
 import { formatCurrency } from '@/lib/utils';
 import { useTaxIndices } from '@/hooks/useTaxIndices';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface QuoteSummaryProps {
   vehicle: Vehicle;
@@ -14,6 +16,7 @@ interface QuoteSummaryProps {
 
 const QuoteSummary: React.FC<QuoteSummaryProps> = ({ vehicle, result, showDetailedBreakdown = false }) => {
   const { getTaxBreakdown } = useTaxIndices();
+  const [taxDetailsOpen, setTaxDetailsOpen] = useState(false);
   
   // Calcular breakdown dos impostos se aplicável
   const taxBreakdown = result.includeTaxes && result.contractMonths 
@@ -58,10 +61,38 @@ const QuoteSummary: React.FC<QuoteSummaryProps> = ({ vehicle, result, showDetail
         )}
         
         {result.includeTaxes && (
-          <div className="flex justify-between">
-            <span>Custos financeiros:</span>
-            <span>{formatCurrency(result.taxCost || 0)}/mês</span>
-          </div>
+          <Collapsible open={taxDetailsOpen} onOpenChange={setTaxDetailsOpen} className="border-t border-b py-2 my-2">
+            <div className="flex justify-between items-center">
+              <CollapsibleTrigger className="flex items-center text-primary font-medium hover:underline">
+                <span>Custos financeiros:</span>
+                {taxDetailsOpen ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
+              </CollapsibleTrigger>
+              <span>{formatCurrency(result.taxCost || 0)}/mês</span>
+            </div>
+            
+            <CollapsibleContent className="pt-2">
+              {taxBreakdown && (
+                <div className="text-xs space-y-1 text-muted-foreground bg-slate-50 p-2 rounded-md">
+                  <div className="flex justify-between">
+                    <span>Taxa SELIC ({result.contractMonths >= 24 ? '24 meses' : result.contractMonths >= 18 ? '18 meses' : '12 meses'}):</span>
+                    <span>{taxBreakdown.selicRate.toFixed(2)}% a.a.</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Spread financeiro:</span>
+                    <span>{taxBreakdown.spread.toFixed(2)}% a.a.</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Taxa total anual:</span>
+                    <span>{taxBreakdown.totalTaxRate.toFixed(2)}% a.a.</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Custo anual:</span>
+                    <span>{formatCurrency(taxBreakdown.annualCost)}</span>
+                  </div>
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
         )}
         
         <div className="border-t pt-2 mt-2 font-medium flex justify-between">
