@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { QuoteParams } from '@/context/types/quoteTypes';
+import { VehicleParams } from '@/context/types/quoteTypes';
 import Card from '@/components/ui-custom/Card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useProtectionPlans } from '@/hooks/useProtectionPlans';
 
 interface GlobalParamsFormProps {
-  params: QuoteParams;
+  params: VehicleParams;
   onChangeContractMonths: (value: number) => void;
   onChangeMonthlyKm: (value: number) => void;
   onChangeOperationSeverity: (value: 1|2|3|4|5|6) => void;

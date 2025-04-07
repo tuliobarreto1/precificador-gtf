@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { QuoteFormData, QuoteCalculationResult, QuoteResultVehicle } from '@/context/types/quoteTypes';
 import { useBasicCalculations } from './calculation/useBasicCalculations';
@@ -25,11 +24,14 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         // Determinar parâmetros a serem usados
         const params = quoteForm.useGlobalParams ? quoteForm.globalParams : item.params || quoteForm.globalParams;
         
+        // Garantir que operationSeverity seja um valor válido (1-6)
+        const safeOperationSeverity = ensureSeverityValue(params.operationSeverity);
+        
         // Calcular custo de depreciação com a nova fórmula
         const totalDepreciation = basicCalculations.calculateDepreciation(
           item.vehicle.value, 
           params.monthlyKm,
-          params.operationSeverity,
+          safeOperationSeverity,
           params.contractMonths
         );
         
@@ -57,7 +59,7 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         
         // Novo: Cálculo de impostos
         const taxCost = params.includeTaxes ? 
-          taxIndices.calculateTaxCost(item.vehicle.value, params.contractMonths) : 0;
+          taxIndices.getTaxBreakdown(item.vehicle.value, params.contractMonths).monthlyCost : 0;
         
         // Custo total mensal incluindo impostos
         const totalCost = totalDepreciation + maintenanceCost + trackingCost + 
@@ -70,12 +72,12 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           protection: protectionCost.toFixed(2),
           ipva: ipvaCost.toFixed(2),
           licensing: licensingCost.toFixed(2),
-          taxes: taxCost.toFixed(2), // Novo: Impostos
+          taxes: taxCost.toFixed(2),
           total: totalCost.toFixed(2),
           protectionPlanId: params.protectionPlanId,
           includeIpva: params.includeIpva,
           includeLicensing: params.includeLicensing,
-          includeTaxes: params.includeTaxes, // Novo: Inclusão de impostos
+          includeTaxes: params.includeTaxes,
           contractMonths: params.contractMonths
         });
         
@@ -89,10 +91,10 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           protectionPlanId: params.protectionPlanId,
           ipvaCost,
           licensingCost,
-          taxCost, // Novo: Custo de impostos
+          taxCost,
           includeIpva: params.includeIpva,
           includeLicensing: params.includeLicensing,
-          includeTaxes: params.includeTaxes, // Novo: Inclusão de impostos
+          includeTaxes: params.includeTaxes,
           contractMonths: params.contractMonths
         };
       });
@@ -114,6 +116,14 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
     }
   };
   
+  // Função auxiliar para garantir que operationSeverity seja um valor válido (1-6)
+  const ensureSeverityValue = (value: number): 1|2|3|4|5|6 => {
+    if (value >= 1 && value <= 6) {
+      return value as 1|2|3|4|5|6;
+    }
+    return 3; // Valor padrão seguro
+  };
+  
   // Versão síncrona do cálculo para uso no contexto
   const calculateQuoteSync = (): QuoteCalculationResult | null => {
     try {
@@ -130,11 +140,14 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         // Determinar parâmetros a serem usados
         const params = quoteForm.useGlobalParams ? quoteForm.globalParams : item.params || quoteForm.globalParams;
         
+        // Garantir que operationSeverity seja um valor válido (1-6)
+        const safeOperationSeverity = ensureSeverityValue(params.operationSeverity);
+        
         // Calcular custo de depreciação com a nova fórmula
         const totalDepreciation = basicCalculations.calculateDepreciation(
           item.vehicle.value, 
           params.monthlyKm,
-          params.operationSeverity,
+          safeOperationSeverity,
           params.contractMonths
         );
         
@@ -162,7 +175,7 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         
         // Novo: Cálculo de impostos (versão síncrona)
         const taxCost = params.includeTaxes ? 
-          taxIndices.calculateTaxCost(item.vehicle.value, params.contractMonths) : 0;
+          taxIndices.getTaxBreakdown(item.vehicle.value, params.contractMonths).monthlyCost : 0;
         
         // Custo total mensal
         const totalCost = totalDepreciation + maintenanceCost + trackingCost + 
@@ -178,10 +191,10 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           protectionPlanId: params.protectionPlanId,
           ipvaCost,
           licensingCost,
-          taxCost, // Novo: Custo de impostos
+          taxCost,
           includeIpva: params.includeIpva,
           includeLicensing: params.includeLicensing,
-          includeTaxes: params.includeTaxes, // Novo: Inclusão de impostos
+          includeTaxes: params.includeTaxes,
           contractMonths: params.contractMonths
         });
       });

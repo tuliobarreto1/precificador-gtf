@@ -1,5 +1,4 @@
-
-import { QuoteFormData, QuoteParams } from '@/context/types/quoteTypes';
+import { QuoteFormData, VehicleParams } from '@/context/types/quoteTypes';
 import { Vehicle, VehicleGroup } from '@/lib/models';
 
 export function useQuoteVehicles(quoteForm: QuoteFormData, setQuoteForm: React.Dispatch<React.SetStateAction<QuoteFormData>>) {
@@ -35,7 +34,7 @@ export function useQuoteVehicles(quoteForm: QuoteFormData, setQuoteForm: React.D
     }));
   };
   
-  const setVehicleParams = (vehicleId: string, params: Partial<QuoteParams>) => {
+  const setVehicleParams = (vehicleId: string, params: Partial<VehicleParams>) => {
     setQuoteForm(prev => {
       // Encontrar o veículo para atualizar os parâmetros
       const vehicleIndex = prev.vehicles.findIndex(item => item.vehicle.id === vehicleId);

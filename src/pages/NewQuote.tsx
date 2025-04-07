@@ -157,6 +157,7 @@ const QuoteForm = () => {
       protectionPlanId: null,
       includeIpva: false,
       includeLicensing: false,
+      includeTaxes: false,
     }
   };
   
@@ -405,6 +406,7 @@ const QuoteForm = () => {
       protectionPlanId: null,
       includeIpva: false,
       includeLicensing: false,
+      includeTaxes: false,
     });
     
     return (
@@ -426,7 +428,16 @@ const QuoteForm = () => {
               min={6}
               max={24}
               step={1}
-              onValueChange={(value) => setVehicleParams(vehicleId, { contractMonths: value[0] })}
+              onValueChange={(value) => setVehicleParams(vehicleId, { 
+                contractMonths: value[0],
+                monthlyKm: params.monthlyKm,
+                operationSeverity: params.operationSeverity,
+                hasTracking: params.hasTracking,
+                protectionPlanId: params.protectionPlanId,
+                includeIpva: params.includeIpva,
+                includeLicensing: params.includeLicensing,
+                includeTaxes: params.includeTaxes || false
+              })}
             />
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>6 meses</span>
@@ -446,7 +457,16 @@ const QuoteForm = () => {
                 variant={params.monthlyKm === km ? "default" : "outline"}
                 size="sm"
                 className="w-full"
-                onClick={() => setVehicleParams(vehicleId, { monthlyKm: km })}
+                onClick={() => setVehicleParams(vehicleId, { 
+                  contractMonths: params.contractMonths,
+                  monthlyKm: km,
+                  operationSeverity: params.operationSeverity,
+                  hasTracking: params.hasTracking,
+                  protectionPlanId: params.protectionPlanId,
+                  includeIpva: params.includeIpva,
+                  includeLicensing: params.includeLicensing,
+                  includeTaxes: params.includeTaxes || false
+                })}
               >
                 {km.toLocaleString('pt-BR')} km
               </Button>
@@ -458,7 +478,16 @@ const QuoteForm = () => {
           <Label className="text-sm">Severidade de Operação</Label>
           <RadioGroup 
             value={params.operationSeverity.toString()} 
-            onValueChange={(value) => setVehicleParams(vehicleId, { operationSeverity: parseInt(value) as 1|2|3|4|5|6 })}
+            onValueChange={(value) => setVehicleParams(vehicleId, { 
+              contractMonths: params.contractMonths,
+              monthlyKm: params.monthlyKm,
+              operationSeverity: parseInt(value) as 1|2|3|4|5|6,
+              hasTracking: params.hasTracking,
+              protectionPlanId: params.protectionPlanId,
+              includeIpva: params.includeIpva,
+              includeLicensing: params.includeLicensing,
+              includeTaxes: params.includeTaxes || false
+            })}
             className="grid grid-cols-3 gap-2"
           >
             {[1, 2, 3, 4, 5, 6].map((level) => (
@@ -476,7 +505,16 @@ const QuoteForm = () => {
           <Switch 
             id={`tracking-${vehicleId}`} 
             checked={params.hasTracking}
-            onCheckedChange={(checked) => setVehicleParams(vehicleId, { hasTracking: checked })}
+            onCheckedChange={(checked) => setVehicleParams(vehicleId, { 
+              contractMonths: params.contractMonths,
+              monthlyKm: params.monthlyKm,
+              operationSeverity: params.operationSeverity,
+              hasTracking: checked,
+              protectionPlanId: params.protectionPlanId,
+              includeIpva: params.includeIpva,
+              includeLicensing: params.includeLicensing,
+              includeTaxes: params.includeTaxes || false
+            })}
           />
           <Label htmlFor={`tracking-${vehicleId}`} className="cursor-pointer text-sm">
             Incluir rastreamento
@@ -487,7 +525,16 @@ const QuoteForm = () => {
           <Switch 
             id={`ipva-${vehicleId}`} 
             checked={params.includeIpva || false}
-            onCheckedChange={(checked) => setVehicleParams(vehicleId, { includeIpva: checked })}
+            onCheckedChange={(checked) => setVehicleParams(vehicleId, { 
+              contractMonths: params.contractMonths,
+              monthlyKm: params.monthlyKm,
+              operationSeverity: params.operationSeverity,
+              hasTracking: params.hasTracking,
+              protectionPlanId: params.protectionPlanId,
+              includeIpva: checked,
+              includeLicensing: params.includeLicensing,
+              includeTaxes: params.includeTaxes || false
+            })}
           />
           <Label htmlFor={`ipva-${vehicleId}`} className="cursor-pointer text-sm">
             Incluir IPVA ({((vehicleItem.vehicleGroup.ipvaCost || 0) * 100).toFixed(2)}% do valor do veículo)
@@ -498,7 +545,16 @@ const QuoteForm = () => {
           <Switch 
             id={`licensing-${vehicleId}`} 
             checked={params.includeLicensing || false}
-            onCheckedChange={(checked) => setVehicleParams(vehicleId, { includeLicensing: checked })}
+            onCheckedChange={(checked) => setVehicleParams(vehicleId, { 
+              contractMonths: params.contractMonths,
+              monthlyKm: params.monthlyKm,
+              operationSeverity: params.operationSeverity,
+              hasTracking: params.hasTracking,
+              protectionPlanId: params.protectionPlanId,
+              includeIpva: params.includeIpva,
+              includeLicensing: checked,
+              includeTaxes: params.includeTaxes || false
+            })}
           />
           <Label htmlFor={`licensing-${vehicleId}`} className="cursor-pointer text-sm">
             Incluir Licenciamento
@@ -509,7 +565,16 @@ const QuoteForm = () => {
           <Label className="text-sm">Plano de Proteção</Label>
           <ProtectionPlanSelector
             selectedPlanId={params.protectionPlanId || null}
-            onChange={(planId) => setVehicleParams(vehicleId, { protectionPlanId: planId })}
+            onChange={(planId) => setVehicleParams(vehicleId, { 
+              contractMonths: params.contractMonths,
+              monthlyKm: params.monthlyKm,
+              operationSeverity: params.operationSeverity,
+              hasTracking: params.hasTracking,
+              protectionPlanId: planId,
+              includeIpva: params.includeIpva,
+              includeLicensing: params.includeLicensing,
+              includeTaxes: params.includeTaxes || false
+            })}
           />
         </div>
       </div>
@@ -762,6 +827,7 @@ const QuoteForm = () => {
                       protectionPlanId: null,
                       includeIpva: false,
                       includeLicensing: false,
+                      includeTaxes: false,
                     });
                   
                   return (

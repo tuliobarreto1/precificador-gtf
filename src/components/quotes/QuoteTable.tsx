@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/table';
 import { Edit, Trash2, Calendar, User } from 'lucide-react';
 import { useQuote } from '@/context/QuoteContext';
-import { SavedQuote, QuoteItem } from '@/context/types/quoteTypes';
+import { SavedQuote, QuoteItem, User as UserType } from '@/context/types/quoteTypes';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,8 +39,9 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [quoteToDelete, setQuoteToDelete] = useState<string | null>(null);
   const quoteContext = useQuote();
-  const { canEditQuote, canDeleteQuote, deleteQuote } = quoteContext || {};
+  const { canEditQuote, canDeleteQuote, deleteQuote, getCurrentUser } = quoteContext || {};
   const { toast } = useToast();
+  const currentUser = getCurrentUser ? getCurrentUser() : null;
 
   const safeQuotes = Array.isArray(quotes) ? quotes : [];
 
@@ -118,6 +119,38 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
       console.error("Erro ao formatar data:", error);
       return "Data inválida";
     }
+  };
+
+  const checkCanEdit = (quoteId: string): boolean => {
+    if (!isQuoteContextAvailable || !canEditQuote || !currentUser) return false;
+    
+    // Criar um objeto SavedQuote mínimo para atender à assinatura da função
+    const dummyQuote: SavedQuote = {
+      id: quoteId,
+      clientName: "",
+      totalValue: 0,
+      status: "",
+      vehicles: [],
+      createdAt: new Date()
+    };
+    
+    return canEditQuote(dummyQuote, currentUser);
+  };
+
+  const checkCanDelete = (quoteId: string): boolean => {
+    if (!isQuoteContextAvailable || !canDeleteQuote || !currentUser) return false;
+    
+    // Criar um objeto SavedQuote mínimo para atender à assinatura da função
+    const dummyQuote: SavedQuote = {
+      id: quoteId,
+      clientName: "",
+      totalValue: 0,
+      status: "",
+      vehicles: [],
+      createdAt: new Date()
+    };
+    
+    return canDeleteQuote(dummyQuote, currentUser);
   };
 
   return (

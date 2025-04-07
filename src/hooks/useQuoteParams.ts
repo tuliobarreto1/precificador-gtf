@@ -1,5 +1,4 @@
-
-import { QuoteFormData, QuoteParams } from '@/context/types/quoteTypes';
+import { QuoteFormData, VehicleParams } from '@/context/types/quoteTypes';
 import { Client } from '@/lib/models';
 import { Dispatch, SetStateAction } from 'react';
 
