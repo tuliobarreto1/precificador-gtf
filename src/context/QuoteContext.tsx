@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Client, Vehicle, VehicleGroup } from '@/lib/models';
 import { QuoteFormData, SavedQuote, QuoteContextType, QuoteCalculationResult, User, defaultUser } from './types/quoteTypes';
@@ -120,11 +119,11 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
 
   // Adaptar as funções canEditQuote e canDeleteQuote para atender à assinatura correta
   const adaptedCanEditQuote = (quote: SavedQuote, user: User) => {
-    return canEditQuote(quote.id, user);
+    return canEditQuote(quote.id);
   };
 
   const adaptedCanDeleteQuote = (quote: SavedQuote, user: User) => {
-    return canDeleteQuote(quote.id, user);
+    return canDeleteQuote(quote.id);
   };
 
   // Export the context

@@ -1,4 +1,3 @@
-
 import { getClientById, getVehicleById, getVehicleGroupById } from '@/lib/data-provider';
 import { Client, Vehicle, VehicleGroup } from '@/lib/models';
 import { QuoteVehicleItem, SavedQuote } from '@/context/types/quoteTypes';
@@ -146,7 +145,11 @@ export function useQuoteData() {
             contractMonths: qv.contract_months,
             monthlyKm: qv.monthly_km,
             operationSeverity: qv.operation_severity as 1|2|3|4|5|6,
-            hasTracking: qv.has_tracking
+            hasTracking: qv.has_tracking,
+            protectionPlanId: qv.protection_plan_id || null,
+            includeIpva: qv.include_ipva || false,
+            includeLicensing: qv.include_licensing || false,
+            includeTaxes: qv.include_taxes || false
           }
         });
       }
@@ -194,11 +197,11 @@ export function useQuoteData() {
               value: 0,
               isUsed: !!savedVehicle.plateNumber,
               plateNumber: savedVehicle.plateNumber,
-              groupId: savedVehicle.groupId
+              groupId: savedVehicle.vehicleGroupId || savedVehicle.groupId || 'A'
             },
             group: {
-              id: savedVehicle.groupId || 'A',
-              name: `Grupo ${savedVehicle.groupId || 'A'}`,
+              id: savedVehicle.vehicleGroupId || savedVehicle.groupId || 'A',
+              name: `Grupo ${savedVehicle.vehicleGroupId || savedVehicle.groupId || 'A'}`,
               description: '',
               revisionKm: 10000,
               revisionCost: 300,

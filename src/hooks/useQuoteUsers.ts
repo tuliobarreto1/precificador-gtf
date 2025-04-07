@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { SavedQuote, User, UserRole, defaultUser } from '@/context/types/quoteTypes';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,12 +25,11 @@ export function useQuoteUsers() {
       
       if (data && data.length > 0) {
         const mappedUsers: User[] = data.map(u => ({
-          id: typeof u.id === 'string' ? parseInt(u.id.replace(/-/g, '').substring(0, 8), 16) : 0,
+          id: u.id || `user-${Math.random().toString(36).substring(2, 9)}`,
           name: u.name,
           email: u.email,
           role: u.role as UserRole,
-          status: u.status as 'active' | 'inactive',
-          lastLogin: u.last_login || new Date().toISOString()
+          status: u.status as 'active' | 'inactive'
         }));
         
         setAvailableUsers(mappedUsers);
@@ -79,17 +77,16 @@ export function useQuoteUsers() {
         clientName: quote.clients?.name || 'Cliente não encontrado',
         vehicles: [],
         totalValue: 0,
-        createdAt: quote.created_at,
+        createdAt: new Date(quote.created_at), // Convertendo para Date
         status: quote.status_flow || quote.status,
         createdBy: quote.created_by ? {
           id: typeof quote.created_by === 'string' 
-            ? parseInt(quote.created_by.replace(/-/g, '').substring(0, 8), 16) 
-            : 0,
+            ? quote.created_by 
+            : `user-${Math.random().toString(36).substring(2, 9)}`,
           name: '',
-          role: 'user',
           email: '',
-          status: 'active',
-          lastLogin: ''
+          role: 'user',
+          status: 'active'
         } : undefined
       }));
       
@@ -134,7 +131,8 @@ export function useQuoteUsers() {
   };
 
   // Function to authenticate a user by ID
-  const authenticateUser = (userId: number, password?: string): boolean => {
+  const authenticateUser = (userId: string, password?: string): boolean => {
+    // Ajustando a comparação para usar string em vez de number
     const foundUser = availableUsers.find(u => u.id === userId && u.status === 'active');
     
     if (foundUser) {

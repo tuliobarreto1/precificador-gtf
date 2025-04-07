@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { QuoteFormData, SavedQuote, QuoteCalculationResult, User, EditRecord } from '@/context/types/quoteTypes';
 import { supabase } from '@/integrations/supabase/client';
@@ -374,9 +373,14 @@ export function useQuoteSaving(
     if (!quoteToUpdate) return false;
     
     const editRecord: EditRecord = {
-      editedAt: new Date().toISOString(),
-      editedBy: getCurrentUser().name,
-      changes: changeDescription
+      id: uuidv4(),
+      type: 'quote',
+      data: {
+        quoteId: quoteId,
+        clientName: quoteForm.client?.name,
+        vehicleCount: quoteForm.vehicles.length,
+        totalValue: calculateQuote()?.totalCost
+      }
     };
 
     return true;
@@ -614,3 +618,4 @@ export function useQuoteSaving(
     loadQuoteForEditing
   };
 }
+

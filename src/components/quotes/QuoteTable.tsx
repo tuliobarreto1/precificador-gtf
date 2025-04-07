@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -111,9 +110,9 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
     return 'ORCAMENTO';
   };
 
-  const formatDate = (dateString: string): string => {
+  const formatDate = (dateString: string | Date): string => {
     try {
-      const date = new Date(dateString);
+      const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
       return format(date, "dd/MM/yyyy HH:mm", { locale: ptBR });
     } catch (error) {
       console.error("Erro ao formatar data:", error);

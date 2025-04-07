@@ -1,6 +1,5 @@
 
 // Removendo a referência ao '@prisma/client' que está causando erros
-// import { Vehicle, VehicleGroup, Client as PrismaClient } from '@prisma/client';
 
 export interface Client {
   id: string;
@@ -13,19 +12,7 @@ export interface Client {
   state?: string;
 }
 
-// Adicionando QuoteParams para substituir VehicleParams onde necessário
-export interface QuoteParams {
-  contractMonths: number;
-  monthlyKm: number;
-  operationSeverity: 1|2|3|4|5|6;
-  hasTracking: boolean;
-  protectionPlanId: string | null;
-  includeIpva: boolean;
-  includeLicensing: boolean;
-  includeTaxes: boolean;
-}
-
-// Mantendo VehicleParams para compatibilidade com código existente
+// Interface VehicleParams para parâmetros de veículos
 export interface VehicleParams {
   contractMonths: number;
   monthlyKm: number;
@@ -37,13 +24,12 @@ export interface VehicleParams {
   includeTaxes: boolean;
 }
 
+// Alias para manter compatibilidade com código existente
+export type QuoteParams = VehicleParams;
+
 export interface QuoteFormData {
   client: Client | null;
-  vehicles: {
-    vehicle: Vehicle;
-    vehicleGroup: VehicleGroup;
-    params: VehicleParams | null;
-  }[];
+  vehicles: QuoteVehicleItem[];
   useGlobalParams: boolean;
   globalParams: VehicleParams;
 }
@@ -74,33 +60,33 @@ export interface QuoteResultVehicle {
 export interface SavedQuote {
   id: string;
   clientName: string;
+  clientId?: string; 
   totalValue: number;
+  totalCost?: number; // Adicionando para compatibilidade
   contractMonths?: number;
   monthlyKm?: number;
   operationSeverity?: number;
   hasTracking?: boolean;
   includeIpva?: boolean;
   includeLicensing?: boolean;
-  includeTaxes?: boolean; // Adicionando campo para impostos
+  includeTaxes?: boolean;
   status: string;
   vehicles: SavedVehicle[];
-  createdAt: Date;
+  createdAt: Date | string;
   createdBy?: User;
   globalParams?: VehicleParams;
-  // Adicionando campos necessários para compatibilidade com o código existente
-  source?: string;
-  clientId?: string;
+  source?: string; // Adicionando para compatibilidade
 }
 
 export interface User {
   id: string;
   name: string;
   email: string;
-  role?: string; // Adicionando role para resolver os erros em useQuoteUsers.ts
-  status?: string; // Adicionando status para resolver os erros em useQuoteUsers.ts
+  role?: string;
+  status?: string;
 }
 
-// Adicionando UserRole para resolver os erros em useQuoteUsers.ts
+// Definindo UserRole como tipo
 export type UserRole = 'admin' | 'manager' | 'user' | 'guest';
 
 export const defaultUser: User = {
@@ -163,10 +149,11 @@ export interface SavedVehicle {
   includeTaxes?: boolean;
   taxCost?: number;
   vehicleValue?: number;
-  vehicleGroupId?: string; // Adicionando para resolver problemas em useQuoteData.ts
+  vehicleGroupId?: string;
+  groupId?: string; // Adicionando para compatibilidade
 }
 
-// Adicionando QuoteItem para resolver o erro em QuoteTable.tsx
+// Interface para item de orçamento na lista
 export interface QuoteItem {
   id: string;
   clientName: string;
@@ -174,17 +161,18 @@ export interface QuoteItem {
   value?: number;
   status: string;
   createdAt: string | Date;
+  contractMonths?: number;
   createdBy?: User;
 }
 
-// Adicionando QuoteVehicleItem para resolver erros em hooks
+// Interface para item de veículo no orçamento
 export interface QuoteVehicleItem {
   vehicle: Vehicle;
   vehicleGroup: VehicleGroup;
   params: VehicleParams | null;
 }
 
-// Adicionando tipo Vehicle para uso nos componentes
+// Interface para veículo
 export interface Vehicle {
   id: string;
   brand: string;
@@ -193,9 +181,11 @@ export interface Vehicle {
   value: number;
   plateNumber?: string;
   status?: string;
+  isUsed?: boolean; // Adicionando para compatibilidade
+  groupId?: string; // Adicionando para compatibilidade
 }
 
-// Adicionando tipo VehicleGroup para uso nos componentes
+// Interface para grupo de veículos
 export interface VehicleGroup {
   id: string;
   name: string;
@@ -208,9 +198,10 @@ export interface VehicleGroup {
   licensingCost?: number;
 }
 
-// Adicionando EditRecord para resolver erro em useQuoteSaving.ts
+// Interface para registros de edição
 export interface EditRecord {
   id: string;
   type: string;
   data: any;
+  editedAt?: string; // Adicionando para compatibilidade
 }
