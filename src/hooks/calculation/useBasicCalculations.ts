@@ -1,4 +1,3 @@
-
 import { QuoteParams, QuoteVehicleItem, QuoteResultVehicle } from '@/context/types/quoteTypes';
 
 /**
@@ -6,30 +5,50 @@ import { QuoteParams, QuoteVehicleItem, QuoteResultVehicle } from '@/context/typ
  */
 export function useBasicCalculations() {
   /**
-   * Calcula o custo de depreciação para um veículo
+   * Calcula o custo de depreciação para um veículo usando a fórmula mais avançada
+   * baseada no prazo de contrato e severidade de operação
    */
   const calculateDepreciation = (
     vehicleValue: number, 
     monthlyKm: number, 
-    operationSeverity: 1|2|3|4|5|6
+    operationSeverity: 1|2|3|4|5|6,
+    contractMonths: number = 12
   ): number => {
-    // Taxa base mensal de depreciação (reduzida significativamente)
-    const depreciationRate = 0.0015; 
+    // Valor base da taxa de depreciação (0,35 ou 35%)
+    const baseRate = 0.35;
     
-    // Fatores de ajuste para quilometragem e severidade
-    const mileageMultiplier = 0.0005; // Reduzido
-    const severityMultiplier = 0.001; // Reduzido
+    // Fator de ajuste baseado na diferença de prazo em relação a 12 meses
+    const contractAdjustment = (contractMonths - 12) / 12;
     
-    // Ajustes baseados na quilometragem mensal e severidade de operação
-    const mileageFactor = (monthlyKm / 1000) * mileageMultiplier;
-    const severityFactor = (operationSeverity - 1) * severityMultiplier;
+    // Multiplicador de severidade conforme a fórmula da planilha
+    let severityMultiplier = 0;
+    switch(operationSeverity) {
+      case 1: severityMultiplier = 0.05; break;
+      case 2: severityMultiplier = 0.06; break;
+      case 3: severityMultiplier = 0.08; break;
+      case 4: severityMultiplier = 0.10; break;
+      case 5: severityMultiplier = 0.12; break;
+      case 6: severityMultiplier = 0.20; break;
+      default: severityMultiplier = 0.05;
+    }
     
-    // Taxa final de depreciação mensal (%)
-    const monthlyDepreciationRate = depreciationRate + mileageFactor + severityFactor;
+    // Cálculo da taxa de depreciação conforme a fórmula da planilha
+    // =0,35+(((H3-12)/12)*(0,05))*(B21=1)+(((H3-12)/12)*(0,06))*(B21=2)+...
+    const depreciationRate = baseRate + (contractAdjustment * severityMultiplier);
+    
+    // Ajuste para taxa mensal (dividindo pelo número de meses do contrato)
+    const monthlyDepreciationRate = depreciationRate / contractMonths;
     
     // Valor da depreciação mensal
     const monthlyDepreciation = vehicleValue * monthlyDepreciationRate;
-    console.log(`Cálculo de depreciação: Valor do veículo: R$ ${vehicleValue}, Taxa: ${(monthlyDepreciationRate*100).toFixed(4)}%, Depreciação mensal: R$ ${monthlyDepreciation.toFixed(2)}`);
+    
+    console.log(`Cálculo de depreciação avançado: 
+      Valor do veículo: R$ ${vehicleValue.toFixed(2)}, 
+      Prazo: ${contractMonths} meses, 
+      Severidade: ${operationSeverity}, 
+      Taxa total: ${(depreciationRate*100).toFixed(2)}%, 
+      Taxa mensal: ${(monthlyDepreciationRate*100).toFixed(4)}%, 
+      Depreciação mensal: R$ ${monthlyDepreciation.toFixed(2)}`);
     
     return monthlyDepreciation;
   };

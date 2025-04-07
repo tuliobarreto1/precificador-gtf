@@ -35,6 +35,7 @@ export interface QuoteResultVehicle {
   licensingCost?: number;
   includeIpva?: boolean;
   includeLicensing?: boolean;
+  contractMonths?: number;
 }
 
 export interface QuoteCalculationResult {

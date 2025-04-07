@@ -23,11 +23,12 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         // Determinar parâmetros a serem usados
         const params = quoteForm.useGlobalParams ? quoteForm.globalParams : item.params || quoteForm.globalParams;
         
-        // Calcular custo de depreciação
+        // Calcular custo de depreciação com a nova fórmula
         const totalDepreciation = basicCalculations.calculateDepreciation(
           item.vehicle.value, 
           params.monthlyKm,
-          params.operationSeverity
+          params.operationSeverity,
+          params.contractMonths // Adicionando o parâmetro de meses do contrato
         );
         
         // Calcular custo de manutenção
@@ -68,7 +69,8 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           total: totalCost.toFixed(2),
           protectionPlanId: params.protectionPlanId,
           includeIpva: params.includeIpva,
-          includeLicensing: params.includeLicensing
+          includeLicensing: params.includeLicensing,
+          contractMonths: params.contractMonths
         });
         
         return {
@@ -82,7 +84,8 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           ipvaCost,
           licensingCost,
           includeIpva: params.includeIpva,
-          includeLicensing: params.includeLicensing
+          includeLicensing: params.includeLicensing,
+          contractMonths: params.contractMonths
         };
       });
       
@@ -119,11 +122,12 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         // Determinar parâmetros a serem usados
         const params = quoteForm.useGlobalParams ? quoteForm.globalParams : item.params || quoteForm.globalParams;
         
-        // Calcular custo de depreciação
+        // Calcular custo de depreciação com a nova fórmula
         const totalDepreciation = basicCalculations.calculateDepreciation(
           item.vehicle.value, 
           params.monthlyKm,
-          params.operationSeverity
+          params.operationSeverity,
+          params.contractMonths // Adicionando o parâmetro de meses do contrato
         );
         
         // Calcular custo de manutenção
@@ -164,7 +168,8 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           ipvaCost,
           licensingCost,
           includeIpva: params.includeIpva,
-          includeLicensing: params.includeLicensing
+          includeLicensing: params.includeLicensing,
+          contractMonths: params.contractMonths
         });
       });
       
