@@ -359,7 +359,7 @@ const VehicleDetailCard: React.FC<VehicleDetailCardProps> = ({ vehicle, contract
         <span className="font-bold">{formatCurrency(vehicle.totalCost)}/mês</span>
       </div>
       
-      {vehicle.protection_plan_id && (
+      {vehicle.protectionPlanId && (
         <div className="mt-3 pt-1">
           <div className="flex items-center text-sm">
             <Shield className="h-4 w-4 mr-1 text-green-600" />
