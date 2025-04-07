@@ -88,7 +88,19 @@ const Index = () => {
           </div>
           
           <div className="rounded-md border">
-            <QuoteTable quotes={recentQuotes} onRefresh={handleRefresh} />
+            <QuoteTable 
+              quotes={recentQuotes.map(quote => ({
+                ...quote,
+                createdBy: {
+                  id: quote.createdBy?.id || "system",
+                  name: quote.createdBy?.name || "Sistema",
+                  email: quote.createdBy?.email || "system@example.com",
+                  role: quote.createdBy?.role || "system",
+                  status: "active"
+                }
+              }))} 
+              onRefresh={handleRefresh} 
+            />
           </div>
           
           {recentQuotes.length > 0 && (
