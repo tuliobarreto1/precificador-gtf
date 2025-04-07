@@ -90,14 +90,32 @@ const Index = () => {
           <div className="rounded-md border">
             <QuoteTable 
               quotes={recentQuotes.map(quote => {
-                // Garantir que o campo createdBy esteja completo com todos os campos necessários
-                const createdBy: User = {
-                  id: typeof quote.createdBy?.id === 'number' ? `user-${quote.createdBy.id}` : (quote.createdBy?.id || "system"),
-                  name: quote.createdBy?.name || "Sistema",
-                  email: quote.createdBy?.role === 'system' ? "system@example.com" : (quote.createdBy?.email || "system@example.com"),
-                  role: quote.createdBy?.role || "system",
-                  status: "active"
-                };
+                // Verificar se createdBy existe e tem a estrutura esperada
+                let createdBy: User;
+                
+                if (quote.createdBy && typeof quote.createdBy === 'object') {
+                  // Construir o objeto User com todos os campos necessários
+                  createdBy = {
+                    id: typeof quote.createdBy.id === 'number' 
+                      ? `user-${quote.createdBy.id}` 
+                      : (quote.createdBy.id || "system"),
+                    name: quote.createdBy.name || "Sistema",
+                    email: typeof quote.createdBy.email === 'string' 
+                      ? quote.createdBy.email 
+                      : "system@example.com",
+                    role: quote.createdBy.role || "system",
+                    status: "active"
+                  };
+                } else {
+                  // Criar um createdBy padrão se não existir
+                  createdBy = {
+                    id: "system",
+                    name: "Sistema",
+                    email: "system@example.com",
+                    role: "system",
+                    status: "active"
+                  };
+                }
                 
                 return {
                   ...quote,
