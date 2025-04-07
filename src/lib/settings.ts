@@ -18,6 +18,7 @@ export interface VehicleGroup {
   tire_cost: number;
   ipvaCost?: number;
   licensingCost?: number;
+  name?: string;
 }
 
 export interface CalculationParams {
@@ -29,7 +30,13 @@ export interface CalculationParams {
   depreciation_mileage_multiplier: number;
   depreciation_base: number;
   tracking_cost: number;
-  // Novos campos para impostos
+  depreciation_base_rate?: number;
+  severity_multiplier_1?: number;
+  severity_multiplier_2?: number;
+  severity_multiplier_3?: number;
+  severity_multiplier_4?: number;
+  severity_multiplier_5?: number;
+  severity_multiplier_6?: number;
   ipca_rate?: number;
   igpm_rate?: number;
   tax_spread?: number;
@@ -38,7 +45,6 @@ export interface CalculationParams {
   selic_month24?: number;
 }
 
-// Função para buscar todas as configurações do sistema
 export const fetchSystemSettings = async (): Promise<SystemSetting[]> => {
   try {
     const { data, error } = await supabase
@@ -58,13 +64,11 @@ export const fetchSystemSettings = async (): Promise<SystemSetting[]> => {
   }
 };
 
-// Função para atualizar as configurações do sistema
 export const updateSystemSettings = async (settings: Record<string, string>): Promise<boolean> => {
   try {
     for (const key in settings) {
       const value = settings[key];
       
-      // Verificar se a configuração já existe
       const existingSetting = await supabase
         .from('system_settings')
         .select('*')
@@ -72,7 +76,6 @@ export const updateSystemSettings = async (settings: Record<string, string>): Pr
         .single();
       
       if (existingSetting.data) {
-        // Atualizar a configuração existente
         const { error } = await supabase
           .from('system_settings')
           .update({ value })
@@ -85,7 +88,6 @@ export const updateSystemSettings = async (settings: Record<string, string>): Pr
         
         console.log(`Configuração ${key} atualizada para ${value}`);
       } else {
-        // Inserir uma nova configuração
         const { error } = await supabase
           .from('system_settings')
           .insert([{ key, value }]);
@@ -106,7 +108,6 @@ export const updateSystemSettings = async (settings: Record<string, string>): Pr
   }
 };
 
-// Função para buscar todos os grupos de veículos
 export const fetchVehicleGroups = async (): Promise<VehicleGroup[]> => {
   try {
     const { data, error } = await supabase
@@ -118,15 +119,28 @@ export const fetchVehicleGroups = async (): Promise<VehicleGroup[]> => {
       return [];
     }
     
-    console.log('Grupos de veículos carregados:', data);
-    return data || [];
+    const groups = data.map(group => ({
+      id: group.id,
+      created_at: group.created_at,
+      code: group.code,
+      description: group.description || '',
+      revision_km: group.revision_km,
+      revision_cost: group.revision_cost,
+      tire_km: group.tire_km,
+      tire_cost: group.tire_cost,
+      ipvaCost: group.ipva_cost,
+      licensingCost: group.licensing_cost,
+      name: group.name || `Grupo ${group.code}`,
+    }));
+    
+    console.log('Grupos de veículos carregados:', groups);
+    return groups;
   } catch (error) {
     console.error('Erro ao buscar grupos de veículos:', error);
     return [];
   }
 };
 
-// Função para buscar os parâmetros de cálculo
 export const fetchCalculationParams = async (): Promise<CalculationParams | null> => {
   try {
     const { data, error } = await supabase
@@ -148,7 +162,6 @@ export const fetchCalculationParams = async (): Promise<CalculationParams | null
   }
 };
 
-// Função para atualizar os parâmetros de cálculo
 export const updateCalculationParams = async (params: Partial<CalculationParams>): Promise<boolean> => {
   try {
     const { data, error } = await supabase
@@ -165,6 +178,99 @@ export const updateCalculationParams = async (params: Partial<CalculationParams>
     return true;
   } catch (error) {
     console.error('Erro ao atualizar parâmetros de cálculo:', error);
+    return false;
+  }
+};
+
+export const addVehicleGroup = async (group: Omit<VehicleGroup, 'id' | 'created_at'>): Promise<VehicleGroup | null> => {
+  try {
+    const dbGroup = {
+      code: group.code,
+      description: group.description,
+      revision_km: group.revision_km,
+      revision_cost: group.revision_cost,
+      tire_km: group.tire_km,
+      tire_cost: group.tire_cost,
+      ipva_cost: group.ipvaCost,
+      licensing_cost: group.licensingCost,
+      name: group.name || `Grupo ${group.code}`,
+    };
+    
+    const { data, error } = await supabase
+      .from('vehicle_groups')
+      .insert([dbGroup])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Erro ao adicionar grupo de veículo:', error);
+      return null;
+    }
+    
+    return {
+      id: data.id,
+      created_at: data.created_at,
+      code: data.code,
+      description: data.description || '',
+      revision_km: data.revision_km,
+      revision_cost: data.revision_cost,
+      tire_km: data.tire_km,
+      tire_cost: data.tire_cost,
+      ipvaCost: data.ipva_cost,
+      licensingCost: data.licensing_cost,
+      name: data.name || `Grupo ${data.code}`,
+    };
+  } catch (error) {
+    console.error('Erro ao adicionar grupo de veículo:', error);
+    return null;
+  }
+};
+
+export const updateVehicleGroup = async (id: string, group: Partial<VehicleGroup>): Promise<boolean> => {
+  try {
+    const dbGroup: Record<string, any> = {};
+    
+    if (group.description !== undefined) dbGroup.description = group.description;
+    if (group.revision_km !== undefined) dbGroup.revision_km = group.revision_km;
+    if (group.revision_cost !== undefined) dbGroup.revision_cost = group.revision_cost;
+    if (group.tire_km !== undefined) dbGroup.tire_km = group.tire_km;
+    if (group.tire_cost !== undefined) dbGroup.tire_cost = group.tire_cost;
+    if (group.ipvaCost !== undefined) dbGroup.ipva_cost = group.ipvaCost;
+    if (group.licensingCost !== undefined) dbGroup.licensing_cost = group.licensingCost;
+    if (group.name !== undefined) dbGroup.name = group.name;
+    
+    const { error } = await supabase
+      .from('vehicle_groups')
+      .update(dbGroup)
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Erro ao atualizar grupo de veículo:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Erro ao atualizar grupo de veículo:', error);
+    return false;
+  }
+};
+
+export const deleteVehicleGroup = async (id: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('vehicle_groups')
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Erro ao excluir grupo de veículo:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Erro ao excluir grupo de veículo:', error);
     return false;
   }
 };

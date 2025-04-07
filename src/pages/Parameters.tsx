@@ -15,8 +15,8 @@ import * as z from 'zod';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { 
   fetchVehicleGroups, 
-  addVehicleGroup, 
-  updateVehicleGroup, 
+  addVehicleGroup,
+  updateVehicleGroup,
   deleteVehicleGroup,
   fetchCalculationParams,
   updateCalculationParams,
@@ -150,14 +150,14 @@ const Parameters = () => {
     if (group) {
       groupForm.reset({
         code: group.code,
-        name: group.name,
+        name: group.name || '',
         description: group.description,
         revision_km: group.revision_km,
         revision_cost: group.revision_cost,
         tire_km: group.tire_km,
         tire_cost: group.tire_cost,
-        ipva_cost: group.ipva_cost || 0,
-        licensing_cost: group.licensing_cost || 0,
+        ipvaCost: group.ipvaCost || 0,
+        licensingCost: group.licensingCost || 0,
       });
       setCurrentGroupId(groupId);
       setEditMode(true);
@@ -223,7 +223,7 @@ const Parameters = () => {
           return;
         }
         
-        const newGroupData: Omit<VehicleGroup, 'id' | 'created_at' | 'updated_at'> = {
+        const newGroupData = {
           code: values.code,
           name: values.name,
           description: values.description || '',
@@ -231,8 +231,8 @@ const Parameters = () => {
           revision_cost: values.revision_cost,
           tire_km: values.tire_km,
           tire_cost: values.tire_cost,
-          ipva_cost: values.ipva_cost,
-          licensing_cost: values.licensing_cost
+          ipvaCost: values.ipva_cost,
+          licensingCost: values.licensing_cost
         };
         
         const newGroup = await addVehicleGroup(newGroupData);
@@ -270,8 +270,7 @@ const Parameters = () => {
       const existingParams = await fetchCalculationParams();
       
       // Combinar valores existentes com os novos (preservando os parâmetros de depreciação)
-      const updatedParams: CalculationParams = {
-        id: calculationParamsId,
+      const updatedParams: Partial<CalculationParams> = {
         tracking_cost: values.tracking_cost,
         depreciation_base: existingParams?.depreciation_base || 0.015,
         depreciation_mileage_multiplier: existingParams?.depreciation_mileage_multiplier || 0.05,
@@ -353,18 +352,18 @@ const Parameters = () => {
                   {groups.map((group) => (
                     <div key={group.id} className="flex justify-between items-center p-4 border rounded-md">
                       <div>
-                        <h3 className="font-medium">{group.name} ({group.code})</h3>
+                        <h3 className="font-medium">{group.name || `Grupo ${group.code}`} ({group.code})</h3>
                         <p className="text-sm text-muted-foreground">{group.description}</p>
                         <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
                           <span>Revisão: {group.revision_km.toLocaleString()} km (R$ {group.revision_cost})</span>
                           <span>Pneus: {group.tire_km.toLocaleString()} km (R$ {group.tire_cost})</span>
-                          <span>IPVA: {((group.ipva_cost || 0) * 100).toFixed(2)}% a.a.</span>
-                          <span>Licenciamento: R$ {(group.licensing_cost || 0).toFixed(2)}/ano</span>
+                          <span>IPVA: {((group.ipvaCost || 0) * 100).toFixed(2)}% a.a.</span>
+                          <span>Licenciamento: R$ {(group.licensingCost || 0).toFixed(2)}/ano</span>
                         </div>
                       </div>
                       <div className="flex space-x-2">
-                        <Button variant="outline" size="sm" onClick={() => handleEditGroup(group.id)}>Editar</Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleDeleteGroup(group.id)}>Excluir</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleEditGroup(group.id!)}>Editar</Button>
+                        <Button variant="destructive" size="sm" onClick={() => handleDeleteGroup(group.id!)}>Excluir</Button>
                       </div>
                     </div>
                   ))}

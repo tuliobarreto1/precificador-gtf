@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -78,8 +77,7 @@ const DepreciationParametersForm = () => {
       const existingParams = await fetchCalculationParams();
       
       // Combinar valores existentes com os novos
-      const updatedParams: CalculationParams = {
-        id: calculationParamsId,
+      const updatedParams: Partial<CalculationParams> = {
         tracking_cost: existingParams?.tracking_cost || 50,
         depreciation_base: existingParams?.depreciation_base || 0.015,
         depreciation_mileage_multiplier: existingParams?.depreciation_mileage_multiplier || 0.05,
