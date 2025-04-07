@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 export interface SystemSetting {
@@ -169,7 +170,9 @@ export const updateCalculationParams = async (params: Partial<CalculationParams>
   try {
     // Convertendo o Date para string se necessário
     if (params.last_tax_update && typeof params.last_tax_update !== 'string') {
-      params.last_tax_update = params.last_tax_update.toISOString();
+      // Corrigindo o erro de tipagem garantindo que o valor é tratado como Date
+      const dateValue = params.last_tax_update as unknown as Date;
+      params.last_tax_update = dateValue.toISOString();
     }
     
     const { data, error } = await supabase
