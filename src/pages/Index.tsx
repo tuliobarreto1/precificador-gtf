@@ -89,16 +89,21 @@ const Index = () => {
           
           <div className="rounded-md border">
             <QuoteTable 
-              quotes={recentQuotes.map(quote => ({
-                ...quote,
-                createdBy: {
+              quotes={recentQuotes.map(quote => {
+                // Garantir que o campo createdBy esteja completo com todos os campos necessários
+                const createdBy: User = {
                   id: typeof quote.createdBy?.id === 'number' ? `user-${quote.createdBy.id}` : (quote.createdBy?.id || "system"),
                   name: quote.createdBy?.name || "Sistema",
-                  email: quote.createdBy?.email || "system@example.com",
+                  email: quote.createdBy?.role === 'system' ? "system@example.com" : (quote.createdBy?.email || "system@example.com"),
                   role: quote.createdBy?.role || "system",
                   status: "active"
-                }
-              }))} 
+                };
+                
+                return {
+                  ...quote,
+                  createdBy
+                };
+              })}
               onRefresh={handleRefresh} 
             />
           </div>

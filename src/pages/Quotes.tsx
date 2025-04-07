@@ -10,7 +10,7 @@ import { Search, Plus, Filter } from 'lucide-react';
 import Card from '@/components/ui-custom/Card';
 import QuoteTable from '@/components/quotes/QuoteTable';
 import { useQuote } from '@/context/QuoteContext';
-import { QuoteItem } from '@/context/types/quoteTypes';
+import { QuoteItem, User } from '@/context/types/quoteTypes';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -67,24 +67,29 @@ const Quotes = () => {
         console.log("Orçamentos carregados:", data);
         
         // Mapear para o formato esperado pelo componente QuoteTable
-        const mappedQuotes: QuoteItem[] = (data || []).map(quote => ({
-          id: quote.id,
-          clientName: quote.clients?.name || "Cliente não especificado",
-          vehicleName: quote.quote_vehicles && quote.quote_vehicles[0]?.vehicles
-            ? `${quote.quote_vehicles[0].vehicles.brand} ${quote.quote_vehicles[0].vehicles.model}`
-            : "Veículo não especificado",
-          value: quote.total_value || 0,
-          status: quote.status_flow || quote.status || "draft",
-          createdAt: quote.created_at || new Date().toISOString(),
-          contractMonths: quote.contract_months || 24,
-          createdBy: {
+        const mappedQuotes: QuoteItem[] = (data || []).map(quote => {
+          // Criar o objeto de usuário completo
+          const createdBy: User = {
             id: "system",
             name: "Sistema",
             email: "system@example.com",
             role: "system",
             status: "active"
-          }
-        }));
+          };
+          
+          return {
+            id: quote.id,
+            clientName: quote.clients?.name || "Cliente não especificado",
+            vehicleName: quote.quote_vehicles && quote.quote_vehicles[0]?.vehicles
+              ? `${quote.quote_vehicles[0].vehicles.brand} ${quote.quote_vehicles[0].vehicles.model}`
+              : "Veículo não especificado",
+            value: quote.total_value || 0,
+            status: quote.status_flow || quote.status || "draft",
+            createdAt: quote.created_at || new Date().toISOString(),
+            contractMonths: quote.contract_months || 24,
+            createdBy
+          };
+        });
         
         setQuotes(mappedQuotes);
       }
