@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { QuoteFormData, QuoteCalculationResult, QuoteResultVehicle } from '@/context/types/quoteTypes';
 import { useBasicCalculations } from './calculation/useBasicCalculations';
 import { useProtectionCalculation } from './calculation/useProtectionCalculation';
-import { useTaxIndices } from './useTaxIndices'; // Novo hook de impostos
+import { useTaxIndices } from './useTaxIndices';
 
 export function useQuoteCalculation(quoteForm: QuoteFormData) {
   const [calculationError, setCalculationError] = useState<string | null>(null);
   const basicCalculations = useBasicCalculations();
   const protectionCalculation = useProtectionCalculation();
-  const taxIndices = useTaxIndices(); // Novo hook de impostos
+  const taxIndices = useTaxIndices();
 
   const calculateQuote = async (): Promise<QuoteCalculationResult | null> => {
     setCalculationError(null);
@@ -59,7 +59,7 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         
         // Novo: Cálculo de impostos
         const taxCost = params.includeTaxes ? 
-          taxIndices.getTaxBreakdown(item.vehicle.value, params.contractMonths).monthlyCost : 0;
+          taxIndices.calculateTaxCost(item.vehicle.value, params.contractMonths) : 0;
         
         // Custo total mensal incluindo impostos
         const totalCost = totalDepreciation + maintenanceCost + trackingCost + 
@@ -78,7 +78,8 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           includeIpva: params.includeIpva,
           includeLicensing: params.includeLicensing,
           includeTaxes: params.includeTaxes,
-          contractMonths: params.contractMonths
+          contractMonths: params.contractMonths,
+          monthlyKm: params.monthlyKm
         });
         
         return {
@@ -95,7 +96,8 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           includeIpva: params.includeIpva,
           includeLicensing: params.includeLicensing,
           includeTaxes: params.includeTaxes,
-          contractMonths: params.contractMonths
+          contractMonths: params.contractMonths,
+          monthlyKm: params.monthlyKm
         };
       });
       

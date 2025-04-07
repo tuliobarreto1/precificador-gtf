@@ -21,7 +21,7 @@ const initialQuoteForm: QuoteFormData = {
     protectionPlanId: null,
     includeIpva: false,
     includeLicensing: false,
-    includeTaxes: false,  // Novo campo para impostos
+    includeTaxes: true,  // Habilitando impostos por padrão
   },
 };
 

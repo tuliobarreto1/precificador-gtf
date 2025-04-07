@@ -57,10 +57,10 @@ const QuoteSummary: React.FC<QuoteSummaryProps> = ({ vehicle, result, showDetail
           </div>
         )}
         
-        {result.includeTaxes && result.taxCost > 0 && (
+        {result.includeTaxes && (
           <div className="flex justify-between">
             <span>Custos financeiros:</span>
-            <span>{formatCurrency(result.taxCost)}/mês</span>
+            <span>{formatCurrency(result.taxCost || 0)}/mês</span>
           </div>
         )}
         

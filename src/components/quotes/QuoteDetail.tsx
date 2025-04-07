@@ -112,7 +112,7 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
                   <p>Rastreamento: {quote.globalParams.hasTracking ? 'Sim' : 'Não'}</p>
                   <p>IPVA: {quote.globalParams.includeIpva ? 'Incluído' : 'Não incluído'}</p>
                   <p>Licenciamento: {quote.globalParams.includeLicensing ? 'Incluído' : 'Não incluído'}</p>
-                  <p>Impostos: {quote.globalParams.includeTaxes ? 'Incluídos' : 'Não incluídos'}</p>
+                  <p>Custos financeiros: {quote.globalParams.includeTaxes ? 'Incluídos' : 'Não incluídos'}</p>
                 </>
               )}
             </div>
@@ -251,14 +251,14 @@ const VehicleDetailCard: React.FC<VehicleDetailCardProps> = ({ vehicle, contract
         
         {vehicle.includeIpva && vehicle.ipvaCost !== undefined && (
           <div className="flex justify-between text-sm">
-            <span>IPVA:</span>
+            <span>IPVA (mensal):</span>
             <span>{formatCurrency(vehicle.ipvaCost)}/mês</span>
           </div>
         )}
         
         {vehicle.includeLicensing && vehicle.licensingCost !== undefined && (
           <div className="flex justify-between text-sm">
-            <span>Licenciamento:</span>
+            <span>Licenciamento (mensal):</span>
             <span>{formatCurrency(vehicle.licensingCost)}/mês</span>
           </div>
         )}
