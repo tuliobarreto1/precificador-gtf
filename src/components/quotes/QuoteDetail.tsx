@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { SavedQuote, SavedVehicle } from '@/context/types/quoteTypes';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
@@ -207,14 +206,11 @@ interface VehicleDetailCardProps {
 const VehicleDetailCard: React.FC<VehicleDetailCardProps> = ({ vehicle, contractMonths }) => {
   const { getTaxBreakdown } = useTaxIndices();
   
-  // Se temos valor do veículo e informação de custo de imposto, podemos mostrar detalhamento
   const showTaxDetails = vehicle.taxCost !== undefined && vehicle.taxCost > 0;
   
-  // Obter breakdown dos impostos se possível
   let taxBreakdown = null;
   if (showTaxDetails && vehicle.monthlyKm) {
-    // Estimar valor do veículo com base no custo de imposto
-    const estimatedVehicleValue = vehicle.taxCost * 12 * 100 / 18; // Estimativa aproximada
+    const estimatedVehicleValue = vehicle.taxCost * 12 * 100 / 18;
     taxBreakdown = getTaxBreakdown(estimatedVehicleValue, contractMonths);
   }
   

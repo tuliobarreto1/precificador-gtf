@@ -45,7 +45,7 @@ export interface CalculationParams {
   selic_month12?: number;
   selic_month18?: number;
   selic_month24?: number;
-  last_tax_update?: string | Date; // Adicionando last_tax_update
+  last_tax_update?: string; // Modificado para ser somente string, não Date
 }
 
 export const fetchSystemSettings = async (): Promise<SystemSetting[]> => {
@@ -167,6 +167,11 @@ export const fetchCalculationParams = async (): Promise<CalculationParams | null
 
 export const updateCalculationParams = async (params: Partial<CalculationParams>): Promise<boolean> => {
   try {
+    // Convertendo o Date para string se necessário
+    if (params.last_tax_update instanceof Date) {
+      params.last_tax_update = params.last_tax_update.toISOString();
+    }
+    
     const { data, error } = await supabase
       .from('calculation_params')
       .update(params)
