@@ -74,10 +74,52 @@ export function useTaxIndices() {
     };
   };
 
-  // Nova função para calcular o custo de impostos
+  // Função para calcular o custo de impostos
   const calculateTaxCost = (vehicleValue: number, contractMonths: number) => {
     const breakdown = getTaxBreakdown(vehicleValue, contractMonths);
     return breakdown.monthlyCost;
+  };
+
+  // Busca dados reais da API do Banco Central
+  const fetchFromBCB = async (): Promise<{ success: boolean; data?: any }> => {
+    try {
+      // API para SELIC (https://api.bcb.gov.br/dados/serie/bcdata.sgs.1178/dados/ultimos/1?formato=json)
+      const selicResponse = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.1178/dados/ultimos/1?formato=json');
+      const selicData = await selicResponse.json();
+      const selicRate = parseFloat(selicData[0]?.valor || "0");
+      
+      // API para IPCA (https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados/ultimos/1?formato=json)
+      const ipcaResponse = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados/ultimos/1?formato=json');
+      const ipcaData = await ipcaResponse.json();
+      const ipcaRate = parseFloat(ipcaData[0]?.valor || "0");
+      
+      // API para IGPM (https://api.bcb.gov.br/dados/serie/bcdata.sgs.189/dados/ultimos/1?formato=json)
+      const igpmResponse = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.189/dados/ultimos/1?formato=json');
+      const igpmData = await igpmResponse.json();
+      const igpmRate = parseFloat(igpmData[0]?.valor || "0");
+      
+      // Para diferentes prazos da SELIC, vamos aplicar um spread simulado
+      // Uma API real poderia fornecer esses valores diretamente
+      const selic12 = selicRate;
+      const selic18 = Math.max(selicRate - 0.5, 0); // 0.5% menor para prazos maiores
+      const selic24 = Math.max(selicRate - 1.0, 0); // 1.0% menor para prazos ainda maiores
+      
+      return {
+        success: true,
+        data: {
+          selic: selicRate,
+          ipca: ipcaRate,
+          igpm: igpmRate,
+          selic12,
+          selic18,
+          selic24,
+          date: new Date()
+        }
+      };
+    } catch (error) {
+      console.error('Erro ao buscar dados do Banco Central:', error);
+      return { success: false };
+    }
   };
 
   const updateIndices = async (newIndices: TaxIndices) => {
@@ -114,8 +156,9 @@ export function useTaxIndices() {
     loading,
     error,
     getTaxBreakdown,
-    calculateTaxCost, // Exportando a nova função
+    calculateTaxCost,
     updateIndices,
-    refreshIndices
+    refreshIndices,
+    fetchFromBCB // Exportando a nova função
   };
 }

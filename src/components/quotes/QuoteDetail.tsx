@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { SavedQuote, SavedVehicle } from '@/context/types/quoteTypes';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
@@ -206,12 +207,11 @@ interface VehicleDetailCardProps {
 const VehicleDetailCard: React.FC<VehicleDetailCardProps> = ({ vehicle, contractMonths }) => {
   const { getTaxBreakdown } = useTaxIndices();
   
-  const showTaxDetails = vehicle.taxCost !== undefined && vehicle.taxCost > 0;
+  const showTaxDetails = vehicle.includeTaxes && vehicle.taxCost !== undefined && vehicle.taxCost > 0;
   
   let taxBreakdown = null;
-  if (showTaxDetails && vehicle.monthlyKm) {
-    const estimatedVehicleValue = vehicle.taxCost * 12 * 100 / 18;
-    taxBreakdown = getTaxBreakdown(estimatedVehicleValue, contractMonths);
+  if (showTaxDetails && vehicle.vehicleValue && vehicle.contractMonths) {
+    taxBreakdown = getTaxBreakdown(vehicle.vehicleValue, vehicle.contractMonths);
   }
   
   return (

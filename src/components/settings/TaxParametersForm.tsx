@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useTaxIndices } from '@/hooks/useTaxIndices';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -25,7 +24,7 @@ const taxFormSchema = z.object({
 type TaxFormValues = z.infer<typeof taxFormSchema>;
 
 const TaxParametersForm = () => {
-  const { indices, loading, error, updateIndices, refreshIndices } = useTaxIndices();
+  const { indices, loading, error, updateIndices, refreshIndices, fetchFromBCB } = useTaxIndices();
   const [updatingBCB, setUpdatingBCB] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -61,50 +60,42 @@ const TaxParametersForm = () => {
     try {
       setUpdatingBCB(true);
       
-      // Em um cenário real, esta função faria uma chamada para uma API
-      // que busca as taxas atualizadas do Banco Central do Brasil
       toast.info('Iniciando busca de índices atualizados do Banco Central...');
       
-      // Simulando uma chamada à API do Banco Central (em produção, usaria fetch real para a API)
-      // Para demonstração, usamos valores simulados
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const { success, data } = await fetchFromBCB();
       
-      // Valores de exemplo - em produção, viriam da API real
-      const bcbValues = {
-        ipca: 3.62,
-        igpm: 3.58,
-        selicRates: {
-          month12: 11.50,
-          month18: 10.75,
-          month24: 9.90
-        },
-        lastUpdate: new Date() // Adicionando lastUpdate
-      };
-      
-      // Manter o spread configurado pelo usuário
-      const currentSpread = form.getValues('spread');
-      
-      // Atualizar os índices no banco de dados
-      const success = await updateIndices({
-        ipca: bcbValues.ipca,
-        igpm: bcbValues.igpm,
-        selicRates: bcbValues.selicRates,
-        spread: currentSpread,
-        lastUpdate: bcbValues.lastUpdate
-      });
-      
-      if (success) {
-        toast.success('Índices atualizados com dados do Banco Central!');
+      if (success && data) {
+        // Manter o spread configurado pelo usuário
+        const currentSpread = form.getValues('spread');
         
-        // Atualizar o formulário com os novos valores
-        form.reset({
-          ipca: bcbValues.ipca,
-          igpm: bcbValues.igpm,
+        // Atualizar os índices no banco de dados
+        const success = await updateIndices({
+          ipca: data.ipca,
+          igpm: data.igpm,
           spread: currentSpread,
-          selic_month12: bcbValues.selicRates.month12,
-          selic_month18: bcbValues.selicRates.month18,
-          selic_month24: bcbValues.selicRates.month24,
+          selicRates: {
+            month12: data.selic12,
+            month18: data.selic18,
+            month24: data.selic24,
+          },
+          lastUpdate: data.date
         });
+        
+        if (success) {
+          toast.success('Índices atualizados com dados do Banco Central!');
+          
+          // Atualizar o formulário com os novos valores
+          form.reset({
+            ipca: data.ipca,
+            igpm: data.igpm,
+            spread: currentSpread,
+            selic_month12: data.selic12,
+            selic_month18: data.selic18,
+            selic_month24: data.selic24,
+          });
+        }
+      } else {
+        toast.error('Não foi possível buscar dados do Banco Central.');
       }
     } catch (err) {
       console.error('Erro ao buscar índices do BCB:', err);
@@ -127,7 +118,7 @@ const TaxParametersForm = () => {
           month18: values.selic_month18,
           month24: values.selic_month24
         },
-        lastUpdate: new Date() // Adicionando lastUpdate
+        lastUpdate: new Date()
       });
       
       if (success) {
@@ -147,7 +138,7 @@ const TaxParametersForm = () => {
         <Info className="h-4 w-4" />
         <AlertTitle>Fonte dos índices</AlertTitle>
         <AlertDescription>
-          Os índices IPCA, IGPM e SELIC podem ser atualizados automaticamente a partir do Banco Central do Brasil, 
+          Os índices IPCA, IGPM e SELIC são atualizados automaticamente a partir do Banco Central do Brasil, 
           ou inseridos manualmente. O Spread é um valor personalizado definido pela empresa.
         </AlertDescription>
       </Alert>

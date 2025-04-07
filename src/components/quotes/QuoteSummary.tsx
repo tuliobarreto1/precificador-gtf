@@ -71,7 +71,7 @@ const QuoteSummary: React.FC<QuoteSummaryProps> = ({ vehicle, result, showDetail
         
         <div className="text-sm flex justify-between">
           <span>Valor por km:</span>
-          <span>R$ {(result.totalCost / (result.contractMonths || 1000)).toFixed(2)}/km</span>
+          <span>R$ {((result.totalCost || 0) / (result.monthlyKm || 1000)).toFixed(2)}/km</span>
         </div>
         
         <div className="text-sm flex justify-between">
