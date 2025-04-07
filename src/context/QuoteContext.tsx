@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Client, Vehicle, VehicleGroup } from '@/lib/models';
 import { QuoteFormData, SavedQuote, QuoteContextType, QuoteCalculationResult, User, defaultUser } from './types/quoteTypes';
@@ -19,8 +20,9 @@ const initialQuoteForm: QuoteFormData = {
     operationSeverity: 3,
     hasTracking: false,
     protectionPlanId: null,
-    includeIpva: false,     // Novos campos inicializados como false
+    includeIpva: false,
     includeLicensing: false,
+    includeTaxes: false,  // Novo campo para impostos
   },
 };
 
@@ -35,8 +37,9 @@ const defaultContextValue: QuoteContextType = {
   setGlobalOperationSeverity: () => {},
   setGlobalHasTracking: () => {},
   setGlobalProtectionPlanId: () => {},
-  setGlobalIncludeIpva: () => {},     // Novos métodos
+  setGlobalIncludeIpva: () => {},
   setGlobalIncludeLicensing: () => {},
+  setGlobalIncludeTaxes: () => {}, // Novo método para impostos
   setUseGlobalParams: () => {},
   setVehicleParams: () => {},
   resetForm: () => {},
@@ -87,8 +90,9 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     setGlobalOperationSeverity,
     setGlobalHasTracking,
     setGlobalProtectionPlanId,
-    setGlobalIncludeIpva,       // Novos métodos
+    setGlobalIncludeIpva,
     setGlobalIncludeLicensing,
+    setGlobalIncludeTaxes, // Novo método para impostos
     setUseGlobalParams,
     setClient,
     resetForm
@@ -125,8 +129,9 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     setGlobalOperationSeverity,
     setGlobalHasTracking,
     setGlobalProtectionPlanId,
-    setGlobalIncludeIpva,        // Novos métodos
+    setGlobalIncludeIpva,
     setGlobalIncludeLicensing,
+    setGlobalIncludeTaxes, // Novo método para impostos
     setUseGlobalParams,
     setVehicleParams,
     resetForm,

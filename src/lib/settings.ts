@@ -1,236 +1,132 @@
-// Serviço para gerenciar configurações do sistema
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 
-// Interfaces
 export interface SystemSetting {
   id: string;
+  created_at: string;
   key: string;
   value: string;
-  description?: string;
-  created_at?: string;
-  updated_at?: string;
 }
 
 export interface VehicleGroup {
-  id: string;
+  id?: string;
+  created_at?: string;
   code: string;
-  name: string;
-  description?: string;
+  description: string;
   revision_km: number;
   revision_cost: number;
   tire_km: number;
   tire_cost: number;
-  ipva_cost: number;        // Novos campos
-  licensing_cost: number;
-  created_at?: string;
-  updated_at?: string;
+  ipvaCost?: number;
+  licensingCost?: number;
 }
 
 export interface CalculationParams {
   id?: string;
-  tracking_cost: number;
-  depreciation_base: number;
-  depreciation_mileage_multiplier: number;
-  depreciation_severity_multiplier: number;
-  extra_km_percentage: number;
-  // Novos campos para a fórmula de depreciação personalizada
-  depreciation_base_rate?: number;
-  severity_multiplier_1?: number;
-  severity_multiplier_2?: number;
-  severity_multiplier_3?: number;
-  severity_multiplier_4?: number;
-  severity_multiplier_5?: number;
-  severity_multiplier_6?: number;
   created_at?: string;
   updated_at?: string;
+  extra_km_percentage: number;
+  depreciation_severity_multiplier: number;
+  depreciation_mileage_multiplier: number;
+  depreciation_base: number;
+  tracking_cost: number;
+  // Novos campos para impostos
+  ipca_rate?: number;
+  igpm_rate?: number;
+  tax_spread?: number;
+  selic_month12?: number;
+  selic_month18?: number;
+  selic_month24?: number;
 }
 
-// Funções para configurações gerais do sistema
+// Função para buscar todas as configurações do sistema
 export const fetchSystemSettings = async (): Promise<SystemSetting[]> => {
   try {
     const { data, error } = await supabase
       .from('system_settings')
-      .select('*')
-      .order('key', { ascending: true });
-      
+      .select('*');
+    
     if (error) {
       console.error('Erro ao buscar configurações do sistema:', error);
-      throw error;
+      return [];
     }
     
+    console.log('Configurações do sistema carregadas:', data);
     return data || [];
   } catch (error) {
     console.error('Erro ao buscar configurações do sistema:', error);
-    toast.error('Erro ao buscar configurações do sistema');
     return [];
   }
 };
 
-export const updateSystemSetting = async (id: string, value: string): Promise<boolean> => {
-  try {
-    const { error } = await supabase
-      .from('system_settings')
-      .update({ value })
-      .eq('id', id);
-      
-    if (error) {
-      console.error('Erro ao atualizar configuração do sistema:', error);
-      throw error;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Erro ao atualizar configuração do sistema:', error);
-    toast.error('Erro ao atualizar configuração do sistema');
-    return false;
-  }
-};
-
+// Função para atualizar as configurações do sistema
 export const updateSystemSettings = async (settings: Record<string, string>): Promise<boolean> => {
   try {
-    // Vamos buscar todas as configurações primeiro
-    const { data: existingSettings, error: fetchError } = await supabase
-      .from('system_settings')
-      .select('id, key');
+    for (const key in settings) {
+      const value = settings[key];
       
-    if (fetchError) {
-      console.error('Erro ao buscar configurações existentes:', fetchError);
-      throw fetchError;
-    }
-    
-    // Cria um mapa de chave para ID
-    const keyToIdMap = (existingSettings || []).reduce((map, setting) => {
-      map[setting.key] = setting.id;
-      return map;
-    }, {} as Record<string, string>);
-    
-    // Para cada configuração no objeto de entrada, atualizamos o valor
-    for (const [key, value] of Object.entries(settings)) {
-      const id = keyToIdMap[key];
+      // Verificar se a configuração já existe
+      const existingSetting = await supabase
+        .from('system_settings')
+        .select('*')
+        .eq('key', key)
+        .single();
       
-      if (id) {
+      if (existingSetting.data) {
+        // Atualizar a configuração existente
         const { error } = await supabase
           .from('system_settings')
           .update({ value })
-          .eq('id', id);
-          
+          .eq('key', key);
+        
         if (error) {
           console.error(`Erro ao atualizar configuração ${key}:`, error);
-          throw error;
+          return false;
         }
+        
+        console.log(`Configuração ${key} atualizada para ${value}`);
       } else {
-        console.warn(`Chave de configuração não encontrada: ${key}`);
+        // Inserir uma nova configuração
+        const { error } = await supabase
+          .from('system_settings')
+          .insert([{ key, value }]);
+        
+        if (error) {
+          console.error(`Erro ao inserir configuração ${key}:`, error);
+          return false;
+        }
+        
+        console.log(`Configuração ${key} inserida com valor ${value}`);
       }
     }
     
     return true;
   } catch (error) {
     console.error('Erro ao atualizar configurações do sistema:', error);
-    toast.error('Erro ao atualizar configurações do sistema');
     return false;
   }
 };
 
-// Funções para grupos de veículos
-export async function fetchVehicleGroups(): Promise<VehicleGroup[]> {
+// Função para buscar todos os grupos de veículos
+export const fetchVehicleGroups = async (): Promise<VehicleGroup[]> => {
   try {
     const { data, error } = await supabase
       .from('vehicle_groups')
-      .select('*')
-      .order('name');
-      
+      .select('*');
+    
     if (error) {
       console.error('Erro ao buscar grupos de veículos:', error);
-      throw new Error(error.message);
+      return [];
     }
     
+    console.log('Grupos de veículos carregados:', data);
     return data || [];
   } catch (error) {
     console.error('Erro ao buscar grupos de veículos:', error);
-    throw error;
+    return [];
   }
-}
+};
 
-export async function addVehicleGroup(groupData: Omit<VehicleGroup, 'id' | 'created_at' | 'updated_at'>): Promise<VehicleGroup | null> {
-  try {
-    const { data, error } = await supabase
-      .from('vehicle_groups')
-      .insert({
-        code: groupData.code,
-        name: groupData.name,
-        description: groupData.description,
-        revision_km: groupData.revision_km,
-        revision_cost: groupData.revision_cost,
-        tire_km: groupData.tire_km,
-        tire_cost: groupData.tire_cost,
-        ipva_cost: groupData.ipva_cost,        // Novos campos
-        licensing_cost: groupData.licensing_cost
-      })
-      .select()
-      .single();
-      
-    if (error) {
-      console.error('Erro ao adicionar grupo de veículo:', error);
-      return null;
-    }
-    
-    return data;
-  } catch (error) {
-    console.error('Erro ao adicionar grupo de veículo:', error);
-    return null;
-  }
-}
-
-export async function updateVehicleGroup(id: string, groupData: Partial<VehicleGroup>): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('vehicle_groups')
-      .update({
-        name: groupData.name,
-        description: groupData.description,
-        revision_km: groupData.revision_km,
-        revision_cost: groupData.revision_cost,
-        tire_km: groupData.tire_km,
-        tire_cost: groupData.tire_cost,
-        ipva_cost: groupData.ipva_cost,        // Novos campos
-        licensing_cost: groupData.licensing_cost
-      })
-      .eq('id', id);
-      
-    if (error) {
-      console.error('Erro ao atualizar grupo de veículo:', error);
-      return false;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Erro ao atualizar grupo de veículo:', error);
-    return false;
-  }
-}
-
-export async function deleteVehicleGroup(id: string): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('vehicle_groups')
-      .delete()
-      .eq('id', id);
-      
-    if (error) {
-      console.error('Erro ao excluir grupo de veículos:', error);
-      throw error;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Erro ao excluir grupo de veículos:', error);
-    toast.error('Erro ao excluir grupo de veículos');
-    return false;
-  }
-}
-
-// Funções para parâmetros de cálculo
+// Função para buscar os parâmetros de cálculo
 export const fetchCalculationParams = async (): Promise<CalculationParams | null> => {
   try {
     const { data, error } = await supabase
@@ -238,81 +134,37 @@ export const fetchCalculationParams = async (): Promise<CalculationParams | null
       .select('*')
       .limit(1)
       .single();
-      
+    
     if (error) {
-      if (error.code === 'PGRST116') {
-        // Nenhum registro encontrado, vamos criar um com valores padrão
-        return null;
-      }
       console.error('Erro ao buscar parâmetros de cálculo:', error);
-      throw error;
+      return null;
     }
     
+    console.log('Parâmetros de cálculo carregados:', data);
     return data;
   } catch (error) {
     console.error('Erro ao buscar parâmetros de cálculo:', error);
-    toast.error('Erro ao buscar parâmetros de cálculo');
     return null;
   }
 };
 
-export const updateCalculationParams = async (params: CalculationParams): Promise<boolean> => {
+// Função para atualizar os parâmetros de cálculo
+export const updateCalculationParams = async (params: Partial<CalculationParams>): Promise<boolean> => {
   try {
-    if (params.id) {
-      // Se tiver ID, atualizamos o registro existente
-      const { error } = await supabase
-        .from('calculation_params')
-        .update({
-          tracking_cost: params.tracking_cost,
-          depreciation_base: params.depreciation_base,
-          depreciation_mileage_multiplier: params.depreciation_mileage_multiplier,
-          depreciation_severity_multiplier: params.depreciation_severity_multiplier,
-          extra_km_percentage: params.extra_km_percentage,
-          // Novos campos para a fórmula de depreciação personalizada
-          depreciation_base_rate: params.depreciation_base_rate,
-          severity_multiplier_1: params.severity_multiplier_1,
-          severity_multiplier_2: params.severity_multiplier_2,
-          severity_multiplier_3: params.severity_multiplier_3,
-          severity_multiplier_4: params.severity_multiplier_4,
-          severity_multiplier_5: params.severity_multiplier_5,
-          severity_multiplier_6: params.severity_multiplier_6
-        })
-        .eq('id', params.id);
-        
-      if (error) {
-        console.error('Erro ao atualizar parâmetros de cálculo:', error);
-        throw error;
-      }
-    } else {
-      // Se não tiver ID, inserimos um novo registro
-      const { error } = await supabase
-        .from('calculation_params')
-        .insert({
-          tracking_cost: params.tracking_cost,
-          depreciation_base: params.depreciation_base,
-          depreciation_mileage_multiplier: params.depreciation_mileage_multiplier,
-          depreciation_severity_multiplier: params.depreciation_severity_multiplier,
-          extra_km_percentage: params.extra_km_percentage,
-          // Novos campos para a fórmula de depreciação personalizada
-          depreciation_base_rate: params.depreciation_base_rate,
-          severity_multiplier_1: params.severity_multiplier_1,
-          severity_multiplier_2: params.severity_multiplier_2,
-          severity_multiplier_3: params.severity_multiplier_3,
-          severity_multiplier_4: params.severity_multiplier_4,
-          severity_multiplier_5: params.severity_multiplier_5,
-          severity_multiplier_6: params.severity_multiplier_6
-        });
-        
-      if (error) {
-        console.error('Erro ao inserir parâmetros de cálculo:', error);
-        throw error;
-      }
+    const { data, error } = await supabase
+      .from('calculation_params')
+      .update(params)
+      .eq('id', (await fetchCalculationParams())?.id);
+    
+    if (error) {
+      console.error('Erro ao atualizar parâmetros de cálculo:', error);
+      return false;
     }
     
+    console.log('Parâmetros de cálculo atualizados com sucesso:', data);
     return true;
   } catch (error) {
-    console.error('Erro ao salvar parâmetros de cálculo:', error);
-    toast.error('Erro ao salvar parâmetros de cálculo');
+    console.error('Erro ao atualizar parâmetros de cálculo:', error);
     return false;
   }
 };

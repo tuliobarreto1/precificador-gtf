@@ -8,12 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { toast } from 'sonner';
-import { Save, RefreshCw, Database, Loader2 } from 'lucide-react';
+import { Save, RefreshCw, Database, Loader2, Settings as SettingsIcon, Calculator, Receipt } from 'lucide-react';
 import { fetchSystemSettings, updateSystemSettings, SystemSetting } from '@/lib/settings';
+import TaxParametersForm from '@/components/settings/TaxParametersForm';
 
 const generalFormSchema = z.object({
   companyName: z.string().min(2, { message: 'Nome da empresa é obrigatório' }),
@@ -27,6 +29,7 @@ const generalFormSchema = z.object({
 const Settings = () => {
   const [loading, setLoading] = useState(false);
   const [settingsMap, setSettingsMap] = useState<Record<string, SystemSetting>>({});
+  const [activeTab, setActiveTab] = useState("general");
   
   // General settings form
   const generalForm = useForm<z.infer<typeof generalFormSchema>>({
@@ -111,148 +114,175 @@ const Settings = () => {
         subtitle="Gerencie as configurações gerais do sistema"
       />
 
-      <Card>
-        <CardHeader 
-          title="Configurações Gerais" 
-          subtitle="Configure os parâmetros básicos do sistema"
-        />
-        <div className="p-6 pt-0">
-          {loading ? (
-            <div className="flex justify-center items-center p-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-2">Carregando configurações...</span>
+      <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="mb-6">
+          <TabsTrigger value="general" className="flex items-center">
+            <SettingsIcon size={16} className="mr-2" />
+            Geral
+          </TabsTrigger>
+          <TabsTrigger value="taxes" className="flex items-center">
+            <Receipt size={16} className="mr-2" />
+            Impostos
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="general">
+          <Card>
+            <CardHeader 
+              title="Configurações Gerais" 
+              subtitle="Configure os parâmetros básicos do sistema"
+            />
+            <div className="p-6 pt-0">
+              {loading ? (
+                <div className="flex justify-center items-center p-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <span className="ml-2">Carregando configurações...</span>
+                </div>
+              ) : (
+                <Form {...generalForm}>
+                  <form onSubmit={generalForm.handleSubmit(onGeneralSubmit)} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FormField
+                        control={generalForm.control}
+                        name="companyName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nome da Empresa</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={generalForm.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <Input {...field} type="email" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={generalForm.control}
+                        name="phone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Telefone</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={generalForm.control}
+                        name="address"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Endereço</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={generalForm.control}
+                      name="enableNotifications"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">Notificações</FormLabel>
+                            <FormDescription>
+                              Ativar notificações para novos orçamentos e atualizações
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={generalForm.control}
+                      name="defaultContractLength"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Duração Padrão do Contrato (meses): {field.value}</FormLabel>
+                          <FormControl>
+                            <Slider
+                              min={6}
+                              max={36}
+                              step={6}
+                              defaultValue={[field.value]}
+                              onValueChange={(value) => field.onChange(value[0])}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Define a duração padrão dos contratos em meses
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="flex justify-end space-x-2">
+                      <Button 
+                        type="button" 
+                        variant="outline"
+                        onClick={() => generalForm.reset()}
+                        disabled={loading}
+                      >
+                        <RefreshCw size={16} className="mr-2" />
+                        Redefinir
+                      </Button>
+                      <Button type="submit" disabled={loading}>
+                        {loading ? (
+                          <>
+                            <Loader2 size={16} className="mr-2 animate-spin" />
+                            Salvando...
+                          </>
+                        ) : (
+                          <>
+                            <Save size={16} className="mr-2" />
+                            Salvar
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              )}
             </div>
-          ) : (
-            <Form {...generalForm}>
-              <form onSubmit={generalForm.handleSubmit(onGeneralSubmit)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
-                    control={generalForm.control}
-                    name="companyName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nome da Empresa</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={generalForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="email" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={generalForm.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Telefone</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={generalForm.control}
-                    name="address"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Endereço</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={generalForm.control}
-                  name="enableNotifications"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">Notificações</FormLabel>
-                        <FormDescription>
-                          Ativar notificações para novos orçamentos e atualizações
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={generalForm.control}
-                  name="defaultContractLength"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Duração Padrão do Contrato (meses): {field.value}</FormLabel>
-                      <FormControl>
-                        <Slider
-                          min={6}
-                          max={36}
-                          step={6}
-                          defaultValue={[field.value]}
-                          onValueChange={(value) => field.onChange(value[0])}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Define a duração padrão dos contratos em meses
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="flex justify-end space-x-2">
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    onClick={() => generalForm.reset()}
-                    disabled={loading}
-                  >
-                    <RefreshCw size={16} className="mr-2" />
-                    Redefinir
-                  </Button>
-                  <Button type="submit" disabled={loading}>
-                    {loading ? (
-                      <>
-                        <Loader2 size={16} className="mr-2 animate-spin" />
-                        Salvando...
-                      </>
-                    ) : (
-                      <>
-                        <Save size={16} className="mr-2" />
-                        Salvar
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          )}
-        </div>
-      </Card>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="taxes">
+          <Card>
+            <CardHeader 
+              title="Parâmetros de Impostos" 
+              subtitle="Configure os índices e taxas para cálculo de impostos"
+            />
+            <div className="p-6 pt-0">
+              <TaxParametersForm />
+            </div>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <div className="flex justify-end mt-4">
         <Button variant="outline" size="sm" asChild>

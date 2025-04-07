@@ -66,7 +66,7 @@ export function useQuoteParams(
     }));
   };
 
-  // Novos métodos para IPVA e Licenciamento
+  // Métodos para IPVA e Licenciamento
   const setGlobalIncludeIpva = (includeIpva: boolean) => {
     setQuoteForm(prev => ({
       ...prev,
@@ -83,6 +83,17 @@ export function useQuoteParams(
       globalParams: {
         ...prev.globalParams,
         includeLicensing
+      }
+    }));
+  };
+  
+  // Novo método para incluir impostos
+  const setGlobalIncludeTaxes = (includeTaxes: boolean) => {
+    setQuoteForm(prev => ({
+      ...prev,
+      globalParams: {
+        ...prev.globalParams,
+        includeTaxes
       }
     }));
   };
@@ -107,8 +118,9 @@ export function useQuoteParams(
         operationSeverity: 3,
         hasTracking: false,
         protectionPlanId: null,
-        includeIpva: false,       // Novos campos
+        includeIpva: false,
         includeLicensing: false,
+        includeTaxes: false, // Novo campo inicializado como false
       }
     });
   };
@@ -120,8 +132,9 @@ export function useQuoteParams(
     setGlobalOperationSeverity,
     setGlobalHasTracking,
     setGlobalProtectionPlanId,
-    setGlobalIncludeIpva,       // Novos métodos
+    setGlobalIncludeIpva,
     setGlobalIncludeLicensing,
+    setGlobalIncludeTaxes, // Novo método
     setUseGlobalParams,
     resetForm
   };

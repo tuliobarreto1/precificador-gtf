@@ -3,11 +3,13 @@ import { useState } from 'react';
 import { QuoteFormData, QuoteCalculationResult, QuoteResultVehicle } from '@/context/types/quoteTypes';
 import { useBasicCalculations } from './calculation/useBasicCalculations';
 import { useProtectionCalculation } from './calculation/useProtectionCalculation';
+import { useTaxIndices } from './useTaxIndices'; // Novo hook de impostos
 
 export function useQuoteCalculation(quoteForm: QuoteFormData) {
   const [calculationError, setCalculationError] = useState<string | null>(null);
   const basicCalculations = useBasicCalculations();
   const protectionCalculation = useProtectionCalculation();
+  const taxIndices = useTaxIndices(); // Novo hook de impostos
 
   const calculateQuote = async (): Promise<QuoteCalculationResult | null> => {
     setCalculationError(null);
@@ -28,7 +30,7 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           item.vehicle.value, 
           params.monthlyKm,
           params.operationSeverity,
-          params.contractMonths // Adicionando o parâmetro de meses do contrato
+          params.contractMonths
         );
         
         // Calcular custo de manutenção
@@ -50,12 +52,16 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         const protectionCost = await protectionCalculation.calculateProtectionCost(params.protectionPlanId);
         
         // Custos de IPVA e Licenciamento
-        // IPVA é calculado como uma porcentagem do valor do veículo
         const ipvaCost = params.includeIpva ? (item.vehicle.value * (item.vehicleGroup.ipvaCost || 0)) / 12 : 0;
         const licensingCost = params.includeLicensing ? (item.vehicleGroup.licensingCost || 0) / 12 : 0;
         
-        // Custo total mensal
-        const totalCost = totalDepreciation + maintenanceCost + trackingCost + protectionCost + ipvaCost + licensingCost;
+        // Novo: Cálculo de impostos
+        const taxCost = params.includeTaxes ? 
+          taxIndices.calculateTaxCost(item.vehicle.value, params.contractMonths) : 0;
+        
+        // Custo total mensal incluindo impostos
+        const totalCost = totalDepreciation + maintenanceCost + trackingCost + 
+                         protectionCost + ipvaCost + licensingCost + taxCost;
         
         console.log(`Resumo para veículo ${item.vehicle.brand} ${item.vehicle.model}:`, {
           depreciation: totalDepreciation.toFixed(2),
@@ -63,13 +69,13 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           tracking: trackingCost.toFixed(2),
           protection: protectionCost.toFixed(2),
           ipva: ipvaCost.toFixed(2),
-          ipvaPercentage: (item.vehicleGroup.ipvaCost || 0) * 100,
-          vehicleValue: item.vehicle.value.toFixed(2),
           licensing: licensingCost.toFixed(2),
+          taxes: taxCost.toFixed(2), // Novo: Impostos
           total: totalCost.toFixed(2),
           protectionPlanId: params.protectionPlanId,
           includeIpva: params.includeIpva,
           includeLicensing: params.includeLicensing,
+          includeTaxes: params.includeTaxes, // Novo: Inclusão de impostos
           contractMonths: params.contractMonths
         });
         
@@ -83,8 +89,10 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           protectionPlanId: params.protectionPlanId,
           ipvaCost,
           licensingCost,
+          taxCost, // Novo: Custo de impostos
           includeIpva: params.includeIpva,
           includeLicensing: params.includeLicensing,
+          includeTaxes: params.includeTaxes, // Novo: Inclusão de impostos
           contractMonths: params.contractMonths
         };
       });
@@ -127,7 +135,7 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           item.vehicle.value, 
           params.monthlyKm,
           params.operationSeverity,
-          params.contractMonths // Adicionando o parâmetro de meses do contrato
+          params.contractMonths
         );
         
         // Calcular custo de manutenção
@@ -146,16 +154,19 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         const trackingCost = basicCalculations.calculateTrackingCost(params.hasTracking);
         
         // Para cálculo síncrono, usamos um valor fallback para proteção
-        // Na versão assíncrona, buscamos do servidor
         const protectionCost = 0; // Valor temporário, será substituído na versão assíncrona
         
         // Custos de IPVA e Licenciamento
-        // IPVA é calculado como uma porcentagem do valor do veículo
         const ipvaCost = params.includeIpva ? (item.vehicle.value * (item.vehicleGroup.ipvaCost || 0)) / 12 : 0;
         const licensingCost = params.includeLicensing ? (item.vehicleGroup.licensingCost || 0) / 12 : 0;
         
+        // Novo: Cálculo de impostos (versão síncrona)
+        const taxCost = params.includeTaxes ? 
+          taxIndices.calculateTaxCost(item.vehicle.value, params.contractMonths) : 0;
+        
         // Custo total mensal
-        const totalCost = totalDepreciation + maintenanceCost + trackingCost + protectionCost + ipvaCost + licensingCost;
+        const totalCost = totalDepreciation + maintenanceCost + trackingCost + 
+                         protectionCost + ipvaCost + licensingCost + taxCost;
         
         vehicleResults.push({
           vehicleId: item.vehicle.id,
@@ -167,8 +178,10 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           protectionPlanId: params.protectionPlanId,
           ipvaCost,
           licensingCost,
+          taxCost, // Novo: Custo de impostos
           includeIpva: params.includeIpva,
           includeLicensing: params.includeLicensing,
+          includeTaxes: params.includeTaxes, // Novo: Inclusão de impostos
           contractMonths: params.contractMonths
         });
       });

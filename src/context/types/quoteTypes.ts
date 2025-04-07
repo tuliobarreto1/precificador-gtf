@@ -8,6 +8,7 @@ export interface QuoteParams {
   protectionPlanId?: string | null;
   includeIpva?: boolean;
   includeLicensing?: boolean;
+  includeTaxes?: boolean; // Novo campo para incluir impostos no cálculo
 }
 
 export interface QuoteVehicleItem {
@@ -36,6 +37,8 @@ export interface QuoteResultVehicle {
   includeIpva?: boolean;
   includeLicensing?: boolean;
   contractMonths?: number;
+  taxCost?: number; // Novo campo para custo dos impostos
+  includeTaxes?: boolean; // Novo campo para indicar se impostos estão incluídos
 }
 
 export interface QuoteCalculationResult {
@@ -103,6 +106,7 @@ export interface QuoteContextType {
   setGlobalProtectionPlanId: (protectionPlanId: string | null) => void;
   setGlobalIncludeIpva: (includeIpva: boolean) => void;
   setGlobalIncludeLicensing: (includeLicensing: boolean) => void;
+  setGlobalIncludeTaxes: (includeTaxes: boolean) => void; // Novo método
   setUseGlobalParams: (useGlobalParams: boolean) => void;
   setVehicleParams: (vehicleId: string, params: Partial<QuoteParams>) => void;
   resetForm: () => void;
