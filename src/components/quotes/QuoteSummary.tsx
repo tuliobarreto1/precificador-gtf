@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { QuoteResultVehicle } from '@/context/types/quoteTypes';
 import Card from '@/components/ui-custom/Card';
