@@ -6,7 +6,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from '@/integrations/supabase/client';
-import { QuoteItem } from '@/context/types/quoteTypes';
+import { QuoteItem, User } from '@/context/types/quoteTypes';
 import QuoteTable from '@/components/quotes/QuoteTable';
 import QuoteStats from '@/components/quotes/QuoteStats';
 import { useQuotes } from '@/hooks/useQuotes';
@@ -92,7 +92,7 @@ const Index = () => {
               quotes={recentQuotes.map(quote => ({
                 ...quote,
                 createdBy: {
-                  id: quote.createdBy?.id || "system",
+                  id: typeof quote.createdBy?.id === 'number' ? `user-${quote.createdBy.id}` : (quote.createdBy?.id || "system"),
                   name: quote.createdBy?.name || "Sistema",
                   email: quote.createdBy?.email || "system@example.com",
                   role: quote.createdBy?.role || "system",
