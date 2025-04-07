@@ -13,9 +13,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { toast } from 'sonner';
-import { Save, RefreshCw, Database, Loader2, Settings as SettingsIcon, Calculator, Receipt } from 'lucide-react';
+import { Save, RefreshCw, Database, Loader2, Settings as SettingsIcon, Calculator } from 'lucide-react';
 import { fetchSystemSettings, updateSystemSettings, SystemSetting } from '@/lib/settings';
-import TaxParametersForm from '@/components/settings/TaxParametersForm';
 
 const generalFormSchema = z.object({
   companyName: z.string().min(2, { message: 'Nome da empresa é obrigatório' }),
@@ -119,10 +118,6 @@ const Settings = () => {
           <TabsTrigger value="general" className="flex items-center">
             <SettingsIcon size={16} className="mr-2" />
             Geral
-          </TabsTrigger>
-          <TabsTrigger value="taxes" className="flex items-center">
-            <Receipt size={16} className="mr-2" />
-            Impostos
           </TabsTrigger>
         </TabsList>
         
@@ -267,18 +262,6 @@ const Settings = () => {
                   </form>
                 </Form>
               )}
-            </div>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="taxes">
-          <Card>
-            <CardHeader 
-              title="Parâmetros de Impostos" 
-              subtitle="Configure os índices e taxas para cálculo de impostos"
-            />
-            <div className="p-6 pt-0">
-              <TaxParametersForm />
             </div>
           </Card>
         </TabsContent>

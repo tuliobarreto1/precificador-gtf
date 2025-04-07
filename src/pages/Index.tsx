@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -8,9 +9,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { QuoteItem, User } from '@/context/types/quoteTypes';
 import QuoteTable from '@/components/quotes/QuoteTable';
 import QuoteStats from '@/components/quotes/QuoteStats';
-import { useQuotes } from '@/hooks/useQuotes';
 import Card from '@/components/ui-custom/Card';
 import { ArrowDownRight, ArrowUpRight, FileText, Clock, Plus } from 'lucide-react';
+import { useQuotes } from '@/hooks/useQuotes';
 
 const Index = () => {
   const { user, adminUser } = useAuth();
@@ -89,12 +90,11 @@ const Index = () => {
           <div className="rounded-md border">
             <QuoteTable 
               quotes={recentQuotes.map(quote => {
-                // Criar um objeto User completo com valores padrão para propriedades ausentes
-                // e convertendo id para string para corresponder ao tipo esperado
+                // Garantir que createdBy seja do tipo correto
                 return {
                   ...quote,
                   createdBy: quote.createdBy ? {
-                    id: String(quote.createdBy.id), // Convertendo para string
+                    id: String(quote.createdBy.id), // Garantir que id seja string
                     name: quote.createdBy.name || "Sistema",
                     role: quote.createdBy.role || "system"
                   } : {

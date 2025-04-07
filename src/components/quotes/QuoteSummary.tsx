@@ -1,10 +1,11 @@
+
 import React, { useState } from 'react';
 import { QuoteResultVehicle } from '@/context/types/quoteTypes';
 import Card from '@/components/ui-custom/Card';
 import { Vehicle } from '@/lib/models';
 import { formatCurrency } from '@/lib/utils';
 import { useTaxIndices } from '@/hooks/useTaxIndices';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Wallet } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface QuoteSummaryProps {
@@ -16,11 +17,15 @@ interface QuoteSummaryProps {
 const QuoteSummary: React.FC<QuoteSummaryProps> = ({ vehicle, result, showDetailedBreakdown = false }) => {
   const { getTaxBreakdown } = useTaxIndices();
   const [taxDetailsOpen, setTaxDetailsOpen] = useState(false);
+  const [taxBreakdownOpen, setTaxBreakdownOpen] = useState(false);
   
   // Calcular breakdown dos impostos se aplicável
   const taxBreakdown = result.includeTaxes && result.contractMonths 
     ? getTaxBreakdown(vehicle.value, result.contractMonths) 
     : null;
+  
+  // Verificar se há impostos incluídos
+  const hasTaxes = result.includeTaxes || result.includeIpva || result.includeLicensing;
   
   return (
     <Card className="p-4">
@@ -45,51 +50,72 @@ const QuoteSummary: React.FC<QuoteSummaryProps> = ({ vehicle, result, showDetail
           </div>
         )}
         
-        {result.includeIpva && (
-          <div className="flex justify-between">
-            <span>IPVA:</span>
-            <span>{formatCurrency(result.ipvaCost || 0)}/mês</span>
-          </div>
-        )}
-        
-        {result.includeLicensing && (
-          <div className="flex justify-between">
-            <span>Licenciamento:</span>
-            <span>{formatCurrency(result.licensingCost || 0)}/mês</span>
-          </div>
-        )}
-        
-        {result.includeTaxes && (
-          <Collapsible open={taxDetailsOpen} onOpenChange={setTaxDetailsOpen} className="border-t border-b py-2 my-2">
+        {/* Seção de Impostos e Taxas */}
+        {hasTaxes && (
+          <Collapsible open={taxBreakdownOpen} onOpenChange={setTaxBreakdownOpen} className="border-t border-b py-2 my-2">
             <div className="flex justify-between items-center">
               <CollapsibleTrigger className="flex items-center text-primary font-medium hover:underline">
-                <span>Custos financeiros:</span>
-                {taxDetailsOpen ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
+                <span>Impostos e taxas:</span>
+                {taxBreakdownOpen ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
               </CollapsibleTrigger>
-              <span>{formatCurrency(result.taxCost || 0)}/mês</span>
+              <span>{formatCurrency((result.taxCost || 0) + (result.ipvaCost || 0) + (result.licensingCost || 0))}/mês</span>
             </div>
             
             <CollapsibleContent className="pt-2">
-              {taxBreakdown && (
-                <div className="text-xs space-y-1 text-muted-foreground bg-slate-50 p-2 rounded-md">
+              <div className="text-xs space-y-1 text-muted-foreground bg-slate-50 p-2 rounded-md">
+                {result.includeIpva && (
                   <div className="flex justify-between">
-                    <span>Taxa SELIC ({result.contractMonths >= 24 ? '24 meses' : result.contractMonths >= 18 ? '18 meses' : '12 meses'}):</span>
-                    <span>{taxBreakdown.selicRate.toFixed(2)}% a.a.</span>
+                    <span>IPVA:</span>
+                    <span>{formatCurrency(result.ipvaCost || 0)}/mês</span>
                   </div>
+                )}
+                
+                {result.includeLicensing && (
                   <div className="flex justify-between">
-                    <span>Spread financeiro:</span>
-                    <span>{taxBreakdown.spread.toFixed(2)}% a.a.</span>
+                    <span>Licenciamento:</span>
+                    <span>{formatCurrency(result.licensingCost || 0)}/mês</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Taxa total anual:</span>
-                    <span>{taxBreakdown.totalTaxRate.toFixed(2)}% a.a.</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Custo anual:</span>
-                    <span>{formatCurrency(taxBreakdown.annualCost)}</span>
-                  </div>
-                </div>
-              )}
+                )}
+                
+                {result.includeTaxes && (
+                  <>
+                    <div className="flex justify-between">
+                      <span>Custos financeiros:</span>
+                      <span>{formatCurrency(result.taxCost || 0)}/mês</span>
+                    </div>
+                    
+                    {taxBreakdown && (
+                      <Collapsible open={taxDetailsOpen} onOpenChange={setTaxDetailsOpen} className="mt-2">
+                        <CollapsibleTrigger className="flex items-center text-xs text-primary hover:underline">
+                          <span>Detalhes financeiros</span>
+                          {taxDetailsOpen ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
+                        </CollapsibleTrigger>
+                        
+                        <CollapsibleContent className="pt-2">
+                          <div className="space-y-1 text-xs pl-2 border-l-2 border-slate-200 mt-1">
+                            <div className="flex justify-between">
+                              <span>Taxa SELIC ({result.contractMonths >= 24 ? '24 meses' : result.contractMonths >= 18 ? '18 meses' : '12 meses'}):</span>
+                              <span>{taxBreakdown.selicRate.toFixed(2)}% a.a.</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Spread financeiro:</span>
+                              <span>{taxBreakdown.spread.toFixed(2)}% a.a.</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Taxa total anual:</span>
+                              <span>{taxBreakdown.totalTaxRate.toFixed(2)}% a.a.</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Custo anual:</span>
+                              <span>{formatCurrency(taxBreakdown.annualCost)}</span>
+                            </div>
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    )}
+                  </>
+                )}
+              </div>
             </CollapsibleContent>
           </Collapsible>
         )}
