@@ -91,35 +91,19 @@ const Index = () => {
             <QuoteTable 
               quotes={recentQuotes.map(quote => {
                 // Verificar se createdBy existe e tem as propriedades necessárias
-                let createdByObj: User;
-                
-                if (quote.createdBy && typeof quote.createdBy === 'object') {
-                  // Criar um objeto User completo com todas as propriedades obrigatórias
-                  createdByObj = {
-                    id: typeof quote.createdBy.id === 'number' ? 
-                         String(quote.createdBy.id) : 
-                         String(quote.createdBy.id || "system"),
-                    name: quote.createdBy.name || "Sistema",
-                    email: typeof quote.createdBy === 'object' && 'email' in quote.createdBy 
-                         ? String(quote.createdBy.email) 
-                         : "system@example.com",
-                    role: quote.createdBy.role || "system",
-                    status: "active"
-                  };
-                } else {
-                  // Fornecer um objeto User padrão se createdBy não existir
-                  createdByObj = {
-                    id: "system",
-                    name: "Sistema",
-                    email: "system@example.com",
-                    role: "system",
-                    status: "active"
-                  };
-                }
+                const userObj: User = {
+                  id: quote.createdBy && typeof quote.createdBy.id === 'number' ? 
+                      String(quote.createdBy.id) : 
+                      "system",
+                  name: quote.createdBy?.name || "Sistema",
+                  email: "system@example.com", // Valor padrão para email
+                  role: quote.createdBy?.role || "system",
+                  status: "active"
+                };
                 
                 return {
                   ...quote,
-                  createdBy: createdByObj
+                  createdBy: userObj
                 };
               })}
               onRefresh={handleRefresh} 
