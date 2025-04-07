@@ -58,8 +58,16 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         const licensingCost = params.includeLicensing ? (item.vehicleGroup.licensingCost || 0) / 12 : 0;
         
         // Novo: Cálculo de impostos
-        const taxCost = params.includeTaxes ? 
-          taxIndices.calculateTaxCost(item.vehicle.value, params.contractMonths) : 0;
+        let taxCost = 0;
+        if (params.includeTaxes) {
+          taxCost = taxIndices.calculateTaxCost(item.vehicle.value, params.contractMonths);
+          console.log(`Custo financeiro calculado para veículo ${item.vehicle.brand} ${item.vehicle.model}:`, {
+            vehicleValue: item.vehicle.value,
+            contractMonths: params.contractMonths,
+            taxCost,
+            includeTaxes: params.includeTaxes
+          });
+        }
         
         // Custo total mensal incluindo impostos
         const totalCost = totalDepreciation + maintenanceCost + trackingCost + 
@@ -178,10 +186,15 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         // Novo: Cálculo de impostos (versão síncrona)
         const taxCost = params.includeTaxes ? 
           taxIndices.getTaxBreakdown(item.vehicle.value, params.contractMonths).monthlyCost : 0;
-        
-        // Custo total mensal
-        const totalCost = totalDepreciation + maintenanceCost + trackingCost + 
-                         protectionCost + ipvaCost + licensingCost + taxCost;
+          
+        console.log(`Cálculo síncrono para veículo ${item.vehicle.brand} ${item.vehicle.model}:`, {
+          vehicleValue: item.vehicle.value,
+          contractMonths: params.contractMonths,
+          taxes: {
+            includeTaxes: params.includeTaxes,
+            taxCost
+          }
+        });
         
         vehicleResults.push({
           vehicleId: item.vehicle.id,

@@ -30,6 +30,16 @@ const QuoteSummary: React.FC<QuoteSummaryProps> = ({ vehicle, result, showDetail
   // Calcular o total de impostos
   const totalTaxes = (result.taxCost || 0) + (result.ipvaCost || 0) + (result.licensingCost || 0);
   
+  console.log("Dados de impostos no QuoteSummary:", {
+    includeTaxes: result.includeTaxes,
+    taxCost: result.taxCost,
+    includeIpva: result.includeIpva,
+    ipvaCost: result.ipvaCost,
+    includeLicensing: result.includeLicensing,
+    licensingCost: result.licensingCost,
+    totalTaxes
+  });
+  
   return (
     <Card className="p-4">
       <h3 className="text-lg font-medium mb-2">{vehicle.brand} {vehicle.model}</h3>
