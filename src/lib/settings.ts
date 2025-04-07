@@ -34,6 +34,14 @@ export interface CalculationParams {
   depreciation_mileage_multiplier: number;
   depreciation_severity_multiplier: number;
   extra_km_percentage: number;
+  // Novos campos para a fórmula de depreciação personalizada
+  depreciation_base_rate?: number;
+  severity_multiplier_1?: number;
+  severity_multiplier_2?: number;
+  severity_multiplier_3?: number;
+  severity_multiplier_4?: number;
+  severity_multiplier_5?: number;
+  severity_multiplier_6?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -259,7 +267,15 @@ export const updateCalculationParams = async (params: CalculationParams): Promis
           depreciation_base: params.depreciation_base,
           depreciation_mileage_multiplier: params.depreciation_mileage_multiplier,
           depreciation_severity_multiplier: params.depreciation_severity_multiplier,
-          extra_km_percentage: params.extra_km_percentage
+          extra_km_percentage: params.extra_km_percentage,
+          // Novos campos para a fórmula de depreciação personalizada
+          depreciation_base_rate: params.depreciation_base_rate,
+          severity_multiplier_1: params.severity_multiplier_1,
+          severity_multiplier_2: params.severity_multiplier_2,
+          severity_multiplier_3: params.severity_multiplier_3,
+          severity_multiplier_4: params.severity_multiplier_4,
+          severity_multiplier_5: params.severity_multiplier_5,
+          severity_multiplier_6: params.severity_multiplier_6
         })
         .eq('id', params.id);
         
@@ -276,7 +292,15 @@ export const updateCalculationParams = async (params: CalculationParams): Promis
           depreciation_base: params.depreciation_base,
           depreciation_mileage_multiplier: params.depreciation_mileage_multiplier,
           depreciation_severity_multiplier: params.depreciation_severity_multiplier,
-          extra_km_percentage: params.extra_km_percentage
+          extra_km_percentage: params.extra_km_percentage,
+          // Novos campos para a fórmula de depreciação personalizada
+          depreciation_base_rate: params.depreciation_base_rate,
+          severity_multiplier_1: params.severity_multiplier_1,
+          severity_multiplier_2: params.severity_multiplier_2,
+          severity_multiplier_3: params.severity_multiplier_3,
+          severity_multiplier_4: params.severity_multiplier_4,
+          severity_multiplier_5: params.severity_multiplier_5,
+          severity_multiplier_6: params.severity_multiplier_6
         });
         
       if (error) {

@@ -24,6 +24,7 @@ import {
   CalculationParams
 } from '@/lib/settings';
 import ProtectionPlansTab from '@/components/protection/ProtectionPlansTab';
+import DepreciationParametersForm from '@/components/settings/DepreciationParametersForm';
 
 const vehicleGroupSchema = z.object({
   code: z.string().min(1, { message: 'Código do grupo é obrigatório' }).max(3, { message: 'Código deve ter no máximo 3 caracteres' }),
@@ -323,6 +324,7 @@ const Parameters = () => {
           <TabsList>
             <TabsTrigger value="vehicle-groups">Grupos de Veículos</TabsTrigger>
             <TabsTrigger value="global-params">Parâmetros Globais</TabsTrigger>
+            <TabsTrigger value="depreciation-params">Depreciação</TabsTrigger>
             <TabsTrigger value="protection-plans">Planos de Proteção</TabsTrigger>
           </TabsList>
           
@@ -515,6 +517,15 @@ const Parameters = () => {
                     </form>
                   </Form>
                 )}
+              </div>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="depreciation-params" className="space-y-4">
+            <Card>
+              <CardHeader title="Parâmetros de Depreciação" subtitle="Configure os valores usados na fórmula de depreciação" />
+              <div className="p-4">
+                <DepreciationParametersForm />
               </div>
             </Card>
           </TabsContent>
