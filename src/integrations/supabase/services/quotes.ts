@@ -1,9 +1,7 @@
-
 import { supabase } from '../client';
 import { v4 as uuidv4 } from 'uuid';
 import { createOrUpdateVehicle } from './vehicles';
 
-// Função para salvar um orçamento no Supabase
 export async function saveQuoteToSupabase(quoteData: any) {
   try {
     console.log("Iniciando salvamento de orçamento:", quoteData);
@@ -61,8 +59,9 @@ export async function saveQuoteToSupabase(quoteData: any) {
       monthly_km: quoteData.monthlyKm || 2000,
       operation_severity: quoteData.operationSeverity || 3,
       has_tracking: quoteData.hasTracking || false,
-      include_ipva: quoteData.includeIpva || false,  // Novos campos
+      include_ipva: quoteData.includeIpva || false,
       include_licensing: quoteData.includeLicensing || false,
+      include_taxes: quoteData.includeTaxes || false,
       total_value: quoteData.totalCost || 0,
       monthly_values: quoteData.monthlyValue || 0,
       status: quoteData.status || 'ORCAMENTO',
@@ -137,8 +136,9 @@ export async function saveQuoteToSupabase(quoteData: any) {
                 contract_months: quoteData.contractMonths || 12,
                 operation_severity: quoteData.operationSeverity || 3,
                 has_tracking: quoteData.hasTracking || false,
-                include_ipva: quoteData.includeIpva || false,  // Novos campos
-                include_licensing: quoteData.includeLicensing || false
+                include_ipva: quoteData.includeIpva || false,
+                include_licensing: quoteData.includeLicensing || false,
+                include_taxes: quoteData.includeTaxes || false
               }
             : (vehicleItem.params 
                 ? {
@@ -146,16 +146,18 @@ export async function saveQuoteToSupabase(quoteData: any) {
                     contract_months: vehicleItem.params.contractMonths || quoteData.contractMonths || 12,
                     operation_severity: vehicleItem.params.operationSeverity || quoteData.operationSeverity || 3,
                     has_tracking: vehicleItem.params.hasTracking !== undefined ? vehicleItem.params.hasTracking : quoteData.hasTracking || false,
-                    include_ipva: vehicleItem.params.includeIpva !== undefined ? vehicleItem.params.includeIpva : quoteData.includeIpva || false,  // Novos campos
-                    include_licensing: vehicleItem.params.includeLicensing !== undefined ? vehicleItem.params.includeLicensing : quoteData.includeLicensing || false
+                    include_ipva: vehicleItem.params.includeIpva !== undefined ? vehicleItem.params.includeIpva : quoteData.includeIpva || false,
+                    include_licensing: vehicleItem.params.includeLicensing !== undefined ? vehicleItem.params.includeLicensing : quoteData.includeLicensing || false,
+                    include_taxes: vehicleItem.params.includeTaxes !== undefined ? vehicleItem.params.includeTaxes : quoteData.includeTaxes || false
                   }
                 : {
                     monthly_km: quoteData.monthlyKm || 2000,
                     contract_months: quoteData.contractMonths || 12,
                     operation_severity: quoteData.operationSeverity || 3,
                     has_tracking: quoteData.hasTracking || false,
-                    include_ipva: quoteData.includeIpva || false,  // Novos campos
-                    include_licensing: quoteData.includeLicensing || false
+                    include_ipva: quoteData.includeIpva || false,
+                    include_licensing: quoteData.includeLicensing || false,
+                    include_taxes: quoteData.includeTaxes || false
                   });
           
           console.log(`Parâmetros para o veículo ${savedVehicle.id}:`, params);
@@ -169,13 +171,15 @@ export async function saveQuoteToSupabase(quoteData: any) {
             contract_months: params.contract_months,
             operation_severity: params.operation_severity,
             has_tracking: params.has_tracking,
-            include_ipva: params.include_ipva,  // Novos campos
+            include_ipva: params.include_ipva,
             include_licensing: params.include_licensing,
+            include_taxes: params.include_taxes,
             ipva_cost: vehicleItem.ipvaCost || 0,
             licensing_cost: vehicleItem.licensingCost || 0,
             depreciation_cost: vehicleItem.depreciationCost || 0,
             maintenance_cost: vehicleItem.maintenanceCost || 0,
             extra_km_rate: vehicleItem.extraKmRate || 0,
+            tax_cost: vehicleItem.taxCost || 0,
             total_cost: vehicleItem.totalCost || 0,
             protection_cost: vehicleItem.protectionCost || 0,
             protection_plan_id: vehicleItem.protectionPlanId || null
@@ -207,7 +211,6 @@ export async function saveQuoteToSupabase(quoteData: any) {
   }
 }
 
-// Função para obter todos os orçamentos
 export async function getQuotesFromSupabase() {
   try {
     const { data, error } = await supabase
@@ -235,7 +238,6 @@ export async function getQuotesFromSupabase() {
   }
 }
 
-// Função para buscar um orçamento pelo ID
 export async function getQuoteByIdFromSupabase(id: string) {
   try {
     if (!id) {
@@ -273,7 +275,6 @@ export async function getQuoteByIdFromSupabase(id: string) {
   }
 }
 
-// Função para deletar um orçamento
 export async function deleteQuoteFromSupabase(id: string) {
   try {
     console.log(`🗑️ Iniciando exclusão do orçamento ${id}...`);

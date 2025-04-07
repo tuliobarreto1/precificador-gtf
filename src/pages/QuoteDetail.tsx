@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, FileEdit, Car, Calendar, User, Landmark, Gauge, Shield } from 'lucide-react';
@@ -21,7 +20,6 @@ import {
 } from '@/lib/calculation';
 import { fetchProtectionPlanDetails } from '@/integrations/supabase/services/protectionPlans';
 
-// Interface para os dados do veículo
 interface VehicleData {
   id: string;
   vehicle: {
@@ -48,10 +46,11 @@ interface VehicleData {
   total_cost?: number;
   protection_cost?: number;
   protection_plan_id?: string | null;
-  ipva_cost?: number;           // Adicionado campo para custo de IPVA
-  licensing_cost?: number;      // Adicionado campo para custo de licenciamento
-  include_ipva?: boolean;       // Adicionado campo para indicar se inclui IPVA
-  include_licensing?: boolean;  // Adicionado campo para indicar se inclui licenciamento
+  ipva_cost?: number;
+  licensing_cost?: number;
+  include_ipva?: boolean;
+  include_licensing?: boolean;
+  include_taxes?: boolean;
 }
 
 interface ProtectionPlanInfo {
@@ -72,7 +71,6 @@ const QuoteDetail = () => {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Função para calcular os custos para cada veículo
   const calculateCosts = (vehicles: VehicleData[]): VehicleData[] => {
     if (!vehicles || !Array.isArray(vehicles)) {
       console.error('Veículos inválidos para calcular custos:', vehicles);
@@ -80,10 +78,9 @@ const QuoteDetail = () => {
     }
     
     return vehicles.map(vehicle => {
-      // Verificar se o objeto vehicle e vehicle.vehicle existem antes de acessar suas propriedades
       if (!vehicle || !vehicle.vehicle) {
         console.error('Dados de veículo inválidos:', vehicle);
-        return vehicle; // Retornar o veículo como está para evitar erros
+        return vehicle;
       }
       
       const vehicleValue = vehicle.vehicle.value || 0;
@@ -92,8 +89,8 @@ const QuoteDetail = () => {
       const operationSeverity = vehicle.operation_severity || 3;
       const hasTracking = vehicle.has_tracking || false;
       const vehicleGroup = vehicle.vehicle.group_id || 'A';
+      const includeTaxes = vehicle.include_taxes || false;
       
-      // Calcular depreciação
       const depreciationCost = calculateDepreciationSync({
         vehicleValue,
         contractMonths,
@@ -101,7 +98,6 @@ const QuoteDetail = () => {
         operationSeverity: operationSeverity as 1|2|3|4|5|6
       });
       
-      // Calcular manutenção
       const maintenanceCost = calculateMaintenanceSync({
         vehicleGroup,
         contractMonths,
@@ -109,18 +105,21 @@ const QuoteDetail = () => {
         hasTracking
       });
       
-      // Calcular taxa de km excedente
       const extraKmRate = calculateExtraKmRateSync(vehicleValue);
       
-      // Obter o custo de proteção do objeto original ou usar 0
       const protectionCost = vehicle.protection_cost || 0;
       
-      // Usar os valores existentes de IPVA e licenciamento se disponíveis
       const ipvaCost = vehicle.ipva_cost !== undefined ? vehicle.ipva_cost : 0;
       const licensingCost = vehicle.licensing_cost !== undefined ? vehicle.licensing_cost : 0;
       
-      // Calcular custo total (incluindo proteção, IPVA e licenciamento)
-      const totalCost = depreciationCost + maintenanceCost + protectionCost + ipvaCost + licensingCost;
+      let taxCost = vehicle.tax_cost || 0;
+      if (includeTaxes && taxCost <= 0) {
+        const { getTaxBreakdown } = useTaxIndices();
+        const taxInfo = getTaxBreakdown(vehicleValue, contractMonths);
+        taxCost = taxInfo.monthlyCost;
+      }
+      
+      const totalCost = depreciationCost + maintenanceCost + protectionCost + ipvaCost + licensingCost + taxCost;
       
       return {
         ...vehicle,
@@ -130,12 +129,13 @@ const QuoteDetail = () => {
         protection_cost: protectionCost,
         ipva_cost: ipvaCost,
         licensing_cost: licensingCost,
+        tax_cost: taxCost,
+        include_taxes: includeTaxes,
         total_cost: totalCost
       };
     });
   };
 
-  // Função para carregar detalhes do plano de proteção
   const loadProtectionPlanDetails = async (planId: string) => {
     if (!planId || protectionPlans[planId]) return;
     
@@ -164,20 +164,16 @@ const QuoteDetail = () => {
           console.log("Dados do orçamento carregados:", quoteData);
           setQuote(quoteData);
           
-          // Buscar veículos separadamente
           console.log("Buscando veículos para o orçamento:", id);
           const { success: vehiclesSuccess, vehicles: vehiclesData, error: vehiclesError } = await getQuoteVehicles(id);
           
           if (vehiclesSuccess && vehiclesData && Array.isArray(vehiclesData)) {
             console.log("Veículos do orçamento carregados:", vehiclesData);
             
-            // Verificar se algum veículo foi encontrado
             if (vehiclesData.length > 0) {
-              // Calcular os custos para cada veículo
               const vehiclesWithCosts = calculateCosts(vehiclesData);
               setVehicles(vehiclesWithCosts);
               
-              // Carregar informações dos planos de proteção
               for (const vehicle of vehiclesWithCosts) {
                 if (vehicle.protection_plan_id) {
                   await loadProtectionPlanDetails(vehicle.protection_plan_id);
@@ -195,7 +191,6 @@ const QuoteDetail = () => {
             setVehicles([]);
           }
           
-          // Buscar histórico de status
           try {
             const historyData = await fetchStatusHistory(id);
             if (historyData) {
@@ -270,18 +265,14 @@ const QuoteDetail = () => {
     );
   }
 
-  // Obter informações do cliente com verificações de segurança
   const client = quote.client || {};
   
-  // Obter status com valor padrão
   const status = quote.status_flow || 'ORCAMENTO';
   
-  // Função para atualizar quando o status for alterado
   const handleStatusChange = (newStatus: QuoteStatusFlow) => {
     setQuote({...quote, status_flow: newStatus});
   };
   
-  // Função para recarregar os dados quando algo for atualizado
   const handleUpdate = async () => {
     if (id) {
       try {
@@ -293,7 +284,6 @@ const QuoteDetail = () => {
     }
   };
 
-  // Renderizar detalhes do plano de proteção se houver
   const renderProtectionPlanInfo = (planId: string | null | undefined) => {
     if (!planId || !protectionPlans[planId]) return null;
     
@@ -461,7 +451,6 @@ const QuoteDetail = () => {
                             </div>
                           </div>
 
-                          {/* Detalhes de custos */}
                           <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
                             <div>
                               <p className="text-muted-foreground">Depreciação:</p>
@@ -472,7 +461,6 @@ const QuoteDetail = () => {
                               <p>R$ {Number(item?.maintenance_cost || 0).toLocaleString('pt-BR')}</p>
                             </div>
                             
-                            {/* Mostrar IPVA se incluído */}
                             {item.include_ipva && (
                               <div>
                                 <p className="text-muted-foreground">IPVA (mensal):</p>
@@ -480,11 +468,17 @@ const QuoteDetail = () => {
                               </div>
                             )}
                             
-                            {/* Mostrar Licenciamento se incluído */}
                             {item.include_licensing && (
                               <div>
                                 <p className="text-muted-foreground">Licenciamento (mensal):</p>
                                 <p>R$ {Number(item?.licensing_cost || 0).toLocaleString('pt-BR')}</p>
+                              </div>
+                            )}
+                            
+                            {item.include_taxes && (
+                              <div>
+                                <p className="text-muted-foreground">Custos financeiros:</p>
+                                <p>R$ {Number(item?.tax_cost || 0).toLocaleString('pt-BR')}</p>
                               </div>
                             )}
                           </div>
@@ -499,6 +493,25 @@ const QuoteDetail = () => {
                                 </span>
                               </div>
                               {renderProtectionPlanInfo(item.protection_plan_id)}
+                            </div>
+                          )}
+                          
+                          {item.include_taxes && item.tax_cost > 0 && item.vehicle.value && (
+                            <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
+                              <p className="mb-1">Custos financeiros baseados em:</p>
+                              <div className="grid grid-cols-2 gap-1">
+                                {(() => {
+                                  const taxInfo = getTaxBreakdown(item.vehicle.value, item.contract_months);
+                                  return (
+                                    <>
+                                      <div>Taxa total: {taxInfo.totalTaxRate.toFixed(2)}% a.a.</div>
+                                      <div>SELIC: {taxInfo.selicRate.toFixed(2)}%</div>
+                                      <div>Spread: {taxInfo.spread.toFixed(2)}%</div>
+                                      <div>Custo mensal: R$ {taxInfo.monthlyCost.toLocaleString('pt-BR')}</div>
+                                    </>
+                                  );
+                                })()}
+                              </div>
                             </div>
                           )}
                         </div>

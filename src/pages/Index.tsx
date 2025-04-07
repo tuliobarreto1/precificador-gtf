@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -89,13 +90,11 @@ const Index = () => {
           <div className="rounded-md border">
             <QuoteTable 
               quotes={recentQuotes.map(quote => {
-                // Verificar se createdBy existe e tem as propriedades necessárias
+                // Criar um objeto User completo com valores padrão para propriedades ausentes
                 const userObj: User = {
-                  id: quote.createdBy && typeof quote.createdBy.id === 'number' ? 
-                      String(quote.createdBy.id) : 
-                      "system",
+                  id: quote.createdBy?.id ? String(quote.createdBy.id) : "system",
                   name: quote.createdBy?.name || "Sistema",
-                  email: "system@example.com", // Valor padrão para email
+                  email: quote.createdBy?.email || "system@example.com",
                   role: quote.createdBy?.role || "system",
                   status: "active"
                 };

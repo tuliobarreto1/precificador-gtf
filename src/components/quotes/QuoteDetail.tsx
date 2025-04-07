@@ -112,6 +112,7 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
                   <p>Rastreamento: {quote.globalParams.hasTracking ? 'Sim' : 'Não'}</p>
                   <p>IPVA: {quote.globalParams.includeIpva ? 'Incluído' : 'Não incluído'}</p>
                   <p>Licenciamento: {quote.globalParams.includeLicensing ? 'Incluído' : 'Não incluído'}</p>
+                  <p>Impostos: {quote.globalParams.includeTaxes ? 'Incluídos' : 'Não incluídos'}</p>
                 </>
               )}
             </div>
@@ -273,8 +274,12 @@ const VehicleDetailCard: React.FC<VehicleDetailCardProps> = ({ vehicle, contract
       {showTaxDetails && taxBreakdown && (
         <div className="mt-4 pt-3 border-t border-gray-100 text-xs text-muted-foreground">
           <div className="flex justify-between">
-            <span>Taxa financeira:</span>
+            <span>Taxa financeira total:</span>
             <span>{taxBreakdown.totalTaxRate.toFixed(2)}% a.a.</span>
+          </div>
+          <div className="flex justify-between">
+            <span>SELIC + spread:</span>
+            <span>{taxBreakdown.selicRate.toFixed(2)}% + {taxBreakdown.spread.toFixed(2)}%</span>
           </div>
         </div>
       )}
