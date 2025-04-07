@@ -17,6 +17,13 @@ export type Database = {
           depreciation_severity_multiplier: number
           extra_km_percentage: number
           id: string
+          igpm_rate: number | null
+          ipca_rate: number | null
+          last_tax_update: string | null
+          selic_month12: number | null
+          selic_month18: number | null
+          selic_month24: number | null
+          tax_spread: number | null
           tracking_cost: number
           updated_at: string
         }
@@ -27,6 +34,13 @@ export type Database = {
           depreciation_severity_multiplier: number
           extra_km_percentage: number
           id?: string
+          igpm_rate?: number | null
+          ipca_rate?: number | null
+          last_tax_update?: string | null
+          selic_month12?: number | null
+          selic_month18?: number | null
+          selic_month24?: number | null
+          tax_spread?: number | null
           tracking_cost: number
           updated_at?: string
         }
@@ -37,6 +51,13 @@ export type Database = {
           depreciation_severity_multiplier?: number
           extra_km_percentage?: number
           id?: string
+          igpm_rate?: number | null
+          ipca_rate?: number | null
+          last_tax_update?: string | null
+          selic_month12?: number | null
+          selic_month18?: number | null
+          selic_month24?: number | null
+          tax_spread?: number | null
           tracking_cost?: number
           updated_at?: string
         }
@@ -321,6 +342,7 @@ export type Database = {
           id: string
           include_ipva: boolean
           include_licensing: boolean
+          include_taxes: boolean
           ipva_cost: number | null
           licensing_cost: number | null
           maintenance_cost: number | null
@@ -330,6 +352,7 @@ export type Database = {
           protection_cost: number | null
           protection_plan_id: string | null
           quote_id: string | null
+          tax_cost: number | null
           total_cost: number | null
           updated_at: string
           vehicle_id: string | null
@@ -343,6 +366,7 @@ export type Database = {
           id?: string
           include_ipva?: boolean
           include_licensing?: boolean
+          include_taxes?: boolean
           ipva_cost?: number | null
           licensing_cost?: number | null
           maintenance_cost?: number | null
@@ -352,6 +376,7 @@ export type Database = {
           protection_cost?: number | null
           protection_plan_id?: string | null
           quote_id?: string | null
+          tax_cost?: number | null
           total_cost?: number | null
           updated_at?: string
           vehicle_id?: string | null
@@ -365,6 +390,7 @@ export type Database = {
           id?: string
           include_ipva?: boolean
           include_licensing?: boolean
+          include_taxes?: boolean
           ipva_cost?: number | null
           licensing_cost?: number | null
           maintenance_cost?: number | null
@@ -374,6 +400,7 @@ export type Database = {
           protection_cost?: number | null
           protection_plan_id?: string | null
           quote_id?: string | null
+          tax_cost?: number | null
           total_cost?: number | null
           updated_at?: string
           vehicle_id?: string | null

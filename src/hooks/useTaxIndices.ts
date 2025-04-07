@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
-import { fetchCalculationParams } from '@/lib/settings';
+import { fetchCalculationParams, updateCalculationParams } from '@/lib/settings';
+import { toast } from 'sonner';
 
 // Estrutura de dados para os índices de impostos
 export interface TaxIndices {
@@ -12,6 +13,7 @@ export interface TaxIndices {
     month18: number;
     month24: number;
   }
+  lastUpdate: Date | null; // Data da última atualização
 }
 
 // Hook para buscar e gerenciar os índices de impostos
@@ -24,47 +26,45 @@ export function useTaxIndices() {
       month12: 12.75, // Valores padrão da SELIC
       month18: 11.75,
       month24: 10.25
-    }
+    },
+    lastUpdate: null
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Função para buscar as taxas SELIC atualizadas
-  const fetchSelicRates = async () => {
+  // Função para buscar as taxas do banco de dados
+  const fetchIndices = async () => {
     try {
-      // Para uma implementação real, substitua esta URL pela API do Banco Central
-      // Exemplo: https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados/ultimos/100?formato=json
-      const response = await fetch('https://api.bcb.gov.br/dados/serie/bcdata.sgs.1178/dados/ultimos/30?formato=json');
-      
-      if (!response.ok) {
-        throw new Error('Falha ao buscar dados da SELIC');
-      }
-      
-      const data = await response.json();
-      
-      // Em uma implementação real, este processamento dependeria da estrutura de dados da API
-      // Para fins de exemplo, estamos apenas usando valores fixos
-      // No mundo real, você interpretaria os dados retornados pela API
-      
-      // Buscar também parâmetros personalizados do sistema
+      setLoading(true);
+      // Buscar parâmetros personalizados do sistema de banco de dados
       const params = await fetchCalculationParams();
       
-      // Atualizar os índices com os valores da API e do banco de dados
-      setIndices({
-        ipca: params?.ipca_rate || 3.50,
-        igpm: params?.igpm_rate || 3.40,
-        spread: params?.tax_spread || 5.3,
-        selicRates: {
-          month12: 12.75, // Em produção, substituir por valores reais da API
-          month18: 11.75,
-          month24: 10.25
-        }
-      });
-      
-      console.log('✅ Índices de impostos atualizados:', indices);
+      if (params) {
+        setIndices({
+          ipca: params.ipca_rate || 3.50,
+          igpm: params.igpm_rate || 3.40,
+          spread: params.tax_spread || 5.3,
+          selicRates: {
+            month12: params.selic_month12 || 12.75,
+            month18: params.selic_month18 || 11.75,
+            month24: params.selic_month24 || 10.25
+          },
+          lastUpdate: params.last_tax_update ? new Date(params.last_tax_update) : new Date()
+        });
+        
+        console.log('✅ Índices de impostos atualizados do banco:', {
+          ipca: params.ipca_rate,
+          igpm: params.igpm_rate,
+          spread: params.tax_spread,
+          selic12: params.selic_month12,
+          selic18: params.selic_month18,
+          selic24: params.selic_month24,
+          lastUpdate: params.last_tax_update
+        });
+      }
       
     } catch (err) {
-      console.error('❌ Erro ao buscar taxas SELIC:', err);
+      console.error('❌ Erro ao buscar taxas do banco:', err);
       setError('Não foi possível carregar os índices atualizados');
       
       // Em caso de erro, manter os valores padrão
@@ -75,9 +75,50 @@ export function useTaxIndices() {
 
   // Buscar índices ao inicializar o hook
   useEffect(() => {
-    setLoading(true);
-    fetchSelicRates();
+    fetchIndices();
   }, []);
+
+  // Atualizar índices no banco de dados
+  const saveIndices = async (newIndices: Partial<TaxIndices>): Promise<boolean> => {
+    setLoading(true);
+    try {
+      // Converter formato interno para formato da tabela
+      const paramsToUpdate: any = {};
+      
+      if (newIndices.ipca !== undefined) paramsToUpdate.ipca_rate = newIndices.ipca;
+      if (newIndices.igpm !== undefined) paramsToUpdate.igpm_rate = newIndices.igpm;
+      if (newIndices.spread !== undefined) paramsToUpdate.tax_spread = newIndices.spread;
+      if (newIndices.selicRates?.month12 !== undefined) paramsToUpdate.selic_month12 = newIndices.selicRates.month12;
+      if (newIndices.selicRates?.month18 !== undefined) paramsToUpdate.selic_month18 = newIndices.selicRates.month18;
+      if (newIndices.selicRates?.month24 !== undefined) paramsToUpdate.selic_month24 = newIndices.selicRates.month24;
+      
+      // Sempre atualizar a data da última atualização
+      paramsToUpdate.last_tax_update = new Date().toISOString();
+      
+      const success = await updateCalculationParams(paramsToUpdate);
+      
+      if (success) {
+        // Atualizar o estado local com os novos valores
+        setIndices(prev => ({
+          ...prev,
+          ...newIndices,
+          lastUpdate: new Date()
+        }));
+        
+        toast.success('Índices atualizados com sucesso');
+        return true;
+      } else {
+        toast.error('Falha ao atualizar índices no banco de dados');
+        return false;
+      }
+    } catch (err) {
+      console.error('Erro ao salvar índices:', err);
+      toast.error('Ocorreu um erro ao atualizar os índices');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Calcular custo de impostos com base nos parâmetros e prazos
   const calculateTaxCost = (vehicleValue: number, contractMonths: number): number => {
@@ -100,12 +141,27 @@ export function useTaxIndices() {
     return monthlyCost;
   };
 
-  // Atualizar os índices manualmente (para uso em formulários de configuração)
-  const updateIndices = (newIndices: Partial<TaxIndices>) => {
-    setIndices(prev => ({
-      ...prev,
-      ...newIndices
-    }));
+  // Obter o detalhamento para mostrar na UI
+  const getTaxBreakdown = (vehicleValue: number, contractMonths: number) => {
+    let selicRate = indices.selicRates.month12;
+    
+    if (contractMonths >= 24) {
+      selicRate = indices.selicRates.month24;
+    } else if (contractMonths >= 18) {
+      selicRate = indices.selicRates.month18;
+    }
+    
+    const taxRate = (selicRate + indices.spread) / 100;
+    const annualCost = vehicleValue * taxRate;
+    const monthlyCost = annualCost / 12;
+    
+    return {
+      selicRate,
+      spread: indices.spread,
+      totalTaxRate: taxRate * 100, // Em percentual
+      annualCost,
+      monthlyCost
+    };
   };
 
   return {
@@ -113,7 +169,8 @@ export function useTaxIndices() {
     loading,
     error,
     calculateTaxCost,
-    updateIndices,
-    refreshIndices: fetchSelicRates
+    getTaxBreakdown,
+    updateIndices: saveIndices,
+    refreshIndices: fetchIndices
   };
 }
