@@ -40,9 +40,6 @@ const vehicleGroupSchema = z.object({
 
 const globalParamsSchema = z.object({
   tracking_cost: z.number().min(0, { message: 'Valor de rastreamento deve ser positivo' }),
-  depreciation_base: z.number().min(0.001, { message: 'Taxa base de depreciação deve ser positiva' }),
-  depreciation_mileage_multiplier: z.number().min(0, { message: 'Multiplicador de quilometragem deve ser positivo' }),
-  depreciation_severity_multiplier: z.number().min(0, { message: 'Multiplicador de severidade deve ser positivo' }),
   extra_km_percentage: z.number().min(0, { message: 'Percentual de km extra deve ser positivo' }),
 });
 
@@ -81,9 +78,6 @@ const Parameters = () => {
     resolver: zodResolver(globalParamsSchema),
     defaultValues: {
       tracking_cost: 50,
-      depreciation_base: 0.015,
-      depreciation_mileage_multiplier: 0.05,
-      depreciation_severity_multiplier: 0.1,
       extra_km_percentage: 0.0000075,
     },
   });
@@ -120,9 +114,6 @@ const Parameters = () => {
         
         globalForm.reset({
           tracking_cost: params.tracking_cost,
-          depreciation_base: params.depreciation_base,
-          depreciation_mileage_multiplier: params.depreciation_mileage_multiplier,
-          depreciation_severity_multiplier: params.depreciation_severity_multiplier,
           extra_km_percentage: params.extra_km_percentage,
         });
       }
@@ -275,16 +266,28 @@ const Parameters = () => {
   const onGlobalParamsSubmit = async (values: GlobalFormValues) => {
     setSavingParams(true);
     try {
-      const params: CalculationParams = {
+      // Buscar parâmetros existentes para preservar outros valores
+      const existingParams = await fetchCalculationParams();
+      
+      // Combinar valores existentes com os novos (preservando os parâmetros de depreciação)
+      const updatedParams: CalculationParams = {
         id: calculationParamsId,
         tracking_cost: values.tracking_cost,
-        depreciation_base: values.depreciation_base,
-        depreciation_mileage_multiplier: values.depreciation_mileage_multiplier,
-        depreciation_severity_multiplier: values.depreciation_severity_multiplier,
-        extra_km_percentage: values.extra_km_percentage
+        depreciation_base: existingParams?.depreciation_base || 0.015,
+        depreciation_mileage_multiplier: existingParams?.depreciation_mileage_multiplier || 0.05,
+        depreciation_severity_multiplier: existingParams?.depreciation_severity_multiplier || 0.1,
+        extra_km_percentage: values.extra_km_percentage,
+        // Manter os campos de depreciação personalizados
+        depreciation_base_rate: existingParams?.depreciation_base_rate,
+        severity_multiplier_1: existingParams?.severity_multiplier_1,
+        severity_multiplier_2: existingParams?.severity_multiplier_2,
+        severity_multiplier_3: existingParams?.severity_multiplier_3,
+        severity_multiplier_4: existingParams?.severity_multiplier_4,
+        severity_multiplier_5: existingParams?.severity_multiplier_5,
+        severity_multiplier_6: existingParams?.severity_multiplier_6,
       };
       
-      const success = await updateCalculationParams(params);
+      const success = await updateCalculationParams(updatedParams);
       
       if (success) {
         toast({
@@ -423,80 +426,6 @@ const Parameters = () => {
                             </FormItem>
                           )}
                         />
-                      </div>
-                      
-                      <div className="border-t pt-6">
-                        <h3 className="font-medium mb-4">Taxas de Depreciação</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                          <FormField
-                            control={globalForm.control}
-                            name="depreciation_base"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Taxa Base</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    step="0.001" 
-                                    min="0.001" 
-                                    {...field} 
-                                    onChange={e => field.onChange(Number(e.target.value))}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                                <p className="text-xs text-muted-foreground">
-                                  Taxa base de depreciação mensal
-                                </p>
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={globalForm.control}
-                            name="depreciation_mileage_multiplier"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Multiplicador de Quilometragem</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    step="0.01" 
-                                    min="0" 
-                                    {...field} 
-                                    onChange={e => field.onChange(Number(e.target.value))}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                                <p className="text-xs text-muted-foreground">
-                                  Impacto da quilometragem na depreciação
-                                </p>
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={globalForm.control}
-                            name="depreciation_severity_multiplier"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Multiplicador de Severidade</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    step="0.01" 
-                                    min="0" 
-                                    {...field} 
-                                    onChange={e => field.onChange(Number(e.target.value))}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                                <p className="text-xs text-muted-foreground">
-                                  Impacto da severidade de uso na depreciação
-                                </p>
-                              </FormItem>
-                            )}
-                          />
-                        </div>
                       </div>
                       
                       <div className="flex justify-end">
