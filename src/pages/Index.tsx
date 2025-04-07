@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -100,7 +99,8 @@ const Index = () => {
                          String(quote.createdBy.id) : 
                          String(quote.createdBy.id || "system"),
                     name: quote.createdBy.name || "Sistema",
-                    email: quote.createdBy.email || "system@example.com", // Garantir que email exista
+                    // Garantimos que createdBy.email exista, senão usamos um valor padrão
+                    email: (quote.createdBy as any).email || "system@example.com",
                     role: quote.createdBy.role || "system",
                     status: "active"
                   };
