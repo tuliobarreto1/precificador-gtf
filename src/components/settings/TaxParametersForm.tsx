@@ -77,7 +77,8 @@ const TaxParametersForm = () => {
           month12: 11.50,
           month18: 10.75,
           month24: 9.90
-        }
+        },
+        lastUpdate: new Date() // Adicionando lastUpdate
       };
       
       // Manter o spread configurado pelo usuário
@@ -88,7 +89,8 @@ const TaxParametersForm = () => {
         ipca: bcbValues.ipca,
         igpm: bcbValues.igpm,
         selicRates: bcbValues.selicRates,
-        spread: currentSpread
+        spread: currentSpread,
+        lastUpdate: bcbValues.lastUpdate
       });
       
       if (success) {
@@ -124,7 +126,8 @@ const TaxParametersForm = () => {
           month12: values.selic_month12,
           month18: values.selic_month18,
           month24: values.selic_month24
-        }
+        },
+        lastUpdate: new Date() // Adicionando lastUpdate
       });
       
       if (success) {

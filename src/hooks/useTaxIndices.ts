@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { fetchCalculationParams, updateCalculationParams, CalculationParams } from '@/lib/settings';
 
@@ -73,10 +74,16 @@ export function useTaxIndices() {
     };
   };
 
+  // Nova função para calcular o custo de impostos
+  const calculateTaxCost = (vehicleValue: number, contractMonths: number) => {
+    const breakdown = getTaxBreakdown(vehicleValue, contractMonths);
+    return breakdown.monthlyCost;
+  };
+
   const updateIndices = async (newIndices: TaxIndices) => {
     try {
       // Atualiza no banco de dados
-      const lastTaxUpdate = new Date();
+      const lastTaxUpdate = newIndices.lastUpdate || new Date();
       const success = await updateCalculationParams({
         ipca_rate: newIndices.ipca,
         igpm_rate: newIndices.igpm,
@@ -84,14 +91,14 @@ export function useTaxIndices() {
         selic_month12: newIndices.selicRates.month12,
         selic_month18: newIndices.selicRates.month18,
         selic_month24: newIndices.selicRates.month24,
-        last_tax_update: lastTaxUpdate.toISOString(), // Convertendo para string
+        last_tax_update: typeof lastTaxUpdate === 'string' ? lastTaxUpdate : lastTaxUpdate.toISOString(), // Garantindo que seja string
       });
       
       if (success) {
         // Atualiza o estado local
         setIndices({
           ...newIndices,
-          lastUpdate: lastTaxUpdate,
+          lastUpdate: typeof lastTaxUpdate === 'string' ? new Date(lastTaxUpdate) : lastTaxUpdate,
         });
       }
       
@@ -107,6 +114,7 @@ export function useTaxIndices() {
     loading,
     error,
     getTaxBreakdown,
+    calculateTaxCost, // Exportando a nova função
     updateIndices,
     refreshIndices
   };

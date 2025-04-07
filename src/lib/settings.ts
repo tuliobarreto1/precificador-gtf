@@ -168,7 +168,7 @@ export const fetchCalculationParams = async (): Promise<CalculationParams | null
 export const updateCalculationParams = async (params: Partial<CalculationParams>): Promise<boolean> => {
   try {
     // Convertendo o Date para string se necessário
-    if (params.last_tax_update instanceof Date) {
+    if (params.last_tax_update && typeof params.last_tax_update !== 'string') {
       params.last_tax_update = params.last_tax_update.toISOString();
     }
     
