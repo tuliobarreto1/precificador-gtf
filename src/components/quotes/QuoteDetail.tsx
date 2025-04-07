@@ -50,6 +50,22 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
     }
   };
   
+  // Verificar se existem impostos nos veículos
+  const hasAnyTax = quote.vehicles.some(v => 
+    (v.includeIpva && v.ipvaCost && v.ipvaCost > 0) || 
+    (v.includeLicensing && v.licensingCost && v.licensingCost > 0) || 
+    (v.includeTaxes && v.taxCost && v.taxCost > 0)
+  );
+  
+  // Calcular total de impostos para cada veículo
+  const calculateVehicleTaxes = (vehicle: SavedVehicle): number => {
+    let total = 0;
+    if (vehicle.includeIpva && vehicle.ipvaCost) total += vehicle.ipvaCost;
+    if (vehicle.includeLicensing && vehicle.licensingCost) total += vehicle.licensingCost;
+    if (vehicle.includeTaxes && vehicle.taxCost) total += vehicle.taxCost;
+    return total;
+  };
+  
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center flex-wrap gap-4">
@@ -211,12 +227,26 @@ const VehicleDetailCard: React.FC<VehicleDetailCardProps> = ({ vehicle, contract
   const { getTaxBreakdown } = useTaxIndices();
   const [taxDetailsOpen, setTaxDetailsOpen] = useState(false);
   
+  // Verificar se deve mostrar detalhes de impostos
   const showTaxDetails = vehicle.includeTaxes && vehicle.taxCost !== undefined && vehicle.taxCost > 0;
   
+  // Calcular total de impostos
+  const totalTaxes = (
+    (vehicle.includeIpva && vehicle.ipvaCost ? vehicle.ipvaCost : 0) + 
+    (vehicle.includeLicensing && vehicle.licensingCost ? vehicle.licensingCost : 0) + 
+    (vehicle.includeTaxes && vehicle.taxCost ? vehicle.taxCost : 0)
+  );
+  
+  // Obter breakdown dos impostos
   let taxBreakdown = null;
   if (showTaxDetails && vehicle.vehicleValue && vehicle.contractMonths) {
     taxBreakdown = getTaxBreakdown(vehicle.vehicleValue, vehicle.contractMonths);
   }
+  
+  // Verificar se há algum imposto incluído
+  const hasTaxes = (vehicle.includeIpva && vehicle.ipvaCost && vehicle.ipvaCost > 0) || 
+                  (vehicle.includeLicensing && vehicle.licensingCost && vehicle.licensingCost > 0) || 
+                  (vehicle.includeTaxes && vehicle.taxCost && vehicle.taxCost > 0);
   
   return (
     <Card className="p-4">
@@ -262,51 +292,63 @@ const VehicleDetailCard: React.FC<VehicleDetailCardProps> = ({ vehicle, contract
           </div>
         )}
         
-        {vehicle.includeIpva && vehicle.ipvaCost !== undefined && (
-          <div className="flex justify-between text-sm">
-            <span>IPVA (mensal):</span>
-            <span>{formatCurrency(vehicle.ipvaCost)}/mês</span>
-          </div>
-        )}
-        
-        {vehicle.includeLicensing && vehicle.licensingCost !== undefined && (
-          <div className="flex justify-between text-sm">
-            <span>Licenciamento (mensal):</span>
-            <span>{formatCurrency(vehicle.licensingCost)}/mês</span>
-          </div>
-        )}
-        
-        {showTaxDetails && (
-          <Collapsible open={taxDetailsOpen} onOpenChange={setTaxDetailsOpen} className="border-t border-b py-2 my-2">
+        {/* Seção de Impostos e Taxas */}
+        {hasTaxes && (
+          <Collapsible className="border-t border-b py-2 my-2">
             <div className="flex justify-between items-center">
-              <CollapsibleTrigger className="flex items-center text-primary font-medium hover:underline">
-                <span>Custos financeiros:</span>
-                {taxDetailsOpen ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
+              <CollapsibleTrigger className="flex items-center text-primary font-medium hover:underline text-sm">
+                <span>Impostos e taxas:</span>
+                <ChevronDown className="h-4 w-4 ml-1" />
               </CollapsibleTrigger>
-              <span>{formatCurrency(vehicle.taxCost || 0)}/mês</span>
+              <span className="text-sm">{formatCurrency(totalTaxes)}/mês</span>
             </div>
             
             <CollapsibleContent className="pt-2">
-              {taxBreakdown && (
-                <div className="text-xs space-y-1 text-muted-foreground bg-slate-50 p-2 rounded-md">
+              <div className="text-xs space-y-1 text-muted-foreground bg-slate-50 p-2 rounded-md">
+                {vehicle.includeIpva && vehicle.ipvaCost && vehicle.ipvaCost > 0 && (
                   <div className="flex justify-between">
-                    <span>Taxa SELIC ({vehicle.contractMonths >= 24 ? '24 meses' : vehicle.contractMonths >= 18 ? '18 meses' : '12 meses'}):</span>
-                    <span>{taxBreakdown.selicRate.toFixed(2)}% a.a.</span>
+                    <span>IPVA:</span>
+                    <span>{formatCurrency(vehicle.ipvaCost)}/mês</span>
                   </div>
+                )}
+                
+                {vehicle.includeLicensing && vehicle.licensingCost && vehicle.licensingCost > 0 && (
                   <div className="flex justify-between">
-                    <span>Spread financeiro:</span>
-                    <span>{taxBreakdown.spread.toFixed(2)}% a.a.</span>
+                    <span>Licenciamento:</span>
+                    <span>{formatCurrency(vehicle.licensingCost)}/mês</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Taxa total anual:</span>
-                    <span>{taxBreakdown.totalTaxRate.toFixed(2)}% a.a.</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Custo anual:</span>
-                    <span>{formatCurrency(taxBreakdown.annualCost)}</span>
-                  </div>
-                </div>
-              )}
+                )}
+                
+                {vehicle.includeTaxes && vehicle.taxCost && vehicle.taxCost > 0 && (
+                  <>
+                    <div className="flex justify-between">
+                      <span>Custos financeiros:</span>
+                      <span>{formatCurrency(vehicle.taxCost)}/mês</span>
+                    </div>
+                    
+                    {taxBreakdown && (
+                      <div className="mt-2 pt-2 border-t border-slate-200">
+                        <div className="flex justify-between">
+                          <span>Taxa SELIC ({vehicle.contractMonths >= 24 ? '24 meses' : vehicle.contractMonths >= 18 ? '18 meses' : '12 meses'}):</span>
+                          <span>{taxBreakdown.selicRate.toFixed(2)}% a.a.</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Spread financeiro:</span>
+                          <span>{taxBreakdown.spread.toFixed(2)}% a.a.</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Taxa total anual:</span>
+                          <span>{taxBreakdown.totalTaxRate.toFixed(2)}% a.a.</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Custo anual:</span>
+                          <span>{formatCurrency(taxBreakdown.annualCost)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </CollapsibleContent>
           </Collapsible>
         )}
@@ -316,6 +358,15 @@ const VehicleDetailCard: React.FC<VehicleDetailCardProps> = ({ vehicle, contract
         <span className="font-medium">Total:</span>
         <span className="font-bold">{formatCurrency(vehicle.totalCost)}/mês</span>
       </div>
+      
+      {vehicle.protection_plan_id && (
+        <div className="mt-3 pt-1">
+          <div className="flex items-center text-sm">
+            <Shield className="h-4 w-4 mr-1 text-green-600" />
+            <span className="text-muted-foreground">Proteção incluída</span>
+          </div>
+        </div>
+      )}
     </Card>
   );
 };

@@ -5,7 +5,7 @@ import Card from '@/components/ui-custom/Card';
 import { Vehicle } from '@/lib/models';
 import { formatCurrency } from '@/lib/utils';
 import { useTaxIndices } from '@/hooks/useTaxIndices';
-import { ChevronDown, ChevronUp, Wallet } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface QuoteSummaryProps {
@@ -26,6 +26,9 @@ const QuoteSummary: React.FC<QuoteSummaryProps> = ({ vehicle, result, showDetail
   
   // Verificar se há impostos incluídos
   const hasTaxes = result.includeTaxes || result.includeIpva || result.includeLicensing;
+  
+  // Calcular o total de impostos
+  const totalTaxes = (result.taxCost || 0) + (result.ipvaCost || 0) + (result.licensingCost || 0);
   
   return (
     <Card className="p-4">
@@ -51,37 +54,37 @@ const QuoteSummary: React.FC<QuoteSummaryProps> = ({ vehicle, result, showDetail
         )}
         
         {/* Seção de Impostos e Taxas */}
-        {hasTaxes && (
+        {hasTaxes && totalTaxes > 0 && (
           <Collapsible open={taxBreakdownOpen} onOpenChange={setTaxBreakdownOpen} className="border-t border-b py-2 my-2">
             <div className="flex justify-between items-center">
               <CollapsibleTrigger className="flex items-center text-primary font-medium hover:underline">
                 <span>Impostos e taxas:</span>
                 {taxBreakdownOpen ? <ChevronUp className="h-4 w-4 ml-1" /> : <ChevronDown className="h-4 w-4 ml-1" />}
               </CollapsibleTrigger>
-              <span>{formatCurrency((result.taxCost || 0) + (result.ipvaCost || 0) + (result.licensingCost || 0))}/mês</span>
+              <span>{formatCurrency(totalTaxes)}/mês</span>
             </div>
             
             <CollapsibleContent className="pt-2">
               <div className="text-xs space-y-1 text-muted-foreground bg-slate-50 p-2 rounded-md">
-                {result.includeIpva && (
+                {result.includeIpva && result.ipvaCost && result.ipvaCost > 0 && (
                   <div className="flex justify-between">
                     <span>IPVA:</span>
-                    <span>{formatCurrency(result.ipvaCost || 0)}/mês</span>
+                    <span>{formatCurrency(result.ipvaCost)}/mês</span>
                   </div>
                 )}
                 
-                {result.includeLicensing && (
+                {result.includeLicensing && result.licensingCost && result.licensingCost > 0 && (
                   <div className="flex justify-between">
                     <span>Licenciamento:</span>
-                    <span>{formatCurrency(result.licensingCost || 0)}/mês</span>
+                    <span>{formatCurrency(result.licensingCost)}/mês</span>
                   </div>
                 )}
                 
-                {result.includeTaxes && (
+                {result.includeTaxes && result.taxCost && result.taxCost > 0 && (
                   <>
                     <div className="flex justify-between">
                       <span>Custos financeiros:</span>
-                      <span>{formatCurrency(result.taxCost || 0)}/mês</span>
+                      <span>{formatCurrency(result.taxCost)}/mês</span>
                     </div>
                     
                     {taxBreakdown && (
