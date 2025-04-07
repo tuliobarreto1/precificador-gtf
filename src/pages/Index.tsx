@@ -93,21 +93,24 @@ const Index = () => {
                 // Verificar se createdBy existe e tem a estrutura esperada
                 let createdBy: User;
                 
+                // Tratando caso onde quote.createdBy pode ser null/undefined ou um objeto incompleto
                 if (quote.createdBy && typeof quote.createdBy === 'object') {
-                  // Construir o objeto User com todos os campos necessários
+                  // Converter o ID para string se for número
+                  const idStr = typeof quote.createdBy.id === 'number' 
+                    ? `user-${quote.createdBy.id}` 
+                    : (quote.createdBy.id || "system");
+                  
+                  // Construir o objeto User completo
                   createdBy = {
-                    id: typeof quote.createdBy.id === 'number' 
-                      ? `user-${quote.createdBy.id}` 
-                      : (quote.createdBy.id || "system"),
+                    id: idStr,
                     name: quote.createdBy.name || "Sistema",
-                    email: typeof quote.createdBy.email === 'string' 
-                      ? quote.createdBy.email 
-                      : "system@example.com",
+                    // Se o email não existir, usamos um padrão
+                    email: quote.createdBy.email || "system@example.com",
                     role: quote.createdBy.role || "system",
                     status: "active"
                   };
                 } else {
-                  // Criar um createdBy padrão se não existir
+                  // Criar um objeto User padrão quando não há createdBy
                   createdBy = {
                     id: "system",
                     name: "Sistema",
