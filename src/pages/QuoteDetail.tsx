@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, FileEdit, Car, Calendar, User, Landmark, Gauge, Shield } from 'lucide-react';
@@ -19,6 +20,7 @@ import {
   calculateExtraKmRateSync 
 } from '@/lib/calculation';
 import { fetchProtectionPlanDetails } from '@/integrations/supabase/services/protectionPlans';
+import { useTaxIndices } from '@/hooks/useTaxIndices';
 
 interface VehicleData {
   id: string;
@@ -51,6 +53,7 @@ interface VehicleData {
   include_ipva?: boolean;
   include_licensing?: boolean;
   include_taxes?: boolean;
+  tax_cost?: number;
 }
 
 interface ProtectionPlanInfo {
@@ -70,6 +73,7 @@ const QuoteDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { getTaxBreakdown } = useTaxIndices();
 
   const calculateCosts = (vehicles: VehicleData[]): VehicleData[] => {
     if (!vehicles || !Array.isArray(vehicles)) {
@@ -114,7 +118,6 @@ const QuoteDetail = () => {
       
       let taxCost = vehicle.tax_cost || 0;
       if (includeTaxes && taxCost <= 0) {
-        const { getTaxBreakdown } = useTaxIndices();
         const taxInfo = getTaxBreakdown(vehicleValue, contractMonths);
         taxCost = taxInfo.monthlyCost;
       }
@@ -387,6 +390,7 @@ const QuoteDetail = () => {
                       <p>Rastreamento: {quote?.has_tracking ? 'Sim' : 'Não'}</p>
                       <p>IPVA: {quote?.include_ipva ? 'Incluído' : 'Não incluído'}</p>
                       <p>Licenciamento: {quote?.include_licensing ? 'Incluído' : 'Não incluído'}</p>
+                      <p>Custos financeiros: {quote?.include_taxes ? 'Incluídos' : 'Não incluídos'}</p>
                     </div>
                   </div>
                   
@@ -496,7 +500,7 @@ const QuoteDetail = () => {
                             </div>
                           )}
                           
-                          {item.include_taxes && item.tax_cost > 0 && item.vehicle.value && (
+                          {item.include_taxes && item.tax_cost && item.tax_cost > 0 && item.vehicle && item.vehicle.value && (
                             <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
                               <p className="mb-1">Custos financeiros baseados em:</p>
                               <div className="grid grid-cols-2 gap-1">
