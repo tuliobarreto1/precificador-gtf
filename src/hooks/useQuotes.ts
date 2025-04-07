@@ -229,19 +229,17 @@ export const useQuotes = (): UseQuotesReturn => {
     console.log('Informações de veículo para orçamento:', quote.id, vehicleInfo);
     
     const createdByInfo = {
-      id: 0,
-      name: 'Sistema',
-      role: 'system'
+      id: quote.created_by || "system",
+      name: quote.created_by_name || 'Sistema',
+      email: quote.created_by_email || 'system@example.com',
+      role: quote.created_by_role || 'system',
+      status: 'active'
     };
-    
-    if (quote.created_by_name) {
-      createdByInfo.name = quote.created_by_name;
-    }
     
     const contractMonths = quote.contract_months || 
                            quote.contractMonths || 
-                          (quote.globalParams ? quote.globalParams.contractMonths : 0) || 
-                          0;
+                           (quote.globalParams ? quote.globalParams.contractMonths : 0) || 
+                           0;
     
     return {
       id: quote.id,

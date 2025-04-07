@@ -90,12 +90,10 @@ const Index = () => {
           <div className="rounded-md border">
             <QuoteTable 
               quotes={recentQuotes.map(quote => {
-                // Criar objeto de usuário completo e seguro para TypeScript
+                // Criar um objeto User completo que inclui a propriedade email
                 const createdBy: User = {
                   id: quote.createdBy && typeof quote.createdBy === 'object' && quote.createdBy.id 
-                    ? (typeof quote.createdBy.id === 'number' 
-                      ? `user-${quote.createdBy.id}` 
-                      : String(quote.createdBy.id)) 
+                    ? String(quote.createdBy.id) 
                     : "system",
                   name: quote.createdBy && typeof quote.createdBy === 'object' && quote.createdBy.name 
                     ? quote.createdBy.name 
