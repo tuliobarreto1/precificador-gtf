@@ -91,12 +91,17 @@ const Index = () => {
             <QuoteTable 
               quotes={recentQuotes.map(quote => {
                 // Criar um objeto User completo com valores padrão para propriedades ausentes
+                // e convertendo id para string para corresponder ao tipo esperado
                 return {
                   ...quote,
-                  createdBy: {
-                    id: quote.createdBy?.id || 0,
-                    name: quote.createdBy?.name || "Sistema",
-                    role: quote.createdBy?.role || "system"
+                  createdBy: quote.createdBy ? {
+                    id: String(quote.createdBy.id), // Convertendo para string
+                    name: quote.createdBy.name || "Sistema",
+                    role: quote.createdBy.role || "system"
+                  } : {
+                    id: "system",
+                    name: "Sistema",
+                    role: "system"
                   }
                 };
               })}
