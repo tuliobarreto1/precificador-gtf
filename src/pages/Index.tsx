@@ -90,35 +90,24 @@ const Index = () => {
           <div className="rounded-md border">
             <QuoteTable 
               quotes={recentQuotes.map(quote => {
-                // Verificar se createdBy existe e tem a estrutura esperada
-                let createdBy: User;
-                
-                // Tratando caso onde quote.createdBy pode ser null/undefined ou um objeto incompleto
-                if (quote.createdBy && typeof quote.createdBy === 'object') {
-                  // Converter o ID para string se for número
-                  const idStr = typeof quote.createdBy.id === 'number' 
-                    ? `user-${quote.createdBy.id}` 
-                    : (quote.createdBy.id || "system");
-                  
-                  // Construir o objeto User completo
-                  createdBy = {
-                    id: idStr,
-                    name: quote.createdBy.name || "Sistema",
-                    // Se o email não existir, usamos um padrão
-                    email: quote.createdBy.email || "system@example.com",
-                    role: quote.createdBy.role || "system",
-                    status: "active"
-                  };
-                } else {
-                  // Criar um objeto User padrão quando não há createdBy
-                  createdBy = {
-                    id: "system",
-                    name: "Sistema",
-                    email: "system@example.com",
-                    role: "system",
-                    status: "active"
-                  };
-                }
+                // Criar objeto de usuário completo e seguro para TypeScript
+                const createdBy: User = {
+                  id: quote.createdBy && typeof quote.createdBy === 'object' && quote.createdBy.id 
+                    ? (typeof quote.createdBy.id === 'number' 
+                      ? `user-${quote.createdBy.id}` 
+                      : String(quote.createdBy.id)) 
+                    : "system",
+                  name: quote.createdBy && typeof quote.createdBy === 'object' && quote.createdBy.name 
+                    ? quote.createdBy.name 
+                    : "Sistema",
+                  email: quote.createdBy && typeof quote.createdBy === 'object' && quote.createdBy.email 
+                    ? quote.createdBy.email 
+                    : "system@example.com",
+                  role: quote.createdBy && typeof quote.createdBy === 'object' && quote.createdBy.role 
+                    ? quote.createdBy.role 
+                    : "system",
+                  status: "active"
+                };
                 
                 return {
                   ...quote,

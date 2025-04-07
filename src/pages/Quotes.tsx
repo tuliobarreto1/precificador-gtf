@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
@@ -41,6 +40,7 @@ const Quotes = () => {
           status,
           status_flow,
           contract_months,
+          created_by,
           clients (
             id,
             name
@@ -66,16 +66,32 @@ const Quotes = () => {
       } else {
         console.log("Orçamentos carregados:", data);
         
-        // Mapear para o formato esperado pelo componente QuoteTable
-        const mappedQuotes: QuoteItem[] = (data || []).map(quote => {
-          // Criar o objeto de usuário completo
-          const createdBy: User = {
+        const mappedQuotes: QuoteItem[] = await Promise.all((data || []).map(async quote => {
+          let createdBy: User = {
             id: "system",
             name: "Sistema",
             email: "system@example.com",
             role: "system",
             status: "active"
           };
+          
+          if (quote.created_by) {
+            const { data: userData, error: userError } = await supabase
+              .from('system_users')
+              .select('id, name, email, role')
+              .eq('id', quote.created_by)
+              .single();
+              
+            if (!userError && userData) {
+              createdBy = {
+                id: userData.id || "system",
+                name: userData.name || "Sistema",
+                email: userData.email || "system@example.com",
+                role: userData.role || "system",
+                status: "active"
+              };
+            }
+          }
           
           return {
             id: quote.id,
@@ -89,7 +105,7 @@ const Quotes = () => {
             contractMonths: quote.contract_months || 24,
             createdBy
           };
-        });
+        }));
         
         setQuotes(mappedQuotes);
       }
