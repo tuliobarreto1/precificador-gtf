@@ -427,7 +427,7 @@ const QuoteForm = () => {
           )}
         </div>
         
-        <div className="space-y-4">
+        <div className="space-y-3">
           <Label className="text-sm">Prazo do Contrato</Label>
           <div className="space-y-3">
             <Slider
@@ -454,7 +454,7 @@ const QuoteForm = () => {
           </div>
         </div>
         
-        <div className="space-y-4">
+        <div className="space-y-3">
           <Label className="text-sm">Quilometragem Mensal</Label>
           <div className="grid grid-cols-5 gap-2">
             {KM_OPTIONS.map((km) => (
@@ -481,7 +481,7 @@ const QuoteForm = () => {
           </div>
         </div>
         
-        <div className="space-y-4">
+        <div className="space-y-3">
           <Label className="text-sm">Severidade de Operação</Label>
           <RadioGroup 
             value={params.operationSeverity.toString()} 
