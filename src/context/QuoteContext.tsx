@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Client, Vehicle, VehicleGroup } from '@/lib/models';
 import { QuoteFormData, SavedQuote, QuoteContextType, QuoteCalculationResult, User, defaultUser } from './types/quoteTypes';
@@ -38,7 +39,7 @@ const defaultContextValue: QuoteContextType = {
   setGlobalProtectionPlanId: () => {},
   setGlobalIncludeIpva: () => {},
   setGlobalIncludeLicensing: () => {},
-  setGlobalIncludeTaxes: () => {}, // Novo método para impostos
+  setGlobalIncludeTaxes: () => {},
   setUseGlobalParams: () => {},
   setVehicleParams: () => {},
   resetForm: () => {},
@@ -139,7 +140,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     setGlobalProtectionPlanId,
     setGlobalIncludeIpva,
     setGlobalIncludeLicensing,
-    setGlobalIncludeTaxes, // Novo método para impostos
+    setGlobalIncludeTaxes,
     setUseGlobalParams,
     setVehicleParams,
     resetForm,
