@@ -79,7 +79,7 @@ const QuoteSummary: React.FC<QuoteSummaryProps> = ({ vehicle, result, showDetail
             </div>
             
             <CollapsibleContent className="pt-2">
-              <div className="text-xs space-y-1 text-muted-foreground bg-slate-50 p-2 rounded-md">
+              <div className="text-sm space-y-2 text-muted-foreground bg-slate-50 p-2 rounded-md">
                 {result.includeIpva && result.ipvaCost && result.ipvaCost > 0 && (
                   <div className="flex justify-between">
                     <span>IPVA:</span>
@@ -103,13 +103,15 @@ const QuoteSummary: React.FC<QuoteSummaryProps> = ({ vehicle, result, showDetail
                     
                     {taxBreakdown && (
                       <Collapsible open={taxDetailsOpen} onOpenChange={setTaxDetailsOpen} className="mt-2">
-                        <CollapsibleTrigger className="flex items-center text-xs text-primary hover:underline">
-                          <span>Detalhes financeiros</span>
-                          {taxDetailsOpen ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
+                        <CollapsibleTrigger className="flex items-center text-xs text-primary hover:underline w-full">
+                          <div className="flex justify-between w-full">
+                            <span>Detalhamento dos custos financeiros</span>
+                            {taxDetailsOpen ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
+                          </div>
                         </CollapsibleTrigger>
                         
                         <CollapsibleContent className="pt-2">
-                          <div className="space-y-1 text-xs pl-2 border-l-2 border-slate-200 mt-1">
+                          <div className="space-y-2 text-xs pl-2 border-l-2 border-slate-200 mt-1">
                             <div className="flex justify-between">
                               <span>Taxa SELIC ({result.contractMonths >= 24 ? '24 meses' : result.contractMonths >= 18 ? '18 meses' : '12 meses'}):</span>
                               <span>{taxBreakdown.selicRate.toFixed(2)}% a.a.</span>
@@ -118,13 +120,17 @@ const QuoteSummary: React.FC<QuoteSummaryProps> = ({ vehicle, result, showDetail
                               <span>Spread financeiro:</span>
                               <span>{taxBreakdown.spread.toFixed(2)}% a.a.</span>
                             </div>
-                            <div className="flex justify-between">
+                            <div className="flex justify-between font-medium">
                               <span>Taxa total anual:</span>
                               <span>{taxBreakdown.totalTaxRate.toFixed(2)}% a.a.</span>
                             </div>
                             <div className="flex justify-between">
                               <span>Custo anual:</span>
                               <span>{formatCurrency(taxBreakdown.annualCost)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Custo mensal:</span>
+                              <span>{formatCurrency(taxBreakdown.monthlyCost)}</span>
                             </div>
                           </div>
                         </CollapsibleContent>
