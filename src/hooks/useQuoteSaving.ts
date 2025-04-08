@@ -60,6 +60,9 @@ export function useQuoteSaving(
         monthly_km: quoteForm.globalParams.monthlyKm,
         operation_severity: quoteForm.globalParams.operationSeverity,
         has_tracking: quoteForm.globalParams.hasTracking,
+        include_ipva: quoteForm.globalParams.includeIpva,
+        include_licensing: quoteForm.globalParams.includeLicensing,
+        include_taxes: quoteForm.globalParams.includeTaxes, // Incluir informações de impostos
         global_protection_plan_id: quoteForm.globalParams.protectionPlanId,
         total_value: totalCost,
         title: `Orçamento para ${quoteForm.client.name} - ${quoteForm.vehicles.length} veículo(s)`,
@@ -210,12 +213,19 @@ export function useQuoteSaving(
           maintenance_cost: vehicleResult.maintenanceCost,
           extra_km_rate: vehicleResult.extraKmRate,
           total_cost: vehicleResult.totalCost,
-          monthly_value: vehicleResult.totalCost
+          monthly_value: vehicleResult.totalCost,
+          include_ipva: params.includeIpva,
+          include_licensing: params.includeLicensing,
+          include_taxes: params.includeTaxes, // Incluir informações de impostos
+          ipva_cost: vehicleResult.ipvaCost || 0,
+          licensing_cost: vehicleResult.licensingCost || 0,
+          tax_cost: vehicleResult.taxCost || 0 // Salvar o custo de impostos
         };
         
         console.log(`🚗 Adicionando veículo ${i+1}/${quoteForm.vehicles.length}:`, 
           `${vehicleItem.vehicle.brand} ${vehicleItem.vehicle.model}`,
-          `- Custo mensal: R$ ${vehicleResult.totalCost.toFixed(2)}`);
+          `- Custo mensal: R$ ${vehicleResult.totalCost.toFixed(2)}`,
+          `- Impostos: R$ ${vehicleResult.taxCost.toFixed(2)}`); // Log de impostos
         
         const { error: vehicleError } = await supabase
           .from('quote_vehicles')
@@ -339,14 +349,25 @@ export function useQuoteSaving(
           monthly_km: params.monthlyKm,
           operation_severity: params.operationSeverity,
           has_tracking: params.hasTracking,
+          include_ipva: params.includeIpva,
+          include_licensing: params.includeLicensing,
+          include_taxes: params.includeTaxes, // Incluir informações de impostos
           protection_plan_id: params.protectionPlanId,
           protection_cost: vehicleResult.protectionCost || 0,
           depreciation_cost: vehicleResult.depreciationCost,
           maintenance_cost: vehicleResult.maintenanceCost,
           extra_km_rate: vehicleResult.extraKmRate,
+          ipva_cost: vehicleResult.ipvaCost || 0,
+          licensing_cost: vehicleResult.licensingCost || 0,
+          tax_cost: vehicleResult.taxCost || 0, // Salvar o custo de impostos
           total_cost: vehicleResult.totalCost,
           monthly_value: vehicleResult.totalCost
         };
+        
+        console.log(`🚗 Adicionando veículo adaptado ${i+1}/${quoteForm.vehicles.length}:`, 
+          `${vehicleItem.vehicle.brand} ${vehicleItem.vehicle.model}`,
+          `- Custo mensal: R$ ${vehicleResult.totalCost.toFixed(2)}`,
+          `- Impostos: R$ ${vehicleResult.taxCost.toFixed(2)}`); // Log de impostos
         
         const { error: vehicleError } = await supabase
           .from('quote_vehicles')

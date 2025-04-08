@@ -1,3 +1,4 @@
+
 import { supabase } from '../client';
 import { v4 as uuidv4 } from 'uuid';
 import { createOrUpdateVehicle } from './vehicles';
@@ -61,7 +62,7 @@ export async function saveQuoteToSupabase(quoteData: any) {
       has_tracking: quoteData.hasTracking || false,
       include_ipva: quoteData.includeIpva || false,
       include_licensing: quoteData.includeLicensing || false,
-      include_taxes: quoteData.includeTaxes || false,
+      include_taxes: quoteData.includeTaxes || false, // Garantir que o campo include_taxes seja salvo
       total_value: quoteData.totalCost || 0,
       monthly_values: quoteData.monthlyValue || 0,
       status: quoteData.status || 'ORCAMENTO',
@@ -173,13 +174,13 @@ export async function saveQuoteToSupabase(quoteData: any) {
             has_tracking: params.has_tracking,
             include_ipva: params.include_ipva,
             include_licensing: params.include_licensing,
-            include_taxes: params.include_taxes,
+            include_taxes: params.include_taxes, // Garantir que o campo include_taxes seja salvo
             ipva_cost: vehicleItem.ipvaCost || 0,
             licensing_cost: vehicleItem.licensingCost || 0,
             depreciation_cost: vehicleItem.depreciationCost || 0,
             maintenance_cost: vehicleItem.maintenanceCost || 0,
             extra_km_rate: vehicleItem.extraKmRate || 0,
-            tax_cost: vehicleItem.taxCost || 0,
+            tax_cost: vehicleItem.taxCost || 0, // Garantir que o campo tax_cost seja salvo
             total_cost: vehicleItem.totalCost || 0,
             protection_cost: vehicleItem.protectionCost || 0,
             protection_plan_id: vehicleItem.protectionPlanId || null
