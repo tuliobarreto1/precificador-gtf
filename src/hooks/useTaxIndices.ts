@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -83,6 +84,8 @@ export function useTaxIndices() {
       }
       
       if (data) {
+        console.log("Dados de taxas carregados do Supabase:", data);
+        
         setTaxRates({
           selicMonth12: data.selic_month12 || 12.75,
           selicMonth18: data.selic_month18 || 11.75,
@@ -103,7 +106,12 @@ export function useTaxIndices() {
           lastUpdate: data.last_tax_update ? new Date(data.last_tax_update) : null
         });
         
-        console.log("Taxas financeiras carregadas:", data);
+        console.log("Taxas financeiras carregadas e configuradas:", {
+          selicMonth12: data.selic_month12 || 12.75,
+          selicMonth18: data.selic_month18 || 11.75,
+          selicMonth24: data.selic_month24 || 10.25,
+          taxSpread: data.tax_spread || 5.3
+        });
       }
     } catch (error) {
       console.error("Erro ao buscar taxas financeiras:", error);
@@ -216,6 +224,7 @@ export function useTaxIndices() {
   // Calcular o custo financeiro para um valor específico
   const calculateTaxCost = (vehicleValue: number, contractMonths: number): number => {
     const breakdown = getTaxBreakdown(vehicleValue, contractMonths);
+    console.log(`Calculando custo financeiro: valor=${vehicleValue}, meses=${contractMonths}, resultado=${breakdown.monthlyCost}`);
     return breakdown.monthlyCost;
   };
   
@@ -230,6 +239,9 @@ export function useTaxIndices() {
     
     // Calcular custo mensal
     const monthlyCost = annualCost / 12;
+    
+    console.log(`Breakdown de impostos: taxa SELIC=${selicRate}%, spread=${spread}%, 
+                 total=${totalTaxRate}%, custo anual=${annualCost}, custo mensal=${monthlyCost}`);
     
     return {
       selicRate,

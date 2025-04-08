@@ -31,13 +31,15 @@ const QuoteSummary: React.FC<QuoteSummaryProps> = ({ vehicle, result, showDetail
   const totalTaxes = (result.taxCost || 0) + (result.ipvaCost || 0) + (result.licensingCost || 0);
   
   console.log("Dados de impostos no QuoteSummary:", {
+    vehicle: vehicle.brand + " " + vehicle.model,
     includeTaxes: result.includeTaxes,
     taxCost: result.taxCost,
     includeIpva: result.includeIpva,
     ipvaCost: result.ipvaCost,
     includeLicensing: result.includeLicensing,
     licensingCost: result.licensingCost,
-    totalTaxes
+    totalTaxes,
+    taxBreakdown: taxBreakdown
   });
   
   return (

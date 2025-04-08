@@ -436,7 +436,7 @@ const QuoteForm = () => {
                 protectionPlanId: params.protectionPlanId,
                 includeIpva: params.includeIpva,
                 includeLicensing: params.includeLicensing,
-                includeTaxes: params.includeTaxes || false
+                includeTaxes: params.includeTaxes
               })}
             />
             <div className="flex justify-between text-xs text-muted-foreground">
@@ -465,7 +465,7 @@ const QuoteForm = () => {
                   protectionPlanId: params.protectionPlanId,
                   includeIpva: params.includeIpva,
                   includeLicensing: params.includeLicensing,
-                  includeTaxes: params.includeTaxes || false
+                  includeTaxes: params.includeTaxes
                 })}
               >
                 {km.toLocaleString('pt-BR')} km
@@ -486,7 +486,7 @@ const QuoteForm = () => {
               protectionPlanId: params.protectionPlanId,
               includeIpva: params.includeIpva,
               includeLicensing: params.includeLicensing,
-              includeTaxes: params.includeTaxes || false
+              includeTaxes: params.includeTaxes
             })}
             className="grid grid-cols-3 gap-2"
           >
@@ -513,7 +513,7 @@ const QuoteForm = () => {
               protectionPlanId: params.protectionPlanId,
               includeIpva: params.includeIpva,
               includeLicensing: params.includeLicensing,
-              includeTaxes: params.includeTaxes || false
+              includeTaxes: params.includeTaxes
             })}
           />
           <Label htmlFor={`tracking-${vehicleId}`} className="cursor-pointer text-sm">
@@ -533,7 +533,7 @@ const QuoteForm = () => {
               protectionPlanId: params.protectionPlanId,
               includeIpva: checked,
               includeLicensing: params.includeLicensing,
-              includeTaxes: params.includeTaxes || false
+              includeTaxes: params.includeTaxes
             })}
           />
           <Label htmlFor={`ipva-${vehicleId}`} className="cursor-pointer text-sm">
@@ -553,11 +553,31 @@ const QuoteForm = () => {
               protectionPlanId: params.protectionPlanId,
               includeIpva: params.includeIpva,
               includeLicensing: checked,
-              includeTaxes: params.includeTaxes || false
+              includeTaxes: params.includeTaxes
             })}
           />
           <Label htmlFor={`licensing-${vehicleId}`} className="cursor-pointer text-sm">
             Incluir Licenciamento
+          </Label>
+        </div>
+        
+        <div className="flex items-center space-x-2 mb-4">
+          <Switch 
+            id={`taxes-${vehicleId}`} 
+            checked={params.includeTaxes || false}
+            onCheckedChange={(checked) => setVehicleParams(vehicleId, { 
+              contractMonths: params.contractMonths,
+              monthlyKm: params.monthlyKm,
+              operationSeverity: params.operationSeverity,
+              hasTracking: params.hasTracking,
+              protectionPlanId: params.protectionPlanId,
+              includeIpva: params.includeIpva,
+              includeLicensing: params.includeLicensing,
+              includeTaxes: checked
+            })}
+          />
+          <Label htmlFor={`taxes-${vehicleId}`} className="cursor-pointer text-sm">
+            Incluir Custos Financeiros
           </Label>
         </div>
         
@@ -573,7 +593,7 @@ const QuoteForm = () => {
               protectionPlanId: planId,
               includeIpva: params.includeIpva,
               includeLicensing: params.includeLicensing,
-              includeTaxes: params.includeTaxes || false
+              includeTaxes: params.includeTaxes
             })}
           />
         </div>
@@ -705,6 +725,15 @@ const QuoteForm = () => {
                 onCheckedChange={setGlobalIncludeLicensing}
               />
               <Label htmlFor="licensing" className="cursor-pointer">Incluir Licenciamento</Label>
+            </div>
+            
+            <div className="flex items-center space-x-2 mb-6">
+              <Switch 
+                id="taxes" 
+                checked={quoteForm.globalParams?.includeTaxes || false}
+                onCheckedChange={setGlobalIncludeTaxes}
+              />
+              <Label htmlFor="taxes" className="cursor-pointer">Incluir Custos Financeiros</Label>
             </div>
             
             <div className="pt-6 border-t space-y-3">

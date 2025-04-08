@@ -66,7 +66,8 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
             vehicleValue: item.vehicle.value,
             contractMonths: params.contractMonths,
             taxCost,
-            includeTaxes: params.includeTaxes
+            includeTaxes: params.includeTaxes,
+            taxBreakdown: taxIndices.getTaxBreakdown(item.vehicle.value, params.contractMonths)
           });
         }
         
@@ -184,20 +185,24 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         const ipvaCost = params.includeIpva ? (item.vehicle.value * (item.vehicleGroup.ipvaCost || 0)) / 12 : 0;
         const licensingCost = params.includeLicensing ? (item.vehicleGroup.licensingCost || 0) / 12 : 0;
         
-        // Novo: Cálculo de impostos (versão síncrona)
-        const taxCost = params.includeTaxes ? 
-          taxIndices.getTaxBreakdown(item.vehicle.value, params.contractMonths).monthlyCost : 0;
+        // Cálculo de impostos (versão síncrona)
+        let taxCost = 0;
+        if (params.includeTaxes) {
+          const taxBreakdown = taxIndices.getTaxBreakdown(item.vehicle.value, params.contractMonths);
+          taxCost = taxBreakdown.monthlyCost;
           
-        console.log(`Cálculo síncrono para veículo ${item.vehicle.brand} ${item.vehicle.model}:`, {
-          vehicleValue: item.vehicle.value,
-          contractMonths: params.contractMonths,
-          taxes: {
-            includeTaxes: params.includeTaxes,
-            taxCost
-          }
-        });
+          console.log(`Cálculo síncrono para veículo ${item.vehicle.brand} ${item.vehicle.model}:`, {
+            vehicleValue: item.vehicle.value,
+            contractMonths: params.contractMonths,
+            taxes: {
+              includeTaxes: params.includeTaxes,
+              taxCost,
+              taxBreakdown
+            }
+          });
+        }
         
-        // Custo total mensal incluindo impostos - CORRIGIDO: Calculando antes de usar
+        // Custo total mensal incluindo impostos - CALCULAMOS ANTES DE USAR
         const totalCost = totalDepreciation + maintenanceCost + trackingCost + 
                        protectionCost + ipvaCost + licensingCost + taxCost;
         
