@@ -14,8 +14,11 @@ const RoicSlider: React.FC<RoicSliderProps> = ({
   vehicleValues, 
   onRoicChange 
 }) => {
-  // Valor mínimo de ROIC mensal (0.25%, que equivale a 3% anual)
-  const MIN_ROIC = 0.25;
+  // Valor mínimo de ROIC mensal (3.0%, que equivale a 36% anual)
+  const MIN_ROIC = 3.0;
+  
+  // Valor máximo de ROIC mensal (8.0%)
+  const MAX_ROIC = 8.0;
   
   // Calcular o valor total dos veículos
   const totalVehicleValue = vehicleValues.reduce((sum, value) => sum + value, 0);
@@ -74,7 +77,7 @@ const RoicSlider: React.FC<RoicSliderProps> = ({
         <Slider
           value={[roicPercentage]}
           min={MIN_ROIC}
-          max={3.0}
+          max={MAX_ROIC}
           step={0.01}
           onValueChange={handleRoicChange}
           className="mt-2"
@@ -83,7 +86,7 @@ const RoicSlider: React.FC<RoicSliderProps> = ({
         <div className="flex justify-between text-xs text-muted-foreground mt-1">
           <span>Min: {MIN_ROIC.toFixed(2)}% a.m.</span>
           <span>Sugerido: {calculateInitialRoic().toFixed(2)}% a.m.</span>
-          <span>Max: 3.00% a.m.</span>
+          <span>Max: {MAX_ROIC.toFixed(2)}% a.m.</span>
         </div>
       </div>
       
