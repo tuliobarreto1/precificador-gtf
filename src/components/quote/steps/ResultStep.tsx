@@ -27,7 +27,7 @@ const ResultStep: React.FC<ResultStepProps> = ({
   goToPreviousStep 
 }) => {
   const { getTaxBreakdown } = useTaxIndices();
-  const [adjustedTotalCost, setAdjustedTotalCost] = useState<number | null>(null);
+  const [adjustedVehicleCosts, setAdjustedVehicleCosts] = useState<{[key: string]: number}>({});
   const [currentRoic, setCurrentRoic] = useState<number | null>(null);
   
   console.log("ResultStep - quoteForm:", quoteForm);
@@ -56,19 +56,30 @@ const ResultStep: React.FC<ResultStepProps> = ({
     );
   }
   
-  const { vehicleResults, totalCost } = result;
+  const { vehicleResults } = result;
   
-  // Extrair os valores dos veículos para o cálculo do ROIC
-  const vehicleValues = quoteForm?.vehicles?.map(v => v.vehicle.value) || [];
-  
-  // Handler para quando o ROIC é ajustado
-  const handleRoicChange = (roicPercentage: number, adjustedTotal: number) => {
-    setCurrentRoic(roicPercentage);
-    setAdjustedTotalCost(adjustedTotal);
+  // Calcular o total ajustado com base nos custos ajustados dos veículos
+  const getAdjustedTotal = () => {
+    return vehicleResults.reduce((total, vehicleResult) => {
+      const vehicleId = vehicleResult.vehicleId;
+      // Se há um custo ajustado para este veículo, use-o, caso contrário use o custo original
+      const cost = adjustedVehicleCosts[vehicleId] !== undefined ? 
+        adjustedVehicleCosts[vehicleId] : vehicleResult.totalCost;
+      return total + cost;
+    }, 0);
   };
   
-  // Determinar qual valor total mostrar (o original ou o ajustado pelo ROIC)
-  const displayTotalCost = adjustedTotalCost !== null ? adjustedTotalCost : totalCost;
+  // Determinar qual valor total mostrar (o original ou o ajustado)
+  const displayTotalCost = getAdjustedTotal();
+  
+  // Handler para quando o ROIC é ajustado para um veículo específico
+  const handleVehicleRoicChange = (vehicleId: string, roicPercentage: number, adjustedCost: number) => {
+    setAdjustedVehicleCosts(prev => ({
+      ...prev,
+      [vehicleId]: adjustedCost
+    }));
+    setCurrentRoic(roicPercentage);
+  };
   
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -129,6 +140,10 @@ const ResultStep: React.FC<ResultStepProps> = ({
                   ? getTaxBreakdown(vehicleItem.vehicle.value, result.contractMonths) 
                   : null;
                 
+                // Verificar se há um custo ajustado para este veículo
+                const vehicleDisplayCost = adjustedVehicleCosts[vehicleItem.vehicle.id] !== undefined ? 
+                  adjustedVehicleCosts[vehicleItem.vehicle.id] : result.totalCost;
+                
                 console.log(`Dados de impostos para veículo ${vehicleItem.vehicle.brand} ${vehicleItem.vehicle.model}:`, {
                   includeTaxes: result.includeTaxes,
                   taxCost: result.taxCost,
@@ -152,7 +167,7 @@ const ResultStep: React.FC<ResultStepProps> = ({
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium">{formatCurrency(result.totalCost)}</p>
+                        <p className="font-medium">{formatCurrency(vehicleDisplayCost)}</p>
                         <p className="text-xs text-muted-foreground">Valor mensal</p>
                       </div>
                     </div>
@@ -293,6 +308,15 @@ const ResultStep: React.FC<ResultStepProps> = ({
                         </div>
                       </div>
                     )}
+                    
+                    {/* Slider ROIC para o veículo específico */}
+                    <div className="mt-4 pt-3 border-t">
+                      <RoicSlider 
+                        totalCost={result.totalCost} 
+                        vehicleValues={[vehicleItem.vehicle.value]} 
+                        onRoicChange={(roic, adjusted) => handleVehicleRoicChange(vehicleItem.vehicle.id, roic, adjusted)}
+                      />
+                    </div>
                   </div>
                 );
               })}
@@ -301,22 +325,12 @@ const ResultStep: React.FC<ResultStepProps> = ({
         </div>
       </Card>
       
-      <Card>
-        <div className="p-6 border-b">
-          <RoicSlider 
-            totalCost={totalCost} 
-            vehicleValues={vehicleValues} 
-            onRoicChange={handleRoicChange}
-          />
-        </div>
-      </Card>
-      
       <Card className="bg-primary/5 border-primary/20">
         <div className="flex flex-col md:flex-row justify-between items-center p-6">
           <div>
             <h3 className="text-2xl font-semibold">Valor Total Mensal</h3>
             <p className="text-muted-foreground">
-              {currentRoic ? `ROIC: ${currentRoic.toFixed(1)}% a.a.` : 'Todos os impostos inclusos'}
+              {currentRoic ? `ROIC: ${currentRoic.toFixed(2)}% a.m.` : 'Todos os impostos inclusos'}
             </p>
           </div>
           <div className="mt-4 md:mt-0 text-center md:text-right">
