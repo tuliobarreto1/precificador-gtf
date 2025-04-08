@@ -185,3 +185,4 @@ const QuoteSummary: React.FC<QuoteSummaryProps> = ({ vehicle, result, showDetail
 };
 
 export default QuoteSummary;
+

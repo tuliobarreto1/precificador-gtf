@@ -300,7 +300,7 @@ const VehicleDetailCard: React.FC<VehicleDetailCardProps> = ({ vehicle, contract
         
         {/* Seção de Impostos e Taxas */}
         {hasTaxes && (
-          <Collapsible className="border-t border-b py-2 my-2">
+          <Collapsible open={taxDetailsOpen} onOpenChange={setTaxDetailsOpen} className="border-t border-b py-2 my-2">
             <div className="flex justify-between items-center">
               <CollapsibleTrigger className="flex items-center text-primary font-medium hover:underline text-sm">
                 <span>Impostos e taxas:</span>
