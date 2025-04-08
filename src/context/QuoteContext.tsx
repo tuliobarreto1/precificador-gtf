@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Client, Vehicle, VehicleGroup } from '@/lib/models';
 import { QuoteFormData, SavedQuote, QuoteContextType, QuoteCalculationResult, User, defaultUser } from './types/quoteTypes';
@@ -127,6 +126,15 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     return canDeleteQuoteById(quote.id);
   };
 
+  // Adicionando log para depurar se os valores de impostos estão definidos corretamente
+  useEffect(() => {
+    console.log("QuoteContext: Estado atual dos impostos:", {
+      includeIpva: quoteForm.globalParams.includeIpva,
+      includeLicensing: quoteForm.globalParams.includeLicensing,
+      includeTaxes: quoteForm.globalParams.includeTaxes
+    });
+  }, [quoteForm.globalParams.includeIpva, quoteForm.globalParams.includeLicensing, quoteForm.globalParams.includeTaxes]);
+
   // Export the context
   const contextValue: QuoteContextType = {
     quoteForm,
@@ -146,7 +154,21 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     resetForm,
     calculateQuote: () => {
       // Use a versão síncrona para evitar problemas de assincronicidade no contexto
-      return calculateQuoteSync();
+      const result = calculateQuoteSync();
+      console.log("QuoteContext: Resultado do cálculo:", {
+        temVeiculos: result?.vehicleResults?.length,
+        custoTotal: result?.totalCost,
+        impostos: result?.vehicleResults?.map(v => ({
+          veiculo: v.vehicleId,
+          ipvaCost: v.ipvaCost, 
+          licensingCost: v.licensingCost,
+          taxCost: v.taxCost,
+          includeIpva: v.includeIpva,
+          includeLicensing: v.includeLicensing,
+          includeTaxes: v.includeTaxes
+        }))
+      });
+      return result;
     },
     saveQuote: async () => {
       try {

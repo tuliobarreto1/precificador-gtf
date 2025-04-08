@@ -12,6 +12,9 @@ const NewQuote = () => {
   useEffect(() => {
     // Log adicional ao montar o componente para depuração
     console.log("NewQuote montado - verificando configurações de impostos");
+    
+    // Verificar configurações globais de impostos para depuração
+    console.log("Verificando se há configuração global de impostos definida");
   }, []);
   
   return (
