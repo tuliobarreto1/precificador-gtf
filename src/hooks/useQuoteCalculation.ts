@@ -58,7 +58,7 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         const ipvaCost = params.includeIpva ? (item.vehicle.value * (item.vehicleGroup.ipvaCost || 0)) / 12 : 0;
         const licensingCost = params.includeLicensing ? (item.vehicleGroup.licensingCost || 0) / 12 : 0;
         
-        // Novo: Cálculo de impostos
+        // Cálculo de impostos
         let taxCost = 0;
         if (params.includeTaxes) {
           taxCost = taxIndices.calculateTaxCost(item.vehicle.value, params.contractMonths);
@@ -202,7 +202,7 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
           });
         }
         
-        // Custo total mensal incluindo impostos - CALCULAMOS ANTES DE USAR
+        // Custo total mensal incluindo impostos
         const totalCost = totalDepreciation + maintenanceCost + trackingCost + 
                        protectionCost + ipvaCost + licensingCost + taxCost;
         

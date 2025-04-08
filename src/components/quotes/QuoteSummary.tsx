@@ -25,7 +25,9 @@ const QuoteSummary: React.FC<QuoteSummaryProps> = ({ vehicle, result, showDetail
     : null;
   
   // Verificar se há impostos incluídos
-  const hasTaxes = result.includeTaxes || result.includeIpva || result.includeLicensing;
+  const hasTaxes = (result.includeTaxes && result.taxCost > 0) || 
+                   (result.includeIpva && result.ipvaCost > 0) || 
+                   (result.includeLicensing && result.licensingCost > 0);
   
   // Calcular o total de impostos
   const totalTaxes = (result.taxCost || 0) + (result.ipvaCost || 0) + (result.licensingCost || 0);
@@ -66,7 +68,7 @@ const QuoteSummary: React.FC<QuoteSummaryProps> = ({ vehicle, result, showDetail
         )}
         
         {/* Seção de Impostos e Taxas */}
-        {hasTaxes && totalTaxes > 0 && (
+        {hasTaxes && (
           <Collapsible open={taxBreakdownOpen} onOpenChange={setTaxBreakdownOpen} className="border-t border-b py-2 my-2">
             <div className="flex justify-between items-center">
               <CollapsibleTrigger className="flex items-center text-primary font-medium hover:underline">
