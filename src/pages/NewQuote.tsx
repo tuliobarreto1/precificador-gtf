@@ -25,6 +25,9 @@ import { getAllVehicles } from '@/integrations/supabase';
 import { getClientsFromSupabase } from '@/integrations/supabase/services/clients';
 import ProtectionPlanSelector from '@/components/protection/ProtectionPlanSelector';
 import ProtectionDetails from '@/components/protection/ProtectionDetails';
+import { formatCurrency } from '@/lib/utils';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 const STEPS = [
   { id: 'client', name: 'Cliente', icon: <Users size={18} /> },
@@ -860,6 +863,14 @@ const QuoteForm = () => {
                       includeTaxes: false,
                     });
                   
+                  // Verificar se há impostos incluídos
+                  const hasTaxes = (result.includeTaxes && result.taxCost > 0) || 
+                                 (result.includeIpva && result.ipvaCost > 0) || 
+                                 (result.includeLicensing && result.licensingCost > 0);
+                  
+                  // Calcular o total de impostos
+                  const totalTaxes = (result.taxCost || 0) + (result.ipvaCost || 0) + (result.licensingCost || 0);
+                  
                   return (
                     <div key={vehicleItem.vehicle.id} className="border rounded-lg p-4 bg-muted/20">
                       <div className="flex justify-between items-start">
@@ -871,7 +882,7 @@ const QuoteForm = () => {
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-medium">R$ {result.totalCost.toLocaleString('pt-BR')}</p>
+                          <p className="font-medium">{formatCurrency(result.totalCost)}</p>
                           <p className="text-xs text-muted-foreground">Valor mensal</p>
                         </div>
                       </div>
@@ -879,11 +890,11 @@ const QuoteForm = () => {
                       <div className="mt-3 pt-3 border-t grid grid-cols-1 md:grid-cols-4 gap-2">
                         <div className="text-sm">
                           <p className="text-muted-foreground">Depreciação:</p>
-                          <p className="font-medium">R$ {result.depreciationCost.toLocaleString('pt-BR')}</p>
+                          <p className="font-medium">{formatCurrency(result.depreciationCost)}</p>
                         </div>
                         <div className="text-sm">
                           <p className="text-muted-foreground">Manutenção:</p>
-                          <p className="font-medium">R$ {result.maintenanceCost.toLocaleString('pt-BR')}</p>
+                          <p className="font-medium">{formatCurrency(result.maintenanceCost)}</p>
                         </div>
                         <div className="text-sm">
                           <p className="text-muted-foreground">Km excedente:</p>
@@ -892,25 +903,49 @@ const QuoteForm = () => {
                         {result.protectionCost > 0 && (
                           <div className="text-sm">
                             <p className="text-muted-foreground">Proteção:</p>
-                            <p className="font-medium">R$ {result.protectionCost.toLocaleString('pt-BR')}</p>
+                            <p className="font-medium">{formatCurrency(result.protectionCost)}</p>
                           </div>
                         )}
                       </div>
-                      
-                      {(params.includeIpva || params.includeLicensing) && (
-                        <div className="mt-3 pt-3 border-t grid grid-cols-1 md:grid-cols-2 gap-2">
-                          {params.includeIpva && result.ipvaCost > 0 && (
-                            <div className="text-sm">
-                              <p className="text-muted-foreground">IPVA (mensal):</p>
-                              <p className="font-medium">R$ {result.ipvaCost.toLocaleString('pt-BR')} <span className="text-xs text-muted-foreground">({((vehicleItem.vehicleGroup.ipvaCost || 0) * 100).toFixed(2)}% a.a.)</span></p>
+
+                      {/* Seção de impostos e taxas */}
+                      {hasTaxes && (
+                        <div className="mt-3 pt-3 border-t">
+                          <Collapsible className="w-full">
+                            <div className="flex justify-between items-center">
+                              <CollapsibleTrigger className="flex items-center text-primary font-medium hover:underline text-sm w-full justify-between">
+                                <span>Impostos e taxas:</span>
+                                <div className="flex items-center">
+                                  <span className="mr-2">{formatCurrency(totalTaxes)}</span>
+                                  <ChevronDown className="h-4 w-4" />
+                                </div>
+                              </CollapsibleTrigger>
                             </div>
-                          )}
-                          {params.includeLicensing && result.licensingCost > 0 && (
-                            <div className="text-sm">
-                              <p className="text-muted-foreground">Licenciamento (mensal):</p>
-                              <p className="font-medium">R$ {result.licensingCost.toLocaleString('pt-BR')}</p>
-                            </div>
-                          )}
+                            <CollapsibleContent className="pt-2">
+                              <div className="text-xs space-y-1 text-muted-foreground bg-slate-50 p-2 rounded-md">
+                                {result.includeIpva && result.ipvaCost && result.ipvaCost > 0 && (
+                                  <div className="flex justify-between">
+                                    <span>IPVA:</span>
+                                    <span>{formatCurrency(result.ipvaCost)}/mês</span>
+                                  </div>
+                                )}
+                                
+                                {result.includeLicensing && result.licensingCost && result.licensingCost > 0 && (
+                                  <div className="flex justify-between">
+                                    <span>Licenciamento:</span>
+                                    <span>{formatCurrency(result.licensingCost)}/mês</span>
+                                  </div>
+                                )}
+                                
+                                {result.includeTaxes && result.taxCost && result.taxCost > 0 && (
+                                  <div className="flex justify-between">
+                                    <span>Custos financeiros:</span>
+                                    <span>{formatCurrency(result.taxCost)}/mês</span>
+                                  </div>
+                                )}
+                              </div>
+                            </CollapsibleContent>
+                          </Collapsible>
                         </div>
                       )}
                       
@@ -946,6 +981,10 @@ const QuoteForm = () => {
                             <p className="text-muted-foreground">Licenciamento:</p>
                             <p>{params.includeLicensing ? 'Sim' : 'Não'}</p>
                           </div>
+                          <div>
+                            <p className="text-muted-foreground">Custos Financeiros:</p>
+                            <p>{params.includeTaxes ? 'Sim' : 'Não'}</p>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -964,7 +1003,7 @@ const QuoteForm = () => {
             </div>
             <div className="mt-4 md:mt-0 text-center md:text-right">
               <p className="text-3xl font-bold text-primary">
-                R$ {totalCost.toLocaleString('pt-BR')}
+                {formatCurrency(totalCost)}
               </p>
               <p className="text-sm text-muted-foreground">
                 {quoteForm?.vehicles?.length || 0} veículo(s)
