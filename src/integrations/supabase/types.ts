@@ -440,6 +440,7 @@ export type Database = {
           id: string
           include_ipva: boolean
           include_licensing: boolean
+          include_taxes: boolean
           monthly_km: number
           monthly_values: number | null
           operation_severity: number
@@ -460,6 +461,7 @@ export type Database = {
           id?: string
           include_ipva?: boolean
           include_licensing?: boolean
+          include_taxes?: boolean
           monthly_km?: number
           monthly_values?: number | null
           operation_severity?: number
@@ -480,6 +482,7 @@ export type Database = {
           id?: string
           include_ipva?: boolean
           include_licensing?: boolean
+          include_taxes?: boolean
           monthly_km?: number
           monthly_values?: number | null
           operation_severity?: number
