@@ -1,3 +1,4 @@
+
 import { supabase } from '../client';
 import { v4 as uuidv4 } from 'uuid';
 import { createOrUpdateVehicle } from './vehicles';
@@ -227,8 +228,38 @@ export async function getQuoteByIdFromSupabase(id: string) {
       return { success: true, quote: null };
     }
     
-    console.log(`Orçamento ${id} recuperado com sucesso`);
-    return { success: true, quote: data };
+    console.log(`Orçamento ${id} recuperado com sucesso:`, data);
+    
+    // Transformar os dados para incluir informações de veículos de forma mais acessível
+    const quoteWithVehicleData = {
+      ...data,
+      vehicles: data.vehicles.map((qv: any) => ({
+        ...qv,
+        vehicleId: qv.vehicle_id,
+        vehicleBrand: qv.vehicle?.brand,
+        vehicleModel: qv.vehicle?.model,
+        vehicleYear: qv.vehicle?.year,
+        vehicleValue: qv.vehicle?.value,
+        plateNumber: qv.vehicle?.plate_number,
+        vehicleGroupId: qv.vehicle?.group_id,
+        totalCost: qv.total_cost,
+        monthlyValue: qv.monthly_value,
+        depreciationCost: qv.depreciation_cost,
+        maintenanceCost: qv.maintenance_cost,
+        protectionCost: qv.protection_cost,
+        protectionPlanId: qv.protection_plan_id,
+        ipvaCost: qv.ipva_cost,
+        licensingCost: qv.licensing_cost,
+        taxCost: qv.tax_cost,
+        includeIpva: qv.include_ipva,
+        includeLicensing: qv.include_licensing,
+        includeTaxes: qv.include_taxes,
+        monthlyKm: qv.monthly_km,
+        contractMonths: qv.contract_months,
+      }))
+    };
+    
+    return { success: true, quote: quoteWithVehicleData };
   } catch (error) {
     console.error(`Erro inesperado ao buscar orçamento ${id}:`, error);
     return { success: false, error, quote: null };
@@ -312,5 +343,61 @@ export async function deleteQuoteFromSupabase(id: string) {
   } catch (error) {
     console.error(`❌ Erro inesperado ao deletar orçamento ${id}:`, error);
     return { success: false, error };
+  }
+}
+
+export async function getQuoteVehicles(quoteId: string) {
+  try {
+    if (!quoteId) {
+      return { success: false, error: "ID do orçamento não fornecido", vehicles: [] };
+    }
+    
+    const { data, error } = await supabase
+      .from('quote_vehicles')
+      .select(`
+        *,
+        vehicle:vehicle_id(*)
+      `)
+      .eq('quote_id', quoteId);
+      
+    if (error) {
+      console.error(`Erro ao buscar veículos do orçamento ${quoteId}:`, error);
+      return { success: false, error, vehicles: [] };
+    }
+    
+    if (!data || data.length === 0) {
+      console.log(`Nenhum veículo encontrado para o orçamento ${quoteId}`);
+      return { success: true, vehicles: [] };
+    }
+    
+    // Transformar os dados para incluir informações de veículos de forma mais acessível
+    const formattedVehicles = data.map(qv => ({
+      id: qv.id,
+      vehicle: qv.vehicle,
+      vehicle_id: qv.vehicle_id,
+      monthly_value: qv.monthly_value,
+      contract_months: qv.contract_months,
+      monthly_km: qv.monthly_km,
+      operation_severity: qv.operation_severity,
+      has_tracking: qv.has_tracking,
+      include_ipva: qv.include_ipva,
+      include_licensing: qv.include_licensing,
+      include_taxes: qv.include_taxes,
+      protection_plan_id: qv.protection_plan_id,
+      protection_cost: qv.protection_cost,
+      depreciation_cost: qv.depreciation_cost,
+      maintenance_cost: qv.maintenance_cost,
+      extra_km_rate: qv.extra_km_rate,
+      ipva_cost: qv.ipva_cost,
+      licensing_cost: qv.licensing_cost,
+      tax_cost: qv.tax_cost,
+      total_cost: qv.total_cost
+    }));
+    
+    console.log(`${formattedVehicles.length} veículos recuperados com sucesso para o orçamento ${quoteId}`);
+    return { success: true, vehicles: formattedVehicles };
+  } catch (error) {
+    console.error(`Erro inesperado ao buscar veículos do orçamento ${quoteId}:`, error);
+    return { success: false, error, vehicles: [] };
   }
 }

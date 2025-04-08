@@ -51,7 +51,7 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
   };
   
   // Verificar se existem impostos nos veículos
-  const hasAnyTax = quote.vehicles.some(v => 
+  const hasAnyTax = quote.vehicles && quote.vehicles.some(v => 
     (v.includeIpva && v.ipvaCost && v.ipvaCost > 0) || 
     (v.includeLicensing && v.licensingCost && v.licensingCost > 0) || 
     (v.includeTaxes && v.taxCost && v.taxCost > 0)
@@ -138,10 +138,10 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
         </div>
       </Card>
       
-      <h3 className="text-xl font-bold mt-6">Veículos ({quote.vehicles.length})</h3>
+      <h3 className="text-xl font-bold mt-6">Veículos ({quote.vehicles?.length || 0})</h3>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {quote.vehicles.map(vehicle => (
+        {quote.vehicles && quote.vehicles.map(vehicle => (
           <VehicleDetailCard 
             key={vehicle.vehicleId} 
             vehicle={vehicle} 
@@ -239,8 +239,8 @@ const VehicleDetailCard: React.FC<VehicleDetailCardProps> = ({ vehicle, contract
   
   // Obter breakdown dos impostos
   let taxBreakdown = null;
-  if (showTaxDetails && vehicle.vehicleValue && vehicle.contractMonths) {
-    taxBreakdown = getTaxBreakdown(vehicle.vehicleValue, vehicle.contractMonths);
+  if (showTaxDetails && vehicle.vehicleValue && contractMonths) {
+    taxBreakdown = getTaxBreakdown(vehicle.vehicleValue, contractMonths);
   }
   
   // Verificar se há algum imposto incluído
@@ -255,10 +255,16 @@ const VehicleDetailCard: React.FC<VehicleDetailCardProps> = ({ vehicle, contract
         <p className="text-sm mb-2">Placa: {vehicle.plateNumber}</p>
       )}
       
+      {vehicle.vehicleValue && (
+        <p className="text-sm text-muted-foreground">
+          Valor do veículo: {formatCurrency(vehicle.vehicleValue)}
+        </p>
+      )}
+      
       <div className="mt-4 space-y-2">
         <div className="flex justify-between text-sm">
           <span>Valor mensal:</span>
-          <span className="font-medium">{formatCurrency(vehicle.totalCost)}</span>
+          <span className="font-medium">{formatCurrency(vehicle.totalCost || 0)}</span>
         </div>
         
         {vehicle.monthlyKm && (
@@ -298,7 +304,11 @@ const VehicleDetailCard: React.FC<VehicleDetailCardProps> = ({ vehicle, contract
             <div className="flex justify-between items-center">
               <CollapsibleTrigger className="flex items-center text-primary font-medium hover:underline text-sm">
                 <span>Impostos e taxas:</span>
-                <ChevronDown className="h-4 w-4 ml-1" />
+                {taxDetailsOpen ? (
+                  <ChevronUp className="h-4 w-4 ml-1" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 ml-1" />
+                )}
               </CollapsibleTrigger>
               <span className="text-sm">{formatCurrency(totalTaxes)}/mês</span>
             </div>
@@ -329,7 +339,7 @@ const VehicleDetailCard: React.FC<VehicleDetailCardProps> = ({ vehicle, contract
                     {taxBreakdown && (
                       <div className="mt-2 pt-2 border-t border-slate-200">
                         <div className="flex justify-between">
-                          <span>Taxa SELIC ({vehicle.contractMonths >= 24 ? '24 meses' : vehicle.contractMonths >= 18 ? '18 meses' : '12 meses'}):</span>
+                          <span>Taxa SELIC ({contractMonths >= 24 ? '24 meses' : contractMonths >= 18 ? '18 meses' : '12 meses'}):</span>
                           <span>{taxBreakdown.selicRate.toFixed(2)}% a.a.</span>
                         </div>
                         <div className="flex justify-between">
@@ -356,7 +366,7 @@ const VehicleDetailCard: React.FC<VehicleDetailCardProps> = ({ vehicle, contract
       
       <div className="mt-4 pt-2 border-t flex justify-between">
         <span className="font-medium">Total:</span>
-        <span className="font-bold">{formatCurrency(vehicle.totalCost)}/mês</span>
+        <span className="font-bold">{formatCurrency(vehicle.totalCost || 0)}/mês</span>
       </div>
       
       {vehicle.protectionPlanId && (
