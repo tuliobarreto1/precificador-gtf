@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -8,6 +9,7 @@ import { formatCurrency } from '@/lib/utils';
 import ProtectionDetails from '@/components/protection/ProtectionDetails';
 import { useTaxIndices } from '@/hooks/useTaxIndices';
 import { EmailDialog } from '../EmailDialog';
+import RoicSlider from '../RoicSlider';
 
 interface ResultStepProps {
   quoteForm: QuoteFormData | null;
@@ -25,6 +27,8 @@ const ResultStep: React.FC<ResultStepProps> = ({
   goToPreviousStep 
 }) => {
   const { getTaxBreakdown } = useTaxIndices();
+  const [adjustedTotalCost, setAdjustedTotalCost] = useState<number | null>(null);
+  const [currentRoic, setCurrentRoic] = useState<number | null>(null);
   
   console.log("ResultStep - quoteForm:", quoteForm);
   console.log("ResultStep - result:", result);
@@ -53,6 +57,18 @@ const ResultStep: React.FC<ResultStepProps> = ({
   }
   
   const { vehicleResults, totalCost } = result;
+  
+  // Extrair os valores dos veículos para o cálculo do ROIC
+  const vehicleValues = quoteForm?.vehicles?.map(v => v.vehicle.value) || [];
+  
+  // Handler para quando o ROIC é ajustado
+  const handleRoicChange = (roicPercentage: number, adjustedTotal: number) => {
+    setCurrentRoic(roicPercentage);
+    setAdjustedTotalCost(adjustedTotal);
+  };
+  
+  // Determinar qual valor total mostrar (o original ou o ajustado pelo ROIC)
+  const displayTotalCost = adjustedTotalCost !== null ? adjustedTotalCost : totalCost;
   
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -285,15 +301,27 @@ const ResultStep: React.FC<ResultStepProps> = ({
         </div>
       </Card>
       
+      <Card>
+        <div className="p-6 border-b">
+          <RoicSlider 
+            totalCost={totalCost} 
+            vehicleValues={vehicleValues} 
+            onRoicChange={handleRoicChange}
+          />
+        </div>
+      </Card>
+      
       <Card className="bg-primary/5 border-primary/20">
         <div className="flex flex-col md:flex-row justify-between items-center p-6">
           <div>
             <h3 className="text-2xl font-semibold">Valor Total Mensal</h3>
-            <p className="text-muted-foreground">Todos os impostos inclusos</p>
+            <p className="text-muted-foreground">
+              {currentRoic ? `ROIC: ${currentRoic.toFixed(1)}% a.a.` : 'Todos os impostos inclusos'}
+            </p>
           </div>
           <div className="mt-4 md:mt-0 text-center md:text-right">
             <p className="text-3xl font-bold text-primary">
-              {formatCurrency(totalCost)}
+              {formatCurrency(displayTotalCost)}
             </p>
             <p className="text-sm text-muted-foreground">
               {quoteForm?.vehicles?.length || 0} veículo(s)

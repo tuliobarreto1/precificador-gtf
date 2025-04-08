@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, FileEdit, Car, Calendar, User, Landmark, Gauge, Shield } from 'lucide-react';
@@ -22,7 +21,9 @@ import {
 import { fetchProtectionPlanDetails } from '@/integrations/supabase/services/protectionPlans';
 import { useTaxIndices } from '@/hooks/useTaxIndices';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils';
 
 interface VehicleData {
   id: string;
@@ -77,7 +78,6 @@ const QuoteDetail = () => {
   const { toast } = useToast();
   const { getTaxBreakdown } = useTaxIndices();
 
-  // Adicionar log para depuração
   console.log("QuoteDetail - id:", id);
 
   const calculateCosts = (vehicles: VehicleData[]): VehicleData[] => {
@@ -489,21 +489,21 @@ const QuoteDetail = () => {
                               <p>R$ {Number(item?.maintenance_cost || 0).toLocaleString('pt-BR')}</p>
                             </div>
                             
-                            {item.include_ipva && (
+                            {item.include_ipva && item.ipva_cost > 0 && (
                               <div>
                                 <p className="text-muted-foreground">IPVA (mensal):</p>
                                 <p>R$ {Number(item?.ipva_cost || 0).toLocaleString('pt-BR')}</p>
                               </div>
                             )}
                             
-                            {item.include_licensing && (
+                            {item.include_licensing && item.licensing_cost > 0 && (
                               <div>
                                 <p className="text-muted-foreground">Licenciamento (mensal):</p>
                                 <p>R$ {Number(item?.licensing_cost || 0).toLocaleString('pt-BR')}</p>
                               </div>
                             )}
                             
-                            {item.include_taxes && (
+                            {item.include_taxes && item.tax_cost > 0 && (
                               <div>
                                 <p className="text-muted-foreground">Custos financeiros:</p>
                                 <p>R$ {Number(item?.tax_cost || 0).toLocaleString('pt-BR')}</p>
@@ -524,49 +524,53 @@ const QuoteDetail = () => {
                             </div>
                           )}
                           
-                          {item.include_taxes && item.tax_cost && item.tax_cost > 0 && (
-                            <Collapsible className="mt-3 pt-3 border-t">
-                              <CollapsibleTrigger className="flex items-center justify-between w-full text-sm">
-                                <div className="flex items-center">
-                                  <span className="text-muted-foreground mr-1">Custos financeiros:</span>
-                                  <span className="font-medium">
-                                    R$ {Number(item?.tax_cost || 0).toLocaleString('pt-BR')}
+                          {item.include_taxes && item.tax_cost > 0 && (
+                            <Accordion type="single" collapsible className="mt-3 pt-3 border-t">
+                              <AccordionItem value="financial-details" className="border-0">
+                                <div className="flex items-center justify-between">
+                                  <AccordionTrigger className="py-1 text-sm text-primary font-medium hover:underline">
+                                    Detalhamento dos custos financeiros
+                                  </AccordionTrigger>
+                                  <span className="text-sm font-medium">
+                                    {formatCurrency(item.tax_cost)}/mês
                                   </span>
                                 </div>
-                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                              </CollapsibleTrigger>
-                              <CollapsibleContent className="pt-2">
-                                {item.vehicle && item.vehicle.value && (
-                                  <div className="text-xs text-muted-foreground bg-slate-50 p-2 rounded-md">
-                                    <div className="grid grid-cols-2 gap-1">
+                                
+                                <AccordionContent className="pt-2">
+                                  {item.vehicle && item.vehicle.value && (
+                                    <div className="text-xs text-muted-foreground bg-slate-50 p-3 rounded-md">
                                       {(() => {
                                         const taxInfo = getTaxBreakdown(item.vehicle.value, item.contract_months);
                                         return (
-                                          <>
+                                          <div className="space-y-2">
                                             <div className="flex justify-between">
-                                              <span>Taxa SELIC:</span>
+                                              <span>Taxa SELIC ({item.contract_months >= 24 ? '24 meses' : item.contract_months >= 18 ? '18 meses' : '12 meses'}):</span>
                                               <span>{taxInfo.selicRate.toFixed(2)}% a.a.</span>
                                             </div>
                                             <div className="flex justify-between">
                                               <span>Spread financeiro:</span>
                                               <span>{taxInfo.spread.toFixed(2)}% a.a.</span>
                                             </div>
-                                            <div className="flex justify-between">
+                                            <div className="flex justify-between font-medium">
                                               <span>Taxa total anual:</span>
                                               <span>{taxInfo.totalTaxRate.toFixed(2)}% a.a.</span>
                                             </div>
                                             <div className="flex justify-between">
                                               <span>Custo anual:</span>
-                                              <span>R$ {taxInfo.annualCost.toLocaleString('pt-BR')}</span>
+                                              <span>{formatCurrency(taxInfo.annualCost)}</span>
                                             </div>
-                                          </>
+                                            <div className="flex justify-between">
+                                              <span>Custo mensal:</span>
+                                              <span>{formatCurrency(taxInfo.monthlyCost)}</span>
+                                            </div>
+                                          </div>
                                         );
                                       })()}
                                     </div>
-                                  </div>
-                                )}
-                              </CollapsibleContent>
-                            </Collapsible>
+                                  )}
+                                </AccordionContent>
+                              </AccordionItem>
+                            </Accordion>
                           )}
                         </div>
                       </VehicleCard>
