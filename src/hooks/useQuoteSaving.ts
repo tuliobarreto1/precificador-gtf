@@ -19,11 +19,22 @@ export function useQuoteSaving(
   const [loadingSavedQuotes, setLoadingSavedQuotes] = useState(false);
 
   useEffect(() => {
+    loadSavedQuotes(); // Carrega os orçamentos ao montar o componente
+    
     try {
       const storedQuotes = localStorage.getItem(SAVED_QUOTES_KEY);
       if (storedQuotes) {
         const parsedQuotes = JSON.parse(storedQuotes);
-        setSavedQuotes(parsedQuotes);
+        setSavedQuotes(prevQuotes => {
+          // Mesclar orçamentos locais com os já carregados do Supabase
+          const merged = [...prevQuotes];
+          for (const localQuote of parsedQuotes) {
+            if (!merged.some(q => q.id === localQuote.id)) {
+              merged.push(localQuote);
+            }
+          }
+          return merged;
+        });
         console.log('Cotações carregadas do localStorage:', parsedQuotes);
       }
     } catch (error) {
@@ -80,10 +91,55 @@ export function useQuoteSaving(
         
         if (!success || error) {
           console.error('❌ Erro ao salvar orçamento via serviço:', error);
-          return false;
+          return await fallbackSaveQuote(quoteData, vehicleResults);
         }
         
-        console.log('✅ Orçamento salvo com sucesso via serviço:', quote);
+        console.log('✅ Orçamento base salvo com sucesso via serviço:', quote);
+        
+        // Salvar veículos do orçamento
+        for (let i = 0; i < quoteForm.vehicles.length; i++) {
+          const vehicleItem = quoteForm.vehicles[i];
+          const vehicleResult = vehicleResults.find(r => r.vehicleId === vehicleItem.vehicle.id);
+          
+          if (!vehicleResult) {
+            console.error(`⚠️ Resultado não encontrado para veículo ${vehicleItem.vehicle.id}`);
+            continue;
+          }
+          
+          const params = quoteForm.useGlobalParams 
+            ? quoteForm.globalParams 
+            : (vehicleItem.params || quoteForm.globalParams);
+            
+          // Preparar dados do veículo para o orçamento
+          const vehicleData = {
+            quoteId: quoteData.id,
+            vehicle: vehicleItem.vehicle,
+            monthlyValue: vehicleResult.totalCost,
+            params: params,
+            protectionPlanId: params.protectionPlanId,
+            depreciationCost: vehicleResult.depreciationCost,
+            maintenanceCost: vehicleResult.maintenanceCost,
+            extraKmRate: vehicleResult.extraKmRate,
+            protectionCost: vehicleResult.protectionCost,
+            ipvaCost: vehicleResult.ipvaCost,
+            licensingCost: vehicleResult.licensingCost,
+            taxCost: vehicleResult.taxCost,
+            totalCost: vehicleResult.totalCost
+          };
+          
+          try {
+            const { success, error } = await import('@/integrations/supabase/services/quotes')
+              .then(module => module.addVehicleToQuote(vehicleData));
+              
+            if (!success || error) {
+              console.error(`❌ Erro ao adicionar veículo ${vehicleItem.vehicle.id} ao orçamento:`, error);
+            } else {
+              console.log(`✅ Veículo ${i+1} adicionado ao orçamento com sucesso`);
+            }
+          } catch (vehicleError) {
+            console.error(`❌ Erro ao adicionar veículo ${vehicleItem.vehicle.id}:`, vehicleError);
+          }
+        }
         
         // Atualizar lista de orçamentos salvos
         await loadSavedQuotes();
@@ -179,7 +235,7 @@ export function useQuoteSaving(
           console.log('✅ Novo veículo criado com sucesso:', newVehicle);
         }
           
-        // Adicionar veículo ao orçamento com dados de impostos - CORREÇÃO AQUI: operationSeverity em vez de operation_severity
+        // Adicionar veículo ao orçamento com dados de impostos
         const { error: vehicleError } = await supabase
           .from('quote_vehicles')
           .insert({
@@ -187,7 +243,7 @@ export function useQuoteSaving(
             vehicle_id: vehicleId,
             contract_months: params.contractMonths,
             monthly_km: params.monthlyKm,
-            operation_severity: params.operationSeverity, // Corrigido: operationSeverity em vez de operation_severity
+            operation_severity: params.operationSeverity, 
             has_tracking: params.hasTracking,
             include_ipva: params.includeIpva,
             include_licensing: params.includeLicensing,
@@ -283,33 +339,20 @@ export function useQuoteSaving(
           console.error('❌ Erro ao registrar log de exclusão:', logError);
         }
         
-        // Primeiro excluir os veículos relacionados
+        // Excluir usando o serviço
         try {
-          const { error: vehiclesError } = await supabase
-            .from('quote_vehicles')
-            .delete()
-            .eq('quote_id', quoteId);
+          const { success, error } = await import('@/integrations/supabase/services/quotes')
+            .then(module => module.deleteQuoteFromSupabase(quoteId));
             
-          if (vehiclesError) {
-            console.error('❌ Erro ao excluir veículos do orçamento:', vehiclesError);
-          } else {
-            console.log('✅ Veículos excluídos com sucesso');
+          if (!success || error) {
+            console.error('❌ Erro ao excluir orçamento via serviço:', error);
+            return false;
           }
-        } catch (vehicleError) {
-          console.error('❌ Erro ao excluir veículos:', vehicleError);
-        }
-        
-        // Após excluir os veículos, excluir o orçamento
-        const { error } = await supabase
-          .from('quotes')
-          .delete()
-          .eq('id', quoteId);
-        
-        if (error) {
-          console.error('❌ Erro ao excluir orçamento do Supabase:', error);
+          
+          console.log('✅ Orçamento excluído via serviço com sucesso');
+        } catch (serviceError) {
+          console.error('❌ Erro ao excluir via serviço:', serviceError);
           return false;
-        } else {
-          console.log('✅ Orçamento excluído do Supabase com sucesso');
         }
       } else {
         console.log('Orçamento local excluído. Usuário:', getCurrentUser(), 'Orçamento:', quoteToDelete);
@@ -374,6 +417,9 @@ export function useQuoteSaving(
           monthly_km,
           operation_severity,
           has_tracking,
+          include_ipva,
+          include_licensing,
+          include_taxes,
           global_protection_plan_id,
           clients:client_id (name),
           quote_vehicles (
@@ -384,6 +430,9 @@ export function useQuoteSaving(
             monthly_km,
             protection_plan_id,
             protection_cost,
+            ipva_cost,
+            licensing_cost,
+            tax_cost,
             vehicles:vehicle_id (brand, model, plate_number, group_id)
           )
         `)
@@ -403,6 +452,9 @@ export function useQuoteSaving(
           totalCost: qv.total_cost,
           contractMonths: qv.contract_months,
           monthlyKm: qv.monthly_km,
+          ipvaCost: qv.ipva_cost || 0,
+          licensingCost: qv.licensing_cost || 0,
+          taxCost: qv.tax_cost || 0,
           plateNumber: qv.vehicles?.plate_number,
           vehicleGroupId: qv.vehicles?.group_id
         })) || [];
@@ -423,14 +475,15 @@ export function useQuoteSaving(
             operationSeverity: quote.operation_severity,
             hasTracking: quote.has_tracking,
             protectionPlanId: quote.global_protection_plan_id,
-            includeIpva: false,
-            includeLicensing: false,
-            includeTaxes: false
+            includeIpva: quote.include_ipva || false,
+            includeLicensing: quote.include_licensing || false,
+            includeTaxes: quote.include_taxes || false
           }
         };
       }) || [];
       
       setSavedQuotes(mappedQuotes);
+      console.log('📊 Orçamentos carregados:', mappedQuotes.length, mappedQuotes);
       return mappedQuotes;
       
     } catch (error) {
@@ -441,39 +494,15 @@ export function useQuoteSaving(
     }
   };
 
-  // Importando a função saveQuoteToSupabase para usar diretamente
-  const saveQuoteToSupabase = async (quoteData: any) => {
-    try {
-      // Remover completamente o campo created_by para evitar o erro de chave estrangeira
-      const { created_by, ...quoteDataWithoutCreatedBy } = quoteData;
-      
-      console.log("Preparando dados para salvar no Supabase (sem created_by):", quoteDataWithoutCreatedBy);
-      
-      const { data, error } = await supabase
-        .from('quotes')
-        .insert(quoteDataWithoutCreatedBy)
-        .select();
-        
-      if (error) {
-        console.error("Erro ao salvar orçamento via serviço integrado:", error);
-        return { success: false, error };
-      }
-      
-      console.log("Orçamento salvo com sucesso via serviço integrado:", data);
-      return { success: true, quote: data[0] };
-    } catch (error) {
-      console.error("Erro inesperado ao salvar orçamento via serviço integrado:", error);
-      return { success: false, error };
-    }
-  };
-
   return {
     savedQuotes,
     isEditMode,
     currentEditingQuoteId,
+    loadingSavedQuotes,
     saveQuote,
     updateQuote,
     deleteQuote,
-    loadQuoteForEditing
+    loadQuoteForEditing,
+    loadSavedQuotes
   };
 }

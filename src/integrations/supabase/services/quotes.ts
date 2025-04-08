@@ -1,4 +1,3 @@
-
 import { supabase } from '../client';
 import { v4 as uuidv4 } from 'uuid';
 import { createOrUpdateVehicle } from './vehicles';
@@ -8,7 +7,6 @@ export async function saveQuoteToSupabase(quoteData: any) {
     console.log("Iniciando salvamento de orçamento:", quoteData);
     
     // Garantir que o quoteId seja um UUID válido
-    // Se o ID for um número (timestamp) ou não for um formato UUID válido, gerar um novo
     let quoteId = quoteData.id;
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     
@@ -54,20 +52,20 @@ export async function saveQuoteToSupabase(quoteData: any) {
     const quoteToSave = {
       id: quoteId,
       title: quoteData.title || `Orçamento ${new Date().toLocaleDateString()}`,
-      client_id: typeof quoteData.clientId === 'object' ? null : quoteData.clientId,
-      vehicle_id: vehicleId, // Usar o UUID válido gerado ou null se não houver veículo
-      contract_months: quoteData.contractMonths || 12,
-      monthly_km: quoteData.monthlyKm || 2000,
-      operation_severity: quoteData.operationSeverity || 3,
-      has_tracking: quoteData.hasTracking || false,
-      include_ipva: quoteData.includeIpva || false,
-      include_licensing: quoteData.includeLicensing || false,
-      include_taxes: quoteData.includeTaxes || false,
-      total_value: quoteData.totalCost || 0,
-      monthly_values: quoteData.monthlyValue || 0,
+      client_id: typeof quoteData.client_id === 'object' ? null : quoteData.client_id,
+      vehicle_id: vehicleId,
+      contract_months: quoteData.contract_months || 12,
+      monthly_km: quoteData.monthly_km || 2000,
+      operation_severity: quoteData.operation_severity || 3,
+      has_tracking: quoteData.has_tracking || false,
+      include_ipva: quoteData.include_ipva || false,
+      include_licensing: quoteData.include_licensing || false,
+      include_taxes: quoteData.include_taxes || false,
+      total_value: quoteData.total_value || 0,
+      monthly_values: quoteData.monthly_values || 0,
       status: quoteData.status || 'ORCAMENTO',
-      status_flow: quoteData.statusFlow || 'ORCAMENTO',
-      created_by: typeof quoteData.createdBy === 'object' ? null : quoteData.createdBy,
+      status_flow: quoteData.status_flow || 'ORCAMENTO',
+      global_protection_plan_id: quoteData.global_protection_plan_id || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -86,128 +84,89 @@ export async function saveQuoteToSupabase(quoteData: any) {
     }
     
     console.log("Orçamento salvo com sucesso:", data);
-    
-    // Se temos veículos para salvar no orçamento
-    if (quoteData.vehicles && Array.isArray(quoteData.vehicles) && quoteData.vehicles.length > 0) {
-      try {
-        console.log(`Processando ${quoteData.vehicles.length} veículos para o orçamento`);
-        
-        // Para cada veículo no orçamento
-        for (const vehicleItem of quoteData.vehicles) {
-          // Primeiro, salvar ou atualizar o veículo na tabela vehicles
-          const vehicle = vehicleItem.vehicle;
-          
-          if (!vehicle) {
-            console.warn("Item de veículo sem dados de veículo, pulando...");
-            continue;
-          }
-          
-          // Preparar dados do veículo para salvar
-          const vehicleToSave = {
-            id: vehicle.id,
-            brand: vehicle.brand || '',
-            model: vehicle.model || '',
-            year: vehicle.year || new Date().getFullYear(),
-            value: vehicle.value || 0,
-            plate_number: vehicle.plateNumber,
-            color: vehicle.color,
-            is_used: vehicle.isUsed || false,
-            odometer: vehicle.odometer || 0,
-            group_id: vehicle.groupId,
-            fuel_type: vehicle.fuelType
-          };
-          
-          // Salvar o veículo na tabela de veículos
-          const { success, data: savedVehicle, error: vehicleError } = await createOrUpdateVehicle(vehicleToSave);
-          
-          if (!success || vehicleError) {
-            console.error(`Erro ao salvar veículo ${vehicleToSave.id} para o orçamento:`, vehicleError);
-            continue; // Pular para o próximo veículo
-          }
-          
-          console.log(`Veículo salvo com sucesso:`, savedVehicle);
-          
-          // Verificar se temos parâmetros específicos para este veículo ou se usa os globais
-          const useGlobalParams = quoteData.useGlobalParams !== false; // padrão é true
-          
-          // Obter os parâmetros corretos para este veículo (específicos ou globais)
-          const params = useGlobalParams 
-            ? {
-                monthly_km: quoteData.monthlyKm || 2000,
-                contract_months: quoteData.contractMonths || 12,
-                operation_severity: quoteData.operationSeverity || 3,
-                has_tracking: quoteData.hasTracking || false,
-                include_ipva: quoteData.includeIpva || false,
-                include_licensing: quoteData.includeLicensing || false,
-                include_taxes: quoteData.includeTaxes || false
-              }
-            : (vehicleItem.params 
-                ? {
-                    monthly_km: vehicleItem.params.monthlyKm || quoteData.monthlyKm || 2000,
-                    contract_months: vehicleItem.params.contractMonths || quoteData.contractMonths || 12,
-                    operation_severity: vehicleItem.params.operationSeverity || quoteData.operationSeverity || 3,
-                    has_tracking: vehicleItem.params.hasTracking !== undefined ? vehicleItem.params.hasTracking : quoteData.hasTracking || false,
-                    include_ipva: vehicleItem.params.includeIpva !== undefined ? vehicleItem.params.includeIpva : quoteData.includeIpva || false,
-                    include_licensing: vehicleItem.params.includeLicensing !== undefined ? vehicleItem.params.includeLicensing : quoteData.includeLicensing || false,
-                    include_taxes: vehicleItem.params.includeTaxes !== undefined ? vehicleItem.params.includeTaxes : quoteData.includeTaxes || false
-                  }
-                : {
-                    monthly_km: quoteData.monthlyKm || 2000,
-                    contract_months: quoteData.contractMonths || 12,
-                    operation_severity: quoteData.operationSeverity || 3,
-                    has_tracking: quoteData.hasTracking || false,
-                    include_ipva: quoteData.includeIpva || false,
-                    include_licensing: quoteData.includeLicensing || false,
-                    include_taxes: quoteData.includeTaxes || false
-                  });
-          
-          console.log(`Parâmetros para o veículo ${savedVehicle.id}:`, params);
-          
-          // Agora que o veículo está salvo, adicionar a relação na quote_vehicles
-          const vehicleDataToSave = {
-            quote_id: quoteId,
-            vehicle_id: savedVehicle.id,
-            monthly_value: vehicleItem.monthlyValue || vehicleItem.totalCost || 0,
-            monthly_km: params.monthly_km,
-            contract_months: params.contract_months,
-            operation_severity: params.operation_severity,
-            has_tracking: params.has_tracking,
-            include_ipva: params.include_ipva,
-            include_licensing: params.include_licensing,
-            include_taxes: params.include_taxes,
-            ipva_cost: vehicleItem.ipvaCost || 0,
-            licensing_cost: vehicleItem.licensingCost || 0,
-            depreciation_cost: vehicleItem.depreciationCost || 0,
-            maintenance_cost: vehicleItem.maintenanceCost || 0,
-            extra_km_rate: vehicleItem.extraKmRate || 0,
-            tax_cost: vehicleItem.taxCost || 0,
-            total_cost: vehicleItem.totalCost || 0,
-            protection_cost: vehicleItem.protectionCost || 0,
-            protection_plan_id: vehicleItem.protectionPlanId || null
-          };
-          
-          console.log(`Adicionando veículo ao orçamento:`, vehicleDataToSave);
-          
-          const { error: addVehicleError } = await supabase
-            .from('quote_vehicles')
-            .upsert(vehicleDataToSave);
-            
-          if (addVehicleError) {
-            console.error(`Erro ao adicionar veículo ${savedVehicle.id} ao orçamento:`, addVehicleError);
-          } else {
-            console.log(`Veículo ${savedVehicle.id} adicionado com sucesso ao orçamento ${quoteId}`);
-          }
-        }
-        console.log("Veículos adicionados ao orçamento com sucesso");
-      } catch (vehicleError) {
-        console.error("Erro ao adicionar veículos ao orçamento:", vehicleError);
-        // Não falhar o processo principal se os veículos falharem
-      }
-    }
-    
     return { success: true, quote: data };
   } catch (error) {
     console.error("Erro inesperado ao salvar orçamento:", error);
+    return { success: false, error };
+  }
+}
+
+export async function addVehicleToQuote(vehicleData: any) {
+  try {
+    console.log("Adicionando veículo ao orçamento:", vehicleData);
+    
+    if (!vehicleData.quoteId || !vehicleData.vehicle) {
+      return { success: false, error: "Dados insuficientes para adicionar veículo" };
+    }
+    
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    
+    // Verificar se o veículo existe ou precisa ser criado
+    let vehicleId = vehicleData.vehicle.id;
+    
+    if (!uuidRegex.test(vehicleId.toString()) || vehicleId.toString().startsWith('new-')) {
+      // Criar um novo veículo
+      const newVehicleData = {
+        id: uuidv4(),
+        brand: vehicleData.vehicle.brand || 'Não especificado',
+        model: vehicleData.vehicle.model || 'Não especificado',
+        year: vehicleData.vehicle.year || new Date().getFullYear(),
+        value: vehicleData.vehicle.value || 0,
+        plate_number: vehicleData.vehicle.plateNumber,
+        is_used: vehicleData.vehicle.isUsed || false,
+        group_id: vehicleData.vehicle.groupId
+      };
+      
+      const { success, data: savedVehicle, error } = await createOrUpdateVehicle(newVehicleData);
+      
+      if (!success || error) {
+        console.error("Erro ao criar veículo para o orçamento:", error);
+        return { success: false, error };
+      }
+      
+      vehicleId = savedVehicle.id;
+      console.log("Novo veículo criado com sucesso:", savedVehicle);
+    }
+    
+    // Preparar dados para o veículo no orçamento
+    const quoteVehicleData = {
+      quote_id: vehicleData.quoteId,
+      vehicle_id: vehicleId,
+      monthly_value: vehicleData.monthlyValue || 0,
+      contract_months: vehicleData.params?.contractMonths || 24,
+      monthly_km: vehicleData.params?.monthlyKm || 3000,
+      operation_severity: vehicleData.params?.operationSeverity || 3,
+      has_tracking: vehicleData.params?.hasTracking || false,
+      include_ipva: vehicleData.params?.includeIpva || false,
+      include_licensing: vehicleData.params?.includeLicensing || false,
+      include_taxes: vehicleData.params?.includeTaxes || false,
+      protection_plan_id: vehicleData.protectionPlanId || null,
+      protection_cost: vehicleData.protectionCost || 0,
+      depreciation_cost: vehicleData.depreciationCost || 0,
+      maintenance_cost: vehicleData.maintenanceCost || 0,
+      extra_km_rate: vehicleData.extraKmRate || 0,
+      ipva_cost: vehicleData.ipvaCost || 0,
+      licensing_cost: vehicleData.licensingCost || 0,
+      tax_cost: vehicleData.taxCost || 0,
+      total_cost: vehicleData.totalCost || 0
+    };
+    
+    console.log("Dados do veículo para o orçamento:", quoteVehicleData);
+    
+    const { data, error } = await supabase
+      .from('quote_vehicles')
+      .upsert(quoteVehicleData)
+      .select();
+      
+    if (error) {
+      console.error("Erro ao adicionar veículo ao orçamento:", error);
+      return { success: false, error };
+    }
+    
+    console.log("Veículo adicionado ao orçamento com sucesso:", data);
+    return { success: true, data };
+  } catch (error) {
+    console.error("Erro inesperado ao adicionar veículo ao orçamento:", error);
     return { success: false, error };
   }
 }
