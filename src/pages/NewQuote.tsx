@@ -28,6 +28,8 @@ import ProtectionDetails from '@/components/protection/ProtectionDetails';
 import { formatCurrency } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { useTaxIndices } from '@/hooks/useTaxIndices';
 
 const STEPS = [
   { id: 'client', name: 'Cliente', icon: <Users size={18} /> },
@@ -147,6 +149,7 @@ const QuoteForm = () => {
   const loadAttemptedRef = useRef(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { getTaxBreakdown } = useTaxIndices();
   
   const emptyQuoteForm = {
     client: null,
@@ -871,6 +874,11 @@ const QuoteForm = () => {
                   // Calcular o total de impostos
                   const totalTaxes = (result.taxCost || 0) + (result.ipvaCost || 0) + (result.licensingCost || 0);
                   
+                  // Obter breakdown dos impostos
+                  const taxBreakdown = result.includeTaxes && result.contractMonths 
+                    ? getTaxBreakdown(vehicleItem.vehicle.value, result.contractMonths) 
+                    : null;
+                  
                   return (
                     <div key={vehicleItem.vehicle.id} className="border rounded-lg p-4 bg-muted/20">
                       <div className="flex justify-between items-start">
@@ -908,44 +916,81 @@ const QuoteForm = () => {
                         )}
                       </div>
 
-                      {/* Seção de impostos e taxas */}
+                      {/* Seção de impostos e taxas com Accordion */}
                       {hasTaxes && (
                         <div className="mt-3 pt-3 border-t">
-                          <Collapsible className="w-full">
-                            <div className="flex justify-between items-center">
-                              <CollapsibleTrigger className="flex items-center text-primary font-medium hover:underline text-sm w-full justify-between">
-                                <span>Impostos e taxas:</span>
-                                <div className="flex items-center">
-                                  <span className="mr-2">{formatCurrency(totalTaxes)}</span>
-                                  <ChevronDown className="h-4 w-4" />
-                                </div>
-                              </CollapsibleTrigger>
-                            </div>
-                            <CollapsibleContent className="pt-2">
-                              <div className="text-xs space-y-1 text-muted-foreground bg-slate-50 p-2 rounded-md">
-                                {result.includeIpva && result.ipvaCost && result.ipvaCost > 0 && (
-                                  <div className="flex justify-between">
-                                    <span>IPVA:</span>
-                                    <span>{formatCurrency(result.ipvaCost)}/mês</span>
-                                  </div>
-                                )}
-                                
-                                {result.includeLicensing && result.licensingCost && result.licensingCost > 0 && (
-                                  <div className="flex justify-between">
-                                    <span>Licenciamento:</span>
-                                    <span>{formatCurrency(result.licensingCost)}/mês</span>
-                                  </div>
-                                )}
-                                
-                                {result.includeTaxes && result.taxCost && result.taxCost > 0 && (
-                                  <div className="flex justify-between">
-                                    <span>Custos financeiros:</span>
-                                    <span>{formatCurrency(result.taxCost)}/mês</span>
-                                  </div>
-                                )}
+                          <Accordion type="single" collapsible>
+                            <AccordionItem value="taxes" className="border-0">
+                              <div className="flex justify-between items-center">
+                                <AccordionTrigger className="py-1 text-sm text-primary font-medium hover:underline">
+                                  Impostos e taxas:
+                                </AccordionTrigger>
+                                <span className="text-sm font-medium">{formatCurrency(totalTaxes)}/mês</span>
                               </div>
-                            </CollapsibleContent>
-                          </Collapsible>
+                              
+                              <AccordionContent className="py-2">
+                                <div className="text-sm space-y-2 text-muted-foreground bg-slate-50 p-3 rounded-md">
+                                  {result.includeIpva && result.ipvaCost && result.ipvaCost > 0 && (
+                                    <div className="flex justify-between">
+                                      <span>IPVA:</span>
+                                      <span>{formatCurrency(result.ipvaCost)}/mês</span>
+                                    </div>
+                                  )}
+                                  
+                                  {result.includeLicensing && result.licensingCost && result.licensingCost > 0 && (
+                                    <div className="flex justify-between">
+                                      <span>Licenciamento:</span>
+                                      <span>{formatCurrency(result.licensingCost)}/mês</span>
+                                    </div>
+                                  )}
+                                  
+                                  {result.includeTaxes && result.taxCost && result.taxCost > 0 && (
+                                    <>
+                                      <div className="flex justify-between">
+                                        <span>Custos financeiros:</span>
+                                        <span>{formatCurrency(result.taxCost)}/mês</span>
+                                      </div>
+                                      
+                                      {taxBreakdown && (
+                                        <Accordion type="single" collapsible className="mt-2">
+                                          <AccordionItem value="finance-details" className="border-0">
+                                            <AccordionTrigger className="text-xs text-primary hover:underline py-1">
+                                              Detalhamento dos custos financeiros
+                                            </AccordionTrigger>
+                                            
+                                            <AccordionContent className="pt-2">
+                                              <div className="space-y-2 text-xs pl-2 border-l-2 border-slate-200 mt-1">
+                                                <div className="flex justify-between">
+                                                  <span>Taxa SELIC ({result.contractMonths >= 24 ? '24 meses' : result.contractMonths >= 18 ? '18 meses' : '12 meses'}):</span>
+                                                  <span>{taxBreakdown.selicRate.toFixed(2)}% a.a.</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                  <span>Spread financeiro:</span>
+                                                  <span>{taxBreakdown.spread.toFixed(2)}% a.a.</span>
+                                                </div>
+                                                <div className="flex justify-between font-medium">
+                                                  <span>Taxa total anual:</span>
+                                                  <span>{taxBreakdown.totalTaxRate.toFixed(2)}% a.a.</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                  <span>Custo anual:</span>
+                                                  <span>{formatCurrency(taxBreakdown.annualCost)}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                  <span>Custo mensal:</span>
+                                                  <span>{formatCurrency(taxBreakdown.monthlyCost)}</span>
+                                                </div>
+                                              </div>
+                                            </AccordionContent>
+                                          </AccordionItem>
+                                        </Accordion>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
                         </div>
                       )}
                       
