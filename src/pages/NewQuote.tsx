@@ -6,6 +6,9 @@ import { QuoteProvider } from '@/context/QuoteContext';
 import QuoteForm from '@/components/quote/QuoteForm';
 
 const NewQuote = () => {
+  // Adicionando console.log para verificar renderização da página
+  console.log("Renderizando página NewQuote");
+  
   return (
     <MainLayout>
       <QuoteProvider>

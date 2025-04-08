@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, FileEdit, Car, Calendar, User, Landmark, Gauge, Shield } from 'lucide-react';
@@ -75,6 +76,9 @@ const QuoteDetail = () => {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { getTaxBreakdown } = useTaxIndices();
+
+  // Adicionar log para depuração
+  console.log("QuoteDetail - id:", id);
 
   const calculateCosts = (vehicles: VehicleData[]): VehicleData[] => {
     if (!vehicles || !Array.isArray(vehicles)) {
@@ -176,6 +180,7 @@ const QuoteDetail = () => {
             
             if (vehiclesData.length > 0) {
               const vehiclesWithCosts = calculateCosts(vehiclesData);
+              console.log("Veículos com custos calculados:", vehiclesWithCosts);
               setVehicles(vehiclesWithCosts);
               
               for (const vehicle of vehiclesWithCosts) {
@@ -353,11 +358,11 @@ const QuoteDetail = () => {
             </div>
             <PageTitle 
               title={`Orçamento #${id?.substring(0, 8)}`} 
-              subtitle={`Cliente: ${client?.name || 'Não especificado'}`}
+              subtitle={`Cliente: ${quote?.client?.name || 'Não especificado'}`}
             />
           </div>
           
-          <StatusBreadcrumb currentStatus={status as QuoteStatusFlow} />
+          <StatusBreadcrumb currentStatus={quote?.status_flow as QuoteStatusFlow} />
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -579,7 +584,7 @@ const QuoteDetail = () => {
               <div className="p-6">
                 <StatusUpdater 
                   quoteId={id || ''} 
-                  currentStatus={status as QuoteStatusFlow} 
+                  currentStatus={quote?.status_flow as QuoteStatusFlow} 
                   onStatusChange={handleStatusChange}
                   onUpdate={handleUpdate}
                 />

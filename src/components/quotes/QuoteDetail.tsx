@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { SavedQuote, SavedVehicle } from '@/context/types/quoteTypes';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
@@ -36,6 +35,8 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { getTaxBreakdown } = useTaxIndices();
   
+  console.log("Dados da cotação recebidos no QuoteDetail:", quote);
+  
   const handleSendEmail = async () => {
     if (!email) return;
     
@@ -50,14 +51,12 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
     }
   };
   
-  // Verificar se existem impostos nos veículos
   const hasAnyTax = quote.vehicles && quote.vehicles.some(v => 
     (v.includeIpva && v.ipvaCost && v.ipvaCost > 0) || 
     (v.includeLicensing && v.licensingCost && v.licensingCost > 0) || 
     (v.includeTaxes && v.taxCost && v.taxCost > 0)
   );
   
-  // Calcular total de impostos para cada veículo
   const calculateVehicleTaxes = (vehicle: SavedVehicle): number => {
     let total = 0;
     if (vehicle.includeIpva && vehicle.ipvaCost) total += vehicle.ipvaCost;
@@ -150,7 +149,6 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
         ))}
       </div>
       
-      {/* Email Dialog */}
       <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
         <DialogContent>
           <DialogHeader>
@@ -194,7 +192,6 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
         </DialogContent>
       </Dialog>
       
-      {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent>
           <DialogHeader>
@@ -227,26 +224,36 @@ const VehicleDetailCard: React.FC<VehicleDetailCardProps> = ({ vehicle, contract
   const { getTaxBreakdown } = useTaxIndices();
   const [taxDetailsOpen, setTaxDetailsOpen] = useState(false);
   
-  // Verificar se deve mostrar detalhes de impostos
+  console.log("Dados do veículo no VehicleDetailCard:", vehicle);
+  
   const showTaxDetails = vehicle.includeTaxes && vehicle.taxCost !== undefined && vehicle.taxCost > 0;
   
-  // Calcular total de impostos
   const totalTaxes = (
     (vehicle.includeIpva && vehicle.ipvaCost ? vehicle.ipvaCost : 0) + 
     (vehicle.includeLicensing && vehicle.licensingCost ? vehicle.licensingCost : 0) + 
     (vehicle.includeTaxes && vehicle.taxCost ? vehicle.taxCost : 0)
   );
   
-  // Obter breakdown dos impostos
   let taxBreakdown = null;
   if (showTaxDetails && vehicle.vehicleValue && contractMonths) {
     taxBreakdown = getTaxBreakdown(vehicle.vehicleValue, contractMonths);
+    console.log("Tax breakdown calculado:", taxBreakdown);
   }
   
-  // Verificar se há algum imposto incluído
   const hasTaxes = (vehicle.includeIpva && vehicle.ipvaCost && vehicle.ipvaCost > 0) || 
                   (vehicle.includeLicensing && vehicle.licensingCost && vehicle.licensingCost > 0) || 
                   (vehicle.includeTaxes && vehicle.taxCost && vehicle.taxCost > 0);
+  
+  console.log("Dados de impostos:", {
+    includeIpva: vehicle.includeIpva,
+    ipvaCost: vehicle.ipvaCost,
+    includeLicensing: vehicle.includeLicensing,
+    licensingCost: vehicle.licensingCost,
+    includeTaxes: vehicle.includeTaxes,
+    taxCost: vehicle.taxCost,
+    hasTaxes: hasTaxes,
+    totalTaxes: totalTaxes
+  });
   
   return (
     <Card className="p-4">
@@ -298,7 +305,6 @@ const VehicleDetailCard: React.FC<VehicleDetailCardProps> = ({ vehicle, contract
           </div>
         )}
         
-        {/* Seção de Impostos e Taxas */}
         {hasTaxes && (
           <Collapsible open={taxDetailsOpen} onOpenChange={setTaxDetailsOpen} className="border-t border-b py-2 my-2">
             <div className="flex justify-between items-center">
@@ -353,6 +359,10 @@ const VehicleDetailCard: React.FC<VehicleDetailCardProps> = ({ vehicle, contract
                         <div className="flex justify-between">
                           <span>Custo anual:</span>
                           <span>{formatCurrency(taxBreakdown.annualCost)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Custo mensal:</span>
+                          <span>{formatCurrency(taxBreakdown.monthlyCost)}</span>
                         </div>
                       </div>
                     )}

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Car, Info, Shield, ChevronDown, ChevronUp } from 'lucide-react';
 import {
   Card,
@@ -38,6 +38,25 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
   disabled = false
 }) => {
   const { getTaxBreakdown } = useTaxIndices();
+  
+  // Adicionando log para depuração
+  console.log("VehicleCard - dados do veículo:", vehicle);
+  
+  useEffect(() => {
+    // Log para verificar os dados de impostos no carregamento
+    if (vehicle && vehicle.include_taxes) {
+      console.log("VehicleCard - dados de impostos:", {
+        includeIpva: vehicle.include_ipva || vehicle.includeIpva,
+        ipvaCost: vehicle.ipva_cost || vehicle.ipvaCost,
+        includeLicensing: vehicle.include_licensing || vehicle.includeLicensing,
+        licensingCost: vehicle.licensing_cost || vehicle.licensingCost,
+        includeTaxes: vehicle.include_taxes || vehicle.includeTaxes,
+        taxCost: vehicle.tax_cost || vehicle.taxCost,
+        vehicleValue: vehicle.vehicle?.value || vehicle?.value,
+        contractMonths: vehicle.contract_months || vehicle.contractMonths || 24
+      });
+    }
+  }, [vehicle]);
   
   // Se o veículo for nulo ou undefined, retornamos um card vazio
   if (!vehicle) {
@@ -106,6 +125,16 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
   // Obter breakdown dos impostos se aplicável
   const contractMonths = vehicle.contract_months || vehicle.contractMonths || 24;
   const taxBreakdown = includeTaxes && value && contractMonths ? getTaxBreakdown(value, contractMonths) : null;
+  
+  // Adicionar log de debug para o breakdown dos impostos
+  if (includeTaxes && taxBreakdown) {
+    console.log("VehicleCard - Tax breakdown calculado:", {
+      vehicle: `${brand} ${model}`,
+      value,
+      contractMonths,
+      taxBreakdown
+    });
+  }
   
   return (
     <Card className={`${disabled ? 'opacity-70' : ''}`}>

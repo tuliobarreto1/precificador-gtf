@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -121,7 +120,6 @@ export function useTaxIndices() {
     }
   };
   
-  // Função para atualizar índices
   const updateIndices = async (newIndices: Partial<Indices>): Promise<boolean> => {
     try {
       setLoading(true);
@@ -156,13 +154,11 @@ export function useTaxIndices() {
         return false;
       }
       
-      // Atualizar valores locais
       setIndices(prev => ({
         ...prev,
         ...newIndices,
       }));
       
-      // Atualizar também taxRates para manter compatibilidade
       if (newIndices.spread !== undefined || newIndices.selicRates) {
         setTaxRates(prev => ({
           ...prev,
@@ -184,11 +180,8 @@ export function useTaxIndices() {
     }
   };
   
-  // Função para buscar dados do BCB (simulada)
   const fetchFromBCB = async (): Promise<{ success: boolean, data?: BCBData }> => {
     try {
-      // Simulando uma chamada à API do Banco Central
-      // Em uma implementação real, isso seria uma chamada de API
       const mockResponse: BCBData = {
         ipca: 4.25,
         igpm: 3.95,
@@ -205,12 +198,10 @@ export function useTaxIndices() {
     }
   };
   
-  // Função para recarregar índices
   const refreshIndices = async (): Promise<boolean> => {
     return fetchTaxRates().then(() => true).catch(() => false);
   };
   
-  // Calcular a taxa SELIC apropriada com base no prazo
   const getSelicRate = (contractMonths: number): number => {
     if (contractMonths >= 24) {
       return taxRates.selicMonth24;
@@ -221,27 +212,22 @@ export function useTaxIndices() {
     }
   };
   
-  // Calcular o custo financeiro para um valor específico
   const calculateTaxCost = (vehicleValue: number, contractMonths: number): number => {
     const breakdown = getTaxBreakdown(vehicleValue, contractMonths);
     console.log(`Calculando custo financeiro: valor=${vehicleValue}, meses=${contractMonths}, resultado=${breakdown.monthlyCost}`);
     return breakdown.monthlyCost;
   };
   
-  // Obter detalhamento completo do cálculo de impostos
   const getTaxBreakdown = (vehicleValue: number, contractMonths: number): TaxBreakdown => {
     const selicRate = getSelicRate(contractMonths);
     const spread = taxRates.taxSpread;
     const totalTaxRate = selicRate + spread;
     
-    // Calcular custo anual
     const annualCost = (vehicleValue * totalTaxRate) / 100;
-    
-    // Calcular custo mensal
     const monthlyCost = annualCost / 12;
     
-    console.log(`Breakdown de impostos: taxa SELIC=${selicRate}%, spread=${spread}%, 
-                 total=${totalTaxRate}%, custo anual=${annualCost}, custo mensal=${monthlyCost}`);
+    console.log(`Tax breakdown: valor=${vehicleValue}, meses=${contractMonths}, SELIC=${selicRate}%, spread=${spread}%, 
+               taxa total=${totalTaxRate}%, custo anual=${annualCost}, custo mensal=${monthlyCost}`);
     
     return {
       selicRate,

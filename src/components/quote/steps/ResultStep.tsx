@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -26,6 +25,9 @@ const ResultStep: React.FC<ResultStepProps> = ({
   goToPreviousStep 
 }) => {
   const { getTaxBreakdown } = useTaxIndices();
+  
+  console.log("ResultStep - quoteForm:", quoteForm);
+  console.log("ResultStep - result:", result);
   
   if (!result) {
     return (
@@ -101,18 +103,27 @@ const ResultStep: React.FC<ResultStepProps> = ({
                     includeTaxes: false,
                   });
                 
-                // Verificar se há impostos incluídos
                 const hasTaxes = (result.includeTaxes && result.taxCost > 0) || 
                                (result.includeIpva && result.ipvaCost > 0) || 
                                (result.includeLicensing && result.licensingCost > 0);
                 
-                // Calcular o total de impostos
                 const totalTaxes = (result.taxCost || 0) + (result.ipvaCost || 0) + (result.licensingCost || 0);
                 
-                // Obter breakdown dos impostos
                 const taxBreakdown = result.includeTaxes && result.contractMonths 
                   ? getTaxBreakdown(vehicleItem.vehicle.value, result.contractMonths) 
                   : null;
+                
+                console.log(`Dados de impostos para veículo ${vehicleItem.vehicle.brand} ${vehicleItem.vehicle.model}:`, {
+                  includeTaxes: result.includeTaxes,
+                  taxCost: result.taxCost,
+                  includeIpva: result.includeIpva,
+                  ipvaCost: result.ipvaCost,
+                  includeLicensing: result.includeLicensing,
+                  licensingCost: result.licensingCost,
+                  hasTaxes: hasTaxes,
+                  totalTaxes: totalTaxes,
+                  taxBreakdown: taxBreakdown
+                });
                 
                 return (
                   <div key={vehicleItem.vehicle.id} className="border rounded-lg p-4 bg-muted/20">
@@ -151,7 +162,6 @@ const ResultStep: React.FC<ResultStepProps> = ({
                       )}
                     </div>
 
-                    {/* Seção de impostos e taxas com Accordion */}
                     {hasTaxes && (
                       <div className="mt-3 pt-3 border-t">
                         <Accordion type="single" collapsible>

@@ -19,6 +19,9 @@ const QuoteSummary: React.FC<QuoteSummaryProps> = ({ vehicle, result, showDetail
   const { getTaxBreakdown } = useTaxIndices();
   const [taxDetailsOpen, setTaxDetailsOpen] = useState(false);
   
+  // Adicionar log para depuração
+  console.log("QuoteSummary - dados recebidos:", { vehicle, result });
+  
   // Calcular breakdown dos impostos se aplicável
   const taxBreakdown = result.includeTaxes && result.contractMonths 
     ? getTaxBreakdown(vehicle.value, result.contractMonths) 
