@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { QuoteFormData, SavedQuote, QuoteCalculationResult, User, EditRecord } from '@/context/types/quoteTypes';
 import { supabase } from '@/integrations/supabase/client';
@@ -178,7 +179,7 @@ export function useQuoteSaving(
           console.log('✅ Novo veículo criado com sucesso:', newVehicle);
         }
           
-        // Adicionar veículo ao orçamento com dados de impostos
+        // Adicionar veículo ao orçamento com dados de impostos - CORREÇÃO AQUI: operationSeverity em vez de operation_severity
         const { error: vehicleError } = await supabase
           .from('quote_vehicles')
           .insert({
@@ -186,7 +187,7 @@ export function useQuoteSaving(
             vehicle_id: vehicleId,
             contract_months: params.contractMonths,
             monthly_km: params.monthlyKm,
-            operation_severity: params.operation_severity,
+            operation_severity: params.operationSeverity, // Corrigido: operationSeverity em vez de operation_severity
             has_tracking: params.hasTracking,
             include_ipva: params.includeIpva,
             include_licensing: params.includeLicensing,
