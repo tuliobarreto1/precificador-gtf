@@ -175,6 +175,7 @@ const QuoteForm = () => {
     setGlobalProtectionPlanId = () => {},
     setGlobalIncludeIpva = () => {}, 
     setGlobalIncludeLicensing = () => {},
+    setGlobalIncludeTaxes = () => {},
     setUseGlobalParams = () => {},
     setVehicleParams = () => {},
     calculateQuote = () => null,
