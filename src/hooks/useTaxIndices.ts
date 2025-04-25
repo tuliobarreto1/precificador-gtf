@@ -6,6 +6,8 @@ interface TaxRates {
   selicMonth18: number;
   selicMonth24: number;
   taxSpread: number;
+  ipvaRate: number;
+  licensingFee: number;
   lastUpdate: Date | null;
 }
 
@@ -27,6 +29,8 @@ interface Indices {
     month24: number;
   };
   lastUpdate: Date | null;
+  ipvaRate: number;
+  licensingFee: number;
 }
 
 interface BCBData {
@@ -44,6 +48,8 @@ export function useTaxIndices() {
     selicMonth18: 11.75,
     selicMonth24: 10.25,
     taxSpread: 5.3,
+    ipvaRate: 0.024,
+    licensingFee: 150.00,
     lastUpdate: null
   });
   
@@ -59,7 +65,9 @@ export function useTaxIndices() {
       month18: 11.75,
       month24: 10.25
     },
-    lastUpdate: null
+    lastUpdate: null,
+    ipvaRate: 0.024,
+    licensingFee: 150.00
   });
   
   useEffect(() => {
@@ -73,7 +81,7 @@ export function useTaxIndices() {
       
       const { data, error } = await supabase
         .from('calculation_params')
-        .select('selic_month12, selic_month18, selic_month24, tax_spread, last_tax_update, ipca_rate, igpm_rate')
+        .select('selic_month12, selic_month18, selic_month24, tax_spread, last_tax_update, ipca_rate, igpm_rate, ipva, licenciamento')
         .single();
           
       if (error) {
@@ -90,10 +98,13 @@ export function useTaxIndices() {
           selicMonth18: data.selic_month18 || 11.75,
           selicMonth24: data.selic_month24 || 10.25,
           taxSpread: data.tax_spread || 5.3,
+          ipvaRate: data.ipva || 0.024,
+          licensingFee: data.licenciamento || 150.00,
           lastUpdate: data.last_tax_update ? new Date(data.last_tax_update) : null
         });
         
-        setIndices({
+        setIndices(prev => ({
+          ...prev,
           ipca: data.ipca_rate || 3.5,
           igpm: data.igpm_rate || 3.4,
           spread: data.tax_spread || 5.3,
@@ -102,15 +113,10 @@ export function useTaxIndices() {
             month18: data.selic_month18 || 11.75,
             month24: data.selic_month24 || 10.25
           },
-          lastUpdate: data.last_tax_update ? new Date(data.last_tax_update) : null
-        });
-        
-        console.log("Taxas financeiras carregadas e configuradas:", {
-          selicMonth12: data.selic_month12 || 12.75,
-          selicMonth18: data.selic_month18 || 11.75,
-          selicMonth24: data.selic_month24 || 10.25,
-          taxSpread: data.tax_spread || 5.3
-        });
+          lastUpdate: data.last_tax_update ? new Date(data.last_tax_update) : null,
+          ipvaRate: data.ipva || 0.024,
+          licensingFee: data.licenciamento || 150.00
+        }));
       }
     } catch (error) {
       console.error("Erro ao buscar taxas financeiras:", error);
@@ -141,6 +147,9 @@ export function useTaxIndices() {
       
       if (newIndices.lastUpdate) 
         updateData.last_tax_update = newIndices.lastUpdate.toISOString();
+      
+      if (newIndices.ipvaRate !== undefined) updateData.ipva = newIndices.ipvaRate;
+      if (newIndices.licensingFee !== undefined) updateData.licenciamento = newIndices.licensingFee;
       
       const { error } = await supabase
         .from('calculation_params')
@@ -248,6 +257,8 @@ export function useTaxIndices() {
     error,
     updateIndices,
     refreshIndices,
-    fetchFromBCB
+    fetchFromBCB,
+    ipvaRate: taxRates.ipvaRate,
+    licensingFee: taxRates.licensingFee
   };
 }
