@@ -44,7 +44,7 @@ export async function getVehiclesFromLocavia(filter?: string, filterValue?: stri
     
     // Aqui você utilizaria a função real para buscar da API da Locavia
     // Por enquanto, estamos apenas simulando uma chamada à API externa
-    const response = await fetch('http://localhost:3002/api/vehicles');
+    const response = await fetch('http://localhost:3005/api/vehicles');
     
     if (!response.ok) {
       const errorData = await response.json();
@@ -166,7 +166,7 @@ export async function findVehicleByPlate(plateNumber: string) {
     
     // Se não encontrar no Supabase, buscar na API da Locavia
     try {
-      const response = await fetch(`http://localhost:3002/api/vehicles/${plateNumber}`);
+      const response = await fetch(`http://localhost:3005/api/vehicles/${plateNumber}`);
       
       if (!response.ok) {
         if (response.status === 404) {

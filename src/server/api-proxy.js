@@ -27,7 +27,7 @@ if (!process.env.DB_SERVER || !process.env.DB_USER || !process.env.DB_PASSWORD) 
 }
 
 const app = express();
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.PORT || 3005;
 
 // Middleware
 app.use(cors({

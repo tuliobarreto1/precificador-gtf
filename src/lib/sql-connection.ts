@@ -56,7 +56,7 @@ export interface SupabaseVehicle {
 export const testApiConnection = async () => {
   try {
     console.log('Testando conexão com a API...');
-    const response = await fetch('http://localhost:3002/api/status');
+    const response = await fetch('http://localhost:3005/api/status');
     const data = await response.json();
     console.log('Resposta do teste de conexão:', data);
     return data;
@@ -73,7 +73,7 @@ export const getVehicleByPlate = async (plate: string): Promise<SqlVehicle | nul
     
   //busca na API externa
     console.log('Veículo não encontrado no Supabase, buscando na API externa...');
-    const response = await fetch(`http://localhost:3002/api/vehicles/${plate}`);
+    const response = await fetch(`http://localhost:3005/api/vehicles/${plate}`);
     
     if (!response.ok) {
       if (response.status === 404) {
@@ -128,7 +128,7 @@ export const getVehicleGroups = async (): Promise<SqlVehicleGroup[]> => {
     // Primeiro, tentamos buscar do cache ou Supabase
     // Posteriormente, implementar cache
     
-    const response = await fetch('http://localhost:3002/api/vehicle-groups');
+    const response = await fetch('http://localhost:3005/api/vehicle-groups');
     
     if (!response.ok) {
       const errorData = await response.json();
@@ -170,7 +170,7 @@ export const getVehicleModelsByGroup = async (groupCode: string): Promise<SqlVeh
     // Primeiro, tentamos buscar do cache ou Supabase
     // Posteriormente, implementar cache
     
-    const response = await fetch(`http://localhost:3002/api/vehicle-models/${encodeURIComponent(groupCode)}`);
+    const response = await fetch(`http://localhost:3005/api/vehicle-models/${encodeURIComponent(groupCode)}`);
     
     if (!response.ok) {
       const errorData = await response.json();
