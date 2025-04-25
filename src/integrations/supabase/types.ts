@@ -19,7 +19,9 @@ export type Database = {
           id: string
           igpm_rate: number | null
           ipca_rate: number | null
+          ipva: number | null
           last_tax_update: string | null
+          licenciamento: number | null
           selic_month12: number | null
           selic_month18: number | null
           selic_month24: number | null
@@ -36,7 +38,9 @@ export type Database = {
           id?: string
           igpm_rate?: number | null
           ipca_rate?: number | null
+          ipva?: number | null
           last_tax_update?: string | null
+          licenciamento?: number | null
           selic_month12?: number | null
           selic_month18?: number | null
           selic_month24?: number | null
@@ -53,7 +57,9 @@ export type Database = {
           id?: string
           igpm_rate?: number | null
           ipca_rate?: number | null
+          ipva?: number | null
           last_tax_update?: string | null
+          licenciamento?: number | null
           selic_month12?: number | null
           selic_month18?: number | null
           selic_month24?: number | null

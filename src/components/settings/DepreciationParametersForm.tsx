@@ -17,6 +17,8 @@ const depreciationParamsSchema = z.object({
   severity_multiplier_4: z.number().min(0, { message: 'Multiplicador deve ser positivo' }),
   severity_multiplier_5: z.number().min(0, { message: 'Multiplicador deve ser positivo' }),
   severity_multiplier_6: z.number().min(0, { message: 'Multiplicador deve ser positivo' }),
+  ipvaRate: z.number().min(0, { message: 'Taxa de IPVA deve ser maior que 0' }).max(0.1, { message: 'Taxa de IPVA deve ser menor que 10%' }),
+  licensingFee: z.number().min(0, { message: 'Taxa de licenciamento deve ser maior que 0' }),
 });
 
 type DepreciationParamsFormValues = z.infer<typeof depreciationParamsSchema>;
@@ -36,6 +38,8 @@ const DepreciationParametersForm = () => {
       severity_multiplier_4: 0.10,
       severity_multiplier_5: 0.12,
       severity_multiplier_6: 0.20,
+      ipvaRate: 0.024,
+      licensingFee: 150.00,
     },
   });
 
@@ -60,6 +64,8 @@ const DepreciationParametersForm = () => {
           severity_multiplier_4: params.severity_multiplier_4 || 0.10,
           severity_multiplier_5: params.severity_multiplier_5 || 0.12,
           severity_multiplier_6: params.severity_multiplier_6 || 0.20,
+          ipvaRate: params.ipca_rate || 0.024,
+          licensingFee: params.igpm_rate || 150.00,
         });
       }
     } catch (error) {
@@ -91,18 +97,20 @@ const DepreciationParametersForm = () => {
         severity_multiplier_4: values.severity_multiplier_4,
         severity_multiplier_5: values.severity_multiplier_5,
         severity_multiplier_6: values.severity_multiplier_6,
+        ipca_rate: values.ipvaRate,
+        igpm_rate: values.licensingFee,
       };
       
       const success = await updateCalculationParams(updatedParams);
       
       if (success) {
-        toast.success('Parâmetros de depreciação atualizados com sucesso');
+        toast.success('Parâmetros atualizados com sucesso');
       } else {
-        toast.error('Erro ao atualizar parâmetros de depreciação');
+        toast.error('Erro ao atualizar parâmetros');
       }
     } catch (error) {
-      console.error('Erro ao salvar parâmetros de depreciação:', error);
-      toast.error('Ocorreu um erro ao salvar os parâmetros de depreciação');
+      console.error('Erro ao salvar parâmetros:', error);
+      toast.error('Ocorreu um erro ao salvar os parâmetros');
     } finally {
       setSavingParams(false);
     }
@@ -262,6 +270,58 @@ const DepreciationParametersForm = () => {
                           onChange={e => field.onChange(Number(e.target.value))} 
                         />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            <div className="border-t pt-6">
+              <h3 className="font-medium mb-4">Parâmetros de IPVA e Licenciamento</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="ipvaRate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Taxa de IPVA (%)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.001" 
+                          min="0" 
+                          max="0.1" 
+                          {...field} 
+                          onChange={e => field.onChange(Number(e.target.value))} 
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Taxa de IPVA como percentual do valor do veículo (ex: 0.024 = 2,4%)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="licensingFee"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Custo de Licenciamento (R$)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.01" 
+                          min="0" 
+                          {...field} 
+                          onChange={e => field.onChange(Number(e.target.value))} 
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Valor fixo anual de licenciamento
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

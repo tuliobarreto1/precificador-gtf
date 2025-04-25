@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { QuoteFormData, QuoteCalculationResult, QuoteResultVehicle } from '@/context/types/quoteTypes';
 import { useBasicCalculations } from './calculation/useBasicCalculations';
@@ -55,8 +54,12 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         const protectionCost = await protectionCalculation.calculateProtectionCost(params.protectionPlanId);
         
         // Custos de IPVA e Licenciamento
-        const ipvaCost = params.includeIpva ? (item.vehicle.value * (item.vehicleGroup.ipvaCost || 0)) / 12 : 0;
-        const licensingCost = params.includeLicensing ? (item.vehicleGroup.licensingCost || 0) / 12 : 0;
+        const ipvaCost = params.includeIpva 
+          ? (item.vehicle.value * taxIndices.ipvaRate) / 12 
+          : 0;
+        const licensingCost = params.includeLicensing 
+          ? taxIndices.licensingFee / 12 
+          : 0;
         
         // Cálculo de impostos
         let taxCost = 0;
@@ -182,8 +185,8 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         const protectionCost = 0; // Valor temporário, será substituído na versão assíncrona
         
         // Custos de IPVA e Licenciamento
-        const ipvaCost = params.includeIpva ? (item.vehicle.value * (item.vehicleGroup.ipvaCost || 0)) / 12 : 0;
-        const licensingCost = params.includeLicensing ? (item.vehicleGroup.licensingCost || 0) / 12 : 0;
+        const ipvaCost = params.includeIpva ? (item.vehicle.value * taxIndices.ipvaRate) / 12 : 0;
+        const licensingCost = params.includeLicensing ? (taxIndices.licensingFee / 12) : 0;
         
         // Cálculo de impostos (versão síncrona)
         let taxCost = 0;
