@@ -4,8 +4,11 @@ import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import { QuoteProvider } from '@/context/QuoteContext';
 import QuoteForm from '@/components/quote/QuoteForm';
+import { useTaxIndices } from '@/hooks/useTaxIndices';
 
 const NewQuote = () => {
+  const { taxRates, ipvaRate, licensingFee } = useTaxIndices();
+
   // Adicionando console.log para verificar renderização da página
   console.log("Renderizando página NewQuote");
   
@@ -14,8 +17,12 @@ const NewQuote = () => {
     console.log("NewQuote montado - verificando configurações de impostos");
     
     // Verificar configurações globais de impostos para depuração
-    console.log("Verificando se há configuração global de impostos definida");
-  }, []);
+    console.log("Configurações de impostos carregadas:", {
+      taxRates,
+      ipvaRate,
+      licensingFee
+    });
+  }, [taxRates, ipvaRate, licensingFee]);
   
   return (
     <MainLayout>

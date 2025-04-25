@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 // Definição das interfaces
@@ -199,5 +198,38 @@ export const getVehicleModelsByGroup = async (groupCode: string): Promise<SqlVeh
       { CodigoModelo: `${groupCode}2`, Descricao: `Modelo 2 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 80000 },
       { CodigoModelo: `${groupCode}3`, Descricao: `Modelo 3 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 85000 }
     ];
+  }
+};
+
+// Função para buscar os parâmetros de cálculo do servidor SQL
+export const getCalculationParameters = async () => {
+  try {
+    console.log('Buscando parâmetros de cálculo do servidor SQL...');
+    
+    // Primeiro, tentamos buscar do cache ou Supabase
+    const { data, error } = await supabase
+      .from('calculation_params')
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('Erro ao buscar parâmetros de cálculo:', error);
+      throw error;
+    }
+
+    console.log('Parâmetros de cálculo recuperados:', data);
+    
+    // Verificar específicamente os valores de IPVA e licenciamento
+    console.log('Valores de impostos recuperados do Supabase:', {
+      ipva: data.ipva,
+      licenciamento: data.licenciamento,
+      ipva_tipo: typeof data.ipva,
+      licenciamento_tipo: typeof data.licenciamento
+    });
+    
+    return data;
+  } catch (error) {
+    console.error('Erro ao buscar parâmetros de cálculo:', error);
+    throw error;
   }
 };

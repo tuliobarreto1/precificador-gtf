@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -30,8 +30,26 @@ const ResultStep: React.FC<ResultStepProps> = ({
   const [adjustedVehicleCosts, setAdjustedVehicleCosts] = useState<{[key: string]: number}>({});
   const [currentRoic, setCurrentRoic] = useState<number | null>(null);
   
+  // Log detalhado para depuração
   console.log("ResultStep - quoteForm:", quoteForm);
   console.log("ResultStep - result:", result);
+  
+  useEffect(() => {
+    // Verificar dados ao montar o componente
+    if (result && result.vehicleResults) {
+      result.vehicleResults.forEach(vr => {
+        console.log(`Detalhes de impostos para veículo ${vr.vehicleId}:`, {
+          ipvaCost: vr.ipvaCost,
+          includeIpva: vr.includeIpva,
+          licensingCost: vr.licensingCost,
+          includeLicensing: vr.includeLicensing,
+          taxCost: vr.taxCost,
+          includeTaxes: vr.includeTaxes,
+          total: (vr.ipvaCost || 0) + (vr.licensingCost || 0) + (vr.taxCost || 0)
+        });
+      });
+    }
+  }, [result]);
   
   if (!result) {
     return (
@@ -125,14 +143,13 @@ const ResultStep: React.FC<ResultStepProps> = ({
                     operationSeverity: 3 as 1|2|3|4|5|6,
                     hasTracking: false,
                     protectionPlanId: null,
-                    includeIpva: false,
-                    includeLicensing: false,
-                    includeTaxes: false,
+                    includeIpva: true,
+                    includeLicensing: true,
+                    includeTaxes: true,
                   });
                 
-                const hasTaxes = (result.includeTaxes && result.taxCost > 0) || 
-                               (result.includeIpva && result.ipvaCost > 0) || 
-                               (result.includeLicensing && result.licensingCost > 0);
+                // Forçar exibição da seção de impostos mesmo que esteja zerada para diagnóstico
+                const hasTaxes = true;
                 
                 const totalTaxes = (result.taxCost || 0) + (result.ipvaCost || 0) + (result.licensingCost || 0);
                 
@@ -193,82 +210,76 @@ const ResultStep: React.FC<ResultStepProps> = ({
                       )}
                     </div>
 
-                    {hasTaxes && (
-                      <div className="mt-3 pt-3 border-t">
-                        <Accordion type="single" collapsible>
-                          <AccordionItem value="taxes" className="border-0">
-                            <div className="flex justify-between items-center">
-                              <AccordionTrigger className="py-1 text-sm text-primary font-medium hover:underline">
-                                Impostos e taxas:
-                              </AccordionTrigger>
-                              <span className="text-sm font-medium">{formatCurrency(totalTaxes)}/mês</span>
-                            </div>
-                            
-                            <AccordionContent className="py-2">
-                              <div className="text-sm space-y-2 text-muted-foreground bg-slate-50 p-3 rounded-md">
-                                {result.includeIpva && result.ipvaCost && result.ipvaCost > 0 && (
-                                  <div className="flex justify-between">
-                                    <span>IPVA:</span>
-                                    <span>{formatCurrency(result.ipvaCost)}/mês</span>
-                                  </div>
-                                )}
-                                
-                                {result.includeLicensing && result.licensingCost && result.licensingCost > 0 && (
-                                  <div className="flex justify-between">
-                                    <span>Licenciamento:</span>
-                                    <span>{formatCurrency(result.licensingCost)}/mês</span>
-                                  </div>
-                                )}
-                                
-                                {result.includeTaxes && result.taxCost && result.taxCost > 0 && (
-                                  <>
-                                    <div className="flex justify-between">
-                                      <span>Custos financeiros:</span>
-                                      <span>{formatCurrency(result.taxCost)}/mês</span>
-                                    </div>
-                                    
-                                    {taxBreakdown && (
-                                      <Accordion type="single" collapsible className="mt-2">
-                                        <AccordionItem value="finance-details" className="border-0">
-                                          <AccordionTrigger className="text-xs text-primary hover:underline py-1">
-                                            Detalhamento dos custos financeiros
-                                          </AccordionTrigger>
-                                          
-                                          <AccordionContent className="pt-2">
-                                            <div className="space-y-2 text-xs pl-2 border-l-2 border-slate-200 mt-1">
-                                              <div className="flex justify-between">
-                                                <span>Taxa SELIC ({result.contractMonths >= 24 ? '24 meses' : result.contractMonths >= 18 ? '18 meses' : '12 meses'}):</span>
-                                                <span>{taxBreakdown.selicRate.toFixed(2)}% a.a.</span>
-                                              </div>
-                                              <div className="flex justify-between">
-                                                <span>Spread financeiro:</span>
-                                                <span>{taxBreakdown.spread.toFixed(2)}% a.a.</span>
-                                              </div>
-                                              <div className="flex justify-between font-medium">
-                                                <span>Taxa total anual:</span>
-                                                <span>{taxBreakdown.totalTaxRate.toFixed(2)}% a.a.</span>
-                                              </div>
-                                              <div className="flex justify-between">
-                                                <span>Custo anual:</span>
-                                                <span>{formatCurrency(taxBreakdown.annualCost)}</span>
-                                              </div>
-                                              <div className="flex justify-between">
-                                                <span>Custo mensal:</span>
-                                                <span>{formatCurrency(taxBreakdown.monthlyCost)}</span>
-                                              </div>
-                                            </div>
-                                          </AccordionContent>
-                                        </AccordionItem>
-                                      </Accordion>
-                                    )}
-                                  </>
-                                )}
+                    {/* Sempre exibir a seção de impostos para diagnóstico */}
+                    <div className="mt-3 pt-3 border-t">
+                      <Accordion type="single" collapsible defaultValue="taxes">
+                        <AccordionItem value="taxes" className="border-0">
+                          <div className="flex justify-between items-center">
+                            <AccordionTrigger className="py-1 text-sm text-primary font-medium hover:underline">
+                              Impostos e taxas:
+                            </AccordionTrigger>
+                            <span className="text-sm font-medium">{formatCurrency(totalTaxes)}/mês</span>
+                          </div>
+                          
+                          <AccordionContent className="py-2">
+                            <div className="text-sm space-y-2 text-muted-foreground bg-slate-50 p-3 rounded-md">
+                              {/* Sempre exibir IPVA para diagnóstico */}
+                              <div className="flex justify-between">
+                                <span>IPVA:</span>
+                                <span>{formatCurrency(result.ipvaCost || 0)}/mês</span>
                               </div>
-                            </AccordionContent>
-                          </AccordionItem>
-                        </Accordion>
-                      </div>
-                    )}
+                              
+                              {/* Sempre exibir Licenciamento para diagnóstico */}
+                              <div className="flex justify-between">
+                                <span>Licenciamento:</span>
+                                <span>{formatCurrency(result.licensingCost || 0)}/mês</span>
+                              </div>
+                              
+                              {/* Sempre exibir Custos financeiros para diagnóstico */}
+                              <div className="flex justify-between">
+                                <span>Custos financeiros:</span>
+                                <span>{formatCurrency(result.taxCost || 0)}/mês</span>
+                              </div>
+                              
+                              {taxBreakdown && (
+                                <Accordion type="single" collapsible className="mt-2">
+                                  <AccordionItem value="finance-details" className="border-0">
+                                    <AccordionTrigger className="text-xs text-primary hover:underline py-1">
+                                      Detalhamento dos custos financeiros
+                                    </AccordionTrigger>
+                                    
+                                    <AccordionContent className="pt-2">
+                                      <div className="space-y-2 text-xs pl-2 border-l-2 border-slate-200 mt-1">
+                                        <div className="flex justify-between">
+                                          <span>Taxa SELIC ({result.contractMonths >= 24 ? '24 meses' : result.contractMonths >= 18 ? '18 meses' : '12 meses'}):</span>
+                                          <span>{taxBreakdown.selicRate.toFixed(2)}% a.a.</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span>Spread financeiro:</span>
+                                          <span>{taxBreakdown.spread.toFixed(2)}% a.a.</span>
+                                        </div>
+                                        <div className="flex justify-between font-medium">
+                                          <span>Taxa total anual:</span>
+                                          <span>{taxBreakdown.totalTaxRate.toFixed(2)}% a.a.</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span>Custo anual:</span>
+                                          <span>{formatCurrency(taxBreakdown.annualCost)}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span>Custo mensal:</span>
+                                          <span>{formatCurrency(taxBreakdown.monthlyCost)}</span>
+                                        </div>
+                                      </div>
+                                    </AccordionContent>
+                                  </AccordionItem>
+                                </Accordion>
+                              )}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
+                    </div>
                     
                     {result.protectionPlanId && (
                       <div className="mt-3 pt-3 border-t">

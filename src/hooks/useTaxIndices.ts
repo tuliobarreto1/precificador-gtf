@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -263,11 +262,26 @@ export function useTaxIndices() {
     };
   };
   
+  const calculateIpvaCost = (vehicleValue: number): number => {
+    const annualCost = vehicleValue * taxRates.ipvaRate;
+    const monthlyCost = annualCost / 12;
+    console.log(`Calculando custo IPVA: valor=${vehicleValue}, taxa=${taxRates.ipvaRate}, anual=${annualCost}, mensal=${monthlyCost}`);
+    return monthlyCost;
+  };
+  
+  const calculateLicensingCost = (): number => {
+    const monthlyCost = taxRates.licensingFee / 12;
+    console.log(`Calculando custo licenciamento: anual=${taxRates.licensingFee}, mensal=${monthlyCost}`);
+    return monthlyCost;
+  };
+  
   return {
     taxRates,
     getSelicRate,
     calculateTaxCost,
     getTaxBreakdown,
+    calculateIpvaCost,
+    calculateLicensingCost,
     indices,
     loading,
     error,
