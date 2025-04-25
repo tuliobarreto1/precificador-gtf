@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -48,8 +49,8 @@ export function useTaxIndices() {
     selicMonth18: 11.75,
     selicMonth24: 10.25,
     taxSpread: 5.3,
-    ipvaRate: 0.024,
-    licensingFee: 150.00,
+    ipvaRate: 0.024, // 2.4% do valor do veículo
+    licensingFee: 150.00, // R$ 150,00 fixo
     lastUpdate: null
   });
   
@@ -93,13 +94,22 @@ export function useTaxIndices() {
       if (data) {
         console.log("Dados de taxas carregados do Supabase:", data);
         
+        // Verificar se os campos ipva e licenciamento existem e têm valores
+        const ipvaValue = data.ipva !== null && data.ipva !== undefined ? data.ipva : 0.024;
+        const licensingValue = data.licenciamento !== null && data.licenciamento !== undefined ? data.licenciamento : 150.00;
+        
+        console.log("Valores de IPVA e licenciamento carregados:", {
+          ipva: ipvaValue,
+          licenciamento: licensingValue
+        });
+        
         setTaxRates({
           selicMonth12: data.selic_month12 || 12.75,
           selicMonth18: data.selic_month18 || 11.75,
           selicMonth24: data.selic_month24 || 10.25,
           taxSpread: data.tax_spread || 5.3,
-          ipvaRate: data.ipva || 0.024,
-          licensingFee: data.licenciamento || 150.00,
+          ipvaRate: ipvaValue,
+          licensingFee: licensingValue,
           lastUpdate: data.last_tax_update ? new Date(data.last_tax_update) : null
         });
         
@@ -114,8 +124,8 @@ export function useTaxIndices() {
             month24: data.selic_month24 || 10.25
           },
           lastUpdate: data.last_tax_update ? new Date(data.last_tax_update) : null,
-          ipvaRate: data.ipva || 0.024,
-          licensingFee: data.licenciamento || 150.00
+          ipvaRate: ipvaValue,
+          licensingFee: licensingValue
         }));
       }
     } catch (error) {
@@ -154,7 +164,7 @@ export function useTaxIndices() {
       const { error } = await supabase
         .from('calculation_params')
         .update(updateData)
-        .eq('id', '00000000-0000-0000-0000-000000000000')
+        .eq('id', '69600426-810a-409e-a4db-f7fef891bed3')
         .select();
       
       if (error) {
@@ -235,8 +245,14 @@ export function useTaxIndices() {
     const annualCost = (vehicleValue * totalTaxRate) / 100;
     const monthlyCost = annualCost / 12;
     
-    console.log(`Tax breakdown: valor=${vehicleValue}, meses=${contractMonths}, SELIC=${selicRate}%, spread=${spread}%, 
-               taxa total=${totalTaxRate}%, custo anual=${annualCost}, custo mensal=${monthlyCost}`);
+    console.log(`Tax breakdown para veículo (valor=${vehicleValue}):`, {
+      meses: contractMonths,
+      SELIC: selicRate + "%",
+      spread: spread + "%",
+      taxaTotal: totalTaxRate + "%", 
+      custoAnual: annualCost,
+      custoMensal: monthlyCost
+    });
     
     return {
       selicRate,

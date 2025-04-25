@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Client, Vehicle, VehicleGroup } from '@/lib/models';
 import { QuoteFormData, SavedQuote, QuoteContextType, QuoteCalculationResult, User, defaultUser } from './types/quoteTypes';
@@ -8,7 +9,7 @@ import { useQuoteCalculation } from '@/hooks/useQuoteCalculation';
 import { useQuoteSaving } from '@/hooks/useQuoteSaving';
 import { useQuoteData } from '@/hooks/useQuoteData';
 
-// Initial state
+// Initial state com impostos habilitados por padrão
 const initialQuoteForm: QuoteFormData = {
   client: null,
   vehicles: [],
@@ -19,9 +20,9 @@ const initialQuoteForm: QuoteFormData = {
     operationSeverity: 3,
     hasTracking: false,
     protectionPlanId: null,
-    includeIpva: false,
-    includeLicensing: false,
-    includeTaxes: true,  // Habilitando impostos por padrão
+    includeIpva: true,      // IPVA habilitado por padrão
+    includeLicensing: true, // Licenciamento habilitado por padrão
+    includeTaxes: true,     // Custos financeiros habilitados por padrão
   },
 };
 

@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { QuoteFormData, QuoteCalculationResult, QuoteResultVehicle } from '@/context/types/quoteTypes';
 import { useBasicCalculations } from './calculation/useBasicCalculations';
@@ -54,12 +55,25 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         const protectionCost = await protectionCalculation.calculateProtectionCost(params.protectionPlanId);
         
         // Custos de IPVA e Licenciamento
-        const ipvaCost = params.includeIpva 
-          ? (item.vehicle.value * taxIndices.ipvaRate) / 12 
-          : 0;
-        const licensingCost = params.includeLicensing 
-          ? taxIndices.licensingFee / 12 
-          : 0;
+        let ipvaCost = 0;
+        if (params.includeIpva) {
+          ipvaCost = (item.vehicle.value * taxIndices.ipvaRate) / 12;
+          console.log(`IPVA calculado para veículo ${item.vehicle.id}:`, {
+            valorVeiculo: item.vehicle.value,
+            taxaIPVA: taxIndices.ipvaRate,
+            custoIPVAAnual: item.vehicle.value * taxIndices.ipvaRate,
+            custoIPVAMensal: ipvaCost
+          });
+        }
+        
+        let licensingCost = 0;
+        if (params.includeLicensing) {
+          licensingCost = taxIndices.licensingFee / 12;
+          console.log(`Licenciamento calculado para veículo ${item.vehicle.id}:`, {
+            taxaLicenciamento: taxIndices.licensingFee,
+            custoLicenciamentoMensal: licensingCost
+          });
+        }
         
         // Cálculo de impostos
         let taxCost = 0;
@@ -158,7 +172,7 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         // Garantir que operationSeverity seja um valor válido (1-6)
         const safeOperationSeverity = ensureSeverityValue(params.operationSeverity);
         
-        // Calcular custo de depreciação com a nova fórmula
+        // Calcular custo de depreciação
         const totalDepreciation = basicCalculations.calculateDepreciation(
           item.vehicle.value, 
           params.monthlyKm,
@@ -185,8 +199,25 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         const protectionCost = 0; // Valor temporário, será substituído na versão assíncrona
         
         // Custos de IPVA e Licenciamento
-        const ipvaCost = params.includeIpva ? (item.vehicle.value * taxIndices.ipvaRate) / 12 : 0;
-        const licensingCost = params.includeLicensing ? (taxIndices.licensingFee / 12) : 0;
+        let ipvaCost = 0;
+        if (params.includeIpva) {
+          ipvaCost = (item.vehicle.value * taxIndices.ipvaRate) / 12;
+          console.log(`IPVA calculado (síncrono) para veículo ${item.vehicle.id}:`, {
+            valorVeiculo: item.vehicle.value,
+            taxaIPVA: taxIndices.ipvaRate,
+            custoIPVAAnual: item.vehicle.value * taxIndices.ipvaRate,
+            custoIPVAMensal: ipvaCost
+          });
+        }
+        
+        let licensingCost = 0;
+        if (params.includeLicensing) {
+          licensingCost = taxIndices.licensingFee / 12;
+          console.log(`Licenciamento calculado (síncrono) para veículo ${item.vehicle.id}:`, {
+            taxaLicenciamento: taxIndices.licensingFee,
+            custoLicenciamentoMensal: licensingCost
+          });
+        }
         
         // Cálculo de impostos (versão síncrona)
         let taxCost = 0;
@@ -208,6 +239,18 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
         // Custo total mensal incluindo impostos
         const totalCost = totalDepreciation + maintenanceCost + trackingCost + 
                        protectionCost + ipvaCost + licensingCost + taxCost;
+        
+        console.log(`Resumo síncrono para veículo ${item.vehicle.brand} ${item.vehicle.model}:`, {
+          depreciation: totalDepreciation.toFixed(2),
+          maintenance: maintenanceCost.toFixed(2), 
+          ipva: ipvaCost.toFixed(2),
+          licensing: licensingCost.toFixed(2),
+          taxes: taxCost.toFixed(2),
+          total: totalCost.toFixed(2),
+          includeIpva: params.includeIpva,
+          includeLicensing: params.includeLicensing,
+          includeTaxes: params.includeTaxes
+        });
         
         vehicleResults.push({
           vehicleId: item.vehicle.id,

@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 // Definição das interfaces
@@ -71,8 +72,8 @@ export const getVehicleByPlate = async (plate: string): Promise<SqlVehicle | nul
   try {
     console.log(`Buscando veículo com placa: ${plate}`);
     
-  //busca na API externa
-    console.log('Veículo não encontrado no Supabase, buscando na API externa...');
+    // Busca na API externa
+    console.log('Buscando na API externa...');
     const response = await fetch(`http://localhost:3005/api/vehicles/${plate}`);
     
     if (!response.ok) {
