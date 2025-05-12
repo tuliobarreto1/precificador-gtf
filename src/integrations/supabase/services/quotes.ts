@@ -1,7 +1,7 @@
-
 import { supabase } from '../client';
 import { v4 as uuidv4 } from 'uuid';
 import { createOrUpdateVehicle } from './vehicles';
+import { SavedQuote } from '@/context/types/quoteTypes';
 
 export async function saveQuoteToSupabase(quoteData: any) {
   try {
@@ -199,70 +199,142 @@ export async function getQuotesFromSupabase() {
   }
 }
 
-export async function getQuoteByIdFromSupabase(id: string) {
+export async function getQuoteByIdFromSupabase(quoteId: string) {
   try {
-    if (!id) {
-      return { success: false, error: "ID não fornecido", quote: null };
-    }
+    console.log('Buscando orçamento do Supabase com ID:', quoteId);
     
-    const { data, error } = await supabase
+    // Buscar o orçamento base
+    const { data: quoteData, error: quoteError } = await supabase
       .from('quotes')
       .select(`
-        *,
-        client:client_id(*),
-        vehicles:quote_vehicles(
-          *,
-          vehicle:vehicle_id(*)
+        id,
+        title,
+        client_id,
+        created_by,
+        created_at,
+        updated_at,
+        contract_months,
+        monthly_km,
+        operation_severity,
+        has_tracking,
+        total_value,
+        status,
+        status_flow,
+        include_ipva,
+        include_licensing,
+        include_taxes,
+        clients (name, document)
+      `)
+      .eq('id', quoteId)
+      .single();
+    
+    if (quoteError) {
+      console.error('Erro ao buscar orçamento:', quoteError);
+      return { success: false, error: quoteError.message };
+    }
+    
+    if (!quoteData) {
+      return { success: false, error: 'Orçamento não encontrado' };
+    }
+    
+    console.log('Orçamento encontrado:', quoteData);
+    
+    // Buscar os veículos do orçamento
+    const { data: vehicleData, error: vehicleError } = await supabase
+      .from('quote_vehicles')
+      .select(`
+        id,
+        quote_id,
+        vehicle_id,
+        contract_months,
+        monthly_km,
+        operation_severity,
+        has_tracking,
+        protection_plan_id,
+        depreciation_cost,
+        maintenance_cost,
+        extra_km_rate,
+        protection_cost,
+        ipva_cost,
+        licensing_cost,
+        tax_cost,
+        total_cost,
+        include_ipva,
+        include_licensing,
+        include_taxes,
+        vehicles:vehicle_id (
+          id, 
+          brand, 
+          model, 
+          value, 
+          plate_number,
+          group_id
         )
       `)
-      .eq('id', id)
-      .maybeSingle();
-      
-    if (error) {
-      console.error(`Erro ao buscar orçamento ${id}:`, error);
-      return { success: false, error, quote: null };
+      .eq('quote_id', quoteId);
+    
+    if (vehicleError) {
+      console.error('Erro ao buscar veículos do orçamento:', vehicleError);
+      return { success: false, error: vehicleError.message };
     }
     
-    if (!data) {
-      console.log(`Orçamento ${id} não encontrado`);
-      return { success: true, quote: null };
-    }
+    console.log('Veículos encontrados:', vehicleData);
     
-    console.log(`Orçamento ${id} recuperado com sucesso:`, data);
-    
-    // Transformar os dados para incluir informações de veículos de forma mais acessível
-    const quoteWithVehicleData = {
-      ...data,
-      vehicles: data.vehicles.map((qv: any) => ({
-        ...qv,
-        vehicleId: qv.vehicle_id,
-        vehicleBrand: qv.vehicle?.brand,
-        vehicleModel: qv.vehicle?.model,
-        vehicleYear: qv.vehicle?.year,
-        vehicleValue: qv.vehicle?.value,
-        plateNumber: qv.vehicle?.plate_number,
-        vehicleGroupId: qv.vehicle?.group_id,
-        totalCost: qv.total_cost,
-        monthlyValue: qv.monthly_value,
-        depreciationCost: qv.depreciation_cost,
-        maintenanceCost: qv.maintenance_cost,
-        protectionCost: qv.protection_cost,
-        protectionPlanId: qv.protection_plan_id,
-        ipvaCost: qv.ipva_cost,
-        licensingCost: qv.licensing_cost,
-        taxCost: qv.tax_cost,
-        includeIpva: qv.include_ipva,
-        includeLicensing: qv.include_licensing,
-        includeTaxes: qv.include_taxes,
-        monthlyKm: qv.monthly_km,
-        contractMonths: qv.contract_months,
-      }))
+    // Construir o objeto SavedQuote
+    const quote: SavedQuote = {
+      id: quoteData.id,
+      clientId: quoteData.client_id,
+      clientName: quoteData.clients ? quoteData.clients.name : 'Cliente não encontrado',
+      createdAt: quoteData.created_at,
+      updatedAt: quoteData.updated_at,
+      totalValue: quoteData.total_value || 0,
+      status: quoteData.status_flow || quoteData.status || 'ORCAMENTO',
+      contractMonths: quoteData.contract_months || 24,
+      monthlyKm: quoteData.monthly_km || 3000,
+      operationSeverity: quoteData.operation_severity || 3,
+      hasTracking: quoteData.has_tracking || false,
+      includeIpva: quoteData.include_ipva || false,
+      includeLicensing: quoteData.include_licensing || false,
+      includeTaxes: quoteData.include_taxes || false,
+      createdBy: quoteData.created_by ? {
+        id: quoteData.created_by,
+        name: '', // Preenchemos isso depois se necessário
+        email: '',
+        role: 'user'
+      } : undefined,
+      vehicles: vehicleData ? vehicleData.map(vehicle => ({
+        vehicleId: vehicle.vehicle_id,
+        vehicleBrand: vehicle.vehicles ? vehicle.vehicles.brand : 'Sem marca',
+        vehicleModel: vehicle.vehicles ? vehicle.vehicles.model : 'Sem modelo',
+        plateNumber: vehicle.vehicles ? vehicle.vehicles.plate_number : undefined,
+        vehicleValue: vehicle.vehicles ? vehicle.vehicles.value : undefined,
+        groupId: vehicle.vehicles ? vehicle.vehicles.group_id : undefined,
+        contractMonths: vehicle.contract_months,
+        monthlyKm: vehicle.monthly_km,
+        operationSeverity: vehicle.operation_severity,
+        hasTracking: vehicle.has_tracking,
+        protectionPlanId: vehicle.protection_plan_id,
+        protectionCost: vehicle.protection_cost,
+        depreciationCost: vehicle.depreciation_cost,
+        maintenanceCost: vehicle.maintenance_cost,
+        extraKmRate: vehicle.extra_km_rate,
+        includeIpva: vehicle.include_ipva,
+        includeLicensing: vehicle.include_licensing,
+        includeTaxes: vehicle.include_taxes,
+        ipvaCost: vehicle.ipva_cost,
+        licensingCost: vehicle.licensing_cost,
+        taxCost: vehicle.tax_cost,
+        totalCost: vehicle.total_cost
+      })) : []
     };
     
-    return { success: true, quote: quoteWithVehicleData };
+    return { success: true, quote };
   } catch (error) {
-    console.error(`Erro inesperado ao buscar orçamento ${id}:`, error);
-    return { success: false, error, quote: null };
+    console.error('Erro ao buscar orçamento:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erro desconhecido' 
+    };
   }
 }
 

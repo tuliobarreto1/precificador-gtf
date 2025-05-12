@@ -130,8 +130,8 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
     }
   };
   
-  // Verificar se podemos gerar a proposta (orçamento deve estar salvo)
-  const canGenerateProposal = Boolean(currentQuoteId);
+  // Ajustando a lógica para habilitar o botão em mais cenários
+  const canGenerateProposal = Boolean(currentQuoteId) || (quoteForm && quoteForm.client);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -142,7 +142,7 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
           disabled={!canGenerateProposal}
         >
           <FileText size={16} />
-          Gerar Proposta com Timbre
+          Gerar Proposta em PDF
         </Button>
       </DialogTrigger>
       

@@ -51,9 +51,11 @@ const QuoteDetail = () => {
       
       try {
         setLoading(true);
+        console.log('Buscando orçamento com ID:', id);
         const { success, quote: fetchedQuote, error } = await getQuoteByIdFromSupabase(id);
         
         if (success && fetchedQuote) {
+          console.log('Orçamento encontrado:', fetchedQuote);
           // Garantir que status seja um QuoteStatusFlow válido ou usar 'ORCAMENTO' como fallback
           const safeQuote = {
             ...fetchedQuote,
@@ -105,6 +107,23 @@ const QuoteDetail = () => {
     );
   }
 
+  // Função para garantir que o status seja um QuoteStatusFlow válido
+  const getQuoteStatus = (): QuoteStatusFlow => {
+    if (!quote.status) return 'ORCAMENTO';
+    
+    // Verificar se o status é um valor válido de QuoteStatusFlow
+    if (["ORCAMENTO", "PROPOSTA_GERADA", "EM_VERIFICACAO", "APROVADA", 
+         "CONTRATO_GERADO", "ASSINATURA_CLIENTE", "ASSINATURA_DIRETORIA", 
+         "AGENDAMENTO_ENTREGA", "ENTREGA", "CONCLUIDO", "draft"].includes(quote.status)) {
+      return quote.status as QuoteStatusFlow;
+    }
+    
+    // Fallback para ORCAMENTO se não for um valor válido
+    return 'ORCAMENTO';
+  };
+
+  const currentStatus = getQuoteStatus();
+
   // Preparar dados para o GerarPropostaButton
   const quoteFormData = {
     client: {
@@ -117,7 +136,7 @@ const QuoteDetail = () => {
         id: v.vehicleId,
         brand: v.vehicleBrand,
         model: v.vehicleModel,
-        plateNumber: v.plateNumber,
+        plateNumber: v.plateNumber || '',
         value: v.vehicleValue || 0,
         year: new Date().getFullYear()
       },
@@ -158,7 +177,7 @@ const QuoteDetail = () => {
         id: vehicle.vehicleId,
         brand: vehicle.vehicleBrand,
         model: vehicle.vehicleModel,
-        plateNumber: vehicle.plateNumber,
+        plateNumber: vehicle.plateNumber || '',
         value: vehicle.vehicleValue || 0,
         year: new Date().getFullYear()
       },
@@ -174,23 +193,6 @@ const QuoteDetail = () => {
   const handleTabChange = (value: string) => {
     setActiveTab(value);
   };
-
-  // Garantir que estamos usando um QuoteStatusFlow válido
-  const getQuoteStatus = (): QuoteStatusFlow => {
-    if (!quote.status) return 'ORCAMENTO';
-    
-    // Verificar se o status é um valor válido de QuoteStatusFlow
-    if (["ORCAMENTO", "PROPOSTA_GERADA", "EM_VERIFICACAO", "APROVADA", 
-         "CONTRATO_GERADO", "ASSINATURA_CLIENTE", "ASSINATURA_DIRETORIA", 
-         "AGENDAMENTO_ENTREGA", "ENTREGA", "CONCLUIDO", "draft"].includes(quote.status)) {
-      return quote.status as QuoteStatusFlow;
-    }
-    
-    // Fallback para ORCAMENTO se não for um valor válido
-    return 'ORCAMENTO';
-  };
-
-  const currentStatus = getQuoteStatus();
 
   return (
     <MainLayout>
@@ -210,7 +212,7 @@ const QuoteDetail = () => {
             <div className="flex flex-col md:flex-row justify-between md:items-center mb-4">
               <div>
                 <h2 className="text-2xl font-semibold">{quote.clientName}</h2>
-                <p className="text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Criado em {formatDate(quote.createdAt)}
                   {quote.createdBy?.name && ` por ${quote.createdBy.name}`}
                 </p>
