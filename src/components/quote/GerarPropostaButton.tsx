@@ -10,6 +10,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { supabase } from '@/integrations/supabase/client';
 import { updateQuoteStatus } from '@/lib/status-api';
+import { registerProposal } from '@/integrations/supabase/services/proposals';
 
 interface GerarPropostaButtonProps {
   quoteForm: QuoteFormData | null;
@@ -88,27 +89,23 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
       setIsUpdatingStatus(false);
       
       // 2. Salvar registro da proposta no banco
-      const { data: proposalRecord, error: proposalError } = await supabase
-        .from('generated_proposals')
-        .insert({
-          quote_id: currentQuoteId,
-          file_name: fileName,
-          generated_by: (await supabase.auth.getUser()).data.user?.id || null,
-          status: 'GERADA',
-          observation: 'Proposta gerada via sistema'
-        })
-        .select()
-        .single();
+      const registerResult = await registerProposal({
+        quote_id: currentQuoteId,
+        file_name: fileName,
+        generated_by: (await supabase.auth.getUser()).data.user?.id || null,
+        status: 'GERADA',
+        observation: 'Proposta gerada via sistema'
+      });
         
-      if (proposalError) {
-        console.error('Erro ao registrar proposta:', proposalError);
+      if (!registerResult.success) {
+        console.error('Erro ao registrar proposta:', registerResult.error);
         toast({
           title: "Erro ao registrar proposta",
           description: "A proposta foi gerada, mas não foi possível registrar no sistema.",
           variant: "destructive"
         });
       } else {
-        console.log('Proposta registrada com sucesso:', proposalRecord);
+        console.log('Proposta registrada com sucesso:', registerResult.proposal);
       }
       
       // Salvar o PDF localmente
@@ -141,11 +138,11 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
       <DialogTrigger asChild>
         <Button 
           variant="outline" 
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 w-full"
           disabled={!canGenerateProposal}
         >
           <FileText size={16} />
-          Atualizar Status e Gerar Proposta
+          Gerar Proposta com Timbre
         </Button>
       </DialogTrigger>
       

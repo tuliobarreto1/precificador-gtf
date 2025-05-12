@@ -28,6 +28,7 @@ const QuoteDetail = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const { toast } = useToast();
+  // Usar o hook useQuoteCalculation com valores padrão que serão substituídos depois
   const { calculateQuoteSync } = useQuoteCalculation({
     client: null,
     vehicles: [],
@@ -108,7 +109,8 @@ const QuoteDetail = () => {
   const quoteFormData = {
     client: {
       id: quote.clientId || '',
-      name: quote.clientName
+      name: quote.clientName,
+      document: quote.clientDocument || ''
     },
     vehicles: quote.vehicles.map(v => ({
       vehicle: {
