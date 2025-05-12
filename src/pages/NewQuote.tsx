@@ -7,15 +7,12 @@ import QuoteForm from '@/components/quote/QuoteForm';
 import { useTaxIndices } from '@/hooks/useTaxIndices';
 
 const NewQuote = () => {
-  const { taxRates, ipvaRate, licensingFee, loadTaxIndices } = useTaxIndices();
+  const { taxRates, ipvaRate, licensingFee } = useTaxIndices();
 
   // Adicionando console.log para verificar renderização da página
   console.log("Renderizando página NewQuote");
   
   useEffect(() => {
-    // Garantir que os índices fiscais sejam carregados
-    loadTaxIndices();
-    
     // Log adicional ao montar o componente para depuração
     console.log("NewQuote montado - verificando configurações de impostos");
     
@@ -25,7 +22,7 @@ const NewQuote = () => {
       ipvaRate,
       licensingFee
     });
-  }, [loadTaxIndices]);
+  }, [taxRates, ipvaRate, licensingFee]);
   
   return (
     <MainLayout>

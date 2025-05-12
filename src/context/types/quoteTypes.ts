@@ -9,6 +9,8 @@ export interface Client {
   address?: string;
   city?: string;
   state?: string;
+  responsible?: string;
+  contact?: string;
 }
 
 // Interface VehicleParams para parâmetros de veículos

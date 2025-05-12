@@ -123,7 +123,7 @@ const PropostaTemplate = forwardRef<HTMLDivElement, PropostaTemplateProps>(
         <div className="mb-8">
           <p className="mb-4">Validade da proposta: 10 dias.</p>
           <p className="mb-10">Atenciosamente,</p>
-          <p className="font-bold">{quote.client?.responsible || 'Nome do Responsável'}</p>
+          <p className="font-bold">{quote.client?.contact || 'Nome do Responsável'}</p>
           <p>Setor Comercial</p>
         </div>
 
