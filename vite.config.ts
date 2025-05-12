@@ -1,4 +1,3 @@
-
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
@@ -22,6 +21,11 @@ export default defineConfig(({ mode }) => ({
         target: 'http://localhost:3005',
         changeOrigin: true,
       }
+    },
+    // Adicionando configuração para permitir o host específico
+    hmr: {
+      clientPort: 8080,
+      host: '21f4302d-167e-4f68-952e-c29e49930b44.lovableproject.com'
     }
   },
   // Adicionar configuração para evitar problemas com o Rollup nativo
