@@ -110,7 +110,7 @@ const QuoteDetail = () => {
     client: {
       id: quote.clientId || '',
       name: quote.clientName,
-      document: quote.clientDocument || ''
+      document: quote.clientId || '' // Usando clientId como substituto já que clientDocument não existe
     },
     vehicles: quote.vehicles.map(v => ({
       vehicle: {
