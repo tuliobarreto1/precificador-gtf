@@ -11,6 +11,7 @@ import { useTaxIndices } from '@/hooks/useTaxIndices';
 import { EmailDialog } from '../EmailDialog';
 import RoicSlider from '../RoicSlider';
 import GerarPropostaButton from '../GerarPropostaButton';
+import StatusUpdater from '@/components/status/StatusUpdater';
 
 interface ResultStepProps {
   quoteForm: QuoteFormData | null;
@@ -356,11 +357,22 @@ const ResultStep: React.FC<ResultStepProps> = ({
         </div>
         
         <div className="border-t p-4 flex flex-wrap gap-2 justify-end">
-          {/* Adicionando o botão de gerar proposta PDF */}
-          <GerarPropostaButton quoteForm={quoteForm} result={result} />
+          {/* Passando o ID do orçamento atual para o botão de gerar proposta */}
+          <GerarPropostaButton 
+            quoteForm={quoteForm} 
+            result={result} 
+            currentQuoteId={currentEditingQuoteId} 
+          />
           
           {isEditMode && currentEditingQuoteId && (
-            <EmailDialog quoteId={currentEditingQuoteId} />
+            <>
+              <EmailDialog quoteId={currentEditingQuoteId} />
+              <StatusUpdater
+                quoteId={currentEditingQuoteId}
+                currentStatus={isEditMode ? 'ORCAMENTO' : 'draft'} 
+                disabled={!isEditMode}
+              />
+            </>
           )}
         </div>
       </Card>

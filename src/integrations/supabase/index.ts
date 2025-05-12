@@ -8,6 +8,7 @@ import { getQuoteVehicles, addVehicleToQuote } from './services/quoteVehicles';
 import { getVehicleGroups, getVehicleGroupById } from './services/vehicleGroups';
 import { createQuoteActionLog, getQuoteActionLogs } from './services/quoteActionLogs';
 import { fetchProtectionPlans, fetchProtectionPlanDetails, updateProtectionPlan } from './services/protectionPlans';
+import { getProposalsByQuoteId, registerProposal, markProposalAsSent } from './services/proposals';
 
 export {
   // Core
@@ -50,5 +51,10 @@ export {
   // Protection Plans
   fetchProtectionPlans,
   fetchProtectionPlanDetails,
-  updateProtectionPlan
+  updateProtectionPlan,
+  
+  // Proposals
+  getProposalsByQuoteId,
+  registerProposal,
+  markProposalAsSent
 };

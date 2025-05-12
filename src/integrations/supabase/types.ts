@@ -126,6 +126,53 @@ export type Database = {
         }
         Relationships: []
       }
+      generated_proposals: {
+        Row: {
+          file_name: string
+          file_url: string | null
+          generated_at: string | null
+          generated_by: string | null
+          id: string
+          observation: string | null
+          quote_id: string
+          sent_at: string | null
+          sent_to: string | null
+          status: string | null
+        }
+        Insert: {
+          file_name: string
+          file_url?: string | null
+          generated_at?: string | null
+          generated_by?: string | null
+          id?: string
+          observation?: string | null
+          quote_id: string
+          sent_at?: string | null
+          sent_to?: string | null
+          status?: string | null
+        }
+        Update: {
+          file_name?: string
+          file_url?: string | null
+          generated_at?: string | null
+          generated_by?: string | null
+          id?: string
+          observation?: string | null
+          quote_id?: string
+          sent_at?: string | null
+          sent_to?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generated_proposals_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string

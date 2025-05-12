@@ -1,27 +1,38 @@
 
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { FileText } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { FileText, Send } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { QuoteFormData, QuoteCalculationResult } from '@/context/types/quoteTypes';
 import PropostaTemplate from './PropostaTemplate';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { supabase } from '@/integrations/supabase/client';
+import { updateQuoteStatus } from '@/lib/status-api';
 
 interface GerarPropostaButtonProps {
   quoteForm: QuoteFormData | null;
   result: QuoteCalculationResult | null;
+  currentQuoteId?: string | null;
 }
 
-const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, result }) => {
+const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, result, currentQuoteId }) => {
   const [open, setOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const propostaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const handleGeneratePDF = async () => {
-    if (!propostaRef.current) return;
+    if (!propostaRef.current || !currentQuoteId) {
+      toast({
+        title: "Erro ao gerar proposta",
+        description: "Não foi possível gerar a proposta. Verifique se o orçamento foi salvo.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     setIsGenerating(true);
     try {
@@ -54,11 +65,58 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       
       pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      
+      // Salvar PDF como blob para upload
+      const pdfBlob = pdf.output('blob');
+      
+      // 1. Atualizar o status do orçamento para PROPOSTA_GERADA
+      setIsUpdatingStatus(true);
+      const statusUpdateResult = await updateQuoteStatus(
+        currentQuoteId, 
+        'PROPOSTA_GERADA', 
+        'Proposta gerada automaticamente pelo sistema'
+      );
+      
+      if (!statusUpdateResult.success) {
+        console.error('Erro ao atualizar status:', statusUpdateResult.error);
+        toast({
+          title: "Erro ao atualizar status",
+          description: "A proposta foi gerada, mas não foi possível atualizar o status do orçamento.",
+          variant: "destructive"
+        });
+      }
+      setIsUpdatingStatus(false);
+      
+      // 2. Salvar registro da proposta no banco
+      const { data: proposalRecord, error: proposalError } = await supabase
+        .from('generated_proposals')
+        .insert({
+          quote_id: currentQuoteId,
+          file_name: fileName,
+          generated_by: (await supabase.auth.getUser()).data.user?.id || null,
+          status: 'GERADA',
+          observation: 'Proposta gerada via sistema'
+        })
+        .select()
+        .single();
+        
+      if (proposalError) {
+        console.error('Erro ao registrar proposta:', proposalError);
+        toast({
+          title: "Erro ao registrar proposta",
+          description: "A proposta foi gerada, mas não foi possível registrar no sistema.",
+          variant: "destructive"
+        });
+      } else {
+        console.log('Proposta registrada com sucesso:', proposalRecord);
+      }
+      
+      // Salvar o PDF localmente
       pdf.save(fileName);
       
       toast({
-        title: "PDF gerado com sucesso!",
-        description: `O arquivo ${fileName} foi salvo no seu computador.`,
+        title: "Proposta gerada com sucesso!",
+        description: `O arquivo ${fileName} foi salvo e o status atualizado para "Proposta Gerada".`,
       });
       
       setOpen(false);
@@ -71,15 +129,23 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
       });
     } finally {
       setIsGenerating(false);
+      setIsUpdatingStatus(false);
     }
   };
+  
+  // Verificar se podemos gerar a proposta (orçamento deve estar salvo)
+  const canGenerateProposal = Boolean(currentQuoteId);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="flex items-center gap-2">
+        <Button 
+          variant="outline" 
+          className="flex items-center gap-2"
+          disabled={!canGenerateProposal}
+        >
           <FileText size={16} />
-          Gerar Proposta PDF
+          Atualizar Status e Gerar Proposta
         </Button>
       </DialogTrigger>
       
@@ -88,20 +154,40 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
           <DialogTitle>Pré-visualização da Proposta</DialogTitle>
         </DialogHeader>
         
+        {!canGenerateProposal && (
+          <div className="p-4 bg-amber-100 border border-amber-300 rounded-md text-amber-800 mb-4">
+            <p>Para gerar uma proposta, é necessário primeiro salvar o orçamento.</p>
+          </div>
+        )}
+        
         <div className="border rounded-md p-2 bg-gray-50 overflow-auto">
           <div className="flex justify-center">
             <PropostaTemplate ref={propostaRef} quote={quoteForm} result={result} />
           </div>
         </div>
         
-        <div className="flex justify-end mt-4 gap-2">
+        <DialogFooter className="flex justify-end mt-4 gap-2">
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancelar
           </Button>
-          <Button onClick={handleGeneratePDF} disabled={isGenerating}>
-            {isGenerating ? "Gerando..." : "Baixar PDF"}
+          <Button 
+            onClick={handleGeneratePDF} 
+            disabled={isGenerating || isUpdatingStatus || !canGenerateProposal}
+            className="gap-2"
+          >
+            {isGenerating || isUpdatingStatus ? (
+              <>
+                <span className="animate-spin">◌</span>
+                {isGenerating ? "Gerando PDF..." : "Atualizando status..."}
+              </>
+            ) : (
+              <>
+                <FileText size={16} />
+                Gerar e Atualizar Status
+              </>
+            )}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

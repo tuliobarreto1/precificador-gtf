@@ -81,7 +81,7 @@ const PropostaTemplate = forwardRef<HTMLDivElement, PropostaTemplateProps>(
                     <td className="border p-1 text-xs">{quote.globalParams?.contractMonths || 24}</td>
                     <td className="border p-1 text-xs">1</td>
                     <td className="border p-1 text-xs">{vehicle.vehicle.brand} {vehicle.vehicle.model}</td>
-                    <td className="border p-1 text-xs">{vehicle.vehicleGroup.id}</td>
+                    <td className="border p-1 text-xs">{vehicle.vehicleGroup.name || vehicle.vehicleGroup.id}</td>
                     <td className="border p-1 text-xs">{quote.globalParams?.monthlyKm || 3000}</td>
                     <td className="border p-1 text-xs">
                       {vehicleResult.protectionPlanId ? 'Sim' : 'Não'}
