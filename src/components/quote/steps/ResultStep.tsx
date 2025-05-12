@@ -10,6 +10,7 @@ import ProtectionDetails from '@/components/protection/ProtectionDetails';
 import { useTaxIndices } from '@/hooks/useTaxIndices';
 import { EmailDialog } from '../EmailDialog';
 import RoicSlider from '../RoicSlider';
+import GerarPropostaButton from '../GerarPropostaButton';
 
 interface ResultStepProps {
   quoteForm: QuoteFormData | null;
@@ -354,11 +355,14 @@ const ResultStep: React.FC<ResultStepProps> = ({
           </div>
         </div>
         
-        {isEditMode && currentEditingQuoteId && (
-          <div className="border-t p-4 flex justify-end">
+        <div className="border-t p-4 flex flex-wrap gap-2 justify-end">
+          {/* Adicionando o botão de gerar proposta PDF */}
+          <GerarPropostaButton quoteForm={quoteForm} result={result} />
+          
+          {isEditMode && currentEditingQuoteId && (
             <EmailDialog quoteId={currentEditingQuoteId} />
-          </div>
-        )}
+          )}
+        </div>
       </Card>
     </div>
   );
