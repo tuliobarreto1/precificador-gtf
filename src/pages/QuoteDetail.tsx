@@ -17,7 +17,7 @@ import StatusHistory from '@/components/status/StatusHistory';
 import ProposalHistory from '@/components/quote/ProposalHistory';
 import GerarPropostaButton from '@/components/quote/GerarPropostaButton';
 import { updateQuoteStatus } from '@/lib/status-api';
-import { calculateQuoteResult } from '@/hooks/useQuoteCalculation';
+import { useQuoteCalculation } from '@/hooks/useQuoteCalculation';
 import { useToast } from '@/hooks/use-toast';
 
 const QuoteDetail = () => {
@@ -27,6 +27,21 @@ const QuoteDetail = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const { toast } = useToast();
+  const { calculateQuoteSync } = useQuoteCalculation({
+    client: null,
+    vehicles: [],
+    useGlobalParams: true,
+    globalParams: {
+      contractMonths: 24,
+      monthlyKm: 3000,
+      operationSeverity: 3 as 1|2|3|4|5|6,
+      hasTracking: false,
+      protectionPlanId: null,
+      includeIpva: false,
+      includeLicensing: false,
+      includeTaxes: false
+    }
+  });
 
   useEffect(() => {
     const fetchQuote = async () => {
@@ -105,10 +120,10 @@ const QuoteDetail = () => {
       params: null
     })),
     useGlobalParams: true,
-    globalParams: quote.globalParams || {
+    globalParams: {
       contractMonths: quote.contractMonths || 24,
       monthlyKm: quote.monthlyKm || 3000,
-      operationSeverity: quote.operationSeverity || 3,
+      operationSeverity: (quote.operationSeverity || 3) as 1|2|3|4|5|6,
       hasTracking: quote.hasTracking || false,
       protectionPlanId: null,
       includeIpva: quote.includeIpva || false,
@@ -118,10 +133,10 @@ const QuoteDetail = () => {
   };
   
   // Recalcular resultado
-  const calculationResult = calculateQuoteResult(quoteFormData);
+  const calculationResult = calculateQuoteSync();
   
   // Organizar os veículos em grupos para exibição
-  const vehiclesByGroup: Record<string, Array<SavedVehicle & { totalCostFormatted: string }>> = {};
+  const vehiclesByGroup: Record<string, Array<QuoteVehicleItem & { totalCostFormatted: string }>> = {};
   
   quote.vehicles.forEach(vehicle => {
     const groupId = vehicle.vehicleGroupId || vehicle.groupId || 'N/A';
@@ -131,7 +146,19 @@ const QuoteDetail = () => {
     }
     
     vehiclesByGroup[groupId].push({
-      ...vehicle,
+      vehicle: {
+        id: vehicle.vehicleId,
+        brand: vehicle.vehicleBrand,
+        model: vehicle.vehicleModel,
+        plateNumber: vehicle.plateNumber,
+        value: vehicle.vehicleValue || 0,
+        year: new Date().getFullYear()
+      },
+      vehicleGroup: {
+        id: groupId,
+        name: `Grupo ${groupId}`
+      },
+      params: null,
       totalCostFormatted: formatCurrency(vehicle.totalCost || 0)
     });
   });
@@ -165,14 +192,14 @@ const QuoteDetail = () => {
               </div>
               
               <div className="mt-2 md:mt-0">
-                <StatusBadge status={quote.status} size="lg" />
+                <StatusBadge status={quote.status || 'ORCAMENTO'} size="lg" />
               </div>
             </div>
             
             <div className="mt-4">
-              <StatusBreadcrumb currentStatus={quote.status} />
+              <StatusBreadcrumb currentStatus={quote.status || 'ORCAMENTO'} />
               <div className="mt-3">
-                <StatusProgressBar currentStatus={quote.status} />
+                <StatusProgressBar currentStatus={quote.status || 'ORCAMENTO'} />
               </div>
             </div>
           </div>
@@ -218,7 +245,7 @@ const QuoteDetail = () => {
             
             <StatusUpdater 
               quoteId={quote.id} 
-              currentStatus={quote.status}
+              currentStatus={quote.status || 'ORCAMENTO'}
               onStatusChange={(newStatus) => {
                 setQuote(prev => prev ? { ...prev, status: newStatus } : null);
               }}
@@ -277,12 +304,12 @@ const QuoteDetail = () => {
               <h3 className="text-lg font-medium mb-4">Grupo {groupId}</h3>
               <div className="space-y-4">
                 {vehicles.map((vehicle) => (
-                  <div key={vehicle.id} className="border rounded p-4 bg-muted/10">
+                  <div key={vehicle.vehicle.id} className="border rounded p-4 bg-muted/10">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h4 className="font-medium">{vehicle.vehicleBrand} {vehicle.vehicleModel}</h4>
+                        <h4 className="font-medium">{vehicle.vehicle.brand} {vehicle.vehicle.model}</h4>
                         <p className="text-sm text-muted-foreground">
-                          {vehicle.plateNumber && `Placa: ${vehicle.plateNumber} • `}
+                          {vehicle.vehicle.plateNumber && `Placa: ${vehicle.vehicle.plateNumber} • `}
                           Grupo: {groupId}
                         </p>
                       </div>

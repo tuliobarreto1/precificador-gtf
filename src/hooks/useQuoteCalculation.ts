@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { QuoteFormData, QuoteCalculationResult, QuoteResultVehicle } from '@/context/types/quoteTypes';
 import { useBasicCalculations } from './calculation/useBasicCalculations';
