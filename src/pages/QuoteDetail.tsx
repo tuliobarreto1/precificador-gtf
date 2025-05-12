@@ -19,6 +19,7 @@ import GerarPropostaButton from '@/components/quote/GerarPropostaButton';
 import { updateQuoteStatus } from '@/lib/status-api';
 import { useQuoteCalculation } from '@/hooks/useQuoteCalculation';
 import { useToast } from '@/hooks/use-toast';
+import { QuoteStatusFlow, DbQuoteStatus, toDbStatus } from '@/lib/status-flow';
 
 const QuoteDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -52,7 +53,12 @@ const QuoteDetail = () => {
         const { success, quote: fetchedQuote, error } = await getQuoteByIdFromSupabase(id);
         
         if (success && fetchedQuote) {
-          setQuote(fetchedQuote);
+          // Garantir que status seja um QuoteStatusFlow válido ou usar 'ORCAMENTO' como fallback
+          const safeQuote = {
+            ...fetchedQuote,
+            status: (fetchedQuote.status as QuoteStatusFlow) || 'ORCAMENTO'
+          };
+          setQuote(safeQuote);
         } else {
           console.error('Erro ao buscar orçamento:', error);
           toast({
@@ -167,6 +173,23 @@ const QuoteDetail = () => {
     setActiveTab(value);
   };
 
+  // Garantir que estamos usando um QuoteStatusFlow válido
+  const getQuoteStatus = (): QuoteStatusFlow => {
+    if (!quote.status) return 'ORCAMENTO';
+    
+    // Verificar se o status é um valor válido de QuoteStatusFlow
+    if (["ORCAMENTO", "PROPOSTA_GERADA", "EM_VERIFICACAO", "APROVADA", 
+         "CONTRATO_GERADO", "ASSINATURA_CLIENTE", "ASSINATURA_DIRETORIA", 
+         "AGENDAMENTO_ENTREGA", "ENTREGA", "CONCLUIDO", "draft"].includes(quote.status)) {
+      return quote.status as QuoteStatusFlow;
+    }
+    
+    // Fallback para ORCAMENTO se não for um valor válido
+    return 'ORCAMENTO';
+  };
+
+  const currentStatus = getQuoteStatus();
+
   return (
     <MainLayout>
       <PageTitle
@@ -192,14 +215,14 @@ const QuoteDetail = () => {
               </div>
               
               <div className="mt-2 md:mt-0">
-                <StatusBadge status={quote.status || 'ORCAMENTO'} size="lg" />
+                <StatusBadge status={currentStatus} size="lg" />
               </div>
             </div>
             
             <div className="mt-4">
-              <StatusBreadcrumb currentStatus={quote.status || 'ORCAMENTO'} />
+              <StatusBreadcrumb currentStatus={currentStatus} />
               <div className="mt-3">
-                <StatusProgressBar currentStatus={quote.status || 'ORCAMENTO'} />
+                <StatusProgressBar currentStatus={currentStatus} />
               </div>
             </div>
           </div>
@@ -245,7 +268,7 @@ const QuoteDetail = () => {
             
             <StatusUpdater 
               quoteId={quote.id} 
-              currentStatus={quote.status || 'ORCAMENTO'}
+              currentStatus={currentStatus}
               onStatusChange={(newStatus) => {
                 setQuote(prev => prev ? { ...prev, status: newStatus } : null);
               }}

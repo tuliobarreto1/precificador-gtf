@@ -8,7 +8,8 @@ import { getQuoteVehicles, addVehicleToQuote } from './services/quoteVehicles';
 import { getVehicleGroups, getVehicleGroupById } from './services/vehicleGroups';
 import { createQuoteActionLog, getQuoteActionLogs } from './services/quoteActionLogs';
 import { fetchProtectionPlans, fetchProtectionPlanDetails, updateProtectionPlan } from './services/protectionPlans';
-import { getProposalsByQuoteId, registerProposal, markProposalAsSent, GeneratedProposal } from './services/proposals';
+import { getProposalsByQuoteId, registerProposal, markProposalAsSent } from './services/proposals';
+import type { GeneratedProposal } from './services/proposals';
 
 export {
   // Core
@@ -57,5 +58,7 @@ export {
   getProposalsByQuoteId,
   registerProposal,
   markProposalAsSent,
-  GeneratedProposal
 };
+
+// Exportar tipos separadamente usando "export type"
+export type { GeneratedProposal };
