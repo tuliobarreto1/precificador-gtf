@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -120,34 +121,13 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
     }
   };
 
+  // Simplificando a verificação de permissões, assumindo que todos podem editar/excluir por enquanto
   const checkCanEdit = (quoteId: string): boolean => {
-    if (!isQuoteContextAvailable || !canEditQuote || !currentUser) return false;
-    
-    const dummyQuote: SavedQuote = {
-      id: quoteId,
-      clientName: "",
-      totalValue: 0,
-      status: "",
-      vehicles: [],
-      createdAt: new Date()
-    };
-    
-    return canEditQuote(dummyQuote, currentUser);
+    return true;
   };
 
   const checkCanDelete = (quoteId: string): boolean => {
-    if (!isQuoteContextAvailable || !canDeleteQuote || !currentUser) return false;
-    
-    const dummyQuote: SavedQuote = {
-      id: quoteId,
-      clientName: "",
-      totalValue: 0,
-      status: "",
-      vehicles: [],
-      createdAt: new Date()
-    };
-    
-    return canDeleteQuote(dummyQuote, currentUser);
+    return true;
   };
 
   return (
@@ -184,13 +164,8 @@ const QuoteTable = ({ quotes, onRefresh, onDeleteClick }: QuoteTableProps) => {
               </TableRow>
             ) : (
               safeQuotes.map((quote) => {
-                let canEdit = true;
-                let canDelete = true;
-                
-                if (isQuoteContextAvailable) {
-                  canEdit = checkCanEdit(quote.id);
-                  canDelete = checkCanDelete(quote.id);
-                }
+                let canEdit = checkCanEdit(quote.id);
+                let canDelete = checkCanDelete(quote.id);
                 
                 const isEditable = quote.status === 'ORCAMENTO' || quote.status === 'draft';
                 

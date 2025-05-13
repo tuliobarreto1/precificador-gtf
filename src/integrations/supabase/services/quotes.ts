@@ -1,4 +1,3 @@
-
 import { supabase } from '../client';
 import { v4 as uuidv4 } from 'uuid';
 import { createOrUpdateVehicle } from './vehicles';
@@ -212,30 +211,15 @@ export async function getQuoteByIdFromSupabase(quoteId: string) {
   try {
     console.log('Buscando orçamento do Supabase com ID:', quoteId);
     
-    // Buscar o orçamento base
+    // Buscar o orçamento base com mais detalhes e incluindo clientes
     const { data: quoteData, error: quoteError } = await supabase
       .from('quotes')
       .select(`
-        id,
-        title,
-        client_id,
-        created_by,
-        created_at,
-        updated_at,
-        contract_months,
-        monthly_km,
-        operation_severity,
-        has_tracking,
-        total_value,
-        status,
-        status_flow,
-        include_ipva,
-        include_licensing,
-        include_taxes,
-        clients (name, document)
+        *,
+        clients (*)
       `)
       .eq('id', quoteId)
-      .single();
+      .maybeSingle();
     
     if (quoteError) {
       console.error('Erro ao buscar orçamento:', quoteError);
@@ -249,37 +233,12 @@ export async function getQuoteByIdFromSupabase(quoteId: string) {
     
     console.log('Orçamento encontrado:', quoteData);
     
-    // Buscar os veículos do orçamento
+    // Buscar os veículos associados ao orçamento com informações completas
     const { data: vehicleData, error: vehicleError } = await supabase
       .from('quote_vehicles')
       .select(`
-        id,
-        quote_id,
-        vehicle_id,
-        contract_months,
-        monthly_km,
-        operation_severity,
-        has_tracking,
-        protection_plan_id,
-        depreciation_cost,
-        maintenance_cost,
-        extra_km_rate,
-        protection_cost,
-        ipva_cost,
-        licensing_cost,
-        tax_cost,
-        total_cost,
-        include_ipva,
-        include_licensing,
-        include_taxes,
-        vehicles:vehicle_id (
-          id, 
-          brand, 
-          model, 
-          value, 
-          plate_number,
-          group_id
-        )
+        *,
+        vehicles:vehicle_id (*)
       `)
       .eq('quote_id', quoteId);
     
@@ -290,7 +249,26 @@ export async function getQuoteByIdFromSupabase(quoteId: string) {
     
     console.log('Veículos encontrados:', vehicleData?.length || 0);
     
-    // Construir o objeto SavedQuote
+    // Buscar informações do usuário que criou o orçamento
+    let createdBy = undefined;
+    if (quoteData.created_by) {
+      const { data: userData, error: userError } = await supabase
+        .from('system_users')
+        .select('id, name, email, role')
+        .eq('id', quoteData.created_by)
+        .maybeSingle();
+        
+      if (!userError && userData) {
+        createdBy = {
+          id: userData.id,
+          name: userData.name,
+          email: userData.email,
+          role: userData.role
+        };
+      }
+    }
+    
+    // Construir o objeto SavedQuote com todos os dados necessários
     const quote: SavedQuote = {
       id: quoteData.id,
       clientId: quoteData.client_id,
@@ -306,19 +284,25 @@ export async function getQuoteByIdFromSupabase(quoteId: string) {
       includeIpva: quoteData.include_ipva || false,
       includeLicensing: quoteData.include_licensing || false,
       includeTaxes: quoteData.include_taxes || false,
-      createdBy: quoteData.created_by ? {
-        id: quoteData.created_by,
-        name: '', // Preenchemos isso depois se necessário
-        email: '',
-        role: 'user'
-      } : undefined,
+      createdBy: createdBy,
+      globalParams: {
+        contractMonths: quoteData.contract_months || 24,
+        monthlyKm: quoteData.monthly_km || 3000,
+        operationSeverity: quoteData.operation_severity || 3,
+        hasTracking: quoteData.has_tracking || false,
+        protectionPlanId: quoteData.global_protection_plan_id || null,
+        includeIpva: quoteData.include_ipva || false,
+        includeLicensing: quoteData.include_licensing || false,
+        includeTaxes: quoteData.include_taxes || false
+      },
       vehicles: vehicleData ? vehicleData.map(vehicle => ({
-        id: vehicle.id, // Adicionando o ID do registro quote_vehicles
+        id: vehicle.id, // ID do registro quote_vehicles
         vehicleId: vehicle.vehicle_id,
         vehicleBrand: vehicle.vehicles ? vehicle.vehicles.brand : 'Sem marca',
         vehicleModel: vehicle.vehicles ? vehicle.vehicles.model : 'Sem modelo',
         plateNumber: vehicle.vehicles ? vehicle.vehicles.plate_number : undefined,
         vehicleValue: vehicle.vehicles ? vehicle.vehicles.value : undefined,
+        vehicleGroupId: vehicle.vehicles ? vehicle.vehicles.group_id : undefined,
         groupId: vehicle.vehicles ? vehicle.vehicles.group_id : undefined,
         contractMonths: vehicle.contract_months,
         monthlyKm: vehicle.monthly_km,
@@ -339,7 +323,14 @@ export async function getQuoteByIdFromSupabase(quoteId: string) {
       })) : []
     };
     
-    console.log('Orçamento formatado:', { id: quote.id, clientName: quote.clientName, numVehicles: quote.vehicles.length });
+    console.log('Orçamento formatado:', { 
+      id: quote.id, 
+      clientName: quote.clientName, 
+      numVehicles: quote.vehicles.length,
+      totalValue: quote.totalValue,
+      status: quote.status
+    });
+    
     return { success: true, quote };
   } catch (error) {
     console.error('Erro ao buscar orçamento:', error);
