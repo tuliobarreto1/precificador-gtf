@@ -1,3 +1,4 @@
+
 import { supabase } from '../client';
 import { v4 as uuidv4 } from 'uuid';
 import { createOrUpdateVehicle } from './vehicles';
@@ -303,6 +304,7 @@ export async function getQuoteByIdFromSupabase(quoteId: string) {
         role: 'user'
       } : undefined,
       vehicles: vehicleData ? vehicleData.map(vehicle => ({
+        id: vehicle.id, // Adicionando o ID do registro quote_vehicles
         vehicleId: vehicle.vehicle_id,
         vehicleBrand: vehicle.vehicles ? vehicle.vehicles.brand : 'Sem marca',
         vehicleModel: vehicle.vehicles ? vehicle.vehicles.model : 'Sem modelo',

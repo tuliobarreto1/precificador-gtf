@@ -1,3 +1,4 @@
+
 // Removendo a referência ao '@prisma/client' que está causando erros
 
 export interface Client {
@@ -74,6 +75,7 @@ export interface SavedQuote {
   status: string;
   vehicles: SavedVehicle[];
   createdAt: Date | string;
+  updatedAt?: Date | string; // Adicionando campo que estava sendo usado
   createdBy?: {
     id: string; // Mudando para string para compatibilidade
     name: string;
@@ -135,7 +137,7 @@ export interface QuoteContextType {
 }
 
 export interface SavedVehicle {
-  id: string;
+  id: string;  // Garantindo que o campo id é obrigatório
   vehicleId: string;
   vehicleBrand: string;
   vehicleModel: string;
