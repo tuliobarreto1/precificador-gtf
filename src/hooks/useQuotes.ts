@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useQuote } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
@@ -77,6 +78,7 @@ export const useQuotes = (): UseQuotesReturn => {
     const checkConnection = async () => {
       try {
         setLoadingSupabase(true);
+        setError(null);
         console.log('Verificando conexão com o Supabase...');
         
         const { success } = await checkSupabaseConnection();
@@ -89,10 +91,12 @@ export const useQuotes = (): UseQuotesReturn => {
         } else {
           console.error('Falha ao conectar ao Supabase');
           setSupabaseConnected(false);
+          setError("Não foi possível conectar ao Supabase. Verifique sua conexão com a internet.");
         }
       } catch (error) {
         console.error('Erro ao verificar conexão:', error);
         setSupabaseConnected(false);
+        setError("Erro ao verificar conexão com o Supabase.");
       } finally {
         setLoadingSupabase(false);
       }
@@ -111,9 +115,11 @@ export const useQuotes = (): UseQuotesReturn => {
         setSupabaseVehicles(vehicles);
       } else {
         console.error('Erro ao carregar veículos do Supabase:', error);
+        setError("Erro ao carregar veículos.");
       }
     } catch (error) {
       console.error('Erro inesperado ao carregar veículos do Supabase:', error);
+      setError("Erro inesperado ao carregar veículos.");
     }
   };
   
@@ -134,6 +140,7 @@ export const useQuotes = (): UseQuotesReturn => {
         }
         
         setSupabaseQuotes(data);
+        setError(null);
       } else {
         console.error('Erro ao carregar orçamentos do Supabase:', error);
         setError('Falha ao carregar orçamentos do Supabase');
@@ -146,6 +153,7 @@ export const useQuotes = (): UseQuotesReturn => {
   
   const handleRefresh = useCallback(() => {
     setLoading(true);
+    setError(null);
     console.log('🔄 Atualizando lista de orçamentos via handleRefresh...');
     
     setRefreshTrigger(prev => prev + 1);
@@ -160,6 +168,11 @@ export const useQuotes = (): UseQuotesReturn => {
   }, [toast]);
 
   const getVehicleInfo = (quote: any) => {
+    if (!quote) {
+      console.log("Quote inválido em getVehicleInfo");
+      return { name: 'Veículo não especificado', value: 0 };
+    }
+    
     console.log('Processando informações de veículo para orçamento:', quote.id);
     
     if (quote.vehicles && Array.isArray(quote.vehicles) && quote.vehicles.length > 0) {
@@ -219,7 +232,12 @@ export const useQuotes = (): UseQuotesReturn => {
     return { name: 'Veículo não especificado', value: quote.total_value || quote.totalCost || 0 };
   };
 
-  const supabaseQuotesTransformed = supabaseQuotes.map(quote => {
+  const supabaseQuotesTransformed = Array.isArray(supabaseQuotes) ? supabaseQuotes.map(quote => {
+    if (!quote) {
+      console.log("Quote inválido encontrado na transformação");
+      return null;
+    }
+    
     console.log('Processando orçamento do Supabase:', quote.id);
     
     const clientName = quote.client_name || (quote.client && quote.client.name) || 'Cliente não especificado';
@@ -251,7 +269,7 @@ export const useQuotes = (): UseQuotesReturn => {
       contractMonths: contractMonths,
       createdBy: createdByInfo
     };
-  });
+  }).filter(Boolean) : [];
 
   const [allQuotes, setAllQuotes] = useState<QuoteItem[]>([]);
   
@@ -263,6 +281,7 @@ export const useQuotes = (): UseQuotesReturn => {
       setAllQuotes(quotes);
     } catch (error) {
       console.error('Erro ao transformar orçamentos:', error);
+      setError("Erro ao processar orçamentos.");
     }
   }, [supabaseQuotes, refreshTrigger]);
   

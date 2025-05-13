@@ -20,15 +20,17 @@ import { updateQuoteStatus } from '@/lib/status-api';
 import { useQuoteCalculation } from '@/hooks/useQuoteCalculation';
 import { useToast } from '@/hooks/use-toast';
 import { QuoteStatusFlow, DbQuoteStatus, toDbStatus } from '@/lib/status-flow';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const QuoteDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [quote, setQuote] = useState<SavedQuote | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const { toast } = useToast();
-  // Usar o hook useQuoteCalculation com valores padrão que serão substituídos depois
+  
   const { calculateQuoteSync } = useQuoteCalculation({
     client: null,
     vehicles: [],
@@ -47,11 +49,17 @@ const QuoteDetail = () => {
 
   useEffect(() => {
     const fetchQuote = async () => {
-      if (!id) return;
+      if (!id) {
+        setError("ID do orçamento não fornecido");
+        setLoading(false);
+        return;
+      }
       
       try {
         setLoading(true);
+        setError(null);
         console.log('Buscando orçamento com ID:', id);
+        
         const { success, quote: fetchedQuote, error } = await getQuoteByIdFromSupabase(id);
         
         if (success && fetchedQuote) {
@@ -64,14 +72,16 @@ const QuoteDetail = () => {
           setQuote(safeQuote);
         } else {
           console.error('Erro ao buscar orçamento:', error);
+          setError(error || "Não foi possível carregar os detalhes do orçamento.");
           toast({
             title: "Erro ao carregar orçamento",
-            description: "Não foi possível carregar os detalhes do orçamento.",
+            description: error || "Não foi possível carregar os detalhes do orçamento.",
             variant: "destructive"
           });
         }
       } catch (error) {
         console.error('Erro ao buscar orçamento:', error);
+        setError("Ocorreu um erro inesperado ao buscar o orçamento.");
       } finally {
         setLoading(false);
       }
@@ -83,23 +93,38 @@ const QuoteDetail = () => {
   if (loading) {
     return (
       <MainLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="flex items-center gap-2">
-            <span className="animate-spin">◌</span>
-            <span>Carregando detalhes do orçamento...</span>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-10 w-1/3" />
+            <Skeleton className="h-10 w-32" />
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-4">
+              <Skeleton className="h-40 w-full" />
+              <Skeleton className="h-32 w-full" />
+            </div>
+            <Skeleton className="h-80 w-full" />
+          </div>
+          
+          <div className="space-y-3 mt-6">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-56 w-full" />
           </div>
         </div>
       </MainLayout>
     );
   }
 
-  if (!quote) {
+  if (error || !quote) {
     return (
       <MainLayout>
         <div className="flex flex-col items-center justify-center h-64">
-          <h2 className="text-xl font-semibold mb-2">Orçamento não encontrado</h2>
+          <h2 className="text-xl font-semibold mb-2">
+            {error ? "Erro ao carregar orçamento" : "Orçamento não encontrado"}
+          </h2>
           <p className="text-muted-foreground mb-4">
-            O orçamento solicitado não foi encontrado ou foi excluído.
+            {error || "O orçamento solicitado não foi encontrado ou foi excluído."}
           </p>
           <Button onClick={() => navigate('/orcamentos')}>Voltar para Lista</Button>
         </div>
@@ -163,32 +188,24 @@ const QuoteDetail = () => {
   const calculationResult = calculateQuoteSync();
   
   // Organizar os veículos em grupos para exibição
-  const vehiclesByGroup: Record<string, Array<QuoteVehicleItem & { totalCostFormatted: string }>> = {};
+  const vehiclesByGroup: Record<string, Array<any>> = {};
   
-  quote.vehicles.forEach(vehicle => {
-    const groupId = vehicle.vehicleGroupId || vehicle.groupId || 'N/A';
-    
-    if (!vehiclesByGroup[groupId]) {
-      vehiclesByGroup[groupId] = [];
-    }
-    
-    vehiclesByGroup[groupId].push({
-      vehicle: {
-        id: vehicle.vehicleId,
-        brand: vehicle.vehicleBrand,
-        model: vehicle.vehicleModel,
-        plateNumber: vehicle.plateNumber || '',
-        value: vehicle.vehicleValue || 0,
-        year: new Date().getFullYear()
-      },
-      vehicleGroup: {
-        id: groupId,
-        name: `Grupo ${groupId}`
-      },
-      params: null,
-      totalCostFormatted: formatCurrency(vehicle.totalCost || 0)
+  if (Array.isArray(quote.vehicles)) {
+    quote.vehicles.forEach(vehicle => {
+      const groupId = vehicle.vehicleGroupId || vehicle.groupId || 'N/A';
+      
+      if (!vehiclesByGroup[groupId]) {
+        vehiclesByGroup[groupId] = [];
+      }
+      
+      vehiclesByGroup[groupId].push({
+        ...vehicle,
+        totalCostFormatted: formatCurrency(vehicle.totalCost || 0)
+      });
     });
-  });
+  } else {
+    console.error('quote.vehicles não é um array:', quote.vehicles);
+  }
   
   const handleTabChange = (value: string) => {
     setActiveTab(value);
@@ -240,7 +257,7 @@ const QuoteDetail = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Veículos</p>
-                <p className="font-medium">{quote.vehicles.length}</p>
+                <p className="font-medium">{Array.isArray(quote.vehicles) ? quote.vehicles.length : 0}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Período</p>
@@ -326,30 +343,36 @@ const QuoteDetail = () => {
         </TabsList>
         
         <TabsContent value="overview" className="space-y-6 pt-4">
-          {Object.entries(vehiclesByGroup).map(([groupId, vehicles]) => (
-            <div key={groupId} className="bg-white border rounded-lg p-4">
-              <h3 className="text-lg font-medium mb-4">Grupo {groupId}</h3>
-              <div className="space-y-4">
-                {vehicles.map((vehicle) => (
-                  <div key={vehicle.vehicle.id} className="border rounded p-4 bg-muted/10">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-medium">{vehicle.vehicle.brand} {vehicle.vehicle.model}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {vehicle.vehicle.plateNumber && `Placa: ${vehicle.vehicle.plateNumber} • `}
-                          Grupo: {groupId}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">{vehicle.totalCostFormatted}</p>
-                        <p className="text-xs text-muted-foreground">Valor mensal</p>
+          {Object.keys(vehiclesByGroup).length === 0 ? (
+            <div className="bg-white border rounded-lg p-8 text-center">
+              <p className="text-muted-foreground">Nenhum veículo encontrado para este orçamento.</p>
+            </div>
+          ) : (
+            Object.entries(vehiclesByGroup).map(([groupId, vehicles]) => (
+              <div key={groupId} className="bg-white border rounded-lg p-4">
+                <h3 className="text-lg font-medium mb-4">Grupo {groupId}</h3>
+                <div className="space-y-4">
+                  {vehicles.map((vehicle) => (
+                    <div key={vehicle.id} className="border rounded p-4 bg-muted/10">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-medium">{vehicle.vehicleBrand} {vehicle.vehicleModel}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {vehicle.plateNumber && `Placa: ${vehicle.plateNumber} • `}
+                            Grupo: {groupId}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">{vehicle.totalCostFormatted}</p>
+                          <p className="text-xs text-muted-foreground">Valor mensal</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </TabsContent>
         
         <TabsContent value="status" className="pt-4">

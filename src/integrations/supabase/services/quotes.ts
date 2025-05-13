@@ -175,6 +175,8 @@ export async function addVehicleToQuote(vehicleData: any) {
 
 export async function getQuotesFromSupabase() {
   try {
+    console.log('Buscando orçamentos do Supabase...');
+    
     const { data, error } = await supabase
       .from('quotes')
       .select(`
@@ -193,6 +195,12 @@ export async function getQuotesFromSupabase() {
     }
     
     console.log(`${data?.length || 0} orçamentos recuperados com sucesso`);
+    
+    // Log detalhado para debug
+    if (data && data.length > 0) {
+      console.log('Primeiro orçamento recuperado:', JSON.stringify(data[0], null, 2));
+    }
+    
     return { success: true, quotes: data || [] };
   } catch (error) {
     console.error("Erro inesperado ao buscar orçamentos:", error);
@@ -235,6 +243,7 @@ export async function getQuoteByIdFromSupabase(quoteId: string) {
     }
     
     if (!quoteData) {
+      console.error('Orçamento não encontrado com ID:', quoteId);
       return { success: false, error: 'Orçamento não encontrado' };
     }
     
@@ -279,7 +288,7 @@ export async function getQuoteByIdFromSupabase(quoteId: string) {
       return { success: false, error: vehicleError.message };
     }
     
-    console.log('Veículos encontrados:', vehicleData);
+    console.log('Veículos encontrados:', vehicleData?.length || 0);
     
     // Construir o objeto SavedQuote
     const quote: SavedQuote = {
@@ -330,6 +339,7 @@ export async function getQuoteByIdFromSupabase(quoteId: string) {
       })) : []
     };
     
+    console.log('Orçamento formatado:', { id: quote.id, clientName: quote.clientName, numVehicles: quote.vehicles.length });
     return { success: true, quote };
   } catch (error) {
     console.error('Erro ao buscar orçamento:', error);
