@@ -26,12 +26,22 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
   const { toast } = useToast();
 
   const handleGeneratePDF = async () => {
-    if (!propostaRef.current || !currentQuoteId) {
+    if (!propostaRef.current) {
       toast({
         title: "Erro ao gerar proposta",
-        description: "Não foi possível gerar a proposta. Verifique se o orçamento foi salvo.",
+        description: "Não foi possível gerar a proposta. Elemento de referência não encontrado.",
         variant: "destructive"
       });
+      return;
+    }
+    
+    if (!currentQuoteId) {
+      toast({
+        title: "Erro ao gerar proposta",
+        description: "Não foi possível gerar a proposta. ID do orçamento não informado. Verifique se o orçamento foi salvo.",
+        variant: "destructive"
+      });
+      console.error("Tentativa de gerar PDF sem ID de orçamento válido", { currentQuoteId });
       return;
     }
 
@@ -45,15 +55,18 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
         description: "Aguarde enquanto geramos a proposta em PDF...",
       });
 
+      console.log("Iniciando geração do PDF do elemento:", propostaRef.current);
+      
       const element = propostaRef.current;
       const canvas = await html2canvas(element, {
         scale: 2,
-        logging: false,
+        logging: true, // Ativar logs para debug
         useCORS: true,
         allowTaint: true
       });
       
       const imgData = canvas.toDataURL('image/png');
+      console.log("Canvas gerado com sucesso");
       
       // Configurar orientação e tamanho (A4)
       const pdf = new jsPDF({
@@ -66,12 +79,14 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       
       pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      console.log("Imagem adicionada ao PDF");
       
       // Salvar PDF como blob para upload
       const pdfBlob = pdf.output('blob');
       
       // 1. Atualizar o status do orçamento para PROPOSTA_GERADA
       setIsUpdatingStatus(true);
+      console.log("Atualizando status do orçamento:", currentQuoteId);
       const statusUpdateResult = await updateQuoteStatus(
         currentQuoteId, 
         'PROPOSTA_GERADA', 
@@ -85,14 +100,22 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
           description: "A proposta foi gerada, mas não foi possível atualizar o status do orçamento.",
           variant: "destructive"
         });
+      } else {
+        console.log("Status atualizado com sucesso");
       }
       setIsUpdatingStatus(false);
       
       // 2. Salvar registro da proposta no banco
+      const currentUser = (await supabase.auth.getUser()).data.user;
+      console.log("Salvando registro da proposta:", { 
+        quote_id: currentQuoteId,
+        user: currentUser 
+      });
+      
       const registerResult = await registerProposal({
         quote_id: currentQuoteId,
         file_name: fileName,
-        generated_by: (await supabase.auth.getUser()).data.user?.id || null,
+        generated_by: currentUser?.id || null,
         status: 'GERADA',
         observation: 'Proposta gerada via sistema'
       });
@@ -130,8 +153,8 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
     }
   };
   
-  // Ajustando a lógica para habilitar o botão em mais cenários
-  const canGenerateProposal = Boolean(currentQuoteId) || (quoteForm && quoteForm.client);
+  // Simplificando a lógica para habilitar o botão
+  const canGenerateProposal = Boolean(currentQuoteId) && Boolean(propostaRef.current);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -139,7 +162,7 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
         <Button 
           variant="outline" 
           className="flex items-center gap-2 w-full"
-          disabled={!canGenerateProposal}
+          disabled={!quoteForm?.client}
         >
           <FileText size={16} />
           Gerar Proposta em PDF
@@ -151,9 +174,9 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
           <DialogTitle>Pré-visualização da Proposta</DialogTitle>
         </DialogHeader>
         
-        {!canGenerateProposal && (
+        {!currentQuoteId && (
           <div className="p-4 bg-amber-100 border border-amber-300 rounded-md text-amber-800 mb-4">
-            <p>Para gerar uma proposta, é necessário primeiro salvar o orçamento.</p>
+            <p>Para gerar uma proposta, é necessário primeiro salvar o orçamento. O orçamento atual não possui um ID válido.</p>
           </div>
         )}
         
@@ -169,7 +192,7 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
           </Button>
           <Button 
             onClick={handleGeneratePDF} 
-            disabled={isGenerating || isUpdatingStatus || !canGenerateProposal}
+            disabled={isGenerating || isUpdatingStatus || !currentQuoteId}
             className="gap-2"
           >
             {isGenerating || isUpdatingStatus ? (

@@ -12,14 +12,30 @@ interface PropostaTemplateProps {
 
 const PropostaTemplate = forwardRef<HTMLDivElement, PropostaTemplateProps>(
   ({ quote, result, currentDate }, ref) => {
-    if (!quote || !result) return null;
+    if (!quote || !result) {
+      console.warn("PropostaTemplate: Dados insuficientes para renderizar proposta", { quote, result });
+      return (
+        <div ref={ref} className="bg-white p-8 w-[210mm] min-h-[297mm]">
+          <p className="text-center text-red-500">
+            Dados insuficientes para gerar a proposta. Verifique se o orçamento foi salvo corretamente.
+          </p>
+        </div>
+      );
+    }
 
     const today = currentDate || new Date().toLocaleDateString('pt-BR');
     const clientName = quote.client?.name || 'Cliente';
     const clientDocument = quote.client?.document || '';
     
-    // Calcular totais
-    const totalMensal = result.vehicleResults.reduce((sum, vr) => sum + vr.totalCost, 0);
+    // Log para debug
+    console.log("Renderizando PropostaTemplate com dados:", { 
+      client: quote.client,
+      vehicles: quote.vehicles?.length,
+      result: result?.vehicleResults?.length
+    });
+    
+    // Calcular totais com verificações para evitar erros
+    const totalMensal = result.vehicleResults?.reduce((sum, vr) => sum + (vr?.totalCost || 0), 0) || 0;
     const totalContrato = totalMensal * (quote.globalParams?.contractMonths || 24);
 
     return (
@@ -72,23 +88,33 @@ const PropostaTemplate = forwardRef<HTMLDivElement, PropostaTemplateProps>(
                 </tr>
               </thead>
               <tbody>
-                {quote.vehicles && result.vehicleResults && quote.vehicles.map((vehicle, index) => {
-                  const vehicleResult = result.vehicleResults.find(vr => vr.vehicleId === vehicle.vehicle.id);
-                  if (!vehicleResult) return null;
+                {quote.vehicles && Array.isArray(quote.vehicles) && result.vehicleResults && Array.isArray(result.vehicleResults) && 
+                 quote.vehicles.map((vehicle, index) => {
+                  // Verificar se o veículo existe
+                  if (!vehicle || !vehicle.vehicle) {
+                    console.warn("Veículo inválido no índice", index);
+                    return null;
+                  }
+                  
+                  const vehicleResult = result.vehicleResults.find(vr => vr && vr.vehicleId === vehicle.vehicle.id);
+                  if (!vehicleResult) {
+                    console.warn("Resultado não encontrado para veículo", vehicle.vehicle.id);
+                    return null;
+                  }
                   
                   return (
-                    <tr key={vehicle.vehicle.id} className="text-center">
+                    <tr key={`vehicle-${index}-${vehicle.vehicle.id}`} className="text-center">
                       <td className="border p-1 text-xs">{index + 1}</td>
                       <td className="border p-1 text-xs">{quote.globalParams?.contractMonths || 24}</td>
                       <td className="border p-1 text-xs">1</td>
                       <td className="border p-1 text-xs">{vehicle.vehicle.brand} {vehicle.vehicle.model}</td>
-                      <td className="border p-1 text-xs">{vehicle.vehicleGroup.name || vehicle.vehicleGroup.id}</td>
+                      <td className="border p-1 text-xs">{vehicle.vehicleGroup?.name || vehicle.vehicleGroup?.id || 'N/A'}</td>
                       <td className="border p-1 text-xs">{quote.globalParams?.monthlyKm || 3000}</td>
                       <td className="border p-1 text-xs">
                         {vehicleResult.protectionPlanId ? 'Sim' : 'Não'}
                       </td>
-                      <td className="border p-1 text-xs">{formatCurrency(vehicleResult.totalCost)}</td>
-                      <td className="border p-1 text-xs">{formatCurrency(vehicleResult.totalCost * (quote.globalParams?.contractMonths || 24))}</td>
+                      <td className="border p-1 text-xs">{formatCurrency(vehicleResult.totalCost || 0)}</td>
+                      <td className="border p-1 text-xs">{formatCurrency((vehicleResult.totalCost || 0) * (quote.globalParams?.contractMonths || 24))}</td>
                     </tr>
                   );
                 })}

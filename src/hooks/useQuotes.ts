@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useQuote } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
@@ -132,11 +131,14 @@ export const useQuotes = (): UseQuotesReturn => {
         console.log(`Carregados ${data.length} orçamentos do Supabase com sucesso`);
         
         if (data.length > 0) {
-          console.log('Amostra do primeiro orçamento:', data[0]);
-          
-          if (data[0]?.vehicles && data[0]?.vehicles.length > 0) {
-            console.log('Veículos do primeiro orçamento:', data[0].vehicles);
-          }
+          console.log('Amostra do primeiro orçamento:', {
+            id: data[0]?.id,
+            clientName: data[0]?.client_name || (data[0]?.client && data[0]?.client.name),
+            totalValue: data[0]?.total_value,
+            vehicles: Array.isArray(data[0]?.vehicles) ? data[0]?.vehicles.length : 'N/A'
+          });
+        } else {
+          console.log('Nenhum orçamento encontrado no Supabase');
         }
         
         setSupabaseQuotes(data);
@@ -173,10 +175,8 @@ export const useQuotes = (): UseQuotesReturn => {
       return { name: 'Veículo não especificado', value: 0 };
     }
     
-    console.log('Processando informações de veículo para orçamento:', quote.id);
-    
+    // Verificar se há veículos no orçamento
     if (quote.vehicles && Array.isArray(quote.vehicles) && quote.vehicles.length > 0) {
-      console.log('Veículos encontrados no array vehicles:', quote.vehicles.length);
       const firstVehicle = quote.vehicles[0];
       
       if (firstVehicle.vehicle) {
@@ -194,16 +194,11 @@ export const useQuotes = (): UseQuotesReturn => {
           name: `${firstVehicle.vehicleBrand} ${firstVehicle.vehicleModel}`,
           value: firstVehicle.totalCost || quote.total_value || 0
         };
-      } else {
-        return { 
-          name: 'Veículo não especificado', 
-          value: quote.total_value || 0 
-        };
       }
     }
     
+    // Tentar outros métodos de obtenção do veículo
     if (quote.vehicle) {
-      console.log('Veículo encontrado diretamente no orçamento:', quote.vehicle);
       return { 
         name: `${quote.vehicle.brand} ${quote.vehicle.model}`, 
         value: quote.monthly_values || quote.total_value || 0
@@ -211,10 +206,8 @@ export const useQuotes = (): UseQuotesReturn => {
     }
     
     if (quote.vehicle_id && supabaseVehicles.length > 0) {
-      console.log('Buscando veículo pelo ID:', quote.vehicle_id);
       const vehicle = supabaseVehicles.find(v => v.id === quote.vehicle_id);
       if (vehicle) {
-        console.log('Veículo encontrado pelo ID:', vehicle);
         return { 
           name: `${vehicle.brand} ${vehicle.model}`, 
           value: quote.monthly_values || quote.total_value || 0 
@@ -234,18 +227,18 @@ export const useQuotes = (): UseQuotesReturn => {
 
   const supabaseQuotesTransformed = Array.isArray(supabaseQuotes) ? supabaseQuotes.map(quote => {
     if (!quote) {
-      console.log("Quote inválido encontrado na transformação");
       return null;
     }
     
-    console.log('Processando orçamento do Supabase:', quote.id);
+    // Obter o nome do cliente com fallback seguro
+    const clientName = quote.client_name || 
+                       (quote.client && typeof quote.client === 'object' && quote.client.name) || 
+                       'Cliente não especificado';
     
-    const clientName = quote.client_name || (quote.client && quote.client.name) || 'Cliente não especificado';
-    console.log('Nome do cliente:', clientName);
-    
+    // Obter informações do veículo
     const vehicleInfo = getVehicleInfo(quote);
-    console.log('Informações de veículo para orçamento:', quote.id, vehicleInfo);
     
+    // Formatar informações do criador com fallback seguro
     const createdByInfo = {
       id: quote.created_by || "system",
       name: quote.created_by_name || 'Sistema',
@@ -254,10 +247,11 @@ export const useQuotes = (): UseQuotesReturn => {
       status: 'active'
     };
     
+    // Obter duração do contrato com fallback seguro
     const contractMonths = quote.contract_months || 
-                           quote.contractMonths || 
-                           (quote.globalParams ? quote.globalParams.contractMonths : 0) || 
-                           0;
+                         quote.contractMonths || 
+                         (quote.globalParams && quote.globalParams.contractMonths) || 
+                         24;
     
     return {
       id: quote.id,
@@ -265,7 +259,7 @@ export const useQuotes = (): UseQuotesReturn => {
       vehicleName: vehicleInfo.name,
       value: vehicleInfo.value || quote.total_value || 0,
       createdAt: quote.created_at || new Date().toISOString(),
-      status: quote.status_flow || 'ORCAMENTO',
+      status: quote.status_flow || quote.status || 'ORCAMENTO',
       contractMonths: contractMonths,
       createdBy: createdByInfo
     };
