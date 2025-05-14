@@ -60,14 +60,13 @@ const QuoteDetailPage = () => {
     fetchQuote();
   }, [id, toast]);
 
-  const handleSendEmail = async (email: string, message: string) => {
+  const handleSendEmail = async (email: string, message: string): Promise<void> => {
     // Implementar envio por email
     console.log('Enviando orçamento por e-mail:', { quoteId: id, email, message });
     toast({
       title: "Email enviado",
       description: `Orçamento enviado para ${email} com sucesso.`
     });
-    return true;
   };
 
   const handleDelete = async () => {

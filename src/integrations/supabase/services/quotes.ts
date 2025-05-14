@@ -1,3 +1,4 @@
+
 import { supabase } from '../client';
 import { v4 as uuidv4 } from 'uuid';
 import { createOrUpdateVehicle } from './vehicles';
@@ -288,7 +289,7 @@ export async function getQuoteByIdFromSupabase(quoteId: string) {
       globalParams: {
         contractMonths: quoteData.contract_months || 24,
         monthlyKm: quoteData.monthly_km || 3000,
-        operationSeverity: quoteData.operation_severity || 3,
+        operationSeverity: (quoteData.operation_severity || 3) as 1|2|3|4|5|6,
         hasTracking: quoteData.has_tracking || false,
         protectionPlanId: quoteData.global_protection_plan_id || null,
         includeIpva: quoteData.include_ipva || false,
