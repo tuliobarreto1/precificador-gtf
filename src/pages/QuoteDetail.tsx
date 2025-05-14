@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useQuoteCalculation } from '@/hooks/useQuoteCalculation';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { sendEmailWithOutlook } from '@/lib/email-service';
 
 const QuoteDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -61,12 +62,24 @@ const QuoteDetailPage = () => {
   }, [id, toast]);
 
   const handleSendEmail = async (email: string, message: string): Promise<void> => {
-    // Implementar envio por email
-    console.log('Enviando orçamento por e-mail:', { quoteId: id, email, message });
-    toast({
-      title: "Email enviado",
-      description: `Orçamento enviado para ${email} com sucesso.`
-    });
+    try {
+      // Esta é apenas uma simulação. Precisaria ser substituída por um serviço real
+      console.log('Enviando orçamento por e-mail:', { quoteId: id, email, message });
+      
+      // No futuro, substituir por chamada real ao serviço de e-mail
+      // const result = await sendEmailWithOutlook(email, 'Orçamento ASA Locadora', message);
+      
+      toast({
+        title: "Email não enviado",
+        description: "Configurações de email não encontradas. Verifique as configurações do sistema."
+      });
+    } catch (error) {
+      console.error("Erro ao enviar email:", error);
+      toast({
+        title: "Erro ao enviar email",
+        description: "Ocorreu um erro ao tentar enviar o email. Verifique as configurações."
+      });
+    }
   };
 
   const handleDelete = async () => {

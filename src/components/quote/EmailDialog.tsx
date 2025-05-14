@@ -8,13 +8,16 @@ import {
   DialogHeader, 
   DialogTitle, 
   DialogFooter, 
-  DialogTrigger 
+  DialogTrigger,
+  DialogDescription 
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useQuote } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
+import { getEmailConfig } from '@/lib/email-service';
+import { Link } from 'react-router-dom';
 
 interface EmailDialogProps {
   quoteId: string;
@@ -25,8 +28,18 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId }) => {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [configExists, setConfigExists] = useState<boolean | null>(null);
   const { toast } = useToast();
   const { sendQuoteByEmail } = useQuote();
+
+  // Verificar se existem configurações de email quando o diálogo é aberto
+  const handleOpenChange = async (open: boolean) => {
+    if (open) {
+      const config = await getEmailConfig();
+      setConfigExists(!!config);
+    }
+    setDialogOpen(open);
+  };
 
   const handleSendEmail = async () => {
     if (!email) {
@@ -60,7 +73,7 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId }) => {
   };
 
   return (
-    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+    <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" className="flex items-center gap-2">
           <Mail size={16} />
@@ -70,6 +83,15 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId }) => {
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Enviar Orçamento por E-mail</DialogTitle>
+          {configExists === false && (
+            <DialogDescription className="text-destructive">
+              Configurações de e-mail não encontradas. Configure o serviço de e-mail nas 
+              <Link to="/settings" className="text-primary mx-1 underline">
+                configurações do sistema
+              </Link>
+              antes de continuar.
+            </DialogDescription>
+          )}
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
@@ -83,6 +105,7 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId }) => {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="cliente@empresa.com.br"
               className="col-span-3"
+              disabled={configExists === false}
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
@@ -95,6 +118,7 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId }) => {
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Segue em anexo o orçamento conforme solicitado."
               className="col-span-3"
+              disabled={configExists === false}
             />
           </div>
         </div>
@@ -107,7 +131,11 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId }) => {
           >
             Cancelar
           </Button>
-          <Button type="button" onClick={handleSendEmail} disabled={sending}>
+          <Button 
+            type="button" 
+            onClick={handleSendEmail} 
+            disabled={sending || !email || configExists === false}
+          >
             {sending ? 'Enviando...' : 'Enviar'}
           </Button>
         </DialogFooter>

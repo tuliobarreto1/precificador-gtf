@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { SavedQuote, SavedVehicle } from '@/context/types/quoteTypes';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
@@ -8,8 +9,14 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useTaxIndices } from '@/hooks/useTaxIndices';
-import { ChevronDown, ChevronUp, Shield } from 'lucide-react';
+import { ChevronDown, ChevronUp, Shield, Mail } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { EmailDialog } from '@/components/quote/EmailDialog';
+import GerarPropostaButton from '@/components/quote/GerarPropostaButton';
+import { useQuote } from '@/context/QuoteContext';
+import { StatusUpdater } from '@/components/status/StatusUpdater';
+import { StatusHistory } from '@/components/status/StatusHistory';
+import { StatusBadge } from '@/components/status/StatusBadge';
 
 interface QuoteDetailProps {
   quote: SavedQuote;
@@ -34,6 +41,7 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
   const [sending, setSending] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { getTaxBreakdown } = useTaxIndices();
+  const { calculateQuote } = useQuote();
   
   console.log("Dados da cotação recebidos no QuoteDetail:", quote);
   
@@ -50,6 +58,9 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
       setSending(false);
     }
   };
+  
+  // Calcular resultado para usar no GerarPropostaButton
+  const result = calculateQuote();
   
   const hasAnyTax = quote.vehicles && quote.vehicles.some(v => 
     (v.includeIpva && v.ipvaCost && v.ipvaCost > 0) || 
@@ -77,12 +88,64 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
         </div>
         
         <div className="flex flex-wrap gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => setShowEmailDialog(true)}
-          >
-            Enviar por Email
-          </Button>
+          <EmailDialog quoteId={quote.id} />
+          
+          <GerarPropostaButton
+            quoteForm={{
+              client: {
+                id: quote.clientId || '',
+                name: quote.clientName || 'Cliente',
+                type: 'PJ',
+                document: quote.clientDocument || '',
+                email: '',
+                contact: ''
+              },
+              vehicles: quote.vehicles?.map(vehicle => ({
+                vehicle: {
+                  id: vehicle.vehicleId,
+                  brand: vehicle.vehicleBrand,
+                  model: vehicle.vehicleModel,
+                  year: vehicle.vehicleYear || new Date().getFullYear(),
+                  value: vehicle.vehicleValue || 0,
+                  isUsed: !!vehicle.plateNumber,
+                  plateNumber: vehicle.plateNumber,
+                  groupId: vehicle.vehicleGroupId || vehicle.groupId || 'A'
+                },
+                vehicleGroup: {
+                  id: vehicle.vehicleGroupId || vehicle.groupId || 'A',
+                  name: `Grupo ${vehicle.vehicleGroupId || vehicle.groupId || 'A'}`,
+                  description: '',
+                  revisionKm: 10000,
+                  revisionCost: 300,
+                  tireKm: 40000,
+                  tireCost: 1200
+                },
+                params: {
+                  contractMonths: vehicle.contractMonths || quote.contractMonths || 24,
+                  monthlyKm: vehicle.monthlyKm || quote.monthlyKm || 3000,
+                  operationSeverity: (vehicle.operationSeverity || quote.operationSeverity || 3) as 1|2|3|4|5|6,
+                  hasTracking: vehicle.hasTracking || quote.hasTracking || false,
+                  protectionPlanId: vehicle.protectionPlanId || null,
+                  includeIpva: vehicle.includeIpva || false,
+                  includeLicensing: vehicle.includeLicensing || false,
+                  includeTaxes: vehicle.includeTaxes || false
+                }
+              })) || [],
+              useGlobalParams: true,
+              globalParams: {
+                contractMonths: quote.contractMonths || 24,
+                monthlyKm: quote.monthlyKm || 3000,
+                operationSeverity: (quote.operationSeverity || 3) as 1|2|3|4|5|6,
+                hasTracking: quote.hasTracking || false,
+                protectionPlanId: quote.globalProtectionPlanId || null,
+                includeIpva: quote.includeIpva || false,
+                includeLicensing: quote.includeLicensing || false,
+                includeTaxes: quote.includeTaxes || false
+              }
+            }}
+            result={result}
+            currentQuoteId={quote.id}
+          />
           
           {canEdit && (
             <Button 
@@ -104,38 +167,53 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
         </div>
       </div>
       
-      <Card>
-        <CardHeader title="Dados do Contrato" />
-        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <h3 className="font-medium">Valor Total</h3>
-            <p className="text-2xl font-bold">{formatCurrency(quote.totalValue)} <span className="text-sm font-normal">/ mês</span></p>
-            {quote.contractMonths && (
-              <p className="text-sm text-muted-foreground">
-                Contrato de {quote.contractMonths} meses - 
-                Total: {formatCurrency(quote.totalValue * quote.contractMonths)}
-              </p>
-            )}
-          </div>
-          
-          <div>
-            <h3 className="font-medium">Detalhes</h3>
-            <div className="text-sm space-y-1">
-              <p>Status: <span className="font-medium">{quote.status}</span></p>
-              {quote.globalParams && (
-                <>
-                  <p>Km mensal: {quote.globalParams.monthlyKm} km</p>
-                  <p>Severidade: {quote.globalParams.operationSeverity}</p>
-                  <p>Rastreamento: {quote.globalParams.hasTracking ? 'Sim' : 'Não'}</p>
-                  <p>IPVA: {quote.globalParams.includeIpva ? 'Incluído' : 'Não incluído'}</p>
-                  <p>Licenciamento: {quote.globalParams.includeLicensing ? 'Incluído' : 'Não incluído'}</p>
-                  <p>Custos financeiros: {quote.globalParams.includeTaxes ? 'Incluídos' : 'Não incluídos'}</p>
-                </>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="md:col-span-2">
+          <CardHeader title="Dados do Contrato" />
+          <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h3 className="font-medium">Valor Total</h3>
+              <p className="text-2xl font-bold">{formatCurrency(quote.totalValue)} <span className="text-sm font-normal">/ mês</span></p>
+              {quote.contractMonths && (
+                <p className="text-sm text-muted-foreground">
+                  Contrato de {quote.contractMonths} meses - 
+                  Total: {formatCurrency(quote.totalValue * quote.contractMonths)}
+                </p>
               )}
             </div>
+            
+            <div>
+              <h3 className="font-medium">Detalhes</h3>
+              <div className="text-sm space-y-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <StatusBadge status={quote.status || 'draft'} />
+                </div>
+                {quote.globalParams && (
+                  <>
+                    <p>Km mensal: {quote.globalParams.monthlyKm} km</p>
+                    <p>Severidade: {quote.globalParams.operationSeverity}</p>
+                    <p>Rastreamento: {quote.globalParams.hasTracking ? 'Sim' : 'Não'}</p>
+                    <p>IPVA: {quote.globalParams.includeIpva ? 'Incluído' : 'Não incluído'}</p>
+                    <p>Licenciamento: {quote.globalParams.includeLicensing ? 'Incluído' : 'Não incluído'}</p>
+                    <p>Custos financeiros: {quote.globalParams.includeTaxes ? 'Incluídos' : 'Não incluídos'}</p>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+        
+        <Card>
+          <CardHeader title="Status e Ações" />
+          <div className="p-4">
+            <StatusUpdater quoteId={quote.id} currentStatus={quote.status} />
+            <div className="mt-4">
+              <h4 className="text-sm font-medium mb-2">Histórico de Status</h4>
+              <StatusHistory quoteId={quote.id} />
+            </div>
+          </div>
+        </Card>
+      </div>
       
       <h3 className="text-xl font-bold mt-6">Veículos ({quote.vehicles?.length || 0})</h3>
       
