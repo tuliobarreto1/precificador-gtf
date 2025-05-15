@@ -1,4 +1,3 @@
-
 // Tipos para o fluxo de status
 export type QuoteStatusFlow = 
   'draft' | 
