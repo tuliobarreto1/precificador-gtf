@@ -8,7 +8,7 @@ import {
   ToastDescription,
   ToastAction
 } from '@/components/ui/toast';
-import { toast as toast$ } from "@/components/ui/sonner";
+import { toast as sonnerToast } from 'sonner'; // Importar diretamente do pacote sonner
 
 export type ToastProps = {
   title?: string;
@@ -156,7 +156,7 @@ function toast({
   });
 
   // Usar Sonner toast para visualização
-  toast$({
+  sonnerToast({
     title,
     description,
   });
