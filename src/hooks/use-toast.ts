@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
   ToastActionElement, 
@@ -155,10 +154,9 @@ function toast({
     variante: variant
   });
 
-  // Usar Sonner toast para visualização
-  sonnerToast({
-    title,
-    description,
+  // Usar Sonner toast para visualização - corrigindo a chamada
+  sonnerToast(description as string, {
+    description: typeof description === 'string' ? undefined : description
   });
 
   // Também adicionar ao nosso estado interno
