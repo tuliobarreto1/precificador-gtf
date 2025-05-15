@@ -1,3 +1,4 @@
+
 // Tipos para o fluxo de status
 export type QuoteStatusFlow = 
   'draft' | 
@@ -176,4 +177,19 @@ export const isValidTransition = (currentStatus: QuoteStatusFlow, newStatus: Quo
   
   // Qualquer outra transição não é permitida
   return false;
+};
+
+// Adicionar função calculateProgress
+export const calculateProgress = (currentStatus: QuoteStatusFlow): number => {
+  // Status especiais
+  if (currentStatus === 'CANCELADO') return 0;
+  if (currentStatus === 'CONCLUIDO') return 100;
+  
+  // Calcular progresso com base no índice do status no fluxo
+  const currentIndex = allStatus.indexOf(currentStatus);
+  if (currentIndex === -1) return 0;
+  
+  // Ajustar para rascunho que é um status especial
+  const maxSteps = allStatus.length - 1; // -1 pois não consideramos 'draft' como etapa final
+  return Math.round((currentIndex / maxSteps) * 100);
 };

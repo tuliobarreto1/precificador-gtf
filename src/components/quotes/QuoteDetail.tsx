@@ -16,6 +16,7 @@ import { useQuote } from '@/context/QuoteContext';
 import StatusUpdater from '@/components/status/StatusUpdater';
 import StatusHistory from '@/components/status/StatusHistory';
 import StatusBadge from '@/components/status/StatusBadge';
+import { QuoteStatusFlow } from '@/lib/status-flow';
 
 interface QuoteDetailProps {
   quote: SavedQuote;
@@ -94,7 +95,7 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
               client: {
                 id: quote.clientId || '',
                 name: quote.clientName || 'Cliente',
-                document: quote.document || '', // Corrigido de clientDocument para document
+                document: '',
                 email: '',
                 contact: ''
               },
@@ -103,7 +104,7 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
                   id: vehicle.vehicleId,
                   brand: vehicle.vehicleBrand,
                   model: vehicle.vehicleModel,
-                  year: vehicle.vehicleValue ? new Date().getFullYear() : new Date().getFullYear(), // Corrigido de vehicleYear
+                  year: new Date().getFullYear(),
                   value: vehicle.vehicleValue || 0,
                   isUsed: !!vehicle.plateNumber,
                   plateNumber: vehicle.plateNumber,
@@ -135,7 +136,7 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
                 monthlyKm: quote.monthlyKm || 3000,
                 operationSeverity: 3, // Valor padrão
                 hasTracking: false, // Valor padrão
-                protectionPlanId: null, // Corrigido de quote.globalProtectionPlanId
+                protectionPlanId: null,
                 includeIpva: quote.includeIpva || false,
                 includeLicensing: quote.includeLicensing || false,
                 includeTaxes: quote.includeTaxes || false
@@ -184,7 +185,7 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
               <h3 className="font-medium">Detalhes</h3>
               <div className="text-sm space-y-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <StatusBadge status={quote.status || 'draft'} />
+                  <StatusBadge status={quote.status as QuoteStatusFlow || 'draft'} />
                 </div>
                 {quote.globalParams && (
                   <>
@@ -204,7 +205,7 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
         <Card>
           <CardHeader title="Status e Ações" />
           <div className="p-4">
-            <StatusUpdater quoteId={quote.id} currentStatus={quote.status} />
+            <StatusUpdater quoteId={quote.id} currentStatus={quote.status as QuoteStatusFlow} />
             <div className="mt-4">
               <h4 className="text-sm font-medium mb-2">Histórico de Status</h4>
               <StatusHistory quoteId={quote.id} />
