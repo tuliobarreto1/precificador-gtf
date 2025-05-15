@@ -78,15 +78,17 @@ export const updateQuoteStatus = async (
     // Antes de salvar no histórico, vamos garantir que o status é compatível com o que o banco espera
     const formattedPreviousStatus = previousStatus === 'draft' ? 'ORCAMENTO' : previousStatus;
     
-    // Tratar tipos para prevenir o erro de tipo
+    // Tratar tipos para prevenir o erro de tipo - vamos usar um tipo mais genérico
+    type DbStatus = string;
+    
     const { error: historyError } = await supabase
       .from('quote_status_history')
       .insert({
         quote_id: quoteId,
-        previous_status: formattedPreviousStatus,
-        new_status: dbStatus,
+        previous_status: formattedPreviousStatus as DbStatus,
+        new_status: dbStatus as DbStatus,
         observation: observation || null
-      } as any); // Usando 'as any' para contornar a verificação de tipo estrita
+      });
     
     if (historyError) {
       console.error('Erro ao salvar histórico de status:', historyError);
