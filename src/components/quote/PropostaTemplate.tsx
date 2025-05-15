@@ -31,7 +31,8 @@ const PropostaTemplate = forwardRef<HTMLDivElement, PropostaTemplateProps>(
     console.log("Renderizando PropostaTemplate com dados:", { 
       client: quote.client,
       vehicles: quote.vehicles?.length,
-      result: result?.vehicleResults?.length
+      result: result?.vehicleResults?.length,
+      globalParams: quote.globalParams
     });
     
     // Calcular totais com verificações para evitar erros
@@ -96,6 +97,7 @@ const PropostaTemplate = forwardRef<HTMLDivElement, PropostaTemplateProps>(
                     return null;
                   }
                   
+                  // Buscar o resultado correspondente ao veículo atual
                   const vehicleResult = result.vehicleResults.find(vr => vr && vr.vehicleId === vehicle.vehicle.id);
                   if (!vehicleResult) {
                     console.warn("Resultado não encontrado para veículo", vehicle.vehicle.id);
@@ -117,7 +119,7 @@ const PropostaTemplate = forwardRef<HTMLDivElement, PropostaTemplateProps>(
                       <td className="border p-1 text-xs">{formatCurrency((vehicleResult.totalCost || 0) * (quote.globalParams?.contractMonths || 24))}</td>
                     </tr>
                   );
-                })}
+                }).filter(Boolean)}
                 
                 <tr className="font-bold bg-gray-50">
                   <td colSpan={7} className="border p-1 text-xs text-right">TOTAL:</td>
@@ -140,7 +142,7 @@ const PropostaTemplate = forwardRef<HTMLDivElement, PropostaTemplateProps>(
                 <li>Assistência 24 horas</li>
                 <li>Manutenções conforme manual do fabricante</li>
                 <li>
-                  {quote.globalParams?.includeIpva || quote.globalParams?.includeLicensing ? 
+                  {(quote.globalParams?.includeIpva || quote.globalParams?.includeLicensing) ? 
                     'Impostos, taxas, licenciamento e IPVA' : 'Impostos e taxas'}
                 </li>
               </ul>

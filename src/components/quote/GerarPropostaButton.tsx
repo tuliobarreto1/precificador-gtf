@@ -25,6 +25,30 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
   const propostaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
+  // Verificar se os dados são válidos para gerar a proposta
+  const dadosValidos = quoteForm?.client && 
+                      quoteForm?.vehicles && 
+                      quoteForm.vehicles.length > 0 &&
+                      result?.vehicleResults && 
+                      result.vehicleResults.length > 0 && 
+                      !!currentQuoteId;
+
+  // Log detalhado para debug
+  console.log("GerarPropostaButton: Estado atual dos dados", {
+    cliente: quoteForm?.client,
+    veiculos: quoteForm?.vehicles?.map(v => ({
+      id: v.vehicle.id,
+      marca: v.vehicle.brand,
+      modelo: v.vehicle.model
+    })),
+    resultados: result?.vehicleResults?.map(v => ({
+      id: v.vehicleId,
+      custo: v.totalCost
+    })),
+    id_orcamento: currentQuoteId,
+    dados_validos: dadosValidos
+  });
+
   const handleGeneratePDF = async () => {
     if (!propostaRef.current) {
       toast({
@@ -153,9 +177,6 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
     }
   };
   
-  // Simplificando a lógica para habilitar o botão
-  const canGenerateProposal = Boolean(currentQuoteId) && Boolean(propostaRef.current);
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -174,9 +195,16 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
           <DialogTitle>Pré-visualização da Proposta</DialogTitle>
         </DialogHeader>
         
-        {!currentQuoteId && (
+        {!dadosValidos && (
           <div className="p-4 bg-amber-100 border border-amber-300 rounded-md text-amber-800 mb-4">
-            <p>Para gerar uma proposta, é necessário primeiro salvar o orçamento. O orçamento atual não possui um ID válido.</p>
+            <p className="font-medium">Dados insuficientes para gerar a proposta:</p>
+            <ul className="list-disc pl-5 mt-2 text-sm">
+              {!currentQuoteId && <li>O orçamento precisa ser salvo primeiro (ID não encontrado)</li>}
+              {!quoteForm?.client && <li>Nenhum cliente selecionado</li>}
+              {(!quoteForm?.vehicles || quoteForm.vehicles.length === 0) && <li>Nenhum veículo adicionado ao orçamento</li>}
+              {(!result?.vehicleResults || result.vehicleResults.length === 0) && <li>Cálculos dos veículos não encontrados</li>}
+            </ul>
+            <p className="mt-2 text-sm">Salve o orçamento e tente novamente.</p>
           </div>
         )}
         
@@ -192,7 +220,7 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
           </Button>
           <Button 
             onClick={handleGeneratePDF} 
-            disabled={isGenerating || isUpdatingStatus || !currentQuoteId}
+            disabled={isGenerating || isUpdatingStatus || !dadosValidos}
             className="gap-2"
           >
             {isGenerating || isUpdatingStatus ? (
