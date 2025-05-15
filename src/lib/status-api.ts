@@ -78,7 +78,7 @@ export const updateQuoteStatus = async (
     // Antes de salvar no histórico, vamos garantir que o status é compatível com o que o banco espera
     const formattedPreviousStatus = previousStatus === 'draft' ? 'ORCAMENTO' : previousStatus;
     
-    // Usando tipo genérico para contornar restrições de tipos do Supabase
+    // Agora que atualizamos o tipo enum no banco de dados, não precisamos mais usar 'as any'
     const { error: historyError } = await supabase
       .from('quote_status_history')
       .insert({
@@ -86,7 +86,7 @@ export const updateQuoteStatus = async (
         previous_status: formattedPreviousStatus,
         new_status: dbStatus,
         observation: observation || null
-      } as any); // Usando 'as any' para contornar a verificação estrita de tipos
+      });
     
     if (historyError) {
       console.error('Erro ao salvar histórico de status:', historyError);
