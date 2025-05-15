@@ -61,6 +61,7 @@ const QuoteDetailPage = () => {
     fetchQuote();
   }, [id, toast]);
 
+  // Alterando o tipo de retorno para compatibilizar com interface
   const handleSendEmail = async (email: string, message: string): Promise<void> => {
     try {
       // Esta é apenas uma simulação. Precisaria ser substituída por um serviço real

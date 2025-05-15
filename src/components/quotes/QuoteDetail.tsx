@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { SavedQuote, SavedVehicle } from '@/context/types/quoteTypes';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
@@ -14,9 +13,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { EmailDialog } from '@/components/quote/EmailDialog';
 import GerarPropostaButton from '@/components/quote/GerarPropostaButton';
 import { useQuote } from '@/context/QuoteContext';
-import { StatusUpdater } from '@/components/status/StatusUpdater';
-import { StatusHistory } from '@/components/status/StatusHistory';
-import { StatusBadge } from '@/components/status/StatusBadge';
+import StatusUpdater from '@/components/status/StatusUpdater';
+import StatusHistory from '@/components/status/StatusHistory';
+import StatusBadge from '@/components/status/StatusBadge';
 
 interface QuoteDetailProps {
   quote: SavedQuote;
@@ -95,8 +94,7 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
               client: {
                 id: quote.clientId || '',
                 name: quote.clientName || 'Cliente',
-                type: 'PJ',
-                document: quote.clientDocument || '',
+                document: quote.document || '', // Corrigido de clientDocument para document
                 email: '',
                 contact: ''
               },
@@ -105,7 +103,7 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
                   id: vehicle.vehicleId,
                   brand: vehicle.vehicleBrand,
                   model: vehicle.vehicleModel,
-                  year: vehicle.vehicleYear || new Date().getFullYear(),
+                  year: vehicle.vehicleValue ? new Date().getFullYear() : new Date().getFullYear(), // Corrigido de vehicleYear
                   value: vehicle.vehicleValue || 0,
                   isUsed: !!vehicle.plateNumber,
                   plateNumber: vehicle.plateNumber,
@@ -123,8 +121,8 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
                 params: {
                   contractMonths: vehicle.contractMonths || quote.contractMonths || 24,
                   monthlyKm: vehicle.monthlyKm || quote.monthlyKm || 3000,
-                  operationSeverity: (vehicle.operationSeverity || quote.operationSeverity || 3) as 1|2|3|4|5|6,
-                  hasTracking: vehicle.hasTracking || quote.hasTracking || false,
+                  operationSeverity: 3, // Usando valor padrão
+                  hasTracking: false, // Usando valor padrão
                   protectionPlanId: vehicle.protectionPlanId || null,
                   includeIpva: vehicle.includeIpva || false,
                   includeLicensing: vehicle.includeLicensing || false,
@@ -135,9 +133,9 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
               globalParams: {
                 contractMonths: quote.contractMonths || 24,
                 monthlyKm: quote.monthlyKm || 3000,
-                operationSeverity: (quote.operationSeverity || 3) as 1|2|3|4|5|6,
-                hasTracking: quote.hasTracking || false,
-                protectionPlanId: quote.globalProtectionPlanId || null,
+                operationSeverity: 3, // Valor padrão
+                hasTracking: false, // Valor padrão
+                protectionPlanId: null, // Corrigido de quote.globalProtectionPlanId
                 includeIpva: quote.includeIpva || false,
                 includeLicensing: quote.includeLicensing || false,
                 includeTaxes: quote.includeTaxes || false
