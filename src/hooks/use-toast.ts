@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useToast as useToastOriginal } from '@/components/ui/use-toast';
+import { useToast as useToastOriginal } from '@/components/ui/toast';
 import { ToastActionElement } from '@/components/ui/toast';
 
 type ToastProps = {
@@ -29,5 +29,5 @@ export const toast = ({ title, description, action, variant = 'default' }: Toast
   });
 };
 
-// Re-exportar o hook useToast original
+// Re-exportar o hook useToast original mas sem renomear
 export const useToast = useToastOriginal;
