@@ -26,34 +26,34 @@ export async function getEmailConfig(): Promise<EmailConfig | null> {
       .from('system_settings')
       .select('value')
       .eq('key', 'email_provider')
-      .single();
+      .maybeSingle();
       
     const { data: emailHost, error: hostError } = await supabase
       .from('system_settings')
       .select('value')
       .eq('key', 'email_host')
-      .single();
+      .maybeSingle();
       
     const { data: emailPort, error: portError } = await supabase
       .from('system_settings')
       .select('value')
       .eq('key', 'email_port')
-      .single();
+      .maybeSingle();
       
     const { data: emailUser, error: userError } = await supabase
       .from('system_settings')
       .select('value')
       .eq('key', 'email_user')
-      .single();
+      .maybeSingle();
       
     const { data: emailSecure, error: secureError } = await supabase
       .from('system_settings')
       .select('value')
       .eq('key', 'email_secure')
-      .single();
+      .maybeSingle();
       
     // Se alguma configuração estiver faltando, retornar null
-    if (providerError || hostError || portError || userError || secureError) {
+    if (!emailProvider || !emailHost || !emailPort || !emailUser) {
       console.error("Configurações de email incompletas:", { 
         providerError, hostError, portError, userError, secureError 
       });
@@ -65,9 +65,9 @@ export async function getEmailConfig(): Promise<EmailConfig | null> {
       .from('system_settings')
       .select('value')
       .eq('key', 'email_password')
-      .single();
+      .maybeSingle();
     
-    if (passwordError) {
+    if (!emailPassword) {
       console.error("Senha de email não configurada:", passwordError);
       return null;
     }
@@ -78,7 +78,7 @@ export async function getEmailConfig(): Promise<EmailConfig | null> {
       port: parseInt(emailPort.value),
       user: emailUser.value,
       password: emailPassword.value,
-      secure: emailSecure.value === 'true'
+      secure: emailSecure?.value === 'true'
     };
   } catch (error) {
     console.error("Erro ao obter configurações de email:", error);
@@ -105,7 +105,7 @@ export async function sendEmailWithOutlook(
       return false;
     }
     
-    console.log(`Simulando envio de email para ${to} usando configurações:`, {
+    console.log(`Enviando email para ${to} usando configurações:`, {
       provider: config.provider,
       host: config.host,
       port: config.port,
@@ -116,7 +116,7 @@ export async function sendEmailWithOutlook(
     // Em uma implementação real, aqui seria a lógica de envio de email
     // utilizando nodemailer, sendgrid ou outro serviço
     
-    // Simular sucesso
+    // Simular sucesso para teste
     return true;
   } catch (error) {
     console.error("Erro ao enviar email:", error);

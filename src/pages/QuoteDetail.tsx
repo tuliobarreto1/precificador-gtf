@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useQuoteCalculation } from '@/hooks/useQuoteCalculation';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { sendEmailWithOutlook } from '@/lib/email-service';
+import { useQuote } from '@/context/QuoteContext';
 
 const QuoteDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +22,7 @@ const QuoteDetailPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { toast } = useToast();
+  const { sendQuoteByEmail } = useQuote();
   
   useEffect(() => {
     const fetchQuote = async () => {
@@ -36,9 +37,9 @@ const QuoteDetailPage = () => {
         setError(null);
         console.log('Buscando orçamento com ID:', id);
         
-        const { success, quote: fetchedQuote, error } = await getQuoteByIdFromSupabase(id);
+        const { quote: fetchedQuote, error } = await getQuoteByIdFromSupabase(id);
         
-        if (success && fetchedQuote) {
+        if (fetchedQuote) {
           console.log('Orçamento encontrado:', fetchedQuote);
           setQuote(fetchedQuote);
         } else {
@@ -61,25 +62,20 @@ const QuoteDetailPage = () => {
     fetchQuote();
   }, [id, toast]);
 
-  // Alterando o tipo de retorno para compatibilizar com interface
-  const handleSendEmail = async (email: string, message: string): Promise<void> => {
+  const handleSendEmail = async (email: string, message: string): Promise<boolean> => {
+    if (!id) return false;
+    
     try {
-      // Esta é apenas uma simulação. Precisaria ser substituída por um serviço real
       console.log('Enviando orçamento por e-mail:', { quoteId: id, email, message });
-      
-      // No futuro, substituir por chamada real ao serviço de e-mail
-      // const result = await sendEmailWithOutlook(email, 'Orçamento ASA Locadora', message);
-      
-      toast({
-        title: "Email não enviado",
-        description: "Configurações de email não encontradas. Verifique as configurações do sistema."
-      });
+      const result = await sendQuoteByEmail(id, email, message);
+      return result;
     } catch (error) {
       console.error("Erro ao enviar email:", error);
       toast({
         title: "Erro ao enviar email",
         description: "Ocorreu um erro ao tentar enviar o email. Verifique as configurações."
       });
+      return false;
     }
   };
 

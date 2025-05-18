@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -35,8 +35,14 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId }) => {
   // Verificar se existem configurações de email quando o diálogo é aberto
   const handleOpenChange = async (open: boolean) => {
     if (open) {
-      const config = await getEmailConfig();
-      setConfigExists(!!config);
+      try {
+        const config = await getEmailConfig();
+        console.log("Configurações de e-mail:", config ? "Encontradas" : "Não encontradas");
+        setConfigExists(!!config);
+      } catch (error) {
+        console.error("Erro ao verificar configurações de e-mail:", error);
+        setConfigExists(false);
+      }
     }
     setDialogOpen(open);
   };
@@ -52,24 +58,36 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId }) => {
     }
 
     setSending(true);
-    const success = await sendQuoteByEmail(quoteId, email, message);
-    
-    if (success) {
-      toast({
-        title: "E-mail enviado",
-        description: "Orçamento enviado com sucesso"
-      });
-      setDialogOpen(false);
-      setEmail('');
-      setMessage('');
-    } else {
+    try {
+      console.log(`Tentando enviar orçamento ${quoteId} para ${email}`);
+      const success = await sendQuoteByEmail(quoteId, email, message);
+      
+      if (success) {
+        toast({
+          title: "E-mail enviado",
+          description: "Orçamento enviado com sucesso"
+        });
+        setDialogOpen(false);
+        setEmail('');
+        setMessage('');
+      } else {
+        console.error("Falha no envio do e-mail");
+        toast({
+          title: "Erro ao enviar",
+          description: "Não foi possível enviar o orçamento por e-mail. Verifique as configurações.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao enviar e-mail:", error);
       toast({
         title: "Erro ao enviar",
-        description: "Não foi possível enviar o orçamento por e-mail",
+        description: "Ocorreu um erro ao tentar enviar o e-mail",
         variant: "destructive"
       });
+    } finally {
+      setSending(false);
     }
-    setSending(false);
   };
 
   return (

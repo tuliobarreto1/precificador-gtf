@@ -8,6 +8,8 @@ import { useQuoteParams } from '@/hooks/useQuoteParams';
 import { useQuoteCalculation } from '@/hooks/useQuoteCalculation';
 import { useQuoteSaving } from '@/hooks/useQuoteSaving';
 import { useQuoteData } from '@/hooks/useQuoteData';
+import { sendEmailWithOutlook } from '@/lib/email-service';
+import { useToast } from '@/hooks/use-toast';
 
 // Initial state com impostos habilitados por padrão
 const initialQuoteForm: QuoteFormData = {
@@ -66,6 +68,7 @@ const QuoteContext = createContext<QuoteContextType>(defaultContextValue);
 // Provider component
 export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   const [quoteForm, setQuoteForm] = useState<QuoteFormData>(initialQuoteForm);
+  const { toast } = useToast();
   
   // Utilizando os hooks específicos
   const {
@@ -100,8 +103,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   
   const {
     calculateQuote,
-    calculateQuoteSync,
-    sendQuoteByEmail
+    calculateQuoteSync
   } = useQuoteCalculation(quoteForm);
   
   const {
@@ -117,6 +119,65 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     getClient,
     getVehicle
   } = useQuoteData();
+
+  // Implementação do método sendQuoteByEmail
+  const sendQuoteByEmail = async (quoteId: string, email: string, message: string): Promise<boolean> => {
+    try {
+      console.log(`Enviando orçamento ${quoteId} por e-mail para ${email}`);
+      
+      // Buscar os detalhes do orçamento
+      const { data: quoteData, error: quoteError } = await import('@/integrations/supabase/services/quotes')
+        .then(module => module.getQuoteByIdFromSupabase(quoteId));
+        
+      if (quoteError || !quoteData) {
+        console.error("Erro ao buscar dados do orçamento:", quoteError);
+        toast({
+          title: "Erro ao enviar e-mail",
+          description: "Não foi possível obter os detalhes do orçamento",
+          variant: "destructive"
+        });
+        return false;
+      }
+      
+      // Preparar o assunto do e-mail
+      const clientName = quoteData.clientName || 'Cliente';
+      const emailSubject = `Proposta de locação de veículos - ${clientName}`;
+      
+      // Preparar o conteúdo do e-mail
+      const emailContent = message || 
+        `Prezado cliente,\n\nSegue em anexo a proposta de locação de veículos conforme solicitado.\n\nAtenciosamente,\nEquipe comercial`;
+      
+      // Enviar e-mail utilizando o serviço de e-mail
+      const emailSent = await sendEmailWithOutlook(
+        email, 
+        emailSubject, 
+        emailContent
+      );
+      
+      if (emailSent) {
+        toast({
+          title: "E-mail enviado",
+          description: `Orçamento enviado com sucesso para ${email}`
+        });
+        return true;
+      } else {
+        toast({
+          title: "Falha no envio",
+          description: "Não foi possível enviar o e-mail. Verifique as configurações.",
+          variant: "destructive"
+        });
+        return false;
+      }
+    } catch (error) {
+      console.error("Erro ao enviar e-mail:", error);
+      toast({
+        title: "Erro ao enviar e-mail",
+        description: "Ocorreu um erro inesperado ao tentar enviar o e-mail",
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
 
   // Adaptadores para as funções canEditQuote e canDeleteQuote para atender à interface esperada
   const canEditQuoteAdapter = (quote: SavedQuote, user: User): boolean => {

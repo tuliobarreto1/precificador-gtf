@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { 
   ToastActionElement, 
@@ -7,7 +8,7 @@ import {
   ToastDescription,
   ToastAction
 } from '@/components/ui/toast';
-import { toast as sonnerToast } from 'sonner'; // Importar diretamente do pacote sonner
+import { toast as sonnerToast } from 'sonner';
 
 export type ToastProps = {
   title?: string;
@@ -154,10 +155,12 @@ function toast({
     variante: variant
   });
 
-  // Usar Sonner toast para visualização - corrigindo a chamada
-  sonnerToast(description as string, {
-    description: typeof description === 'string' ? undefined : description
-  });
+  // Usar Sonner toast para visualização
+  if (typeof description === 'string') {
+    sonnerToast(description);
+  } else {
+    sonnerToast(title || 'Notificação', { description });
+  }
 
   // Também adicionar ao nosso estado interno
   const id = genId();
