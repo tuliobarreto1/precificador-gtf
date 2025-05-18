@@ -1,16 +1,18 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { getEmailConfig, saveEmailConfig } from '@/lib/email/config-service';
 import { sendEmailWithOutlook } from '@/lib/email/sender-service';
 import { EmailConfig } from '@/lib/email/types';
 import { Loader2 } from 'lucide-react';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+// Importar os componentes recém-criados
+import EmailProviderSelector from './email/EmailProviderSelector';
+import ServerConfigFields from './email/ServerConfigFields';
+import AuthFields from './email/AuthFields';
+import TestEmailSection from './email/TestEmailSection';
 
 const EmailSettingsForm: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -159,13 +161,6 @@ Esta é uma mensagem automática, por favor não responda.`
     }
   };
 
-  const handleChange = (field: keyof EmailConfig, value: string | number | boolean) => {
-    setConfig(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
   // Atualizar configurações com base no provedor selecionado
   const handleProviderChange = (provider: string) => {
     let updatedConfig = { ...config, provider };
@@ -190,6 +185,16 @@ Esta é uma mensagem automática, por favor não responda.`
     setConfig(updatedConfig);
   };
 
+  const handleChange = (field: keyof EmailConfig, value: string | number | boolean) => {
+    setConfig(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const isMailgun = config.provider === 'mailgun';
+  const isDisabled = loading || saving;
+
   return (
     <Card className="p-6">
       <h2 className="text-xl font-semibold mb-4">Configurações de Email</h2>
@@ -198,173 +203,45 @@ Esta é uma mensagem automática, por favor não responda.`
       </p>
       
       <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="provider">Provedor</Label>
-          <Select 
-            value={config.provider}
-            onValueChange={handleProviderChange}
-            disabled={loading || saving}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione o provedor de email" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>Provedores de Email</SelectLabel>
-                <SelectItem value="outlook">Microsoft Outlook</SelectItem>
-                <SelectItem value="gmail">Gmail</SelectItem>
-                <SelectItem value="mailgun">Mailgun API</SelectItem>
-                <SelectItem value="outro">Outro (SMTP)</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
+        <EmailProviderSelector 
+          value={config.provider}
+          onChange={handleProviderChange}
+          disabled={isDisabled}
+        />
         
-        {config.provider !== 'mailgun' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="host">Servidor SMTP</Label>
-              <Input
-                id="host"
-                placeholder="smtp.office365.com"
-                value={config.host}
-                onChange={(e) => handleChange('host', e.target.value)}
-                disabled={loading || saving || config.provider === 'mailgun'}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="port">Porta</Label>
-              <Input
-                id="port"
-                type="number"
-                placeholder="587"
-                value={config.port}
-                onChange={(e) => handleChange('port', parseInt(e.target.value) || 587)}
-                disabled={loading || saving || config.provider === 'mailgun'}
-              />
-            </div>
-          </div>
-        )}
+        <ServerConfigFields 
+          host={config.host}
+          port={config.port}
+          secure={config.secure}
+          onHostChange={(value) => handleChange('host', value)}
+          onPortChange={(value) => handleChange('port', value)}
+          onSecureChange={(value) => handleChange('secure', value)}
+          disabled={isDisabled}
+          isMailgun={isMailgun}
+        />
         
-        {config.provider !== 'mailgun' && (
-          <div className="space-y-2">
-            <Label htmlFor="secure" className="flex items-center justify-between">
-              <span>Conexão Segura (SSL/TLS)</span>
-              <Switch 
-                id="secure"
-                checked={config.secure}
-                onCheckedChange={(value) => handleChange('secure', value)}
-                disabled={loading || saving || config.provider === 'mailgun'}
-              />
-            </Label>
-            <p className="text-xs text-muted-foreground">
-              Ative para usar conexão criptografada (recomendado)
-            </p>
-          </div>
-        )}
+        <AuthFields 
+          provider={config.provider}
+          user={config.user}
+          password={config.password}
+          onUserChange={(value) => handleChange('user', value)}
+          onPasswordChange={(value) => handleChange('password', value)}
+          disabled={isDisabled}
+        />
         
-        <div className="space-y-2">
-          <Label htmlFor="user">
-            {config.provider === 'mailgun' ? 'Domínio Mailgun' : 'Email'}
-          </Label>
-          <Input
-            id="user"
-            placeholder={
-              config.provider === 'mailgun' 
-                ? "sandboxXXXXXX.mailgun.org" 
-                : "seu@email.com"
-            }
-            value={config.user}
-            onChange={(e) => handleChange('user', e.target.value)}
-            disabled={loading || saving || (config.provider === 'mailgun')}
-          />
-          {config.provider === 'mailgun' && (
-            <p className="text-xs text-muted-foreground">
-              Para o Mailgun, as configurações já estão pré-definidas.
-            </p>
-          )}
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="password">
-            {config.provider === 'mailgun' ? 'API Key Mailgun' : 'Senha'}
-          </Label>
-          <Input
-            id="password"
-            type="password"
-            placeholder="********"
-            value={config.password}
-            onChange={(e) => handleChange('password', e.target.value)}
-            disabled={loading || saving || (config.provider === 'mailgun')}
-          />
-          {config.provider === 'mailgun' ? (
-            <p className="text-xs text-muted-foreground">
-              A API key do Mailgun já está configurada.
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Para serviços como Gmail e Outlook, pode ser necessário criar uma senha de aplicativo.
-            </p>
-          )}
-        </div>
-        
-        {config.provider === 'mailgun' && (
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-            <p className="text-blue-700 text-sm">
-              <strong>Informação:</strong> O Mailgun está configurado com sua conta sandbox. 
-              Para enviar emails para qualquer endereço, você precisará verificá-los no painel do Mailgun 
-              ou atualizar para uma conta completa com domínio verificado.
-            </p>
-          </div>
-        )}
-        
-        {/* Seção de teste de e-mail */}
-        <div className="border-t pt-4 mt-6">
-          <h3 className="text-lg font-medium mb-4">Testar Configurações</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-            <div className="md:col-span-2 space-y-2">
-              <Label htmlFor="test-email">E-mail de teste</Label>
-              <Input
-                id="test-email"
-                type="email"
-                placeholder="email@para.teste"
-                value={testEmail}
-                onChange={(e) => setTestEmail(e.target.value)}
-                disabled={testingEmail || loading}
-              />
-            </div>
-            <Button 
-              onClick={handleTestEmail}
-              disabled={testingEmail || loading || saving || !testEmail}
-              className="w-full"
-            >
-              {testingEmail ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Enviando...
-                </>
-              ) : 'Enviar E-mail de Teste'}
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Envie um e-mail de teste para verificar se suas configurações estão funcionando corretamente.
-          </p>
-          {config.provider !== 'mailgun' && (
-            <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
-              <p className="text-orange-700 text-sm">
-                <strong>NOTA:</strong> Este é um ambiente de demonstração e o envio real de emails não está habilitado. 
-                Em produção, será necessário configurar um serviço SMTP real ou uma API de envio de emails.
-              </p>
-            </div>
-          )}
-        </div>
+        <TestEmailSection 
+          testEmail={testEmail}
+          onTestEmailChange={setTestEmail}
+          onSendTest={handleTestEmail}
+          disabled={isDisabled}
+          isMailgun={isMailgun}
+          testingEmail={testingEmail}
+        />
         
         <div className="flex justify-end space-x-2 pt-4 border-t mt-6">
           <Button
             variant="outline"
-            disabled={loading || saving || testingEmail}
+            disabled={isDisabled || testingEmail}
             onClick={() => setConfig({
               provider: 'outlook',
               host: 'smtp.office365.com',
@@ -377,7 +254,7 @@ Esta é uma mensagem automática, por favor não responda.`
             Restaurar Padrões
           </Button>
           <Button
-            disabled={loading || saving || testingEmail}
+            disabled={isDisabled || testingEmail}
             onClick={handleSave}
           >
             {saving ? (
