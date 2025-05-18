@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 // Definição das interfaces
@@ -57,6 +58,11 @@ export const testApiConnection = async () => {
   try {
     console.log('Testando conexão com a API...');
     const response = await fetch('http://localhost:3005/api/status');
+    
+    if (!response.ok) {
+      throw new Error(`Erro na API: ${response.status} ${response.statusText}`);
+    }
+    
     const data = await response.json();
     console.log('Resposta do teste de conexão:', data);
     return data;
@@ -68,12 +74,21 @@ export const testApiConnection = async () => {
 
 // Função para buscar veículo por placa
 export const getVehicleByPlate = async (plate: string): Promise<SqlVehicle | null> => {
+  if (!plate || plate.trim() === '') {
+    throw new Error('Placa não informada ou vazia');
+  }
+  
   try {
     console.log(`Buscando veículo com placa: ${plate}`);
     
+    // Verifica formato da placa (validação básica)
+    if (plate.length < 6) {
+      throw new Error('Formato de placa inválido');
+    }
+    
     // Busca na API externa
     console.log('Buscando na API externa...');
-    const response = await fetch(`http://localhost:3005/api/vehicles/${plate}`);
+    const response = await fetch(`http://localhost:3005/api/vehicles/${encodeURIComponent(plate)}`);
     
     if (!response.ok) {
       if (response.status === 404) {
@@ -81,35 +96,59 @@ export const getVehicleByPlate = async (plate: string): Promise<SqlVehicle | nul
         return null;
       }
       
-      const errorData = await response.json();
-      console.error('Erro ao buscar veículo:', errorData);
-      throw new Error(errorData.message || 'Erro ao buscar veículo');
+      // Tentar extrair mensagem do erro
+      let errorMessage = `Erro ao buscar veículo: ${response.status} ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch (e) {
+        console.error('Erro ao analisar resposta de erro:', e);
+      }
+      
+      throw new Error(errorMessage);
     }
     
-    const vehicle = await response.json();
+    const responseText = await response.text();
+    if (!responseText) {
+      throw new Error('Resposta vazia do servidor');
+    }
+    
+    let vehicle: SqlVehicle;
+    try {
+      vehicle = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Erro ao analisar JSON da resposta:', parseError, 'Texto recebido:', responseText);
+      throw new Error(`Erro ao processar resposta do servidor: ${parseError.message}`);
+    }
+    
     console.log('Veículo encontrado na API externa:', vehicle);
     
     // Após encontrar na API externa, armazenamos no Supabase para uso futuro
     if (vehicle) {
-      const { error: insertError } = await supabase
-        .from('vehicles')
-        .insert({
-          brand: vehicle.DescricaoModelo.split(' ')[0],
-          model: vehicle.DescricaoModelo.split(' ').slice(1).join(' '),
-          year: parseInt(vehicle.AnoFabricacaoModelo) || new Date().getFullYear(),
-          value: vehicle.ValorCompra || 0,
-          is_used: true,
-          plate_number: vehicle.Placa,
-          color: vehicle.Cor || '',
-          odometer: vehicle.OdometroAtual || 0,
-          fuel_type: vehicle.TipoCombustivel || '',
-          group_id: vehicle.LetraGrupo || 'A'
-        });
-      
-      if (insertError) {
-        console.error('Erro ao salvar veículo no Supabase:', insertError);
-      } else {
-        console.log('Veículo salvo no Supabase com sucesso');
+      try {
+        const { error: insertError } = await supabase
+          .from('vehicles')
+          .insert({
+            brand: vehicle.DescricaoModelo.split(' ')[0],
+            model: vehicle.DescricaoModelo.split(' ').slice(1).join(' '),
+            year: parseInt(vehicle.AnoFabricacaoModelo) || new Date().getFullYear(),
+            value: vehicle.ValorCompra || 0,
+            is_used: true,
+            plate_number: vehicle.Placa,
+            color: vehicle.Cor || '',
+            odometer: vehicle.OdometroAtual || 0,
+            fuel_type: vehicle.TipoCombustivel || '',
+            group_id: vehicle.LetraGrupo || 'A'
+          });
+        
+        if (insertError) {
+          console.error('Erro ao salvar veículo no Supabase:', insertError);
+        } else {
+          console.log('Veículo salvo no Supabase com sucesso');
+        }
+      } catch (dbError) {
+        console.error('Erro ao inserir veículo no Supabase:', dbError);
+        // Não interromper o fluxo por erro no cache
       }
     }
     

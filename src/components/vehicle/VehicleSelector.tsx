@@ -41,6 +41,7 @@ type VehicleSelectorProps = {
   onSelectVehicle: (vehicle: Vehicle, vehicleGroup: VehicleGroup) => void;
   selectedVehicles: Vehicle[];
   onRemoveVehicle?: (vehicleId: string) => void;
+  onError?: (errorMessage: string | null) => void;
 };
 
 type VehicleType = 'new' | 'used';
@@ -48,7 +49,8 @@ type VehicleType = 'new' | 'used';
 const VehicleSelector: React.FC<VehicleSelectorProps> = ({ 
   onSelectVehicle, 
   selectedVehicles,
-  onRemoveVehicle 
+  onRemoveVehicle,
+  onError
 }) => {
   const [vehicleType, setVehicleType] = useState<VehicleType>('new');
   const [plateNumber, setPlateNumber] = useState('');
@@ -80,17 +82,25 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
         const status = await testApiConnection();
         setConnectionStatus(status);
         console.log('Status da conexão:', status);
+        if (onError && status?.status !== 'online') {
+          onError(`Problemas na conexão com o banco de dados: ${status?.status || 'offline'}`);
+        } else if (onError) {
+          onError(null);
+        }
       } catch (error) {
         console.error('Falha ao verificar conexão:', error);
         setConnectionStatus({ status: 'offline', environment: {} });
         setDetailedError(error instanceof Error ? error.message : 'Erro desconhecido ao verificar conexão');
+        if (onError) {
+          onError('Falha ao verificar conexão com o banco de dados');
+        }
       } finally {
         setTestingConnection(false);
       }
     };
     
     checkConnection();
-  }, []);
+  }, [onError]);
 
   useEffect(() => {
     const loadVehicleGroups = async () => {
@@ -163,6 +173,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     try {
       setTestingConnection(true);
       setDetailedError(null);
+      if (onError) onError(null);
       
       const response = await fetch('/api/test-connection');
       let data;
@@ -174,6 +185,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
         const textResponse = await response.text();
         setDetailedError(`Erro ao analisar resposta JSON: ${textResponse}`);
         setDiagnosticInfo({ error: "Falha ao analisar resposta", textResponse });
+        if (onError) onError("Falha ao analisar resposta do servidor");
         
         toast({
           title: "Erro na resposta",
@@ -184,6 +196,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       }
       
       if (response.ok) {
+        if (onError) onError(null);
         toast({
           title: "Conexão bem-sucedida",
           description: "A conexão com o banco de dados foi estabelecida com sucesso.",
@@ -194,9 +207,12 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
           environment: data.config || {} 
         });
       } else {
+        const errorMsg = data.message || "Não foi possível conectar ao banco de dados.";
+        if (onError) onError(errorMsg);
+        
         toast({
           title: "Falha na conexão",
-          description: data.message || "Não foi possível conectar ao banco de dados.",
+          description: errorMsg,
           variant: "destructive",
         });
         console.error('Teste de conexão falhou:', data);
@@ -204,12 +220,15 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       }
     } catch (error) {
       console.error("Erro ao testar conexão:", error);
+      const errorMsg = error instanceof Error ? error.message : 'Erro desconhecido ao testar conexão';
+      if (onError) onError(errorMsg);
+      
       toast({
         title: "Erro",
         description: "Erro ao tentar testar a conexão com o banco de dados.",
         variant: "destructive",
       });
-      setDetailedError(error instanceof Error ? error.message : 'Erro desconhecido ao testar conexão');
+      setDetailedError(errorMsg);
     } finally {
       setTestingConnection(false);
     }
@@ -225,26 +244,34 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       return;
     }
 
+    // Formatar a placa conforme padrão Mercosul (se não estiver)
+    const formattedPlate = formatPlateNumber(plateNumber);
+    
     setIsSearching(true);
     setSearchError(null);
     setFoundVehicle(null);
     setDetailedError(null);
+    if (onError) onError(null);
     
     try {
-      console.log(`Iniciando busca de veículo com placa: ${plateNumber}`);
-      const vehicle = await getVehicleByPlate(plateNumber);
+      console.log(`Iniciando busca de veículo com placa: ${formattedPlate}`);
+      const vehicle = await getVehicleByPlate(formattedPlate);
       console.log('Resultado da busca:', vehicle);
       
       setFoundVehicle(vehicle);
       
       if (!vehicle) {
-        setSearchError(`Nenhum veículo encontrado com a placa ${plateNumber}`);
+        const errorMsg = `Nenhum veículo encontrado com a placa ${formattedPlate}`;
+        setSearchError(errorMsg);
+        if (onError) onError(errorMsg);
+        
         toast({
           title: "Veículo não encontrado",
-          description: `Nenhum veículo encontrado com a placa ${plateNumber}.`,
+          description: errorMsg,
           variant: "destructive",
         });
       } else {
+        if (onError) onError(null);
         toast({
           title: "Veículo encontrado",
           description: `Veículo ${vehicle.DescricaoModelo} encontrado com sucesso.`,
@@ -254,6 +281,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       console.error("Erro ao buscar veículo:", error);
       const errorMessage = error instanceof Error ? error.message : "Erro ao buscar veículo";
       setSearchError(errorMessage);
+      if (onError) onError(errorMessage);
       
       if (error instanceof Error && error.message.includes('Unexpected end of JSON')) {
         setDetailedError("Erro na resposta do servidor: formato JSON inválido. Verifique os logs do servidor para mais detalhes.");
@@ -269,6 +297,20 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     } finally {
       setIsSearching(false);
     }
+  };
+
+  // Função para formatar a placa para o padrão correto
+  const formatPlateNumber = (plate: string): string => {
+    // Remove espaços e caracteres especiais
+    let formatted = plate.trim().replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    
+    // Verifica se a placa já está no formato correto
+    if (/^[A-Z]{3}\d[A-Z0-9]\d{2}$/.test(formatted)) {
+      return formatted;
+    }
+    
+    // Retorna a placa como está se não pudermos formatá-la corretamente
+    return formatted;
   };
 
   const handleSelectFoundVehicle = () => {
