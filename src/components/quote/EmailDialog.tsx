@@ -21,9 +21,10 @@ import { Link } from 'react-router-dom';
 
 interface EmailDialogProps {
   quoteId: string;
+  quoteTitle?: string;
 }
 
-export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId }) => {
+export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId, quoteTitle }) => {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -68,7 +69,7 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId }) => {
 
     setSending(true);
     try {
-      console.log(`Tentando enviar orçamento ${quoteId} para ${email}`);
+      console.log(`Tentando enviar orçamento ${quoteId} para ${email} com título: ${quoteTitle || 'Orçamento'}`);
       const success = await sendQuoteByEmail(quoteId, email, message);
       
       if (success) {
@@ -83,7 +84,7 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId }) => {
         console.error("Falha no envio do e-mail");
         toast({
           title: "Erro ao enviar",
-          description: "Não foi possível enviar o orçamento por e-mail. Verifique as configurações.",
+          description: "Não foi possível enviar o orçamento por e-mail. Verifique as configurações nas preferências do sistema.",
           variant: "destructive"
         });
       }
@@ -91,7 +92,7 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId }) => {
       console.error("Erro ao enviar e-mail:", error);
       toast({
         title: "Erro ao enviar",
-        description: "Ocorreu um erro ao tentar enviar o e-mail",
+        description: "Ocorreu um erro ao tentar enviar o e-mail. Verifique o console para mais detalhes.",
         variant: "destructive"
       });
     } finally {
@@ -117,7 +118,7 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId }) => {
           ) : configExists === false ? (
             <DialogDescription className="text-destructive">
               Configurações de e-mail não encontradas ou incompletas. Configure o serviço de e-mail nas {' '}
-              <Link to="/settings" className="text-primary mx-1 underline">
+              <Link to="/configuracoes" className="text-primary mx-1 underline">
                 configurações do sistema
               </Link>
               {' '}antes de continuar.

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
@@ -65,7 +64,13 @@ const QuoteDetailPage = () => {
     if (!id) return false;
     
     try {
-      console.log('Enviando orçamento por e-mail:', { quoteId: id, email, message });
+      console.log('Enviando orçamento por e-mail:', { 
+        quoteId: id, 
+        email, 
+        message,
+        quoteTitle: quote?.clientName || 'Orçamento'
+      });
+      
       const result = await sendQuoteByEmail(id, email, message);
       return result;
     } catch (error) {

@@ -143,18 +143,35 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       const clientName = quoteData.clientName || 'Cliente';
       const emailSubject = `Proposta de locação de veículos - ${clientName}`;
       
-      // Preparar o conteúdo do e-mail
+      // Preparar o conteúdo do e-mail com mais informações
       const emailContent = message || 
-        `Prezado cliente,\n\nSegue em anexo a proposta de locação de veículos conforme solicitado.\n\nAtenciosamente,\nEquipe comercial`;
+        `Prezado cliente ${clientName},\n\nSegue em anexo a proposta de locação de veículos conforme solicitado.\n\nAtenciosamente,\nEquipe comercial`;
       
       // Enviar e-mail utilizando o serviço de e-mail
       const emailSent = await sendEmailWithOutlook(
         email, 
         emailSubject, 
-        emailContent
+        emailContent,
+        // Aqui seria incluído o caminho do PDF ou o PDF em base64 
+        // quando a funcionalidade de geração de PDF estiver implementada
       );
       
       if (emailSent) {
+        // Registrar o envio bem-sucedido no histórico de ações
+        try {
+          const { insertQuoteActionLog } = await import('@/integrations/supabase/services/quoteActionLogs');
+          await insertQuoteActionLog({
+            quote_id: quoteId,
+            quote_title: `Orçamento para ${clientName}`,
+            action_type: 'EMAIL_SENT',
+            user_id: getCurrentUser().id,
+            user_name: getCurrentUser().name,
+            details: { email_to: email }
+          });
+        } catch (logError) {
+          console.warn("Erro ao registrar envio de e-mail no log:", logError);
+        }
+        
         toast({
           title: "E-mail enviado",
           description: `Orçamento enviado com sucesso para ${email}`
