@@ -10,15 +10,6 @@ import { sendEmailWithOutlook } from '@/lib/email/sender-service';
 import { EmailConfig } from '@/lib/email/types';
 import { Loader2 } from 'lucide-react';
 
-interface EmailConfig {
-  provider: string;
-  host: string;
-  port: number;
-  user: string;
-  password: string;
-  secure: boolean;
-}
-
 const EmailSettingsForm: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
