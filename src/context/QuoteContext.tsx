@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Client, Vehicle, VehicleGroup } from '@/lib/models';
 import { QuoteFormData, SavedQuote, QuoteContextType, QuoteCalculationResult, User, defaultUser } from './types/quoteTypes';
@@ -159,8 +158,8 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       if (emailSent) {
         // Registrar o envio bem-sucedido no histórico de ações
         try {
-          const { insertQuoteActionLog } = await import('@/integrations/supabase/services/quoteActionLogs');
-          await insertQuoteActionLog({
+          const { createQuoteActionLog } = await import('@/integrations/supabase/services/quoteActionLogs');
+          await createQuoteActionLog({
             quote_id: quoteId,
             quote_title: `Orçamento para ${clientName}`,
             action_type: 'EMAIL_SENT',
