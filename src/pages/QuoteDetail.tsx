@@ -9,7 +9,6 @@ import { getQuoteByIdFromSupabase } from '@/integrations/supabase/services/quote
 import { deleteQuoteFromSupabase } from '@/integrations/supabase/services/quotes';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useQuoteCalculation } from '@/hooks/useQuoteCalculation';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { useQuote } from '@/context/QuoteContext';
