@@ -8,10 +8,11 @@ interface PropostaTemplateProps {
   quote: QuoteFormData | null;
   result: QuoteCalculationResult | null;
   currentDate?: string;
+  userName?: string; // Adicionando prop para o nome do usuário
 }
 
 const PropostaTemplate = forwardRef<HTMLDivElement, PropostaTemplateProps>(
-  ({ quote, result, currentDate }, ref) => {
+  ({ quote, result, currentDate, userName = 'Setor Comercial' }, ref) => {
     if (!quote || !result || !quote.client || !quote.vehicles || !result.vehicleResults) {
       console.warn("PropostaTemplate: Dados insuficientes para renderizar proposta", { quote, result });
       return (
@@ -32,7 +33,8 @@ const PropostaTemplate = forwardRef<HTMLDivElement, PropostaTemplateProps>(
       client: quote.client,
       vehicles: quote.vehicles?.length,
       result: result?.vehicleResults?.length,
-      globalParams: quote.globalParams
+      globalParams: quote.globalParams,
+      userName: userName // Logando o nome do usuário
     });
     
     // Calcular totais com verificações para evitar erros
@@ -152,7 +154,7 @@ const PropostaTemplate = forwardRef<HTMLDivElement, PropostaTemplateProps>(
           <div className="mb-8">
             <p className="mb-4">Validade da proposta: 10 dias.</p>
             <p className="mb-10">Atenciosamente,</p>
-            <p className="font-bold">{quote.client?.contact || 'Nome do Responsável'}</p>
+            <p className="font-bold">{userName}</p>
             <p>Setor Comercial</p>
           </div>
         </div>

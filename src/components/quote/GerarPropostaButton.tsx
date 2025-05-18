@@ -12,6 +12,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { updateQuoteStatus } from '@/lib/status-api';
 import { registerProposal } from '@/integrations/supabase/services/proposals';
 import { useQuoteCalculation } from '@/hooks/useQuoteCalculation';
+import { useAuth } from '@/context/AuthContext';
+import { useQuoteUsers } from '@/hooks/useQuoteUsers';
 
 interface GerarPropostaButtonProps {
   quoteForm: QuoteFormData | null;
@@ -28,6 +30,13 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
   const [formattedQuoteForm, setFormattedQuoteForm] = useState<QuoteFormData | null>(quoteForm);
   const propostaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { user, adminUser, profile } = useAuth();
+  const { getCurrentUser } = useQuoteUsers();
+  const currentUser = getCurrentUser();
+  
+  // Nome do usuário atual para a assinatura da proposta
+  const userName = adminUser?.name || profile?.name || currentUser?.name || user?.email?.split('@')[0] || 'Setor Comercial';
+  
   const { calculateQuoteSync } = useQuoteCalculation(formattedQuoteForm || { 
     client: null, 
     vehicles: [], 
@@ -309,7 +318,12 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
         
         <div className="border rounded-md p-2 bg-gray-50 overflow-auto">
           <div className="flex justify-center">
-            <PropostaTemplate ref={propostaRef} quote={formattedQuoteForm} result={calculatedResult} />
+            <PropostaTemplate 
+              ref={propostaRef} 
+              quote={formattedQuoteForm} 
+              result={calculatedResult} 
+              userName={userName}  // Passando o nome do usuário para o template
+            />
           </div>
         </div>
         
