@@ -9,12 +9,9 @@ import { EmailOptions } from './types';
 /**
  * Função para enviar email com anexo de PDF
  */
-export async function sendEmailWithOutlook({
-  to,
-  subject,
-  message,
-  attachmentPath
-}: EmailOptions): Promise<boolean> {
+export async function sendEmailWithOutlook(options: EmailOptions): Promise<boolean> {
+  const { to, subject, message, attachmentPath } = options;
+  
   try {
     // Obter configurações do email
     const config = await getEmailConfig();

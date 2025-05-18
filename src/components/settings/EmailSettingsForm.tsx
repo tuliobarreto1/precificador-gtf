@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -125,11 +124,11 @@ const EmailSettingsForm: React.FC = () => {
       // Salvar primeiro as configurações atuais
       await saveEmailConfig(config);
       
-      // Enviar e-mail de teste
-      const success = await sendEmailWithOutlook(
-        testEmail,
-        "Teste de configuração de e-mail",
-        `Este é um e-mail de teste enviado às ${new Date().toLocaleTimeString()} para verificar as configurações do sistema de envio de e-mails.
+      // Enviar e-mail de teste - corrigindo a chamada para usar um objeto EmailOptions
+      const success = await sendEmailWithOutlook({
+        to: testEmail,
+        subject: "Teste de configuração de e-mail",
+        message: `Este é um e-mail de teste enviado às ${new Date().toLocaleTimeString()} para verificar as configurações do sistema de envio de e-mails.
 
 Suas configurações estão funcionando corretamente!
 
@@ -140,7 +139,7 @@ Detalhes da configuração:
 - SSL/TLS: ${config.secure ? 'Ativado' : 'Desativado'}
 
 Esta é uma mensagem automática, por favor não responda.`
-      );
+      });
       
       if (success) {
         toast({

@@ -33,7 +33,7 @@ export function useQuoteEmails(getCurrentUser: () => any) {
       const emailContent = message || 
         `Prezado cliente ${clientName},\n\nSegue em anexo a proposta de locação de veículos conforme solicitado.\n\nAtenciosamente,\nEquipe comercial`;
       
-      // Enviar e-mail utilizando o serviço de e-mail
+      // Enviar e-mail utilizando o serviço de e-mail - atualizado para usar a nova interface
       const emailSent = await sendEmailWithOutlook({
         to: email,
         subject: emailSubject,
