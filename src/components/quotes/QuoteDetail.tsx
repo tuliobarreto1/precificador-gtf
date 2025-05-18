@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { SavedQuote } from '@/context/types/quoteTypes';
 import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,7 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
   canEdit,
   canDelete
 }) => {
-  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { calculateQuote } = useQuote();
   
   console.log("Dados da cotação recebidos no QuoteDetail:", quote);
@@ -69,21 +69,21 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
       params: {
         contractMonths: vehicle.contractMonths || quote.contractMonths || 24,
         monthlyKm: vehicle.monthlyKm || quote.monthlyKm || 3000,
-        operationSeverity: 3, // Usando valor padrão
-        hasTracking: false, // Usando valor padrão
+        operationSeverity: (vehicle.operationSeverity || quote.globalParams?.operationSeverity || 3) as 1|2|3|4|5|6,
+        hasTracking: vehicle.hasTracking ?? quote.globalParams?.hasTracking ?? false,
         protectionPlanId: vehicle.protectionPlanId || null,
-        includeIpva: vehicle.includeIpva || quote.globalParams?.includeIpva || false,
-        includeLicensing: vehicle.includeLicensing || quote.globalParams?.includeLicensing || false,
-        includeTaxes: vehicle.includeTaxes || quote.globalParams?.includeTaxes || false
+        includeIpva: vehicle.includeIpva ?? quote.globalParams?.includeIpva ?? false,
+        includeLicensing: vehicle.includeLicensing ?? quote.globalParams?.includeLicensing ?? false,
+        includeTaxes: vehicle.includeTaxes ?? quote.globalParams?.includeTaxes ?? false
       }
     })) || [],
     useGlobalParams: true,
     globalParams: {
       contractMonths: quote.contractMonths || 24,
       monthlyKm: quote.monthlyKm || 3000,
-      operationSeverity: quote.globalParams?.operationSeverity || 3,
+      operationSeverity: (quote.globalParams?.operationSeverity || 3) as 1|2|3|4|5|6,
       hasTracking: quote.globalParams?.hasTracking || false,
-      protectionPlanId: null,
+      protectionPlanId: quote.globalParams?.protectionPlanId || null,
       includeIpva: quote.globalParams?.includeIpva || false,
       includeLicensing: quote.globalParams?.includeLicensing || false,
       includeTaxes: quote.globalParams?.includeTaxes || false
