@@ -79,9 +79,9 @@ async function sendWithMailgun(to: string, subject: string, text: string, attach
   try {
     console.log("Iniciando envio via Mailgun para:", to);
     
-    // Importar módulos necessários para o Mailgun
-    const { default: FormData } = await import('form-data');
-    const { default: Mailgun } = await import('mailgun.js');
+    // Usamos importações diretas em vez de dinâmicas para evitar problemas
+    import FormData from 'form-data';
+    import Mailgun from 'mailgun.js';
     
     // Inicializar cliente Mailgun
     const mailgun = new Mailgun(FormData);
