@@ -5,6 +5,8 @@
 
 import { getEmailConfig } from './config-service';
 import { EmailOptions } from './types';
+import FormData from 'form-data';
+import Mailgun from 'mailgun.js';
 
 /**
  * Função para enviar email com anexo de PDF
@@ -78,10 +80,6 @@ export async function sendEmailWithOutlook(options: EmailOptions): Promise<boole
 async function sendWithMailgun(to: string, subject: string, text: string, attachmentPath?: string): Promise<boolean> {
   try {
     console.log("Iniciando envio via Mailgun para:", to);
-    
-    // Usamos importações diretas em vez de dinâmicas para evitar problemas
-    import FormData from 'form-data';
-    import Mailgun from 'mailgun.js';
     
     // Inicializar cliente Mailgun
     const mailgun = new Mailgun(FormData);
