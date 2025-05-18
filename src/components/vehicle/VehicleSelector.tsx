@@ -42,6 +42,7 @@ type VehicleSelectorProps = {
   selectedVehicles: Vehicle[];
   onRemoveVehicle?: (vehicleId: string) => void;
   onError?: (errorMessage: string | null) => void;
+  offlineMode?: boolean;
 };
 
 type VehicleType = 'new' | 'used';
@@ -50,7 +51,8 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   onSelectVehicle, 
   selectedVehicles,
   onRemoveVehicle,
-  onError
+  onError,
+  offlineMode = false
 }) => {
   const [vehicleType, setVehicleType] = useState<VehicleType>('new');
   const [plateNumber, setPlateNumber] = useState('');
@@ -76,38 +78,48 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   const { toast } = useToast();
 
   useEffect(() => {
-    const checkConnection = async () => {
-      try {
-        setTestingConnection(true);
-        const status = await testApiConnection();
-        setConnectionStatus(status);
-        console.log('Status da conexão:', status);
-        if (onError && status?.status !== 'online') {
-          onError(`Problemas na conexão com o banco de dados: ${status?.status || 'offline'}`);
-        } else if (onError) {
-          onError(null);
+    if (!offlineMode) {
+      const checkConnection = async () => {
+        try {
+          setTestingConnection(true);
+          const status = await testApiConnection();
+          setConnectionStatus(status);
+          console.log('Status da conexão:', status);
+          if (onError && status?.status !== 'online') {
+            onError(`Problemas na conexão com o banco de dados: ${status?.status || 'offline'}`);
+          } else if (onError) {
+            onError(null);
+          }
+        } catch (error) {
+          console.error('Falha ao verificar conexão:', error);
+          setConnectionStatus({ status: 'offline', environment: {} });
+          setDetailedError(error instanceof Error ? error.message : 'Erro desconhecido ao verificar conexão');
+          if (onError) {
+            onError('Falha ao verificar conexão com o banco de dados');
+          }
+        } finally {
+          setTestingConnection(false);
         }
-      } catch (error) {
-        console.error('Falha ao verificar conexão:', error);
-        setConnectionStatus({ status: 'offline', environment: {} });
-        setDetailedError(error instanceof Error ? error.message : 'Erro desconhecido ao verificar conexão');
-        if (onError) {
-          onError('Falha ao verificar conexão com o banco de dados');
-        }
-      } finally {
-        setTestingConnection(false);
+      };
+      
+      checkConnection();
+    } else {
+      // Se estamos em modo offline, definimos o status diretamente
+      setConnectionStatus({ status: 'offline', environment: {} });
+      console.log('Modo offline ativado');
+      
+      if (onError) {
+        onError('Modo offline ativado. Usando dados do cache local.');
       }
-    };
-    
-    checkConnection();
-  }, [onError]);
+    }
+  }, [offlineMode, onError]);
 
   useEffect(() => {
     const loadVehicleGroups = async () => {
       if (vehicleType === 'new') {
         try {
           setLoadingGroups(true);
-          const groups = await getVehicleGroups();
+          const groups = await getVehicleGroups(offlineMode);
           setVehicleGroups(groups);
           console.log('Grupos de veículos carregados:', groups);
         } catch (error) {
@@ -124,7 +136,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     };
     
     loadVehicleGroups();
-  }, [vehicleType, toast]);
+  }, [vehicleType, toast, offlineMode]);
   
   useEffect(() => {
     const loadVehicleModels = async () => {
@@ -132,7 +144,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
         try {
           setLoadingModels(true);
           setSelectedModel(null);
-          const models = await getVehicleModelsByGroup(selectedGroup);
+          const models = await getVehicleModelsByGroup(selectedGroup, offlineMode);
           setVehicleModels(models);
           console.log('Modelos de veículos carregados:', models);
         } catch (error) {
@@ -149,7 +161,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     };
     
     loadVehicleModels();
-  }, [selectedGroup, toast]);
+  }, [selectedGroup, toast, offlineMode]);
   
   useEffect(() => {
     if (selectedModel) {
@@ -255,7 +267,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     
     try {
       console.log(`Iniciando busca de veículo com placa: ${formattedPlate}`);
-      const vehicle = await getVehicleByPlate(formattedPlate);
+      const vehicle = await getVehicleByPlate(formattedPlate, offlineMode);
       console.log('Resultado da busca:', vehicle);
       
       setFoundVehicle(vehicle);
@@ -263,7 +275,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       if (!vehicle) {
         const errorMsg = `Nenhum veículo encontrado com a placa ${formattedPlate}`;
         setSearchError(errorMsg);
-        if (onError) onError(errorMsg);
+        if (onError) onError(null); // Não é um erro de conexão, então não propagamos
         
         toast({
           title: "Veículo não encontrado",
@@ -281,7 +293,14 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       console.error("Erro ao buscar veículo:", error);
       const errorMessage = error instanceof Error ? error.message : "Erro ao buscar veículo";
       setSearchError(errorMessage);
-      if (onError) onError(errorMessage);
+      
+      // Verificamos se é um erro de conexão para propagar para o componente pai
+      if (errorMessage.includes('conectar') || 
+          errorMessage.includes('timeout') || 
+          errorMessage.includes('offline') || 
+          errorMessage.includes('servidor')) {
+        if (onError) onError(errorMessage);
+      }
       
       if (error instanceof Error && error.message.includes('Unexpected end of JSON')) {
         setDetailedError("Erro na resposta do servidor: formato JSON inválido. Verifique os logs do servidor para mais detalhes.");
@@ -416,9 +435,20 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     });
   };
 
+  // Renderizar interface com indicação de modo offline quando apropriado
   return (
     <div className="space-y-6 animate-fadeIn">
-      {connectionStatus && connectionStatus.status !== 'online' && (
+      {offlineMode && (
+        <Alert variant="warning" className="mb-4 bg-amber-100 border-amber-500 text-amber-800">
+          <Database className="h-4 w-4 text-amber-800" />
+          <AlertTitle>Modo Offline Ativado</AlertTitle>
+          <AlertDescription>
+            <p>O sistema está operando com dados do cache local. Algumas funcionalidades podem estar limitadas.</p>
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {!offlineMode && connectionStatus && connectionStatus.status !== 'online' && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Atenção: Problemas de conexão com o servidor</AlertTitle>
