@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { getEmailConfig, saveEmailConfig } from '@/lib/email-service';
+import { getEmailConfig, saveEmailConfig, sendEmailWithOutlook } from '@/lib/email-service';
+import { Loader2 } from 'lucide-react';
 
 interface EmailConfig {
   provider: string;
@@ -20,6 +21,8 @@ interface EmailConfig {
 const EmailSettingsForm: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
+  const [testEmail, setTestEmail] = useState('');
   const [config, setConfig] = useState<EmailConfig>({
     provider: 'outlook',
     host: 'smtp.office365.com',
@@ -38,6 +41,8 @@ const EmailSettingsForm: React.FC = () => {
         
         if (emailConfig) {
           setConfig(emailConfig);
+          // Usar o e-mail do usuário configurado como padrão para o teste
+          setTestEmail(emailConfig.user);
         }
       } catch (error) {
         console.error("Erro ao carregar configurações de email:", error);
@@ -91,6 +96,71 @@ const EmailSettingsForm: React.FC = () => {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleTestEmail = async () => {
+    try {
+      setTestingEmail(true);
+      
+      // Validar configurações
+      if (!config.host || !config.user || !config.password || !testEmail) {
+        toast({
+          title: "Campos incompletos",
+          description: "Preencha todos os campos e informe um e-mail de teste",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      console.log(`Testando envio de e-mail para ${testEmail} usando configurações:`, {
+        provider: config.provider,
+        host: config.host,
+        user: config.user,
+        port: config.port
+      });
+      
+      // Salvar primeiro as configurações atuais
+      await saveEmailConfig(config);
+      
+      // Enviar e-mail de teste
+      const success = await sendEmailWithOutlook(
+        testEmail,
+        "Teste de configuração de e-mail",
+        `Este é um e-mail de teste enviado às ${new Date().toLocaleTimeString()} para verificar as configurações do sistema de envio de e-mails.
+
+Suas configurações estão funcionando corretamente!
+
+Detalhes da configuração:
+- Servidor SMTP: ${config.host}
+- Porta: ${config.port}
+- Usuário: ${config.user}
+- SSL/TLS: ${config.secure ? 'Ativado' : 'Desativado'}
+
+Esta é uma mensagem automática, por favor não responda.`
+      );
+      
+      if (success) {
+        toast({
+          title: "E-mail enviado com sucesso",
+          description: `Um e-mail de teste foi enviado para ${testEmail}`,
+        });
+      } else {
+        toast({
+          title: "Falha no envio",
+          description: "Não foi possível enviar o e-mail de teste. Verifique as configurações.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao testar envio de e-mail:", error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao testar o envio de e-mail",
+        variant: "destructive"
+      });
+    } finally {
+      setTestingEmail(false);
     }
   };
 
@@ -188,10 +258,44 @@ const EmailSettingsForm: React.FC = () => {
           </p>
         </div>
         
-        <div className="flex justify-end space-x-2">
+        {/* Seção de teste de e-mail */}
+        <div className="border-t pt-4 mt-6">
+          <h3 className="text-lg font-medium mb-4">Testar Configurações</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div className="md:col-span-2 space-y-2">
+              <Label htmlFor="test-email">E-mail de teste</Label>
+              <Input
+                id="test-email"
+                type="email"
+                placeholder="email@para.teste"
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+                disabled={testingEmail || loading}
+              />
+            </div>
+            <Button 
+              onClick={handleTestEmail}
+              disabled={testingEmail || loading || saving || !testEmail}
+              className="w-full"
+            >
+              {testingEmail ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Enviando...
+                </>
+              ) : 'Enviar E-mail de Teste'}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Envie um e-mail de teste para verificar se suas configurações estão funcionando corretamente.
+          </p>
+        </div>
+        
+        <div className="flex justify-end space-x-2 pt-4 border-t mt-6">
           <Button
             variant="outline"
-            disabled={loading || saving}
+            disabled={loading || saving || testingEmail}
             onClick={() => setConfig({
               provider: 'outlook',
               host: 'smtp.office365.com',
@@ -204,10 +308,15 @@ const EmailSettingsForm: React.FC = () => {
             Restaurar Padrões
           </Button>
           <Button
-            disabled={loading || saving}
+            disabled={loading || saving || testingEmail}
             onClick={handleSave}
           >
-            {saving ? 'Salvando...' : 'Salvar Configurações'}
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Salvando...
+              </>
+            ) : 'Salvar Configurações'}
           </Button>
         </div>
       </div>

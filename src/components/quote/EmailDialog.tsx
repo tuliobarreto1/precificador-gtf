@@ -18,6 +18,7 @@ import { useQuote } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
 import { getEmailConfig } from '@/lib/email-service';
 import { Link } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 
 interface EmailDialogProps {
   quoteId: string;
@@ -112,7 +113,8 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId, quoteTitle })
         <DialogHeader>
           <DialogTitle>Enviar Orçamento por E-mail</DialogTitle>
           {loading ? (
-            <DialogDescription>
+            <DialogDescription className="flex items-center">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Verificando configurações de e-mail...
             </DialogDescription>
           ) : configExists === false ? (
@@ -126,6 +128,7 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId, quoteTitle })
           ) : (
             <DialogDescription>
               Insira o endereço de e-mail para enviar este orçamento.
+              {quoteTitle && <span className="block mt-1 font-medium">{quoteTitle}</span>}
             </DialogDescription>
           )}
         </DialogHeader>
@@ -142,7 +145,7 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId, quoteTitle })
               onChange={(e) => setEmail(e.target.value)}
               placeholder="cliente@empresa.com.br"
               className="col-span-3"
-              disabled={loading || configExists === false}
+              disabled={loading || configExists === false || sending}
             />
           </div>
           
@@ -157,7 +160,7 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId, quoteTitle })
               placeholder="Segue em anexo o orçamento conforme solicitado."
               className="col-span-3"
               rows={5}
-              disabled={loading || configExists === false}
+              disabled={loading || configExists === false || sending}
             />
           </div>
         </div>
@@ -171,7 +174,12 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId, quoteTitle })
             onClick={handleSendEmail}
             disabled={sending || loading || !email || configExists === false}
           >
-            {sending ? 'Enviando...' : 'Enviar'}
+            {sending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Enviando...
+              </>
+            ) : 'Enviar'}
           </Button>
         </DialogFooter>
       </DialogContent>

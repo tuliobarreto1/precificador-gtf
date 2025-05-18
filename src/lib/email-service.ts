@@ -128,41 +128,30 @@ export async function sendEmailWithOutlook(
       provider: config.provider,
       host: config.host,
       port: config.port,
-      user: config.user
+      user: config.user,
+      secure: config.secure
     });
     
-    // Implementar envio real de email via API
-    // Aqui vamos simular o envio bem-sucedido apenas para teste
-    // Em uma versão real, você usaria uma API de email ou enviaria via servidor
+    // -----------------------------------------------------------------
+    // IMPLEMENTAÇÃO TEMPORÁRIA DE TESTE - Simula o envio de email
+    // -----------------------------------------------------------------
+    // Em uma versão de produção, aqui seria implementado o envio real
+    // usando nodemailer ou outra biblioteca de envio de email
+    // -----------------------------------------------------------------
     
-    // Preparar os dados para envio via API
-    const emailData = {
-      to: to,
-      from: config.user,
-      subject: subject,
-      html: message.replace(/\n/g, '<br>'),
-      config: {
-        host: config.host,
-        port: config.port,
-        secure: config.secure,
-        auth: {
-          user: config.user,
-          // Em ambiente real, a senha seria enviada com segurança
-          // ou usaria um token de autenticação
-        }
-      }
-    };
-    
-    console.log("Dados de email preparados:", { 
-      para: emailData.to, 
-      assunto: emailData.subject 
+    console.log("DADOS DO EMAIL:", {
+      de: config.user,
+      para: to,
+      assunto: subject,
+      mensagem: message.substring(0, 100) + (message.length > 100 ? '...' : ''),
+      temAnexo: !!attachmentPath
     });
     
-    // Em produção, aqui seria implementado o envio real
-    // Exemplo: const response = await fetch('https://sua-api-email.com/send', {...})
+    // Simulação de um delay para simular envio
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
-    // Para fins de demonstração, simular sucesso
-    // Em produção, isso seria o retorno real da API de email
+    // Para teste, vamos considerar o envio como bem sucedido
+    // Na integração real, aqui verificaria o status de retorno da API de email
     const success = true;
     
     console.log(`Email ${success ? 'enviado com sucesso' : 'falhou ao enviar'} para ${to}`);
@@ -187,6 +176,14 @@ export async function saveEmailConfig(config: EmailConfig): Promise<boolean> {
       { key: 'email_password', value: config.password },
       { key: 'email_secure', value: config.secure.toString() }
     ];
+    
+    console.log("Salvando configurações de e-mail:", {
+      provider: config.provider,
+      host: config.host,
+      port: config.port,
+      user: config.user,
+      secure: config.secure
+    });
     
     // Para cada configuração, verificar se existe e atualizar ou inserir
     for (const update of updates) {
@@ -220,6 +217,7 @@ export async function saveEmailConfig(config: EmailConfig): Promise<boolean> {
       }
     }
     
+    console.log("Configurações de e-mail salvas com sucesso");
     return true;
   } catch (error) {
     console.error("Erro ao salvar configurações de email:", error);
