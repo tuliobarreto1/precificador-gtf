@@ -135,11 +135,16 @@ const TopBar = ({ isSidebarOpen, toggleSidebar }: TopBarProps) => {
           </button>
           
           <div className="ml-4 flex items-center">
+            <img 
+              src="/lovable-uploads/84236534-3718-40d2-a32e-197758066390.png" 
+              alt="ASA Rent a Car" 
+              className="h-8 mr-3"
+            />
             <div className={cn(
               "text-primary font-medium text-xl transition-all",
               isSidebarOpen ? "opacity-100" : "md:opacity-0"
             )}>
-              Precificador GTF
+              Gerador de Propostas GTF
             </div>
           </div>
         </div>

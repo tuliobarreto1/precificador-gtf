@@ -94,7 +94,12 @@ export default function Login() {
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <div className="w-full max-w-md px-4">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold">ASA Precificador</h1>
+          <img 
+            src="/lovable-uploads/84236534-3718-40d2-a32e-197758066390.png" 
+            alt="ASA Rent a Car" 
+            className="h-12 mx-auto mb-3"
+          />
+          <h1 className="text-3xl font-bold">Gerador de Propostas GTF</h1>
           <p className="text-gray-500 mt-2">Sistema de Precificação de Frota</p>
         </div>
         
@@ -169,4 +174,4 @@ export default function Login() {
       </div>
     </div>
   );
-}
+};

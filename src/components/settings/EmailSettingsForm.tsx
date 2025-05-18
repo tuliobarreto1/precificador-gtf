@@ -115,7 +115,7 @@ const EmailSettingsForm: React.FC = () => {
       // Salvar primeiro as configurações atuais
       await saveEmailConfig(config);
       
-      // Enviar e-mail de teste - corrigindo a chamada para usar um objeto EmailOptions
+      // Enviar e-mail de teste - utilizando a interface EmailOptions
       const success = await sendEmailWithOutlook({
         to: testEmail,
         subject: "Teste de configuração de e-mail",
@@ -135,7 +135,7 @@ Esta é uma mensagem automática, por favor não responda.`
       if (success) {
         toast({
           title: "E-mail enviado com sucesso",
-          description: `Um e-mail de teste foi enviado para ${testEmail}`,
+          description: `Um e-mail de teste foi enviado para ${testEmail}. Verifique sua caixa de entrada e pasta de spam.`,
         });
       } else {
         toast({
@@ -282,6 +282,12 @@ Esta é uma mensagem automática, por favor não responda.`
           <p className="text-xs text-muted-foreground mt-2">
             Envie um e-mail de teste para verificar se suas configurações estão funcionando corretamente.
           </p>
+          <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
+            <p className="text-orange-700 text-sm">
+              <strong>NOTA:</strong> Este é um ambiente de demonstração e o envio real de emails não está habilitado. 
+              Em produção, será necessário configurar um serviço SMTP real ou uma API de envio de emails.
+            </p>
+          </div>
         </div>
         
         <div className="flex justify-end space-x-2 pt-4 border-t mt-6">

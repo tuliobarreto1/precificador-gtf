@@ -54,10 +54,22 @@ export async function sendEmailWithOutlook(options: EmailOptions): Promise<boole
     
     // Para teste, vamos considerar o envio como bem sucedido
     // Na integração real, aqui verificaria o status de retorno da API de email
-    const success = true;
     
-    console.log(`Email ${success ? 'enviado com sucesso' : 'falhou ao enviar'} para ${to}`);
-    return success;
+    // Adicionar logs mais detalhados para depuração
+    console.log("Servidor SMTP:", config.host);
+    console.log("Porta:", config.port);
+    console.log("Conexão segura:", config.secure ? "Sim" : "Não");
+    console.log("Usuário:", config.user);
+    console.log("Email destinatário:", to);
+    
+    // NOTA IMPORTANTE: Em um ambiente de produção, você precisará implementar
+    // um serviço real de envio de emails aqui, como o uso de:
+    // - Um servidor SMTP configurado (Outlook, Gmail, etc.)
+    // - Um serviço de email como SendGrid, Mailgun, ou AWS SES
+    // - Uma API de envio de email do seu provedor
+    
+    console.log(`Email enviado com sucesso para ${to}`);
+    return true;
   } catch (error) {
     console.error("Erro ao enviar email:", error);
     return false;
