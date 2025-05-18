@@ -126,7 +126,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
       console.log(`Enviando orçamento ${quoteId} por e-mail para ${email}`);
       
       // Buscar os detalhes do orçamento
-      const { data: quoteData, error: quoteError } = await import('@/integrations/supabase/services/quotes')
+      const { quote: quoteData, error: quoteError } = await import('@/integrations/supabase/services/quotes')
         .then(module => module.getQuoteByIdFromSupabase(quoteId));
         
       if (quoteError || !quoteData) {

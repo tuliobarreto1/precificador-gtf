@@ -20,7 +20,7 @@ import { QuoteStatusFlow } from '@/lib/status-flow';
 
 interface QuoteDetailProps {
   quote: SavedQuote;
-  onSendEmail: (email: string, message: string) => Promise<void>;
+  onSendEmail: (email: string, message: string) => Promise<boolean>;
   onDelete: () => void;
   onEdit: () => void;
   canEdit: boolean;
@@ -50,10 +50,12 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
     
     setSending(true);
     try {
-      await onSendEmail(email, message);
-      setShowEmailDialog(false);
-      setEmail('');
-      setMessage('');
+      const success = await onSendEmail(email, message);
+      if (success) {
+        setShowEmailDialog(false);
+        setEmail('');
+        setMessage('');
+      }
     } finally {
       setSending(false);
     }
