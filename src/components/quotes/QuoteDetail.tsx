@@ -37,6 +37,59 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
   // Calcular resultado para usar no GerarPropostaButton
   const result = calculateQuote();
   
+  // Preparar os dados para o GerarPropostaButton
+  const quoteForm = {
+    client: {
+      id: quote.clientId || '',
+      name: quote.clientName || 'Cliente',
+      document: '',
+      email: '',
+      contact: ''
+    },
+    vehicles: quote.vehicles?.map(vehicle => ({
+      vehicle: {
+        id: vehicle.vehicleId,
+        brand: vehicle.vehicleBrand,
+        model: vehicle.vehicleModel,
+        year: new Date().getFullYear(),
+        value: vehicle.vehicleValue || 0,
+        isUsed: !!vehicle.plateNumber,
+        plateNumber: vehicle.plateNumber,
+        groupId: vehicle.vehicleGroupId || vehicle.groupId || 'A'
+      },
+      vehicleGroup: {
+        id: vehicle.vehicleGroupId || vehicle.groupId || 'A',
+        name: `Grupo ${vehicle.vehicleGroupId || vehicle.groupId || 'A'}`,
+        description: '',
+        revisionKm: 10000,
+        revisionCost: 300,
+        tireKm: 40000,
+        tireCost: 1200
+      },
+      params: {
+        contractMonths: vehicle.contractMonths || quote.contractMonths || 24,
+        monthlyKm: vehicle.monthlyKm || quote.monthlyKm || 3000,
+        operationSeverity: 3, // Usando valor padrão
+        hasTracking: false, // Usando valor padrão
+        protectionPlanId: vehicle.protectionPlanId || null,
+        includeIpva: vehicle.includeIpva || quote.globalParams?.includeIpva || false,
+        includeLicensing: vehicle.includeLicensing || quote.globalParams?.includeLicensing || false,
+        includeTaxes: vehicle.includeTaxes || quote.globalParams?.includeTaxes || false
+      }
+    })) || [],
+    useGlobalParams: true,
+    globalParams: {
+      contractMonths: quote.contractMonths || 24,
+      monthlyKm: quote.monthlyKm || 3000,
+      operationSeverity: quote.globalParams?.operationSeverity || 3,
+      hasTracking: quote.globalParams?.hasTracking || false,
+      protectionPlanId: null,
+      includeIpva: quote.globalParams?.includeIpva || false,
+      includeLicensing: quote.globalParams?.includeLicensing || false,
+      includeTaxes: quote.globalParams?.includeTaxes || false
+    }
+  };
+  
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center flex-wrap gap-4">
@@ -52,59 +105,10 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
           <EmailDialog quoteId={quote.id} />
           
           <GerarPropostaButton
-            quoteForm={{
-              client: {
-                id: quote.clientId || '',
-                name: quote.clientName || 'Cliente',
-                document: '',
-                email: '',
-                contact: ''
-              },
-              vehicles: quote.vehicles?.map(vehicle => ({
-                vehicle: {
-                  id: vehicle.vehicleId,
-                  brand: vehicle.vehicleBrand,
-                  model: vehicle.vehicleModel,
-                  year: new Date().getFullYear(),
-                  value: vehicle.vehicleValue || 0,
-                  isUsed: !!vehicle.plateNumber,
-                  plateNumber: vehicle.plateNumber,
-                  groupId: vehicle.vehicleGroupId || vehicle.groupId || 'A'
-                },
-                vehicleGroup: {
-                  id: vehicle.vehicleGroupId || vehicle.groupId || 'A',
-                  name: `Grupo ${vehicle.vehicleGroupId || vehicle.groupId || 'A'}`,
-                  description: '',
-                  revisionKm: 10000,
-                  revisionCost: 300,
-                  tireKm: 40000,
-                  tireCost: 1200
-                },
-                params: {
-                  contractMonths: vehicle.contractMonths || quote.contractMonths || 24,
-                  monthlyKm: vehicle.monthlyKm || quote.monthlyKm || 3000,
-                  operationSeverity: 3, // Usando valor padrão
-                  hasTracking: false, // Usando valor padrão
-                  protectionPlanId: vehicle.protectionPlanId || null,
-                  includeIpva: vehicle.includeIpva || false,
-                  includeLicensing: vehicle.includeLicensing || false,
-                  includeTaxes: vehicle.includeTaxes || false
-                }
-              })) || [],
-              useGlobalParams: true,
-              globalParams: {
-                contractMonths: quote.contractMonths || 24,
-                monthlyKm: quote.monthlyKm || 3000,
-                operationSeverity: 3, // Valor padrão
-                hasTracking: false, // Valor padrão
-                protectionPlanId: null,
-                includeIpva: quote.includeIpva || false,
-                includeLicensing: quote.includeLicensing || false,
-                includeTaxes: quote.includeTaxes || false
-              }
-            }}
+            quoteForm={quoteForm}
             result={result}
             currentQuoteId={quote.id}
+            savedQuote={quote}
           />
           
           {canEdit && (

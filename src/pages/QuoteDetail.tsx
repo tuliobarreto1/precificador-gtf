@@ -71,7 +71,7 @@ const QuoteDetailPage = () => {
     } catch (error) {
       console.error("Erro ao enviar email:", error);
       toast({
-        title: "Erro ao enviar email",
+        title: "Erro ao enviar e-mail",
         description: "Ocorreu um erro ao tentar enviar o email. Verifique as configurações."
       });
       return false;

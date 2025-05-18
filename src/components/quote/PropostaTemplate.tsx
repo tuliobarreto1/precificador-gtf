@@ -12,7 +12,7 @@ interface PropostaTemplateProps {
 
 const PropostaTemplate = forwardRef<HTMLDivElement, PropostaTemplateProps>(
   ({ quote, result, currentDate }, ref) => {
-    if (!quote || !result) {
+    if (!quote || !result || !quote.client || !quote.vehicles || !result.vehicleResults) {
       console.warn("PropostaTemplate: Dados insuficientes para renderizar proposta", { quote, result });
       return (
         <div ref={ref} className="bg-white p-8 w-[210mm] min-h-[297mm]">

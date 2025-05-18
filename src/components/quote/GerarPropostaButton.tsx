@@ -1,47 +1,146 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { FileText, Send } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { QuoteFormData, QuoteCalculationResult } from '@/context/types/quoteTypes';
+import { QuoteFormData, QuoteCalculationResult, SavedQuote } from '@/context/types/quoteTypes';
 import PropostaTemplate from './PropostaTemplate';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { supabase } from '@/integrations/supabase/client';
 import { updateQuoteStatus } from '@/lib/status-api';
 import { registerProposal } from '@/integrations/supabase/services/proposals';
+import { useQuoteCalculation } from '@/hooks/useQuoteCalculation';
 
 interface GerarPropostaButtonProps {
   quoteForm: QuoteFormData | null;
   result: QuoteCalculationResult | null;
   currentQuoteId?: string | null;
+  savedQuote?: SavedQuote | null;
 }
 
-const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, result, currentQuoteId }) => {
+const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, result, currentQuoteId, savedQuote }) => {
   const [open, setOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [calculatedResult, setCalculatedResult] = useState<QuoteCalculationResult | null>(result);
+  const [formattedQuoteForm, setFormattedQuoteForm] = useState<QuoteFormData | null>(quoteForm);
   const propostaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { calculateQuoteSync } = useQuoteCalculation(formattedQuoteForm || { 
+    client: null, 
+    vehicles: [], 
+    useGlobalParams: true,
+    globalParams: { 
+      contractMonths: 24, 
+      monthlyKm: 3000, 
+      operationSeverity: 3,
+      hasTracking: false,
+      protectionPlanId: null,
+      includeIpva: true,
+      includeLicensing: true, 
+      includeTaxes: true 
+    } 
+  });
+
+  // Quando temos um savedQuote, mas não temos quoteForm, vamos converter o savedQuote para quoteForm
+  useEffect(() => {
+    // Se já temos resultado e quoteForm válidos, não fazemos nada
+    if (result && quoteForm?.client && quoteForm.vehicles?.length > 0) {
+      setCalculatedResult(result);
+      setFormattedQuoteForm(quoteForm);
+      return;
+    }
+
+    // Se temos savedQuote, mas não temos quoteForm ou result completos
+    if (savedQuote) {
+      console.log("Convertendo savedQuote para quoteForm", savedQuote);
+      
+      const newQuoteForm: QuoteFormData = {
+        client: {
+          id: savedQuote.clientId || '',
+          name: savedQuote.clientName || 'Cliente',
+          document: '',
+          email: '',
+          contact: ''
+        },
+        vehicles: savedQuote.vehicles?.map(vehicle => ({
+          vehicle: {
+            id: vehicle.vehicleId,
+            brand: vehicle.vehicleBrand,
+            model: vehicle.vehicleModel,
+            year: new Date().getFullYear(),
+            value: vehicle.vehicleValue || 0,
+            isUsed: !!vehicle.plateNumber,
+            plateNumber: vehicle.plateNumber,
+            groupId: vehicle.vehicleGroupId || vehicle.groupId || 'A'
+          },
+          vehicleGroup: {
+            id: vehicle.vehicleGroupId || vehicle.groupId || 'A',
+            name: `Grupo ${vehicle.vehicleGroupId || vehicle.groupId || 'A'}`,
+            description: '',
+            revisionKm: 10000,
+            revisionCost: 300,
+            tireKm: 40000,
+            tireCost: 1200
+          },
+          params: {
+            contractMonths: vehicle.contractMonths || savedQuote.contractMonths || 24,
+            monthlyKm: vehicle.monthlyKm || savedQuote.monthlyKm || 3000,
+            operationSeverity: savedQuote.globalParams?.operationSeverity || 3,
+            hasTracking: savedQuote.globalParams?.hasTracking || false,
+            protectionPlanId: vehicle.protectionPlanId || null,
+            includeIpva: vehicle.includeIpva || savedQuote.globalParams?.includeIpva || false,
+            includeLicensing: vehicle.includeLicensing || savedQuote.globalParams?.includeLicensing || false,
+            includeTaxes: vehicle.includeTaxes || savedQuote.globalParams?.includeTaxes || false
+          }
+        })) || [],
+        useGlobalParams: true,
+        globalParams: {
+          contractMonths: savedQuote.contractMonths || 24,
+          monthlyKm: savedQuote.monthlyKm || 3000,
+          operationSeverity: savedQuote.globalParams?.operationSeverity || 3,
+          hasTracking: savedQuote.globalParams?.hasTracking || false,
+          protectionPlanId: null,
+          includeIpva: savedQuote.globalParams?.includeIpva || false,
+          includeLicensing: savedQuote.globalParams?.includeLicensing || false,
+          includeTaxes: savedQuote.globalParams?.includeTaxes || false
+        }
+      };
+
+      setFormattedQuoteForm(newQuoteForm);
+      
+      // Calcular o resultado usando a função de cálculo
+      try {
+        const newResult = calculateQuoteSync();
+        console.log("Resultado calculado para o savedQuote:", newResult);
+        setCalculatedResult(newResult);
+      } catch (error) {
+        console.error("Erro ao calcular resultado:", error);
+      }
+    }
+  }, [savedQuote, quoteForm, result, calculateQuoteSync]);
 
   // Verificar se os dados são válidos para gerar a proposta
-  const dadosValidos = quoteForm?.client && 
-                      quoteForm?.vehicles && 
-                      quoteForm.vehicles.length > 0 &&
-                      result?.vehicleResults && 
-                      result.vehicleResults.length > 0 && 
-                      !!currentQuoteId;
+  const dadosValidos = Boolean(
+    (formattedQuoteForm?.client && 
+     formattedQuoteForm.vehicles && 
+     formattedQuoteForm.vehicles.length > 0 &&
+     calculatedResult?.vehicleResults && 
+     calculatedResult.vehicleResults.length > 0 && 
+     currentQuoteId)
+  );
 
   // Log detalhado para debug
   console.log("GerarPropostaButton: Estado atual dos dados", {
-    cliente: quoteForm?.client,
-    veiculos: quoteForm?.vehicles?.map(v => ({
+    cliente: formattedQuoteForm?.client,
+    veiculos: formattedQuoteForm?.vehicles?.map(v => ({
       id: v.vehicle.id,
       marca: v.vehicle.brand,
       modelo: v.vehicle.model
     })),
-    resultados: result?.vehicleResults?.map(v => ({
+    resultados: calculatedResult?.vehicleResults?.map(v => ({
       id: v.vehicleId,
       custo: v.totalCost
     })),
@@ -72,7 +171,7 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
     setIsGenerating(true);
     try {
       // Criar nome do arquivo baseado no cliente
-      const fileName = `Proposta_${quoteForm?.client?.name?.replace(/\s+/g, '_') || 'Cliente'}_${new Date().toISOString().split('T')[0]}.pdf`;
+      const fileName = `Proposta_${formattedQuoteForm?.client?.name?.replace(/\s+/g, '_') || 'Cliente'}_${new Date().toISOString().split('T')[0]}.pdf`;
       
       toast({
         title: "Gerando PDF",
@@ -183,7 +282,7 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
         <Button 
           variant="outline" 
           className="flex items-center gap-2 w-full"
-          disabled={!quoteForm?.client}
+          disabled={!formattedQuoteForm?.client}
         >
           <FileText size={16} />
           Gerar Proposta em PDF
@@ -200,9 +299,9 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
             <p className="font-medium">Dados insuficientes para gerar a proposta:</p>
             <ul className="list-disc pl-5 mt-2 text-sm">
               {!currentQuoteId && <li>O orçamento precisa ser salvo primeiro (ID não encontrado)</li>}
-              {!quoteForm?.client && <li>Nenhum cliente selecionado</li>}
-              {(!quoteForm?.vehicles || quoteForm.vehicles.length === 0) && <li>Nenhum veículo adicionado ao orçamento</li>}
-              {(!result?.vehicleResults || result.vehicleResults.length === 0) && <li>Cálculos dos veículos não encontrados</li>}
+              {!formattedQuoteForm?.client && <li>Nenhum cliente selecionado</li>}
+              {(!formattedQuoteForm?.vehicles || formattedQuoteForm.vehicles.length === 0) && <li>Nenhum veículo adicionado ao orçamento</li>}
+              {(!calculatedResult?.vehicleResults || calculatedResult.vehicleResults.length === 0) && <li>Cálculos dos veículos não encontrados</li>}
             </ul>
             <p className="mt-2 text-sm">Salve o orçamento e tente novamente.</p>
           </div>
@@ -210,7 +309,7 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
         
         <div className="border rounded-md p-2 bg-gray-50 overflow-auto">
           <div className="flex justify-center">
-            <PropostaTemplate ref={propostaRef} quote={quoteForm} result={result} />
+            <PropostaTemplate ref={propostaRef} quote={formattedQuoteForm} result={calculatedResult} />
           </div>
         </div>
         

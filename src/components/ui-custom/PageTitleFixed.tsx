@@ -14,32 +14,32 @@ interface PageTitleProps {
   children?: React.ReactNode;
 }
 
-const PageTitle: React.FC<PageTitleProps> = ({ title, breadcrumbs, children }) => {
+const PageTitleFixed: React.FC<PageTitleProps> = ({ title, breadcrumbs, children }) => {
   return (
     <div className="mb-5">
       {breadcrumbs && breadcrumbs.length > 0 && (
         <nav className="flex mb-2 text-sm text-muted-foreground">
           {breadcrumbs.map((item, index) => {
-            if (index > 0) {
-              return (
-                <React.Fragment key={index}>
-                  <ChevronRight className="mx-1 h-4 w-4" />
-                  {index === breadcrumbs.length - 1 ? (
-                    <span>{item.label}</span>
-                  ) : (
-                    <Link to={item.url} className="hover:text-primary hover:underline">
-                      {item.label}
-                    </Link>
-                  )}
-                </React.Fragment>
-              );
-            } else {
+            if (index === 0) {
               return (
                 <Link key={index} to={item.url} className="hover:text-primary hover:underline">
                   {item.label}
                 </Link>
               );
             }
+            
+            return (
+              <div key={index} className="flex items-center">
+                <ChevronRight className="mx-1 h-4 w-4" />
+                {index === breadcrumbs.length - 1 ? (
+                  <span>{item.label}</span>
+                ) : (
+                  <Link to={item.url} className="hover:text-primary hover:underline">
+                    {item.label}
+                  </Link>
+                )}
+              </div>
+            );
           })}
         </nav>
       )}
@@ -52,4 +52,4 @@ const PageTitle: React.FC<PageTitleProps> = ({ title, breadcrumbs, children }) =
   );
 };
 
-export default PageTitle;
+export default PageTitleFixed;
