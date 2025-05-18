@@ -34,13 +34,12 @@ export async function sendEmailWithOutlook(options: EmailOptions): Promise<boole
       secure: config.secure
     });
     
-    // -----------------------------------------------------------------
-    // IMPLEMENTAÇÃO TEMPORÁRIA DE TESTE - Simula o envio de email
-    // -----------------------------------------------------------------
-    // Em uma versão de produção, aqui seria implementado o envio real
-    // usando nodemailer ou outra biblioteca de envio de email
-    // -----------------------------------------------------------------
+    // Verificar se estamos usando Mailgun
+    if (config.provider === 'mailgun') {
+      return await sendWithMailgun(to, subject, message, attachmentPath);
+    }
     
+    // Para outros provedores, manter o comportamento de simulação atual
     console.log("DADOS DO EMAIL:", {
       de: config.user,
       para: to,
@@ -51,9 +50,6 @@ export async function sendEmailWithOutlook(options: EmailOptions): Promise<boole
     
     // Simulação de um delay para simular envio
     await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Para teste, vamos considerar o envio como bem sucedido
-    // Na integração real, aqui verificaria o status de retorno da API de email
     
     // Adicionar logs mais detalhados para depuração
     console.log("Servidor SMTP:", config.host);
@@ -72,6 +68,42 @@ export async function sendEmailWithOutlook(options: EmailOptions): Promise<boole
     return true;
   } catch (error) {
     console.error("Erro ao enviar email:", error);
+    return false;
+  }
+}
+
+/**
+ * Função para enviar email com Mailgun
+ */
+async function sendWithMailgun(to: string, subject: string, text: string, attachmentPath?: string): Promise<boolean> {
+  try {
+    console.log("Iniciando envio via Mailgun para:", to);
+    
+    // Importar módulos necessários para o Mailgun
+    const { default: FormData } = await import('form-data');
+    const { default: Mailgun } = await import('mailgun.js');
+    
+    // Inicializar cliente Mailgun
+    const mailgun = new Mailgun(FormData);
+    const mg = mailgun.client({
+      username: "api",
+      key: "af7e4708aac6ebf0b6521bb5ce25aa30-e71583bb-593ac6c0", // Chave API do Mailgun
+    });
+    
+    // Montar e enviar a mensagem
+    const data = await mg.messages.create("sandboxb21f3c354b9a4bb48eb2e723c7e35355.mailgun.org", {
+      from: "ASA Rent a Car <postmaster@sandboxb21f3c354b9a4bb48eb2e723c7e35355.mailgun.org>",
+      to: [to],
+      subject: subject,
+      text: text,
+      // Se houver um anexo, adicioná-lo aqui
+      // Esta parte precisará ser implementada quando o sistema de geração de PDF estiver funcional
+    });
+    
+    console.log("Resposta do Mailgun:", data);
+    return true;
+  } catch (error) {
+    console.error("Erro ao enviar email via Mailgun:", error);
     return false;
   }
 }

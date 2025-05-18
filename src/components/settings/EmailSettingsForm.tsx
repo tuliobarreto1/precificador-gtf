@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,6 +10,7 @@ import { getEmailConfig, saveEmailConfig } from '@/lib/email/config-service';
 import { sendEmailWithOutlook } from '@/lib/email/sender-service';
 import { EmailConfig } from '@/lib/email/types';
 import { Loader2 } from 'lucide-react';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const EmailSettingsForm: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -124,7 +126,8 @@ const EmailSettingsForm: React.FC = () => {
 Suas configurações estão funcionando corretamente!
 
 Detalhes da configuração:
-- Servidor SMTP: ${config.host}
+- Provedor: ${config.provider}
+- Servidor: ${config.host}
 - Porta: ${config.port}
 - Usuário: ${config.user}
 - SSL/TLS: ${config.secure ? 'Ativado' : 'Desativado'}
@@ -163,6 +166,30 @@ Esta é uma mensagem automática, por favor não responda.`
     }));
   };
 
+  // Atualizar configurações com base no provedor selecionado
+  const handleProviderChange = (provider: string) => {
+    let updatedConfig = { ...config, provider };
+    
+    // Configurações padrão com base no provedor selecionado
+    if (provider === 'outlook') {
+      updatedConfig.host = 'smtp.office365.com';
+      updatedConfig.port = 587;
+      updatedConfig.secure = true;
+    } else if (provider === 'gmail') {
+      updatedConfig.host = 'smtp.gmail.com';
+      updatedConfig.port = 587;
+      updatedConfig.secure = true;
+    } else if (provider === 'mailgun') {
+      updatedConfig.host = 'api.mailgun.net';
+      updatedConfig.port = 443;
+      updatedConfig.secure = true;
+      updatedConfig.user = 'postmaster@sandboxb21f3c354b9a4bb48eb2e723c7e35355.mailgun.org';
+      updatedConfig.password = 'af7e4708aac6ebf0b6521bb5ce25aa30-e71583bb-593ac6c0';
+    }
+    
+    setConfig(updatedConfig);
+  };
+
   return (
     <Card className="p-6">
       <h2 className="text-xl font-semibold mb-4">Configurações de Email</h2>
@@ -171,43 +198,56 @@ Esta é uma mensagem automática, por favor não responda.`
       </p>
       
       <div className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="provider">Provedor</Label>
-            <Input
-              id="provider"
-              placeholder="outlook"
-              value={config.provider}
-              onChange={(e) => handleChange('provider', e.target.value)}
-              disabled={loading || saving}
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="host">Servidor SMTP</Label>
-            <Input
-              id="host"
-              placeholder="smtp.office365.com"
-              value={config.host}
-              onChange={(e) => handleChange('host', e.target.value)}
-              disabled={loading || saving}
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="provider">Provedor</Label>
+          <Select 
+            value={config.provider}
+            onValueChange={handleProviderChange}
+            disabled={loading || saving}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione o provedor de email" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Provedores de Email</SelectLabel>
+                <SelectItem value="outlook">Microsoft Outlook</SelectItem>
+                <SelectItem value="gmail">Gmail</SelectItem>
+                <SelectItem value="mailgun">Mailgun API</SelectItem>
+                <SelectItem value="outro">Outro (SMTP)</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="port">Porta</Label>
-            <Input
-              id="port"
-              type="number"
-              placeholder="587"
-              value={config.port}
-              onChange={(e) => handleChange('port', parseInt(e.target.value) || 587)}
-              disabled={loading || saving}
-            />
+        {config.provider !== 'mailgun' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="host">Servidor SMTP</Label>
+              <Input
+                id="host"
+                placeholder="smtp.office365.com"
+                value={config.host}
+                onChange={(e) => handleChange('host', e.target.value)}
+                disabled={loading || saving || config.provider === 'mailgun'}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="port">Porta</Label>
+              <Input
+                id="port"
+                type="number"
+                placeholder="587"
+                value={config.port}
+                onChange={(e) => handleChange('port', parseInt(e.target.value) || 587)}
+                disabled={loading || saving || config.provider === 'mailgun'}
+              />
+            </div>
           </div>
-          
+        )}
+        
+        {config.provider !== 'mailgun' && (
           <div className="space-y-2">
             <Label htmlFor="secure" className="flex items-center justify-between">
               <span>Conexão Segura (SSL/TLS)</span>
@@ -215,40 +255,69 @@ Esta é uma mensagem automática, por favor não responda.`
                 id="secure"
                 checked={config.secure}
                 onCheckedChange={(value) => handleChange('secure', value)}
-                disabled={loading || saving}
+                disabled={loading || saving || config.provider === 'mailgun'}
               />
             </Label>
             <p className="text-xs text-muted-foreground">
               Ative para usar conexão criptografada (recomendado)
             </p>
           </div>
-        </div>
+        )}
         
         <div className="space-y-2">
-          <Label htmlFor="user">Email</Label>
+          <Label htmlFor="user">
+            {config.provider === 'mailgun' ? 'Domínio Mailgun' : 'Email'}
+          </Label>
           <Input
             id="user"
-            placeholder="seu@email.com"
+            placeholder={
+              config.provider === 'mailgun' 
+                ? "sandboxXXXXXX.mailgun.org" 
+                : "seu@email.com"
+            }
             value={config.user}
             onChange={(e) => handleChange('user', e.target.value)}
-            disabled={loading || saving}
+            disabled={loading || saving || (config.provider === 'mailgun')}
           />
+          {config.provider === 'mailgun' && (
+            <p className="text-xs text-muted-foreground">
+              Para o Mailgun, as configurações já estão pré-definidas.
+            </p>
+          )}
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="password">Senha</Label>
+          <Label htmlFor="password">
+            {config.provider === 'mailgun' ? 'API Key Mailgun' : 'Senha'}
+          </Label>
           <Input
             id="password"
             type="password"
             placeholder="********"
             value={config.password}
             onChange={(e) => handleChange('password', e.target.value)}
-            disabled={loading || saving}
+            disabled={loading || saving || (config.provider === 'mailgun')}
           />
-          <p className="text-xs text-muted-foreground">
-            Para serviços como Gmail e Outlook, pode ser necessário criar uma senha de aplicativo.
-          </p>
+          {config.provider === 'mailgun' ? (
+            <p className="text-xs text-muted-foreground">
+              A API key do Mailgun já está configurada.
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Para serviços como Gmail e Outlook, pode ser necessário criar uma senha de aplicativo.
+            </p>
+          )}
         </div>
+        
+        {config.provider === 'mailgun' && (
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <p className="text-blue-700 text-sm">
+              <strong>Informação:</strong> O Mailgun está configurado com sua conta sandbox. 
+              Para enviar emails para qualquer endereço, você precisará verificá-los no painel do Mailgun 
+              ou atualizar para uma conta completa com domínio verificado.
+            </p>
+          </div>
+        )}
         
         {/* Seção de teste de e-mail */}
         <div className="border-t pt-4 mt-6">
@@ -282,12 +351,14 @@ Esta é uma mensagem automática, por favor não responda.`
           <p className="text-xs text-muted-foreground mt-2">
             Envie um e-mail de teste para verificar se suas configurações estão funcionando corretamente.
           </p>
-          <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
-            <p className="text-orange-700 text-sm">
-              <strong>NOTA:</strong> Este é um ambiente de demonstração e o envio real de emails não está habilitado. 
-              Em produção, será necessário configurar um serviço SMTP real ou uma API de envio de emails.
-            </p>
-          </div>
+          {config.provider !== 'mailgun' && (
+            <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
+              <p className="text-orange-700 text-sm">
+                <strong>NOTA:</strong> Este é um ambiente de demonstração e o envio real de emails não está habilitado. 
+                Em produção, será necessário configurar um serviço SMTP real ou uma API de envio de emails.
+              </p>
+            </div>
+          )}
         </div>
         
         <div className="flex justify-end space-x-2 pt-4 border-t mt-6">

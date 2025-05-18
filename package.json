@@ -54,6 +54,7 @@
     "dotenv": "^16.4.7",
     "embla-carousel-react": "^8.3.0",
     "express": "^4.21.2",
+    "form-data": "^4.0.1",
     "html2canvas": "^1.4.1",
     "input-otp": "^1.2.4",
     "jspdf": "^3.0.1",
