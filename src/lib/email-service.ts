@@ -21,65 +21,80 @@ interface EmailConfig {
  */
 export async function getEmailConfig(): Promise<EmailConfig | null> {
   try {
-    // Buscar configurações do supabase (table system_settings)
-    const { data: emailProvider, error: providerError } = await supabase
+    console.log("Buscando configurações de e-mail...");
+    
+    // Verificar se existe configuração completa
+    const { data: configCheck, error: checkError } = await supabase
+      .from('system_settings')
+      .select('key, value')
+      .in('key', ['email_provider', 'email_host', 'email_user'])
+      .limit(3);
+      
+    if (checkError || !configCheck || configCheck.length < 3) {
+      console.error("Configurações básicas de e-mail não encontradas:", checkError);
+      return null;
+    }
+    
+    // Buscar todas as configurações individualmente para ter mais detalhes
+    const { data: emailProvider } = await supabase
       .from('system_settings')
       .select('value')
       .eq('key', 'email_provider')
       .maybeSingle();
       
-    const { data: emailHost, error: hostError } = await supabase
+    const { data: emailHost } = await supabase
       .from('system_settings')
       .select('value')
       .eq('key', 'email_host')
       .maybeSingle();
       
-    const { data: emailPort, error: portError } = await supabase
+    const { data: emailPort } = await supabase
       .from('system_settings')
       .select('value')
       .eq('key', 'email_port')
       .maybeSingle();
       
-    const { data: emailUser, error: userError } = await supabase
+    const { data: emailUser } = await supabase
       .from('system_settings')
       .select('value')
       .eq('key', 'email_user')
       .maybeSingle();
       
-    const { data: emailSecure, error: secureError } = await supabase
+    const { data: emailSecure } = await supabase
       .from('system_settings')
       .select('value')
       .eq('key', 'email_secure')
       .maybeSingle();
       
-    // Se alguma configuração estiver faltando, retornar null
-    if (!emailProvider || !emailHost || !emailPort || !emailUser) {
-      console.error("Configurações de email incompletas:", { 
-        providerError, hostError, portError, userError, secureError 
-      });
-      return null;
-    }
-    
-    // Obter senha (em uma aplicação real, isso seria criptografado)
-    const { data: emailPassword, error: passwordError } = await supabase
+    const { data: emailPassword } = await supabase
       .from('system_settings')
       .select('value')
       .eq('key', 'email_password')
       .maybeSingle();
     
-    if (!emailPassword) {
-      console.error("Senha de email não configurada:", passwordError);
+    // Se alguma configuração essencial estiver faltando, retornar null
+    if (!emailProvider || !emailHost || !emailUser) {
+      console.error("Configurações essenciais de email incompletas");
       return null;
     }
     
-    return {
+    const config = {
       provider: emailProvider.value,
       host: emailHost.value,
-      port: parseInt(emailPort.value),
+      port: emailPort ? parseInt(emailPort.value) : 587,
       user: emailUser.value,
-      password: emailPassword.value,
-      secure: emailSecure?.value === 'true'
+      password: emailPassword ? emailPassword.value : '',
+      secure: emailSecure ? emailSecure.value === 'true' : false
     };
+    
+    console.log("Configurações de e-mail encontradas:", {
+      provider: config.provider,
+      host: config.host,
+      user: config.user,
+      configurado: !!config.password
+    });
+    
+    return config;
   } catch (error) {
     console.error("Erro ao obter configurações de email:", error);
     return null;
@@ -101,7 +116,12 @@ export async function sendEmailWithOutlook(
     const config = await getEmailConfig();
     
     if (!config) {
-      console.error("Configurações de email não encontradas");
+      console.error("Configurações de email não encontradas ou incompletas");
+      return false;
+    }
+    
+    if (!config.password) {
+      console.error("Senha não configurada para o serviço de email");
       return false;
     }
     
@@ -109,15 +129,28 @@ export async function sendEmailWithOutlook(
       provider: config.provider,
       host: config.host,
       port: config.port,
-      user: config.user,
-      secure: config.secure
+      user: config.user
     });
     
-    // Em uma implementação real, aqui seria a lógica de envio de email
-    // utilizando nodemailer, sendgrid ou outro serviço
+    // Em ambiente de produção, aqui seria a implementação real de envio
+    // utilizando nodemailer, API de email, etc.
     
-    // Simular sucesso para teste
-    return true;
+    // Para fins de demonstração, simulamos um envio bem-sucedido
+    // Em uma implementação real, isso seria substituído pelo código real de envio
+    
+    // Simulação de envio (em produção, este código seria substituído)
+    const simulateEmailSending = (): Promise<boolean> => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          // Sucesso simulado - em produção seria o resultado real do envio
+          const success = true;
+          console.log(`Email ${success ? 'enviado com sucesso' : 'falhou ao enviar'} para ${to}`);
+          resolve(success);
+        }, 1500);
+      });
+    };
+    
+    return await simulateEmailSending();
   } catch (error) {
     console.error("Erro ao enviar email:", error);
     return false;

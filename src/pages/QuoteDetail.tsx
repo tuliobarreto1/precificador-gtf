@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
-import PageTitle from '@/components/ui-custom/PageTitle';
+import PageTitleFixed from '@/components/ui-custom/PageTitleFixed';
 import QuoteDetail from '@/components/quotes/QuoteDetail';
 import { SavedQuote } from '@/context/types/quoteTypes';
 import { getQuoteByIdFromSupabase } from '@/integrations/supabase/services/quotes';
@@ -155,7 +156,7 @@ const QuoteDetailPage = () => {
 
   return (
     <MainLayout>
-      <PageTitle
+      <PageTitleFixed
         title={`Orçamento: ${quote.clientName}`}
         breadcrumbs={[
           { label: 'Home', url: '/' },

@@ -27,6 +27,7 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId }) => {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [configExists, setConfigExists] = useState<boolean | null>(null);
   const { toast } = useToast();
@@ -36,12 +37,20 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId }) => {
   const handleOpenChange = async (open: boolean) => {
     if (open) {
       try {
+        setLoading(true);
         const config = await getEmailConfig();
         console.log("Configurações de e-mail:", config ? "Encontradas" : "Não encontradas");
-        setConfigExists(!!config);
+        setConfigExists(!!config && !!config.password);
+        
+        // Mensagem padrão para começar
+        if (!message) {
+          setMessage("Prezado cliente,\n\nSegue em anexo a proposta de locação de veículos conforme solicitado.\n\nAtenciosamente,\nEquipe comercial");
+        }
       } catch (error) {
         console.error("Erro ao verificar configurações de e-mail:", error);
         setConfigExists(false);
+      } finally {
+        setLoading(false);
       }
     }
     setDialogOpen(open);
@@ -101,16 +110,25 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId }) => {
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Enviar Orçamento por E-mail</DialogTitle>
-          {configExists === false && (
+          {loading ? (
+            <DialogDescription>
+              Verificando configurações de e-mail...
+            </DialogDescription>
+          ) : configExists === false ? (
             <DialogDescription className="text-destructive">
-              Configurações de e-mail não encontradas. Configure o serviço de e-mail nas 
+              Configurações de e-mail não encontradas ou incompletas. Configure o serviço de e-mail nas {' '}
               <Link to="/settings" className="text-primary mx-1 underline">
                 configurações do sistema
               </Link>
-              antes de continuar.
+              {' '}antes de continuar.
+            </DialogDescription>
+          ) : (
+            <DialogDescription>
+              Insira o endereço de e-mail para enviar este orçamento.
             </DialogDescription>
           )}
         </DialogHeader>
+        
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="email" className="text-right">
@@ -123,9 +141,10 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId }) => {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="cliente@empresa.com.br"
               className="col-span-3"
-              disabled={configExists === false}
+              disabled={loading || configExists === false}
             />
           </div>
+          
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="message" className="text-right">
               Mensagem
@@ -136,23 +155,20 @@ export const EmailDialog: React.FC<EmailDialogProps> = ({ quoteId }) => {
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Segue em anexo o orçamento conforme solicitado."
               className="col-span-3"
-              disabled={configExists === false}
+              rows={5}
+              disabled={loading || configExists === false}
             />
           </div>
         </div>
+        
         <DialogFooter>
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={() => setDialogOpen(false)}
-            disabled={sending}
-          >
+          <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={sending || loading}>
             Cancelar
           </Button>
           <Button 
             type="button" 
-            onClick={handleSendEmail} 
-            disabled={sending || !email || configExists === false}
+            onClick={handleSendEmail}
+            disabled={sending || loading || !email || configExists === false}
           >
             {sending ? 'Enviando...' : 'Enviar'}
           </Button>
