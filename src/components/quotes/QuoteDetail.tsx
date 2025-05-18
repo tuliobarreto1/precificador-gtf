@@ -69,8 +69,8 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
       params: {
         contractMonths: vehicle.contractMonths || quote.contractMonths || 24,
         monthlyKm: vehicle.monthlyKm || quote.monthlyKm || 3000,
-        operationSeverity: (vehicle.operationSeverity || quote.globalParams?.operationSeverity || 3) as 1|2|3|4|5|6,
-        hasTracking: vehicle.hasTracking ?? quote.globalParams?.hasTracking ?? false,
+        operationSeverity: ((quote.globalParams?.operationSeverity || 3) as 1|2|3|4|5|6),
+        hasTracking: quote.globalParams?.hasTracking ?? false,
         protectionPlanId: vehicle.protectionPlanId || null,
         includeIpva: vehicle.includeIpva ?? quote.globalParams?.includeIpva ?? false,
         includeLicensing: vehicle.includeLicensing ?? quote.globalParams?.includeLicensing ?? false,
