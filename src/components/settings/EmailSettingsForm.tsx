@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { getEmailConfig, saveEmailConfig, sendEmailWithOutlook } from '@/lib/email-service';
+import { getEmailConfig, saveEmailConfig } from '@/lib/email/config-service';
+import { sendEmailWithOutlook } from '@/lib/email/sender-service';
+import { EmailConfig } from '@/lib/email/types';
 import { Loader2 } from 'lucide-react';
 
 interface EmailConfig {

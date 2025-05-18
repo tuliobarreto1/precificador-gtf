@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useQuote } from '@/context/QuoteContext';
 import { useToast } from '@/hooks/use-toast';
-import { getEmailConfig } from '@/lib/email-service';
+import { getEmailConfig } from '@/lib/email/config-service';
 import { Link } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 

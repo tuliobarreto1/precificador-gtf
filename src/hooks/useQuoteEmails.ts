@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { sendEmailWithOutlook } from '@/lib/email-service';
+import { sendEmailWithOutlook } from '@/lib/email/sender-service';
 import { useToast } from '@/hooks/use-toast';
 
 export function useQuoteEmails(getCurrentUser: () => any) {
@@ -34,13 +34,13 @@ export function useQuoteEmails(getCurrentUser: () => any) {
         `Prezado cliente ${clientName},\n\nSegue em anexo a proposta de locação de veículos conforme solicitado.\n\nAtenciosamente,\nEquipe comercial`;
       
       // Enviar e-mail utilizando o serviço de e-mail
-      const emailSent = await sendEmailWithOutlook(
-        email, 
-        emailSubject, 
-        emailContent,
+      const emailSent = await sendEmailWithOutlook({
+        to: email,
+        subject: emailSubject,
+        message: emailContent,
         // Aqui seria incluído o caminho do PDF ou o PDF em base64 
         // quando a funcionalidade de geração de PDF estiver implementada
-      );
+      });
       
       if (emailSent) {
         // Registrar o envio bem-sucedido no histórico de ações
