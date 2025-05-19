@@ -1,4 +1,3 @@
-
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
@@ -17,6 +16,7 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    // Adicionando o host à lista de hosts permitidos
     allowedHosts: ["21f4302d-167e-4f68-952e-c29e49930b44.lovableproject.com"],
     proxy: {
       '/api': {
@@ -25,6 +25,7 @@ export default defineConfig(({ mode }) => ({
       }
     }
   },
+  // Adicionar configuração para evitar problemas com o Rollup nativo
   optimizeDeps: {
     esbuildOptions: {
       target: 'es2020'
@@ -32,26 +33,9 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     target: 'es2020',
-    sourcemap: false, // Desativar sourcemaps para economizar memória
-    chunkSizeWarningLimit: 1000,
-    minify: 'esbuild', // Usar esbuild para minificação (mais leve que terser)
-    cssCodeSplit: true,
-    reportCompressedSize: false,
     rollupOptions: {
-      output: {
-        manualChunks: (id) => {
-          if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom')) {
-              return 'vendor-react';
-            }
-            if (id.includes('@radix-ui') || id.includes('cmdk') || id.includes('lucide-react')) {
-              return 'vendor-ui';
-            }
-            return 'vendor';
-          }
-        },
-      },
-      context: 'window',
+      // Forçar o uso do Rollup JavaScript em vez da versão nativa
+      context: 'globalThis'
     }
   }
 }))
