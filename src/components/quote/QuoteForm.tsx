@@ -1,120 +1,377 @@
 
-import React, { useState, useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import VehicleStep from './steps/VehicleStep';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Users, Car, Wrench, Calculator } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { Client, ClientType } from '@/lib/models';
+import { useQuote } from '@/context/QuoteContext';
+import { getAllVehicles } from '@/integrations/supabase';
+import { getClientsFromSupabase } from '@/integrations/supabase/services/clients';
+import { CustomClient } from '@/components/quote/ClientForm';
+
+// Componentes de etapa
 import ClientStep from './steps/ClientStep';
+import VehicleStep from './steps/VehicleStep';
 import ParamsStep from './steps/ParamsStep';
 import ResultStep from './steps/ResultStep';
-import { Button } from '@/components/ui/button';
-import { useQuoteForm } from '@/hooks/useQuoteForm';
-import { Loader2 } from 'lucide-react';
-import { useQuote } from '@/context/QuoteContext';
 
-// Adicionando as propriedades ao tipo de componente
-interface QuoteFormProps {
-  offlineMode?: boolean;
-  onOfflineModeChange?: (enabled: boolean) => void;
-}
+const STEPS = [
+  { id: 'client', name: 'Cliente', icon: <Users size={18} /> },
+  { id: 'vehicle', name: 'Veículos', icon: <Car size={18} /> },
+  { id: 'params', name: 'Parâmetros', icon: <Wrench size={18} /> },
+  { id: 'result', name: 'Resultado', icon: <Calculator size={18} /> },
+];
 
-const QuoteForm: React.FC<QuoteFormProps> = ({ offlineMode = false, onOfflineModeChange }) => {
-  const [activeTab, setActiveTab] = useState<string>("vehicle");
-  const { isLoading, saveQuote } = useQuoteForm();
-  const { quoteForm } = useQuote();
+const QuoteForm: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const [currentStep, setCurrentStep] = useState('client');
+  const [loadingQuote, setLoadingQuote] = useState<boolean>(!!id);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempted, setLoadAttempted] = useState<boolean>(false);
+  const [existingClients, setExistingClients] = useState<Client[]>([]);
+  const loadAttemptedRef = useRef(false);
+  const navigate = useNavigate();
+  const { toast } = useToast();
   
-  // Verifica se a cotação tem veículos para habilitar navegação
-  const hasVehicles = quoteForm.vehicles && quoteForm.vehicles.length > 0;
-  
-  // Verifica se a cotação tem cliente para habilitar navegação
-  const hasClient = quoteForm.client && quoteForm.client.id;
-  
-  // Função para avançar para a próxima etapa
-  const goToNextStep = (currentTab: string) => {
-    switch(currentTab) {
-      case 'vehicle':
-        setActiveTab('client');
-        break;
-      case 'client':
-        setActiveTab('params');
-        break;
-      case 'params':
-        setActiveTab('result');
-        break;
-      default:
-        break;
+  const emptyQuoteForm = {
+    client: null,
+    vehicles: [],
+    useGlobalParams: true,
+    globalParams: {
+      contractMonths: 24,
+      monthlyKm: 3000,
+      operationSeverity: 3 as 1|2|3|4|5|6,
+      hasTracking: false,
+      protectionPlanId: null,
+      includeIpva: false,
+      includeLicensing: false,
+      includeTaxes: false,
     }
   };
   
-  // Função para voltar para a etapa anterior
-  const goToPreviousStep = (currentTab: string) => {
-    switch(currentTab) {
-      case 'client':
-        setActiveTab('vehicle');
+  const quoteContext = useQuote();
+  
+  const { 
+    quoteForm = emptyQuoteForm, 
+    setClient = () => {}, 
+    addVehicle = () => {},
+    removeVehicle = () => {},
+    setGlobalContractMonths = () => {}, 
+    setGlobalMonthlyKm = () => {}, 
+    setGlobalOperationSeverity = () => {}, 
+    setGlobalHasTracking = () => {},
+    setGlobalProtectionPlanId = () => {},
+    setGlobalIncludeIpva = () => {}, 
+    setGlobalIncludeLicensing = () => {},
+    setGlobalIncludeTaxes = () => {},
+    setUseGlobalParams = () => {},
+    setVehicleParams = () => {},
+    calculateQuote = () => null,
+    saveQuote = () => false,
+    loadQuoteForEditing = () => false,
+    isEditMode = false,
+    currentEditingQuoteId = null
+  } = quoteContext || {};
+
+  const logState = () => {
+    console.log("Estado atual do formulário:", {
+      currentStep,
+      isEditMode,
+      client: quoteForm?.client,
+      vehicles: quoteForm?.vehicles?.length,
+      loadingQuote,
+      loadError,
+      loadAttempted,
+      id
+    });
+  };
+
+  useEffect(() => {
+    const loadClients = async () => {
+      try {
+        const { success, clients } = await getClientsFromSupabase();
+        if (success && clients) {
+          const mappedClients: Client[] = clients.map(client => ({
+            id: client.id,
+            name: client.name,
+            type: client.document?.replace(/\D/g, '').length === 11 ? 'PF' : 'PJ' as ClientType,
+            document: client.document,
+            email: client.email || undefined,
+            contact: client.phone || undefined,
+            responsible: client.responsible_person || undefined
+          }));
+          setExistingClients(mappedClients);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar clientes:", error);
+      }
+    };
+
+    loadClients();
+  }, []);
+
+  useEffect(() => {
+    if (id && !loadAttemptedRef.current) {
+      loadAttemptedRef.current = true;
+      setLoadAttempted(true);
+      setLoadingQuote(true);
+      setLoadError(null);
+      
+      console.log('🔄 Tentando carregar orçamento:', id);
+      
+      setTimeout(async () => {
+        try {
+          const success = await loadQuoteForEditing(id);
+          
+          if (success) {
+            console.log('✅ Orçamento carregado com sucesso');
+            setCurrentStep('vehicle');
+            
+            toast({
+              title: "Orçamento carregado",
+              description: "Os dados do orçamento foram carregados para edição."
+            });
+          } else {
+            console.error('❌ Falha ao carregar orçamento:', id);
+            setLoadError("Não foi possível carregar o orçamento para edição.");
+            
+            toast({
+              title: "Erro ao carregar",
+              description: "Não foi possível carregar o orçamento para edição.",
+              variant: "destructive"
+            });
+          }
+          
+          setLoadingQuote(false);
+        } catch (error) {
+          console.error('❌ Erro ao processar orçamento:', error);
+          setLoadError("Ocorreu um erro ao tentar carregar o orçamento.");
+          
+          toast({
+            title: "Erro inesperado",
+            description: "Ocorreu um erro ao tentar carregar o orçamento.",
+            variant: "destructive"
+          });
+          
+          setLoadingQuote(false);
+        }
+      }, 1000);
+    }
+  }, [id, loadQuoteForEditing, toast]);
+
+  const handleNextStep = async () => {
+    logState();
+    console.log(`👆 Botão CONTINUAR clicado: avançando de ${currentStep} para o próximo passo.`);
+    
+    if (currentStep === 'client') {
+      if (!quoteForm?.client) {
+        toast({
+          title: "Selecione um cliente",
+          description: "É necessário selecionar um cliente para continuar."
+        });
+        return;
+      }
+      console.log("✅ Avançando para etapa de veículo");
+      setCurrentStep('vehicle');
+      return;
+    }
+    
+    if (currentStep === 'vehicle') {
+      if (!quoteForm?.vehicles || quoteForm.vehicles.length === 0) {
+        toast({
+          title: "Selecione pelo menos um veículo",
+          description: "É necessário selecionar pelo menos um veículo para continuar."
+        });
+        return;
+      }
+      console.log("✅ Avançando para etapa de parâmetros");
+      setCurrentStep('params');
+      return;
+    }
+    
+    if (currentStep === 'params') {
+      console.log("✅ Avançando para etapa de resultado");
+      setCurrentStep('result');
+      return;
+    }
+    
+    if (currentStep === 'result') {
+      console.log("✅ Finalizando orçamento");
+      try {
+        const success = await saveQuote();
+        if (success) {
+          toast({
+            title: isEditMode ? "Orçamento atualizado" : "Orçamento salvo",
+            description: isEditMode 
+              ? "Seu orçamento foi atualizado com sucesso." 
+              : "Seu orçamento foi salvo com sucesso."
+          });
+          navigate('/orcamentos');
+        } else {
+          toast({
+            title: "Erro ao salvar",
+            description: "Houve um problema ao salvar o orçamento.",
+            variant: "destructive"
+          });
+        }
+      } catch (error) {
+        console.error("Erro ao salvar orçamento:", error);
+        toast({
+          title: "Erro ao salvar",
+          description: "Houve um problema ao salvar o orçamento.",
+          variant: "destructive"
+        });
+      }
+      return;
+    }
+  };
+
+  const goToPreviousStep = () => {
+    switch (currentStep) {
+      case 'vehicle':
+        setCurrentStep('client');
         break;
       case 'params':
-        setActiveTab('client');
+        setCurrentStep('vehicle');
         break;
       case 'result':
-        setActiveTab('params');
-        break;
-      default:
+        setCurrentStep('params');
         break;
     }
   };
-  
-  return (
-    <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-4">
-          <TabsTrigger value="vehicle">Veículos</TabsTrigger>
-          <TabsTrigger value="client" disabled={!hasVehicles}>Cliente</TabsTrigger>
-          <TabsTrigger value="params" disabled={!hasVehicles || !hasClient}>Parâmetros</TabsTrigger>
-          <TabsTrigger value="result" disabled={!hasVehicles || !hasClient}>Resultados</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="vehicle" className="mt-6">
-          <VehicleStep 
-            onNext={() => goToNextStep('vehicle')} 
-            offlineMode={offlineMode}  
-            onOfflineModeChange={onOfflineModeChange}
-          />
-        </TabsContent>
-        
-        <TabsContent value="client" className="mt-6">
+
+  const handleClientSelect = (client: Client | CustomClient) => {
+    console.log("Cliente selecionado:", client);
+    if (client) {
+      setClient(client);
+    }
+  };
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 'client':
+        return (
           <ClientStep 
-            onNext={() => goToNextStep('client')} 
-            onPrevious={() => goToPreviousStep('client')} 
-            offlineMode={offlineMode}
+            onClientSelect={handleClientSelect} 
+            existingClients={existingClients} 
           />
-        </TabsContent>
-        
-        <TabsContent value="params" className="mt-6">
+        );
+      case 'vehicle':
+        return (
+          <VehicleStep 
+            onSelectVehicle={addVehicle}
+            onRemoveVehicle={removeVehicle}
+            selectedVehicles={quoteForm?.vehicles ? quoteForm.vehicles.map(item => item.vehicle) : []}
+          />
+        );
+      case 'params':
+        return (
           <ParamsStep 
-            onNext={() => goToNextStep('params')} 
-            onPrevious={() => goToPreviousStep('params')} 
+            quoteForm={quoteForm}
+            setUseGlobalParams={setUseGlobalParams}
+            setGlobalContractMonths={setGlobalContractMonths}
+            setGlobalMonthlyKm={setGlobalMonthlyKm}
+            setGlobalOperationSeverity={setGlobalOperationSeverity}
+            setGlobalHasTracking={setGlobalHasTracking}
+            setGlobalProtectionPlanId={setGlobalProtectionPlanId}
+            setGlobalIncludeIpva={setGlobalIncludeIpva}
+            setGlobalIncludeLicensing={setGlobalIncludeLicensing}
+            setGlobalIncludeTaxes={setGlobalIncludeTaxes}
+            setVehicleParams={setVehicleParams}
           />
-        </TabsContent>
-        
-        <TabsContent value="result" className="mt-6">
+        );
+      case 'result':
+        return (
           <ResultStep 
-            onPrevious={() => goToPreviousStep('result')} 
-            offlineMode={offlineMode}
+            quoteForm={quoteForm}
+            result={calculateQuote()}
+            isEditMode={isEditMode}
+            currentEditingQuoteId={currentEditingQuoteId}
+            goToPreviousStep={goToPreviousStep}
           />
-        </TabsContent>
-      </Tabs>
-      
-      <div className="flex justify-end mt-8">
-        <Button 
-          onClick={saveQuote} 
-          disabled={isLoading || !hasVehicles || !hasClient}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Salvando...
-            </>
-          ) : 'Salvar Orçamento'}
-        </Button>
-      </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      {loadingQuote ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
+            <p className="mt-4 text-muted-foreground">Carregando orçamento...</p>
+          </div>
+        </div>
+      ) : loadError ? (
+        <div className="p-8 text-center">
+          <div className="mb-4 text-red-500">
+            {loadError}
+          </div>
+          <Button onClick={() => navigate('/orcamentos')}>
+            Voltar para lista de orçamentos
+          </Button>
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">
+                {isEditMode ? "Editar Orçamento" : "Novo Orçamento"}
+              </h1>
+              <p className="text-muted-foreground">
+                {isEditMode 
+                  ? "Atualize os detalhes do orçamento existente" 
+                  : "Preencha os dados para criar um novo orçamento"
+                }
+              </p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1">
+                {STEPS.map((step, index) => (
+                  <React.Fragment key={step.id}>
+                    {index > 0 && <span className="w-4 h-0.5 bg-gray-200"></span>}
+                    <div 
+                      className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                        currentStep === step.id 
+                          ? 'bg-primary text-primary-foreground' 
+                          : 'bg-muted text-muted-foreground'
+                      }`}
+                      title={step.name}
+                    >
+                      {step.icon}
+                    </div>
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          {renderStepContent()}
+          
+          <div className="flex justify-between pt-6 border-t">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={currentStep === 'client' ? () => navigate('/orcamentos') : goToPreviousStep}
+            >
+              {currentStep === 'client' ? 'Cancelar' : 'Voltar'}
+            </Button>
+            <Button 
+              type="button" 
+              onClick={handleNextStep} 
+              disabled={
+                (currentStep === 'client' && !quoteForm?.client) || 
+                (currentStep === 'vehicle' && (!quoteForm?.vehicles || quoteForm.vehicles.length === 0))
+              }
+            >
+              {currentStep === 'result' ? (isEditMode ? 'Atualizar' : 'Finalizar') : 'Continuar'}
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 };

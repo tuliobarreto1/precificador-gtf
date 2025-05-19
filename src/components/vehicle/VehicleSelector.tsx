@@ -20,7 +20,6 @@ type VehicleSelectorProps = {
   onRemoveVehicle?: (vehicleId: string) => void;
   onError?: (errorMessage: string | null) => void;
   offlineMode?: boolean;
-  onOfflineModeChange?: (enabled: boolean) => void;
 };
 
 const VehicleSelector: React.FC<VehicleSelectorProps> = ({ 
@@ -28,8 +27,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   selectedVehicles,
   onRemoveVehicle,
   onError,
-  offlineMode = false,
-  onOfflineModeChange
+  offlineMode = false
 }) => {
   // Usando os hooks customizados para gerenciar estado e lógica
   const { 
@@ -48,13 +46,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     handleSelectFoundVehicle,
     handleSelectNewVehicle
   } = useVehicleSelection({ onSelectVehicle });
-  
-  // Função para ativar o modo offline
-  const enableOfflineMode = () => {
-    if (onOfflineModeChange) {
-      onOfflineModeChange(true);
-    }
-  };
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -68,8 +59,14 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
         lastCheckTime={lastCheckTime}
         failureCount={failureCount}
         onTestConnection={testDatabaseConnection}
-        onEnableOfflineMode={onOfflineModeChange ? enableOfflineMode : undefined}
       />
+      
+      {detailedError && (
+        <div className="bg-destructive/10 border border-destructive text-destructive p-3 rounded-md text-sm mb-4 overflow-auto max-h-48">
+          <p className="font-semibold">Detalhes do erro:</p>
+          <pre className="whitespace-pre-wrap mt-1">{detailedError}</pre>
+        </div>
+      )}
       
       <VehicleTypeSelector 
         value={vehicleType}

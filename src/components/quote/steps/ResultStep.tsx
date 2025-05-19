@@ -1,98 +1,413 @@
-
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { ChevronLeft } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { useQuote } from '@/context/QuoteContext';
-import GerarPropostaButton from '../GerarPropostaButton';
+import React, { useState, useEffect } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import Card from '@/components/ui-custom/Card';
+import { QuoteCalculationResult, QuoteFormData } from '@/context/types/quoteTypes';
+import { formatCurrency } from '@/lib/utils';
+import ProtectionDetails from '@/components/protection/ProtectionDetails';
+import { useTaxIndices } from '@/hooks/useTaxIndices';
 import { EmailDialog } from '../EmailDialog';
 import RoicSlider from '../RoicSlider';
-import ProposalHistory from '../ProposalHistory';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import GerarPropostaButton from '../GerarPropostaButton';
+import StatusUpdater from '@/components/status/StatusUpdater';
 
 interface ResultStepProps {
-  onPrevious: () => void;
-  offlineMode?: boolean;
+  quoteForm: QuoteFormData | null;
+  result: QuoteCalculationResult | null;
+  isEditMode: boolean;
+  currentEditingQuoteId: string | null;
+  goToPreviousStep: () => void;
 }
 
-const ResultStep: React.FC<ResultStepProps> = ({ onPrevious, offlineMode = false }) => {
-  const { calculateQuote } = useQuote();
-  const [roicPercentage, setRoicPercentage] = useState(5.0);
-  const [adjustedTotal, setAdjustedTotal] = useState(0);
-  const [justification, setJustification] = useState<{
-    reason: string;
-    authorizedBy: string;
-  } | undefined>(undefined);
+const ResultStep: React.FC<ResultStepProps> = ({ 
+  quoteForm, 
+  result, 
+  isEditMode, 
+  currentEditingQuoteId, 
+  goToPreviousStep 
+}) => {
+  const { getTaxBreakdown } = useTaxIndices();
+  const [adjustedVehicleCosts, setAdjustedVehicleCosts] = useState<{[key: string]: number}>({});
+  const [currentRoic, setCurrentRoic] = useState<number | null>(null);
+  const [justifications, setJustifications] = useState<{[key: string]: {reason: string, authorizedBy: string}}>({});
   
-  // Calcular cotação e obter valores iniciais
-  const quoteResult = calculateQuote();
-  const totalCost = quoteResult?.totalCost || 0;
+  // Log detalhado para depuração
+  console.log("ResultStep - quoteForm:", quoteForm);
+  console.log("ResultStep - result:", result);
   
-  // Obter valores dos veículos para o RoicSlider
-  const vehicleValues = quoteResult?.vehicleResults?.map(v => v.totalCost) || [];
+  useEffect(() => {
+    // Verificar dados ao montar o componente
+    if (result && result.vehicleResults) {
+      result.vehicleResults.forEach(vr => {
+        console.log(`Detalhes de impostos para veículo ${vr.vehicleId}:`, {
+          ipvaCost: vr.ipvaCost,
+          includeIpva: vr.includeIpva,
+          licensingCost: vr.licensingCost,
+          includeLicensing: vr.includeLicensing,
+          taxCost: vr.taxCost,
+          includeTaxes: vr.includeTaxes,
+          total: (vr.ipvaCost || 0) + (vr.licensingCost || 0) + (vr.taxCost || 0)
+        });
+      });
+    }
+  }, [result]);
   
-  // Manipulador para alterações no ROIC
-  const handleRoicChange = (
-    newRoic: number, 
-    newAdjustedTotal: number, 
-    newJustification?: { reason: string; authorizedBy: string }
+  if (!result) {
+    return (
+      <div className="p-8 text-center">
+        <div className="mb-4">
+          <span className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-100 text-red-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-alert-circle">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" x2="12" y1="8" y2="12" />
+              <line x1="12" x2="12.01" y1="16" y2="16" />
+            </svg>
+          </span>
+        </div>
+        <h3 className="text-lg font-medium mb-2">Não foi possível calcular o orçamento</h3>
+        <p className="text-muted-foreground mb-6">
+          Verifique se todos os dados estão preenchidos corretamente e se há pelo menos um veículo adicionado.
+        </p>
+        <button type="button" className="px-4 py-2 border rounded hover:bg-slate-50" onClick={goToPreviousStep}>
+          Voltar para parâmetros
+        </button>
+      </div>
+    );
+  }
+  
+  const { vehicleResults } = result;
+  
+  // Calcular o total ajustado com base nos custos ajustados dos veículos
+  const getAdjustedTotal = () => {
+    return vehicleResults.reduce((total, vehicleResult) => {
+      const vehicleId = vehicleResult.vehicleId;
+      // Se há um custo ajustado para este veículo, use-o, caso contrário use o custo original
+      const cost = adjustedVehicleCosts[vehicleId] !== undefined ? 
+        adjustedVehicleCosts[vehicleId] : vehicleResult.totalCost;
+      return total + cost;
+    }, 0);
+  };
+  
+  // Determinar qual valor total mostrar (o original ou o ajustado)
+  const displayTotalCost = getAdjustedTotal();
+  
+  // Handler para quando o ROIC é ajustado para um veículo específico
+  const handleVehicleRoicChange = (
+    vehicleId: string, 
+    roicPercentage: number, 
+    adjustedCost: number,
+    justification?: { reason: string, authorizedBy: string }
   ) => {
-    setRoicPercentage(newRoic);
-    setAdjustedTotal(newAdjustedTotal);
-    setJustification(newJustification);
+    setAdjustedVehicleCosts(prev => ({
+      ...prev,
+      [vehicleId]: adjustedCost
+    }));
+    
+    if (justification) {
+      setJustifications(prev => ({
+        ...prev,
+        [vehicleId]: justification
+      }));
+    } else {
+      // Se não tem justificativa, remova qualquer justificativa anterior
+      const newJustifications = { ...justifications };
+      delete newJustifications[vehicleId];
+      setJustifications(newJustifications);
+    }
+    
+    setCurrentRoic(roicPercentage);
   };
   
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <Tabs defaultValue="summary">
-          <TabsList>
-            <TabsTrigger value="summary">Resumo</TabsTrigger>
-            <TabsTrigger value="roic">ROIC</TabsTrigger>
-            <TabsTrigger value="history">Histórico</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="summary" className="mt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <h3 className="text-lg font-medium mb-2">Detalhes da Cotação</h3>
-                {/* Componentes de resumo */}
-              </div>
-              <div>
-                <h3 className="text-lg font-medium mb-2">Ações</h3>
-                <div className="space-y-3">
-                  <GerarPropostaButton offlineMode={offlineMode} />
-                  <EmailDialog quoteId="draft" />
-                </div>
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="roic" className="mt-4">
-            <RoicSlider 
-              totalCost={totalCost} 
-              vehicleValues={vehicleValues} 
-              onRoicChange={handleRoicChange}
-            />
-          </TabsContent>
-
-          <TabsContent value="history" className="mt-4">
-            <ProposalHistory offlineMode={offlineMode} />
-          </TabsContent>
-        </Tabs>
-
-        <div className="flex justify-start mt-6">
-          <Button 
-            onClick={onPrevious}
-            variant="outline"
-            className="flex items-center"
-          >
-            <ChevronLeft className="mr-2 h-4 w-4" />
-            Anterior
-          </Button>
+    <div className="space-y-8 animate-fadeIn">
+      <Card>
+        <div className="p-4 border-b">
+          <h3 className="text-lg font-medium">{`Resumo do Orçamento - ${quoteForm?.vehicles?.length || 0} veículo(s)`}</h3>
         </div>
-      </CardContent>
-    </Card>
+        
+        <div className="space-y-6 p-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Cliente</p>
+              <p className="font-medium">{quoteForm?.client?.name || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Prazo</p>
+              <p className="font-medium">{quoteForm?.globalParams?.contractMonths || 24} meses</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Quilometragem</p>
+              <p className="font-medium">{(quoteForm?.globalParams?.monthlyKm || 3000).toLocaleString('pt-BR')} km/mês</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Severidade</p>
+              <p className="font-medium">Nível {quoteForm?.globalParams?.operationSeverity || 3}</p>
+            </div>
+          </div>
+          
+          <div className="border-t pt-6">
+            <h3 className="font-medium mb-4">Veículos Cotados</h3>
+            <div className="space-y-4">
+              {vehicleResults.map((result, index) => {
+                if (!quoteForm?.vehicles) return null;
+                
+                const vehicleItem = quoteForm.vehicles.find(v => v.vehicle.id === result.vehicleId);
+                if (!vehicleItem) return null;
+                
+                const params = quoteForm.useGlobalParams 
+                  ? quoteForm.globalParams 
+                  : (vehicleItem.params || quoteForm.globalParams || {
+                    contractMonths: 24,
+                    monthlyKm: 3000,
+                    operationSeverity: 3 as 1|2|3|4|5|6,
+                    hasTracking: false,
+                    protectionPlanId: null,
+                    includeIpva: true,
+                    includeLicensing: true,
+                    includeTaxes: true,
+                  });
+                
+                // Forçar exibição da seção de impostos mesmo que esteja zerada para diagnóstico
+                const hasTaxes = true;
+                
+                const totalTaxes = (result.taxCost || 0) + (result.ipvaCost || 0) + (result.licensingCost || 0);
+                
+                const taxBreakdown = result.includeTaxes && result.contractMonths 
+                  ? getTaxBreakdown(vehicleItem.vehicle.value, result.contractMonths) 
+                  : null;
+                
+                // Verificar se há um custo ajustado para este veículo
+                const vehicleDisplayCost = adjustedVehicleCosts[vehicleItem.vehicle.id] !== undefined ? 
+                  adjustedVehicleCosts[vehicleItem.vehicle.id] : result.totalCost;
+                
+                console.log(`Dados de impostos para veículo ${vehicleItem.vehicle.brand} ${vehicleItem.vehicle.model}:`, {
+                  includeTaxes: result.includeTaxes,
+                  taxCost: result.taxCost,
+                  includeIpva: result.includeIpva,
+                  ipvaCost: result.ipvaCost,
+                  includeLicensing: result.includeLicensing,
+                  licensingCost: result.licensingCost,
+                  hasTaxes: hasTaxes,
+                  totalTaxes: totalTaxes,
+                  taxBreakdown: taxBreakdown
+                });
+                
+                return (
+                  <div key={vehicleItem.vehicle.id} className="border rounded-lg p-4 bg-muted/20">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-medium">{vehicleItem.vehicle.brand} {vehicleItem.vehicle.model}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {vehicleItem.vehicle.plateNumber ? `Placa: ${vehicleItem.vehicle.plateNumber} • ` : ''}
+                          Grupo: {vehicleItem.vehicleGroup.id}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">{formatCurrency(vehicleDisplayCost)}</p>
+                        <p className="text-xs text-muted-foreground">Valor mensal</p>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-3 pt-3 border-t grid grid-cols-1 md:grid-cols-4 gap-2">
+                      <div className="text-sm">
+                        <p className="text-muted-foreground">Depreciação:</p>
+                        <p className="font-medium">{formatCurrency(result.depreciationCost)}</p>
+                      </div>
+                      <div className="text-sm">
+                        <p className="text-muted-foreground">Manutenção:</p>
+                        <p className="font-medium">{formatCurrency(result.maintenanceCost)}</p>
+                      </div>
+                      <div className="text-sm">
+                        <p className="text-muted-foreground">Km excedente:</p>
+                        <p className="font-medium">R$ {result.extraKmRate.toFixed(2)}</p>
+                      </div>
+                      {result.protectionCost > 0 && (
+                        <div className="text-sm">
+                          <p className="text-muted-foreground">Proteção:</p>
+                          <p className="font-medium">{formatCurrency(result.protectionCost)}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Sempre exibir a seção de impostos para diagnóstico */}
+                    <div className="mt-3 pt-3 border-t">
+                      <Accordion type="single" collapsible defaultValue="taxes">
+                        <AccordionItem value="taxes" className="border-0">
+                          <div className="flex justify-between items-center">
+                            <AccordionTrigger className="py-1 text-sm text-primary font-medium hover:underline">
+                              Impostos e taxas:
+                            </AccordionTrigger>
+                            <span className="text-sm font-medium">{formatCurrency(totalTaxes)}/mês</span>
+                          </div>
+                          
+                          <AccordionContent className="py-2">
+                            <div className="text-sm space-y-2 text-muted-foreground bg-slate-50 p-3 rounded-md">
+                              {/* Sempre exibir IPVA para diagnóstico */}
+                              <div className="flex justify-between">
+                                <span>IPVA:</span>
+                                <span>{formatCurrency(result.ipvaCost || 0)}/mês</span>
+                              </div>
+                              
+                              {/* Sempre exibir Licenciamento para diagnóstico */}
+                              <div className="flex justify-between">
+                                <span>Licenciamento:</span>
+                                <span>{formatCurrency(result.licensingCost || 0)}/mês</span>
+                              </div>
+                              
+                              {/* Sempre exibir Custos financeiros para diagnóstico */}
+                              <div className="flex justify-between">
+                                <span>Custos financeiros:</span>
+                                <span>{formatCurrency(result.taxCost || 0)}/mês</span>
+                              </div>
+                              
+                              {taxBreakdown && (
+                                <Accordion type="single" collapsible className="mt-2">
+                                  <AccordionItem value="finance-details" className="border-0">
+                                    <AccordionTrigger className="text-xs text-primary hover:underline py-1">
+                                      Detalhamento dos custos financeiros
+                                    </AccordionTrigger>
+                                    
+                                    <AccordionContent className="pt-2">
+                                      <div className="space-y-2 text-xs pl-2 border-l-2 border-slate-200 mt-1">
+                                        <div className="flex justify-between">
+                                          <span>Taxa SELIC ({result.contractMonths >= 24 ? '24 meses' : result.contractMonths >= 18 ? '18 meses' : '12 meses'}):</span>
+                                          <span>{taxBreakdown.selicRate.toFixed(2)}% a.a.</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span>Spread financeiro:</span>
+                                          <span>{taxBreakdown.spread.toFixed(2)}% a.a.</span>
+                                        </div>
+                                        <div className="flex justify-between font-medium">
+                                          <span>Taxa total anual:</span>
+                                          <span>{taxBreakdown.totalTaxRate.toFixed(2)}% a.a.</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span>Custo anual:</span>
+                                          <span>{formatCurrency(taxBreakdown.annualCost)}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span>Custo mensal:</span>
+                                          <span>{formatCurrency(taxBreakdown.monthlyCost)}</span>
+                                        </div>
+                                      </div>
+                                    </AccordionContent>
+                                  </AccordionItem>
+                                </Accordion>
+                              )}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
+                    </div>
+                    
+                    {result.protectionPlanId && (
+                      <div className="mt-3 pt-3 border-t">
+                        <ProtectionDetails planId={result.protectionPlanId} />
+                      </div>
+                    )}
+                    
+                    {!quoteForm.useGlobalParams && (
+                      <div className="mt-3 pt-3 border-t grid grid-cols-1 md:grid-cols-4 gap-2 text-xs">
+                        <div>
+                          <p className="text-muted-foreground">Prazo:</p>
+                          <p>{params.contractMonths} meses</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Quilometragem:</p>
+                          <p>{params.monthlyKm.toLocaleString('pt-BR')} km/mês</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Severidade:</p>
+                          <p>Nível {params.operationSeverity}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Rastreamento:</p>
+                          <p>{params.hasTracking ? 'Sim' : 'Não'}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">IPVA:</p>
+                          <p>{params.includeIpva ? 'Sim' : 'Não'}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Licenciamento:</p>
+                          <p>{params.includeLicensing ? 'Sim' : 'Não'}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Custos Financeiros:</p>
+                          <p>{params.includeTaxes ? 'Sim' : 'Não'}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Slider ROIC para o veículo específico com suporte para justificativa */}
+                    <div className="mt-4 pt-3 border-t">
+                      <RoicSlider 
+                        totalCost={result.totalCost} 
+                        vehicleValues={[vehicleItem.vehicle.value]} 
+                        onRoicChange={(roic, adjusted, justification) => 
+                          handleVehicleRoicChange(vehicleItem.vehicle.id, roic, adjusted, justification)
+                        }
+                      />
+                      
+                      {/* Exibir a justificativa, se houver */}
+                      {justifications[vehicleItem.vehicle.id] && (
+                        <div className="mt-3 p-3 bg-yellow-50 border border-yellow-100 rounded-md text-sm">
+                          <p className="font-medium text-amber-800">Justificativa para desconto:</p>
+                          <p className="mt-1">{justifications[vehicleItem.vehicle.id].reason}</p>
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            Autorizado por: <span className="font-medium">{justifications[vehicleItem.vehicle.id].authorizedBy}</span>
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </Card>
+      
+      <Card className="bg-primary/5 border-primary/20">
+        <div className="flex flex-col md:flex-row justify-between items-center p-6">
+          <div>
+            <h3 className="text-2xl font-semibold">Valor Total Mensal</h3>
+            <p className="text-muted-foreground">
+              {currentRoic ? `ROIC: ${currentRoic.toFixed(2)}% a.m.` : 'Todos os impostos inclusos'}
+            </p>
+          </div>
+          <div className="mt-4 md:mt-0 text-center md:text-right">
+            <p className="text-3xl font-bold text-primary">
+              {formatCurrency(displayTotalCost)}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {quoteForm?.vehicles?.length || 0} veículo(s)
+            </p>
+          </div>
+        </div>
+        
+        <div className="border-t p-4 flex flex-wrap gap-2 justify-end">
+          {/* Passando o ID do orçamento atual para o botão de gerar proposta */}
+          <GerarPropostaButton 
+            quoteForm={quoteForm} 
+            result={result} 
+            currentQuoteId={currentEditingQuoteId} 
+          />
+          
+          {isEditMode && currentEditingQuoteId && (
+            <>
+              <EmailDialog quoteId={currentEditingQuoteId} />
+              <StatusUpdater
+                quoteId={currentEditingQuoteId}
+                currentStatus={isEditMode ? 'ORCAMENTO' : 'draft'} 
+                disabled={!isEditMode}
+              />
+            </>
+          )}
+        </div>
+      </Card>
+    </div>
   );
 };
 

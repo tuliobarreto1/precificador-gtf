@@ -37,6 +37,59 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
   // Calcular resultado para usar no GerarPropostaButton
   const result = calculateQuote();
   
+  // Preparar os dados para o GerarPropostaButton
+  const quoteForm = {
+    client: {
+      id: quote.clientId || '',
+      name: quote.clientName || 'Cliente',
+      document: '',
+      email: '',
+      contact: ''
+    },
+    vehicles: quote.vehicles?.map(vehicle => ({
+      vehicle: {
+        id: vehicle.vehicleId,
+        brand: vehicle.vehicleBrand,
+        model: vehicle.vehicleModel,
+        year: new Date().getFullYear(),
+        value: vehicle.vehicleValue || 0,
+        isUsed: !!vehicle.plateNumber,
+        plateNumber: vehicle.plateNumber,
+        groupId: vehicle.vehicleGroupId || vehicle.groupId || 'A'
+      },
+      vehicleGroup: {
+        id: vehicle.vehicleGroupId || vehicle.groupId || 'A',
+        name: `Grupo ${vehicle.vehicleGroupId || vehicle.groupId || 'A'}`,
+        description: '',
+        revisionKm: 10000,
+        revisionCost: 300,
+        tireKm: 40000,
+        tireCost: 1200
+      },
+      params: {
+        contractMonths: vehicle.contractMonths || quote.contractMonths || 24,
+        monthlyKm: vehicle.monthlyKm || quote.monthlyKm || 3000,
+        operationSeverity: ((quote.globalParams?.operationSeverity || 3) as 1|2|3|4|5|6),
+        hasTracking: quote.globalParams?.hasTracking ?? false,
+        protectionPlanId: vehicle.protectionPlanId || null,
+        includeIpva: vehicle.includeIpva ?? quote.globalParams?.includeIpva ?? false,
+        includeLicensing: vehicle.includeLicensing ?? quote.globalParams?.includeLicensing ?? false,
+        includeTaxes: vehicle.includeTaxes ?? quote.globalParams?.includeTaxes ?? false
+      }
+    })) || [],
+    useGlobalParams: true,
+    globalParams: {
+      contractMonths: quote.contractMonths || 24,
+      monthlyKm: quote.monthlyKm || 3000,
+      operationSeverity: (quote.globalParams?.operationSeverity || 3) as 1|2|3|4|5|6,
+      hasTracking: quote.globalParams?.hasTracking || false,
+      protectionPlanId: quote.globalParams?.protectionPlanId || null,
+      includeIpva: quote.globalParams?.includeIpva || false,
+      includeLicensing: quote.globalParams?.includeLicensing || false,
+      includeTaxes: quote.globalParams?.includeTaxes || false
+    }
+  };
+  
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center flex-wrap gap-4">
@@ -51,8 +104,9 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
         <div className="flex flex-wrap gap-2">
           <EmailDialog quoteId={quote.id} />
           
-          <GerarPropostaButton 
-            offlineMode={false}
+          <GerarPropostaButton
+            quoteForm={quoteForm}
+            result={result}
             currentQuoteId={quote.id}
             savedQuote={quote}
           />

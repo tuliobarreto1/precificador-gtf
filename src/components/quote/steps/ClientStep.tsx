@@ -1,47 +1,23 @@
 
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import ClientForm from '../ClientForm';
-import { useQuote } from '@/context/QuoteContext';
+import React from 'react';
+import { useToast } from '@/hooks/use-toast';
+import ClientForm from '@/components/quote/ClientForm';
+import { Client } from '@/lib/models';
+import { CustomClient } from '@/components/quote/ClientForm';
 
 interface ClientStepProps {
-  onNext: () => void;
-  onPrevious: () => void;
-  offlineMode?: boolean;
+  onClientSelect: (client: Client | CustomClient) => void;
+  existingClients: Client[];
 }
 
-const ClientStep: React.FC<ClientStepProps> = ({ onNext, onPrevious, offlineMode = false }) => {
-  const { quoteForm } = useQuote();
-  const hasClient = quoteForm.client && quoteForm.client.id;
-
+const ClientStep: React.FC<ClientStepProps> = ({ onClientSelect, existingClients }) => {
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <ClientForm offlineMode={offlineMode} />
-        
-        <div className="flex justify-between mt-6">
-          <Button 
-            onClick={onPrevious}
-            variant="outline"
-            className="flex items-center"
-          >
-            <ChevronLeft className="mr-2 h-4 w-4" />
-            Anterior
-          </Button>
-          
-          <Button 
-            onClick={onNext}
-            disabled={!hasClient}
-            className="flex items-center"
-          >
-            Próximo
-            <ChevronRight className="ml-2 h-4 w-4" />
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="space-y-6 animate-fadeIn">
+      <ClientForm 
+        onClientSelect={onClientSelect} 
+        existingClients={existingClients}
+      />
+    </div>
   );
 };
 

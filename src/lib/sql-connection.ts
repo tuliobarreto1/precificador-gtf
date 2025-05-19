@@ -62,8 +62,8 @@ export interface SupabaseVehicle {
 }
 
 // Variáveis para configurar o comportamento offline
-const CONNECTION_TIMEOUT = 10000; // 10 segundos (reduzido de 15)
-const MAX_RETRY_ATTEMPTS = 1; // Mantido em 1 tentativa para evitar atrasos
+const CONNECTION_TIMEOUT = 15000; // 15 segundos
+const MAX_RETRY_ATTEMPTS = 1; // Reduzido para 1 tentativa para evitar atrasos
 const RETRY_DELAY = 1000; // 1 segundo entre tentativas
 let lastConnectionAttempt = 0;
 let connectionFailCount = 0;
@@ -102,32 +102,80 @@ export const testApiConnection = async () => {
     console.log('Testando conexão com a API...');
     
     // Implementar lógica de retry com backoff
-    try {
-      // Usar AbortController para limitar o tempo de espera
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
-      
-      // Em ambiente de produção, ajustar URL base conforme necessário
-      const apiBaseUrl = window.location.hostname.includes('lovableproject.com') 
-        ? 'https://precificador-api.vercel.app/api' 
-        : 'http://localhost:3005/api';
-      
-      console.log(`Usando URL da API: ${apiBaseUrl}/ping`);
-      
-      const response = await fetch(`${apiBaseUrl}/ping`, { 
-        signal: controller.signal,
-        // Adiciona um cache buster para evitar cache do navegador
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
+    for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
+      try {
+        // Usar AbortController para limitar o tempo de espera
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
+        
+        // Ajustando para usar a porta 3005 conforme mostrado no log
+        const response = await fetch('http://localhost:3005/api/ping', { 
+          signal: controller.signal,
+          // Adiciona um cache buster para evitar cache do navegador
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          const errorMessage = `Erro na API: ${response.status} ${response.statusText}`;
+          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou: ${errorMessage}`);
+          
+          if (attempt < MAX_RETRY_ATTEMPTS - 1) {
+            await delay(RETRY_DELAY);
+            continue;
+          }
+          
+          cachedConnectionStatus = { 
+            status: 'offline', 
+            timestamp: now,
+            error: errorMessage
+          };
+          
+          connectionFailCount++;
+          
+          return { 
+            status: 'offline', 
+            error: errorMessage,
+            failCount: connectionFailCount
+          };
         }
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        const errorMessage = `Erro na API: ${response.status} ${response.statusText}`;
-        console.error(errorMessage);
+        
+        const data = await response.json();
+        console.log('Resposta do teste de conexão:', data);
+        
+        // Resetar contador de falhas após sucesso
+        connectionFailCount = 0;
+        
+        cachedConnectionStatus = { 
+          status: 'online',
+          timestamp: now
+        };
+        
+        return {
+          status: 'online',
+          timestamp: new Date().toISOString(),
+          responseTime: data.responseTimeMs,
+          serverTime: data.serverTime
+        };
+      } catch (fetchError: any) {
+        if (fetchError.name === 'AbortError') {
+          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou: Timeout ao conectar com a API`);
+        } else {
+          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou:`, fetchError);
+        }
+        
+        if (attempt < MAX_RETRY_ATTEMPTS - 1) {
+          await delay(RETRY_DELAY);
+          continue;
+        }
+        
+        const errorMessage = fetchError.name === 'AbortError' 
+          ? 'Timeout ao conectar com a API' 
+          : fetchError.message || 'Erro desconhecido';
         
         cachedConnectionStatus = { 
           status: 'offline', 
@@ -143,45 +191,9 @@ export const testApiConnection = async () => {
           failCount: connectionFailCount
         };
       }
-      
-      const data = await response.json();
-      console.log('Resposta do teste de conexão:', data);
-      
-      // Resetar contador de falhas após sucesso
-      connectionFailCount = 0;
-      
-      cachedConnectionStatus = { 
-        status: 'online',
-        timestamp: now
-      };
-      
-      return {
-        status: 'online',
-        timestamp: new Date().toISOString(),
-        responseTime: data.responseTimeMs,
-        serverTime: data.serverTime
-      };
-    } catch (fetchError: any) {
-      console.error('Erro ao conectar à API:', fetchError);
-      
-      const errorMessage = fetchError.name === 'AbortError' 
-        ? 'Timeout ao conectar com a API' 
-        : fetchError.message || 'Erro desconhecido';
-      
-      cachedConnectionStatus = { 
-        status: 'offline', 
-        timestamp: now,
-        error: errorMessage
-      };
-      
-      connectionFailCount++;
-      
-      return { 
-        status: 'offline', 
-        error: errorMessage,
-        failCount: connectionFailCount
-      };
     }
+    
+    throw new Error('Erro inesperado no sistema de tentativas');
   } catch (error: any) {
     console.error('Erro ao testar conexão com a API:', error);
     connectionFailCount++;
@@ -280,13 +292,7 @@ export const getVehicleByPlate = async (plate: string, useOfflineMode = false): 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
         
-        const apiBaseUrl = window.location.hostname.includes('lovableproject.com') 
-          ? 'https://precificador-api.vercel.app/api' 
-          : 'http://localhost:3005/api';
-        
-        console.log(`Usando URL da API para busca de veículo: ${apiBaseUrl}/vehicles/${encodeURIComponent(plate)}`);
-        
-        const response = await fetch(`${apiBaseUrl}/vehicles/${encodeURIComponent(plate)}`, {
+        const response = await fetch(`http://localhost:3005/api/vehicles/${encodeURIComponent(plate)}`, {
           signal: controller.signal,
           headers: {
             'Cache-Control': 'no-cache',
@@ -454,13 +460,7 @@ export const getVehicleGroups = async (useOfflineMode = false): Promise<SqlVehic
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
         
-        const apiBaseUrl = window.location.hostname.includes('lovableproject.com') 
-          ? 'https://precificador-api.vercel.app/api' 
-          : 'http://localhost:3005/api';
-        
-        console.log(`Usando URL da API para busca de grupos: ${apiBaseUrl}/vehicle-groups`);
-        
-        const response = await fetch(`${apiBaseUrl}/vehicle-groups`, {
+        const response = await fetch('http://localhost:3005/api/vehicle-groups', {
           signal: controller.signal
         });
         
@@ -625,13 +625,7 @@ export const getVehicleModelsByGroup = async (groupCode: string, useOfflineMode 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
         
-        const apiBaseUrl = window.location.hostname.includes('lovableproject.com') 
-          ? 'https://precificador-api.vercel.app/api' 
-          : 'http://localhost:3005/api';
-        
-        console.log(`Usando URL da API para busca de modelos: ${apiBaseUrl}/vehicle-models/${encodeURIComponent(groupCode)}`);
-        
-        const response = await fetch(`${apiBaseUrl}/vehicle-models/${encodeURIComponent(groupCode)}`, {
+        const response = await fetch(`http://localhost:3005/api/vehicle-models/${encodeURIComponent(groupCode)}`, {
           signal: controller.signal
         });
         
