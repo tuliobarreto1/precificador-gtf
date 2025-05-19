@@ -34,6 +34,15 @@ export interface SqlVehicleModel {
   MaiorValorCompra: number;
 }
 
+// Interface para veículos do cache
+export interface VehicleModelCache {
+  group_code: string;
+  group_id: string;
+  model_description: string;
+  model_code: string;
+  value: number;
+}
+
 // Interface para o veículo do Supabase (para correção do erro de tipo)
 export interface SupabaseVehicle {
   brand: string;

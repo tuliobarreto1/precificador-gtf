@@ -103,7 +103,7 @@ const ConnectionStatusAlert: React.FC<ConnectionStatusAlertProps> = ({
                 <AlertDialogDescription>
                   <div className="mt-2 space-y-2 text-left">
                     <div className="flex items-center gap-2">
-                      <Badge variant={status === 'online' ? 'success' : 'destructive'} className="px-2 py-1">
+                      <Badge variant={status === 'online' ? 'outline' : 'destructive'} className={`px-2 py-1 ${status === 'online' ? 'bg-green-100 text-green-800' : ''}`}>
                         {status === 'online' ? (
                           <><Wifi className="h-3 w-3 mr-1" /> Online</>
                         ) : (
