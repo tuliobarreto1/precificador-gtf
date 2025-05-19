@@ -1,52 +1,77 @@
 
-import React, { useState } from 'react';
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { ChevronRight } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { useQuoteContext } from '@/context/QuoteContext';
 import VehicleSelector from '@/components/vehicle/VehicleSelector';
 import { Vehicle, VehicleGroup } from '@/lib/models';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { RefreshCw, Database } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { testApiConnection } from '@/lib/sql-connection';
 
 interface VehicleStepProps {
-  onSelectVehicle: (vehicle: Vehicle, vehicleGroup: VehicleGroup) => void;
-  onRemoveVehicle: (vehicleId: string) => void;
-  selectedVehicles: Vehicle[];
+  onNext: () => void;
+  offlineMode?: boolean;
+  onOfflineModeChange?: (enabled: boolean) => void;
 }
 
-const VehicleStep: React.FC<VehicleStepProps> = ({ 
-  onSelectVehicle, 
-  onRemoveVehicle,
-  selectedVehicles
-}) => {
-  const [error, setError] = useState<string | null>(null);
-  const [offlineMode, setOfflineMode] = useState<boolean>(false);
+const VehicleStep: React.FC<VehicleStepProps> = ({ onNext, offlineMode = false, onOfflineModeChange }) => {
+  const { quote, addVehicle, removeVehicle } = useQuoteContext();
   const { toast } = useToast();
   
-  // Lidar com erros no VehicleSelector
-  const handleVehicleSelectorError = (errorMessage: string | null) => {
-    setError(errorMessage);
-  };
-
-  // Ativar modo offline
-  const enableOfflineMode = () => {
-    setOfflineMode(true);
+  // Manipulador para adicionar um veículo à cotação
+  const handleSelectVehicle = (vehicle: Vehicle, vehicleGroup: VehicleGroup) => {
+    addVehicle(vehicle);
     toast({
-      title: "Modo offline ativado",
-      description: "Usando dados do cache local. Algumas funcionalidades podem estar limitadas."
+      title: "Veículo adicionado",
+      description: `${vehicle.brand} ${vehicle.model} foi adicionado à cotação.`,
     });
   };
-
+  
+  // Manipulador para remover um veículo da cotação
+  const handleRemoveVehicle = (vehicleId: string) => {
+    removeVehicle(vehicleId);
+    toast({
+      title: "Veículo removido",
+      description: "O veículo foi removido da cotação.",
+      variant: "destructive",
+    });
+  };
+  
+  // Manipulador para mensagens de erro do seletor de veículos
+  const handleVehicleSelectorError = (errorMessage: string | null) => {
+    if (errorMessage) {
+      toast({
+        title: "Erro ao buscar veículos",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  };
+  
   return (
-    <div className="space-y-4">
-      <VehicleSelector 
-        onSelectVehicle={onSelectVehicle}
-        onRemoveVehicle={onRemoveVehicle}
-        selectedVehicles={selectedVehicles}
-        onError={handleVehicleSelectorError}
-        offlineMode={offlineMode}
-      />
-    </div>
+    <Card>
+      <CardContent className="pt-6">
+        <VehicleSelector 
+          onSelectVehicle={handleSelectVehicle}
+          selectedVehicles={quote.vehicles}
+          onRemoveVehicle={handleRemoveVehicle}
+          onError={handleVehicleSelectorError}
+          offlineMode={offlineMode}
+          onOfflineModeChange={onOfflineModeChange}
+        />
+        
+        <div className="flex justify-end mt-6">
+          <Button 
+            onClick={onNext}
+            disabled={!quote.vehicles.length}
+            className="flex items-center"
+          >
+            Próximo
+            <ChevronRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
