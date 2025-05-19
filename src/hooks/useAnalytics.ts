@@ -137,7 +137,14 @@ export function useAnalytics() {
         .slice(0, 10);
       
       // Totais mensais
-      const monthlyMap: Record<string, { totalValue: number, count: number }> = {};
+      // Corrigindo o tipo para incluir monthName
+      interface MonthData {
+        totalValue: number;
+        count: number;
+        monthName: string;
+      }
+      
+      const monthlyMap: Record<string, MonthData> = {};
       
       proposals.forEach(proposal => {
         const date = new Date(proposal.created_at);
