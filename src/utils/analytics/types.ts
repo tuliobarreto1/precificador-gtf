@@ -11,6 +11,7 @@ export interface PropositionalAnalytics {
   roicDistribution: RoicData[];
   monthlyKmDistribution: KmData[];
   contractDurationDistribution: ContractData[];
+  detailedRoicAnalysis: RoicDetailedData;
 }
 
 export interface VehicleData {
@@ -53,6 +54,25 @@ export interface ContractData {
   months: number;
   count: number;
   percentual: number;
+}
+
+export interface RoicDetailedData {
+  averageRoic: number;
+  medianRoic: number;
+  highestRoic: number;
+  lowestRoic: number;
+  totalInvestment: number;
+  totalReturn: number;
+  proposalsByRoicRange: RoicData[];
+  monthlyProjection: RoicMonthlyProjection[];
+}
+
+export interface RoicMonthlyProjection {
+  month: string;
+  monthName: string;
+  investment: number;
+  return: number;
+  roic: number;
 }
 
 export type ProposalData = any; // Tipo mais específico pode ser definido conforme a estrutura real dos dados

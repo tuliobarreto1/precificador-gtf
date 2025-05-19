@@ -27,7 +27,7 @@ const RoicSlider: React.FC<RoicSliderProps> = ({
   const calculateInitialRoic = () => {
     if (totalVehicleValue === 0) return MIN_ROIC;
     
-    // ROIC mensal = totalCost / totalVehicleValue * 100
+    // ROIC mensal = (totalCost / totalVehicleValue) * 100
     const roic = (totalCost / totalVehicleValue) * 100;
     return Math.max(roic, MIN_ROIC);
   };
@@ -36,13 +36,13 @@ const RoicSlider: React.FC<RoicSliderProps> = ({
   
   // Recalcular o custo total baseado no ROIC atual
   const calculateAdjustedTotal = (roic: number) => {
-    // Custo mensal = totalVehicleValue * roic / 100
+    // Custo mensal = totalVehicleValue * (roic / 100)
     return (totalVehicleValue * roic / 100);
   };
 
   // Converter ROIC mensal para anual
   const getAnnualRate = (monthlyRate: number) => {
-    return monthlyRate * 12;
+    return ((1 + monthlyRate/100) ** 12 - 1) * 100;
   };
 
   useEffect(() => {

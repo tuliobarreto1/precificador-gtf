@@ -12,6 +12,8 @@ import TopVehiclesChart from '@/components/analytics/TopVehiclesChart';
 import ClientDistributionTable from '@/components/analytics/ClientDistributionTable';
 import ContractMetricsChart from '@/components/analytics/ContractMetricsChart';
 import DateRangeSelector from '@/components/analytics/DateRangeSelector';
+import RoicDashboard from '@/components/analytics/RoicDashboard';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Resultados: React.FC = () => {
   const { 
@@ -61,40 +63,67 @@ const Resultados: React.FC = () => {
         </div>
       ) : null}
       
-      <StatCards
-        totalProposals={analytics?.totalProposals || 0}
-        totalApproved={analytics?.totalApproved || 0}
-        totalRejected={analytics?.totalRejected || 0}
-        averageValue={analytics?.averageValue || 0}
-        isLoading={loading}
-      />
-      
-      <MonthlyChart 
-        data={analytics?.monthlyTotals || []}
-      />
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <StatusDistributionChart 
-          data={analytics?.statusDistribution || []}
-        />
-        <TopVehiclesChart 
-          data={analytics?.topVehicles || []}
-        />
-      </div>
-      
-      <div className="mb-6">
-        <ClientDistributionTable 
-          data={analytics?.clientDistribution || []}
-        />
-      </div>
-      
-      <div className="mb-6">
-        <ContractMetricsChart 
-          contractData={analytics?.contractDurationDistribution || []}
-          kmData={analytics?.monthlyKmDistribution || []}
-          roicData={analytics?.roicDistribution || []}
-        />
-      </div>
+      <Tabs defaultValue="overview" className="mb-6">
+        <TabsList className="mb-6">
+          <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+          <TabsTrigger value="roic">Análise de Rentabilidade</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="overview">
+          <StatCards
+            totalProposals={analytics?.totalProposals || 0}
+            totalApproved={analytics?.totalApproved || 0}
+            totalRejected={analytics?.totalRejected || 0}
+            averageValue={analytics?.averageValue || 0}
+            isLoading={loading}
+          />
+          
+          <div className="mt-6">
+            <MonthlyChart 
+              data={analytics?.monthlyTotals || []}
+            />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <StatusDistributionChart 
+              data={analytics?.statusDistribution || []}
+            />
+            <TopVehiclesChart 
+              data={analytics?.topVehicles || []}
+            />
+          </div>
+          
+          <div className="mt-6">
+            <ClientDistributionTable 
+              data={analytics?.clientDistribution || []}
+            />
+          </div>
+          
+          <div className="mt-6">
+            <ContractMetricsChart 
+              contractData={analytics?.contractDurationDistribution || []}
+              kmData={analytics?.monthlyKmDistribution || []}
+              roicData={analytics?.roicDistribution || []}
+            />
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="roic">
+          <RoicDashboard 
+            data={analytics?.detailedRoicAnalysis || {
+              averageRoic: 0,
+              medianRoic: 0,
+              highestRoic: 0,
+              lowestRoic: 0,
+              totalInvestment: 0,
+              totalReturn: 0,
+              proposalsByRoicRange: [],
+              monthlyProjection: []
+            }}
+            isLoading={loading}
+          />
+        </TabsContent>
+      </Tabs>
     </MainLayout>
   );
 };

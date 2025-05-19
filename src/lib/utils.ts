@@ -1,4 +1,3 @@
-
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -16,6 +15,14 @@ export function formatCurrency(value: number | string): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(numValue);
+}
+
+/**
+ * Formata um número decimal com precisão específica
+ */
+export function formatDecimal(value: number, digits: number = 2): string {
+  if (isNaN(value) || !isFinite(value)) return '0,00';
+  return value.toLocaleString('pt-BR', { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
 export function formatDate(date: string | Date): string {

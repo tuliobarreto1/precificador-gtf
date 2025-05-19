@@ -4,7 +4,7 @@ import { processVehicleData } from './vehiclesAnalytics';
 import { processMonthlyData } from './monthlyAnalytics';
 import { processStatusData } from './statusAnalytics';
 import { processClientData } from './clientAnalytics';
-import { processRoicData } from './roicAnalytics';
+import { processRoicData, processDetailedRoicData } from './roicAnalytics';
 import { processKmData } from './kmAnalytics';
 import { processContractData } from './contractAnalytics';
 
@@ -28,6 +28,7 @@ export function processAllAnalytics(proposals: ProposalData[]): PropositionalAna
   const roicDistribution = processRoicData(proposals);
   const monthlyKmDistribution = processKmData(proposals);
   const contractDurationDistribution = processContractData(proposals);
+  const detailedRoicAnalysis = processDetailedRoicData(proposals);
   
   // Consolidar todos os dados analíticos
   return {
@@ -41,6 +42,7 @@ export function processAllAnalytics(proposals: ProposalData[]): PropositionalAna
     clientDistribution,
     roicDistribution,
     monthlyKmDistribution,
-    contractDurationDistribution
+    contractDurationDistribution,
+    detailedRoicAnalysis
   };
 }
