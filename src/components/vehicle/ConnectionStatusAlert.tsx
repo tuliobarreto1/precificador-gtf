@@ -30,7 +30,7 @@ const ConnectionStatusAlert: React.FC<ConnectionStatusAlertProps> = ({
   failureCount = 0,
   onTestConnection
 }) => {
-  // Criando uma função auxiliar para verificar o status como string normal
+  // Criando uma função auxiliar para verificar o status
   const isOnline = () => status === 'online';
   
   if (offlineMode) {

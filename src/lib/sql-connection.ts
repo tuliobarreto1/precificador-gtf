@@ -63,8 +63,8 @@ export interface SupabaseVehicle {
 
 // Variáveis para configurar o comportamento offline
 const CONNECTION_TIMEOUT = 15000; // 15 segundos
-const MAX_RETRY_ATTEMPTS = 2; // Número máximo de tentativas
-const RETRY_DELAY = 3000; // 3 segundos entre tentativas
+const MAX_RETRY_ATTEMPTS = 1; // Reduzido para 1 tentativa para evitar atrasos
+const RETRY_DELAY = 1000; // 1 segundo entre tentativas
 let lastConnectionAttempt = 0;
 let connectionFailCount = 0;
 let cachedConnectionStatus: { status: 'online' | 'offline'; timestamp: number; error?: string } | null = null;
@@ -75,9 +75,9 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 // Função para testar conexão com a API
 export const testApiConnection = async () => {
   try {
-    // Verificar se já temos um status de conexão recente (menos de 30 segundos)
+    // Verificar se já temos um status de conexão recente (menos de 10 segundos)
     const now = Date.now();
-    if (cachedConnectionStatus && (now - cachedConnectionStatus.timestamp < 30000)) {
+    if (cachedConnectionStatus && (now - cachedConnectionStatus.timestamp < 10000)) {
       console.log('Usando status de conexão em cache:', cachedConnectionStatus);
       return { 
         status: cachedConnectionStatus.status,
@@ -88,11 +88,11 @@ export const testApiConnection = async () => {
       };
     }
 
-    // Limitar tentativas de conexão (não tentar mais que uma vez a cada 5 segundos)
-    if (now - lastConnectionAttempt < 5000) {
+    // Limitar tentativas de conexão (não tentar mais que uma vez a cada 3 segundos)
+    if (now - lastConnectionAttempt < 3000) {
       console.log('Muitas tentativas de conexão. Aguarde antes de tentar novamente.');
       return { 
-        status: 'offline', 
+        status: cachedConnectionStatus?.status || 'offline', 
         error: 'Muitas tentativas de conexão. Aguarde antes de tentar novamente.',
         throttled: true
       };
@@ -108,8 +108,14 @@ export const testApiConnection = async () => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
         
+        // Ajustando para usar a porta 3005 conforme mostrado no log
         const response = await fetch('http://localhost:3005/api/ping', { 
-          signal: controller.signal 
+          signal: controller.signal,
+          // Adiciona um cache buster para evitar cache do navegador
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
         });
         
         clearTimeout(timeoutId);
@@ -187,7 +193,6 @@ export const testApiConnection = async () => {
       }
     }
     
-    // Este código nunca deve ser alcançado, pois o loop de tentativas sempre retorna
     throw new Error('Erro inesperado no sistema de tentativas');
   } catch (error: any) {
     console.error('Erro ao testar conexão com a API:', error);
@@ -288,7 +293,11 @@ export const getVehicleByPlate = async (plate: string, useOfflineMode = false): 
         const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
         
         const response = await fetch(`http://localhost:3005/api/vehicles/${encodeURIComponent(plate)}`, {
-          signal: controller.signal
+          signal: controller.signal,
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
         });
         
         clearTimeout(timeoutId);
@@ -339,8 +348,8 @@ export const getVehicleByPlate = async (plate: string, useOfflineMode = false): 
             const { error: insertError } = await supabase
               .from('vehicles')
               .insert({
-                brand: vehicle.DescricaoModelo.split(' ')[0],
-                model: vehicle.DescricaoModelo.split(' ').slice(1).join(' '),
+                brand: vehicle.DescricaoModelo?.split(' ')[0] || '',
+                model: vehicle.DescricaoModelo?.split(' ').slice(1).join(' ') || '',
                 year: parseInt(vehicle.AnoFabricacaoModelo) || new Date().getFullYear(),
                 value: vehicle.ValorCompra || 0,
                 is_used: true,
@@ -383,7 +392,7 @@ export const getVehicleByPlate = async (plate: string, useOfflineMode = false): 
       }
     }
     
-    // Este código nunca deve ser alcançado, pois o loop de tentativas sempre retorna ou lança erro
+    // Este código nunca deve ser alcançado
     throw new Error('Erro inesperado no sistema de tentativas');
   } catch (error: any) {
     console.error('Erro ao buscar veículo:', error);

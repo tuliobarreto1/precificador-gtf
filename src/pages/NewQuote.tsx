@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
@@ -18,9 +19,6 @@ const NewQuote = () => {
   const [offlineMode, setOfflineMode] = useState<boolean>(false);
   const { toast } = useToast();
 
-  // Adicionando console.log para verificar renderização da página
-  console.log("Renderizando página NewQuote");
-  
   // Função para verificar o status da API
   const checkApiStatus = async () => {
     try {
@@ -60,28 +58,7 @@ const NewQuote = () => {
   useEffect(() => {
     // Verificar status da API ao montar o componente
     checkApiStatus();
-    
-    // Log adicional ao montar o componente para depuração
-    console.log("NewQuote montado - verificando configurações de impostos");
-    
-    // Verificar configurações globais de impostos para depuração
-    console.log("Configurações de impostos carregadas:", {
-      taxRates,
-      ipvaRate,
-      licensingFee
-    });
-    
-    // Configurar verificação periódica do status da API (a cada 60 segundos)
-    const interval = setInterval(() => {
-      // Só verificar novamente se não estamos em modo offline
-      if (!offlineMode) {
-        console.log("Verificação periódica do status da API...");
-        checkApiStatus();
-      }
-    }, 60000);
-    
-    return () => clearInterval(interval);
-  }, [taxRates, ipvaRate, licensingFee, offlineMode]);
+  }, []);
   
   return (
     <MainLayout>
