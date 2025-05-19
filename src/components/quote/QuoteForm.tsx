@@ -28,9 +28,12 @@ const QuoteForm: React.FC<QuoteFormProps> = ({
     setGlobalMonthlyKm,
     setGlobalOperationSeverity,
     setGlobalHasTracking,
+    setGlobalProtectionPlanId,
     setGlobalIncludeIpva,
     setGlobalIncludeLicensing,
     setGlobalIncludeTaxes,
+    setUseGlobalParams,
+    setVehicleParams,
     isEditMode,
     calculateQuote
   } = useQuote();
@@ -107,22 +110,17 @@ const QuoteForm: React.FC<QuoteFormProps> = ({
           </TabsContent>
           <TabsContent value="params" className="mt-0">
             <ParamsStep 
-              contractMonths={quoteForm.globalParams.contractMonths}
-              monthlyKm={quoteForm.globalParams.monthlyKm}
-              operationSeverity={quoteForm.globalParams.operationSeverity}
-              hasTracking={quoteForm.globalParams.hasTracking}
-              includeIpva={quoteForm.globalParams.includeIpva}
-              includeLicensing={quoteForm.globalParams.includeLicensing}
-              includeTaxes={quoteForm.globalParams.includeTaxes}
-              onContractMonthsChange={setGlobalContractMonths}
-              onMonthlyKmChange={setGlobalMonthlyKm}
-              onOperationSeverityChange={setGlobalOperationSeverity}
-              onHasTrackingChange={setGlobalHasTracking}
-              onIncludeIpvaChange={setGlobalIncludeIpva}
-              onIncludeLicensingChange={setGlobalIncludeLicensing}
-              onIncludeTaxesChange={setGlobalIncludeTaxes}
-              onNext={handleNext}
-              onPrevious={handlePrevious}
+              quoteForm={quoteForm}
+              setUseGlobalParams={setUseGlobalParams}
+              setGlobalContractMonths={setGlobalContractMonths}
+              setGlobalMonthlyKm={setGlobalMonthlyKm}
+              setGlobalOperationSeverity={setGlobalOperationSeverity}
+              setGlobalHasTracking={setGlobalHasTracking}
+              setGlobalProtectionPlanId={setGlobalProtectionPlanId}
+              setGlobalIncludeIpva={setGlobalIncludeIpva}
+              setGlobalIncludeLicensing={setGlobalIncludeLicensing}
+              setGlobalIncludeTaxes={setGlobalIncludeTaxes}
+              setVehicleParams={setVehicleParams}
             />
           </TabsContent>
           <TabsContent value="result" className="mt-0">
