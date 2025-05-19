@@ -145,16 +145,16 @@ const RoicDashboard: React.FC<RoicDashboardProps> = ({ data, isLoading }) => {
           </TabsList>
           
           <TabsContent value="monthly">
-            <div className="h-[400px]">
+            <div className="h-[450px] mb-12"> {/* Aumentada altura e adicionada margem inferior */}
               {lineChartData.length > 0 ? (
                 <ChartContainer config={roicLineConfig}>
                   <LineChart 
                     data={lineChartData}
                     margin={{
                       top: 20,
-                      right: 30,
-                      left: 20,
-                      bottom: 30,
+                      right: 50, // Aumentada margem direita
+                      left: 30, // Aumentada margem esquerda
+                      bottom: 40, // Aumentada margem inferior
                     }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
@@ -162,7 +162,7 @@ const RoicDashboard: React.FC<RoicDashboardProps> = ({ data, isLoading }) => {
                       dataKey="name" 
                       tick={{ fontSize: 12 }}
                       height={50}
-                      tickMargin={10}
+                      tickMargin={15} // Aumentado espaço para os labels no eixo X
                     />
                     <YAxis 
                       yAxisId="left"
@@ -176,7 +176,7 @@ const RoicDashboard: React.FC<RoicDashboardProps> = ({ data, isLoading }) => {
                       orientation="right"
                       tick={{ fontSize: 12 }}
                       tickFormatter={(value) => `R$${value/1000}k`}
-                      width={60}
+                      width={70} // Aumentada largura para evitar cortes
                     />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Legend verticalAlign="top" height={36} />
@@ -198,7 +198,7 @@ const RoicDashboard: React.FC<RoicDashboardProps> = ({ data, isLoading }) => {
           </TabsContent>
           
           <TabsContent value="distribution">
-            <div className="h-[400px]">
+            <div className="h-[450px] mb-12"> {/* Aumentada altura e adicionada margem inferior */}
               {barChartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart 
@@ -207,14 +207,14 @@ const RoicDashboard: React.FC<RoicDashboardProps> = ({ data, isLoading }) => {
                       top: 20,
                       right: 30,
                       left: 20,
-                      bottom: 30,
+                      bottom: 40, // Aumentada margem inferior
                     }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis 
                       dataKey="name"
                       height={50}
-                      tickMargin={10}
+                      tickMargin={15} // Aumentado espaço para os labels no eixo X
                     />
                     <YAxis />
                     <Tooltip 

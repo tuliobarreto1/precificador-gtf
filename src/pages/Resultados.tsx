@@ -79,9 +79,11 @@ const Resultados: React.FC = () => {
             isLoading={loading}
           />
           
-          <MonthlyChart 
-            data={analytics?.monthlyTotals || []}
-          />
+          <div className="mb-8 mt-8"> {/* Container com margem para MonthlyChart */}
+            <MonthlyChart 
+              data={analytics?.monthlyTotals || []}
+            />
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
             <StatusDistributionChart 
@@ -92,13 +94,13 @@ const Resultados: React.FC = () => {
             />
           </div>
           
-          <div className="mt-8">
+          <div className="mt-8 mb-8"> {/* Ajustado com margens superior e inferior */}
             <ClientDistributionTable 
               data={analytics?.clientDistribution || []}
             />
           </div>
           
-          <div className="mt-8 pb-10">
+          <div className="mt-8 pb-16"> {/* Aumentado o padding inferior para evitar cortes */}
             <ContractMetricsChart 
               contractData={analytics?.contractDurationDistribution || []}
               kmData={analytics?.monthlyKmDistribution || []}
@@ -107,7 +109,7 @@ const Resultados: React.FC = () => {
           </div>
         </TabsContent>
         
-        <TabsContent value="roic" className="space-y-8">
+        <TabsContent value="roic" className="space-y-8 pb-16"> {/* Adicionado padding inferior extra */}
           <RoicDashboard 
             data={analytics?.detailedRoicAnalysis || {
               averageRoic: 0,
