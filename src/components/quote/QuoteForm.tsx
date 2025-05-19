@@ -20,17 +20,19 @@ const QuoteForm: React.FC<QuoteFormProps> = ({
   onOfflineModeChange
 }) => {
   const { 
-    state, 
+    quoteForm,
     addVehicle, 
     removeVehicle,
     setClient,
-    setContractMonths,
-    setMonthlyKm,
-    setOperationSeverity,
-    setHasTracking,
-    setIncludeIpva,
-    setIncludeLicensing,
-    setIncludeTaxes
+    setGlobalContractMonths,
+    setGlobalMonthlyKm,
+    setGlobalOperationSeverity,
+    setGlobalHasTracking,
+    setGlobalIncludeIpva,
+    setGlobalIncludeLicensing,
+    setGlobalIncludeTaxes,
+    isEditMode,
+    calculateQuote
   } = useQuote();
 
   const [activeStep, setActiveStep] = useState<'vehicle' | 'client' | 'params' | 'result'>('vehicle');
@@ -75,6 +77,9 @@ const QuoteForm: React.FC<QuoteFormProps> = ({
     }
   };
 
+  // Calcular resultado para passar para o ResultStep
+  const quoteResult = calculateQuote();
+
   return (
     <Card className="w-full">
       <CardHeader className="bg-muted">
@@ -90,8 +95,8 @@ const QuoteForm: React.FC<QuoteFormProps> = ({
             </button>
             <button 
               onClick={handleNext}
-              disabled={activeStep === 'result' || (activeStep === 'vehicle' && state.quoteForm.vehicles.length === 0) || (activeStep === 'client' && !state.quoteForm.client)}
-              className={`px-3 py-1 text-sm rounded ${(activeStep === 'result' || (activeStep === 'vehicle' && state.quoteForm.vehicles.length === 0) || (activeStep === 'client' && !state.quoteForm.client)) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-primary hover:bg-primary/90 text-white'}`}
+              disabled={activeStep === 'result' || (activeStep === 'vehicle' && quoteForm.vehicles.length === 0) || (activeStep === 'client' && !quoteForm.client)}
+              className={`px-3 py-1 text-sm rounded ${(activeStep === 'result' || (activeStep === 'vehicle' && quoteForm.vehicles.length === 0) || (activeStep === 'client' && !quoteForm.client)) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-primary hover:bg-primary/90 text-white'}`}
             >
               Avançar
             </button>
@@ -104,7 +109,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({
             <VehicleStep 
               onSelectVehicle={handleSelectVehicle} 
               onRemoveVehicle={handleRemoveVehicle} 
-              selectedVehicles={state.quoteForm.vehicles.map(v => v.vehicle)}
+              selectedVehicles={quoteForm.vehicles.map(v => v.vehicle)}
               offlineMode={offlineMode}
               onOfflineModeChange={onOfflineModeChange}
             />
@@ -117,26 +122,32 @@ const QuoteForm: React.FC<QuoteFormProps> = ({
           </TabsContent>
           <TabsContent value="params" className="mt-0">
             <ParamsStep 
-              contractMonths={state.quoteForm.globalParams.contractMonths}
-              monthlyKm={state.quoteForm.globalParams.monthlyKm}
-              operationSeverity={state.quoteForm.globalParams.operationSeverity}
-              hasTracking={state.quoteForm.globalParams.hasTracking}
-              includeIpva={state.quoteForm.globalParams.includeIpva}
-              includeLicensing={state.quoteForm.globalParams.includeLicensing}
-              includeTaxes={state.quoteForm.globalParams.includeTaxes}
-              onContractMonthsChange={setContractMonths}
-              onMonthlyKmChange={setMonthlyKm}
-              onOperationSeverityChange={setOperationSeverity}
-              onHasTrackingChange={setHasTracking}
-              onIncludeIpvaChange={setIncludeIpva}
-              onIncludeLicensingChange={setIncludeLicensing}
-              onIncludeTaxesChange={setIncludeTaxes}
+              contractMonths={quoteForm.globalParams.contractMonths}
+              monthlyKm={quoteForm.globalParams.monthlyKm}
+              operationSeverity={quoteForm.globalParams.operationSeverity}
+              hasTracking={quoteForm.globalParams.hasTracking}
+              includeIpva={quoteForm.globalParams.includeIpva}
+              includeLicensing={quoteForm.globalParams.includeLicensing}
+              includeTaxes={quoteForm.globalParams.includeTaxes}
+              onContractMonthsChange={setGlobalContractMonths}
+              onMonthlyKmChange={setGlobalMonthlyKm}
+              onOperationSeverityChange={setGlobalOperationSeverity}
+              onHasTrackingChange={setGlobalHasTracking}
+              onIncludeIpvaChange={setGlobalIncludeIpva}
+              onIncludeLicensingChange={setGlobalIncludeLicensing}
+              onIncludeTaxesChange={setGlobalIncludeTaxes}
               onNext={handleNext}
               onPrevious={handlePrevious}
             />
           </TabsContent>
           <TabsContent value="result" className="mt-0">
-            <ResultStep />
+            <ResultStep 
+              quoteForm={quoteForm} 
+              result={quoteResult}
+              isEditMode={isEditMode}
+              currentEditingQuoteId={null}
+              goToPreviousStep={handlePrevious}
+            />
           </TabsContent>
         </Tabs>
       </CardContent>

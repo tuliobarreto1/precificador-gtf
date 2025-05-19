@@ -52,7 +52,7 @@ const VehicleStep: React.FC<VehicleStepProps> = ({
       <VehicleSelector 
         onSelectVehicle={onSelectVehicle}
         onRemoveVehicle={onRemoveVehicle}
-        selectedVehicles={selectedVehicles as Vehicle[]}
+        selectedVehicles={selectedVehicles}
         onError={handleVehicleSelectorError}
         offlineMode={effectiveOfflineMode}
       />
