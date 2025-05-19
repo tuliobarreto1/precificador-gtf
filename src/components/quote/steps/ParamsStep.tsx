@@ -1,17 +1,27 @@
-
 import React, { useState, useEffect } from 'react';
-import { Info, Car } from 'lucide-react';
+import { Info, Car, HelpCircle } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import ProtectionPlanSelector from '@/components/protection/ProtectionPlanSelector';
 import { QuoteFormData } from '@/context/types/quoteTypes';
 import { VehicleParams } from '@/context/types/quoteTypes';
 
 const KM_OPTIONS = [1000, 2000, 3000, 4000, 5000];
+
+// Descrições dos níveis de severidade de operação
+const SEVERITY_DESCRIPTIONS = {
+  1: "Uso muito leve: Rodagem urbana em vias bem pavimentadas, pouca quilometragem, motorista único e cuidadoso.",
+  2: "Uso leve: Rodagem principalmente urbana, com manutenção preventiva regular e poucos motoristas.",
+  3: "Uso normal: Combinação de rodagem urbana e rodovias em bom estado, manutenção regular.",
+  4: "Uso moderado: Maior quilometragem, uso frequente em estradas com condições variadas.",
+  5: "Uso severo: Alta quilometragem, múltiplos motoristas, uso em estradas com condições ruins.",
+  6: "Uso muito severo: Condições extremas de rodagem, estradas não pavimentadas, ambiente agressivo."
+};
 
 interface ParamsStepProps {
   quoteForm: QuoteFormData;
@@ -41,6 +51,7 @@ const ParamsStep: React.FC<ParamsStepProps> = ({
   setVehicleParams
 }) => {
   const [selectedVehicleTab, setSelectedVehicleTab] = useState<string | null | undefined>(undefined);
+  const [showSeverityInfo, setShowSeverityInfo] = useState(false);
 
   useEffect(() => {
     if (quoteForm?.vehicles && quoteForm.vehicles.length > 0) {
@@ -54,6 +65,20 @@ const ParamsStep: React.FC<ParamsStepProps> = ({
       }
     }
   }, [quoteForm?.vehicles, selectedVehicleTab]);
+
+  // Componente para exibir tooltip com descrição da severidade
+  const SeverityTooltip = ({ level }: { level: 1|2|3|4|5|6 }) => (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <HelpCircle className="h-4 w-4 inline-block ml-1 text-muted-foreground cursor-help" />
+        </TooltipTrigger>
+        <TooltipContent side="right" className="max-w-[250px] p-3">
+          <p className="text-sm">{SEVERITY_DESCRIPTIONS[level]}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 
   const renderVehicleParams = (vehicleId: string) => {
     if (!quoteForm?.vehicles) return null;
@@ -138,7 +163,29 @@ const ParamsStep: React.FC<ParamsStepProps> = ({
         </div>
         
         <div className="space-y-3">
-          <Label className="text-sm">Severidade de Operação</Label>
+          <div className="flex items-center">
+            <Label className="text-sm">Severidade de Operação</Label>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="ml-2 h-6 w-6 p-0" 
+              onClick={() => setShowSeverityInfo(!showSeverityInfo)}
+            >
+              <Info className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          {showSeverityInfo && (
+            <div className="bg-muted/50 p-3 rounded-md mb-3 text-sm space-y-1">
+              {Object.entries(SEVERITY_DESCRIPTIONS).map(([level, desc]) => (
+                <p key={`severity-desc-${level}`} className="flex">
+                  <span className="font-medium mr-2">Nível {level}:</span>
+                  <span className="text-muted-foreground">{desc}</span>
+                </p>
+              ))}
+            </div>
+          )}
+          
           <RadioGroup 
             value={params.operationSeverity.toString()} 
             onValueChange={(value) => setVehicleParams(vehicleId, { 
@@ -156,9 +203,12 @@ const ParamsStep: React.FC<ParamsStepProps> = ({
             {[1, 2, 3, 4, 5, 6].map((level) => (
               <div key={level} className="flex items-center space-x-2">
                 <RadioGroupItem value={level.toString()} id={`severity-${vehicleId}-${level}`} />
-                <Label htmlFor={`severity-${vehicleId}-${level}`} className="text-xs cursor-pointer">
-                  Nível {level}
-                </Label>
+                <div className="flex items-center">
+                  <Label htmlFor={`severity-${vehicleId}-${level}`} className="text-xs cursor-pointer">
+                    Nível {level}
+                  </Label>
+                  <SeverityTooltip level={level as 1|2|3|4|5|6} />
+                </div>
               </div>
             ))}
           </RadioGroup>
@@ -341,7 +391,32 @@ const ParamsStep: React.FC<ParamsStepProps> = ({
           </div>
           
           <div className="space-y-3">
-            <Label className="text-base">Severidade de Operação</Label>
+            <div className="flex items-center">
+              <Label className="text-base">Severidade de Operação</Label>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="ml-2 h-6 w-6 p-0" 
+                onClick={() => setShowSeverityInfo(!showSeverityInfo)}
+              >
+                <Info className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            {showSeverityInfo && (
+              <div className="bg-muted/50 p-4 rounded-md mb-3 text-sm space-y-2 border">
+                <h4 className="font-medium mb-2">Níveis de Severidade em Locação de Veículos</h4>
+                {Object.entries(SEVERITY_DESCRIPTIONS).map(([level, desc]) => (
+                  <p key={`severity-desc-${level}`}>
+                    <span className="font-medium mr-1">Nível {level}:</span> {desc}
+                  </p>
+                ))}
+                <p className="text-xs text-muted-foreground mt-2">
+                  Quanto maior o nível de severidade, maior será o desgaste do veículo e, consequentemente, mais alto o custo de manutenção.
+                </p>
+              </div>
+            )}
+            
             <RadioGroup 
               value={String(quoteForm.globalParams?.operationSeverity || 3)} 
               onValueChange={(value) => setGlobalOperationSeverity(parseInt(value) as 1|2|3|4|5|6)}
@@ -350,16 +425,15 @@ const ParamsStep: React.FC<ParamsStepProps> = ({
               {[1, 2, 3, 4, 5, 6].map((level) => (
                 <div key={level} className="flex items-center space-x-2">
                   <RadioGroupItem value={level.toString()} id={`severity-${level}`} />
-                  <Label htmlFor={`severity-${level}`} className="cursor-pointer">
-                    Nível {level}
-                  </Label>
+                  <div className="flex items-center">
+                    <Label htmlFor={`severity-${level}`} className="cursor-pointer">
+                      Nível {level}
+                    </Label>
+                    <SeverityTooltip level={level as 1|2|3|4|5|6} />
+                  </div>
                 </div>
               ))}
             </RadioGroup>
-            <p className="text-sm text-muted-foreground flex items-center space-x-1">
-              <Info size={14} className="inline-block mr-1" />
-              <span>Quanto maior o nível, mais severo é o uso do veículo.</span>
-            </p>
           </div>
           
           <div className="flex items-center space-x-2 mb-6">
