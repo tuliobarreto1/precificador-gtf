@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
@@ -5,7 +6,7 @@ import PageTitle from '@/components/ui-custom/PageTitle';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, Filter } from 'lucide-react';
+import { Search, Plus, Filter, RefreshCw } from 'lucide-react';
 import Card from '@/components/ui-custom/Card';
 import QuoteTable from '@/components/quotes/QuoteTable';
 import { useQuote } from '@/context/QuoteContext';
@@ -190,7 +191,7 @@ const Quotes = () => {
 
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 w-full md:w-auto">
             <Input
               type="search"
               placeholder="Buscar orçamentos..."
@@ -204,7 +205,11 @@ const Quotes = () => {
             </Button>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 w-full md:w-auto justify-end">
+            <Button variant="outline" onClick={handleRefresh}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Atualizar
+            </Button>
             <Button variant="outline">
               <Filter className="w-4 h-4 mr-2" />
               Filtrar
@@ -218,7 +223,7 @@ const Quotes = () => {
 
         <Card>
           <Tabs defaultValue="all" className="space-y-4">
-            <TabsList>
+            <TabsList className="overflow-x-auto flex-nowrap">
               <TabsTrigger value="all" onClick={() => setActiveTab('all')}>Todos</TabsTrigger>
               <TabsTrigger value="ORCAMENTO" onClick={() => setActiveTab('ORCAMENTO')}>Orçamento</TabsTrigger>
               <TabsTrigger value="PROPOSTA_GERADA" onClick={() => setActiveTab('PROPOSTA_GERADA')}>Proposta Gerada</TabsTrigger>
@@ -227,7 +232,7 @@ const Quotes = () => {
             </TabsList>
             <TabsContent value="all" className="space-y-2">
               {loading ? (
-                <p>Carregando orçamentos...</p>
+                <p className="text-center py-8">Carregando orçamentos...</p>
               ) : (
                 <QuoteTable
                   quotes={filteredQuotes}
@@ -238,7 +243,7 @@ const Quotes = () => {
             </TabsContent>
             <TabsContent value="ORCAMENTO">
               {loading ? (
-                <p>Carregando orçamentos...</p>
+                <p className="text-center py-8">Carregando orçamentos...</p>
               ) : (
                 <QuoteTable
                   quotes={filteredQuotes.filter(q => q.status === 'ORCAMENTO')}
@@ -249,7 +254,7 @@ const Quotes = () => {
             </TabsContent>
             <TabsContent value="PROPOSTA_GERADA">
               {loading ? (
-                <p>Carregando orçamentos...</p>
+                <p className="text-center py-8">Carregando orçamentos...</p>
               ) : (
                 <QuoteTable
                   quotes={filteredQuotes.filter(q => q.status === 'PROPOSTA_GERADA')}
@@ -260,7 +265,7 @@ const Quotes = () => {
             </TabsContent>
             <TabsContent value="EM_VERIFICACAO">
               {loading ? (
-                <p>Carregando orçamentos...</p>
+                <p className="text-center py-8">Carregando orçamentos...</p>
               ) : (
                 <QuoteTable
                   quotes={filteredQuotes.filter(q => q.status === 'EM_VERIFICACAO')}
@@ -271,7 +276,7 @@ const Quotes = () => {
             </TabsContent>
             <TabsContent value="APROVADA">
               {loading ? (
-                <p>Carregando orçamentos...</p>
+                <p className="text-center py-8">Carregando orçamentos...</p>
               ) : (
                 <QuoteTable
                   quotes={filteredQuotes.filter(q => q.status === 'APROVADA')}

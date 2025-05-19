@@ -1,13 +1,14 @@
 
 import React, { useState } from 'react';
 import VehicleSelector from '@/components/vehicle/VehicleSelector';
-import { Vehicle as LibVehicle, VehicleGroup } from '@/lib/models';
+import { VehicleGroup } from '@/lib/models';
 import { Vehicle as ContextVehicle } from '@/context/types/quoteTypes';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Database } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { testApiConnection } from '@/lib/sql-connection';
+import SelectedVehiclesList from '@/components/vehicle/SelectedVehiclesList';
 
 interface VehicleStepProps {
   onSelectVehicle: (vehicle: any, vehicleGroup: VehicleGroup) => void;
@@ -50,6 +51,33 @@ const VehicleStep: React.FC<VehicleStepProps> = ({
 
   return (
     <div className="space-y-4">
+      {error && (
+        <Alert variant="destructive">
+          <AlertTitle>Erro</AlertTitle>
+          <AlertDescription>
+            <p>{error}</p>
+            <div className="mt-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={enableOfflineMode}
+                className="flex items-center gap-1"
+              >
+                <Database className="h-4 w-4" />
+                Usar modo offline
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {selectedVehicles.length > 0 && (
+        <SelectedVehiclesList 
+          vehicles={selectedVehicles} 
+          onRemove={onRemoveVehicle} 
+        />
+      )}
+      
       <VehicleSelector 
         onSelectVehicle={onSelectVehicle}
         onRemoveVehicle={onRemoveVehicle}

@@ -25,6 +25,7 @@ const SelectedVehiclesList: React.FC<SelectedVehiclesListProps> = ({ vehicles, o
             <span>
               {vehicle.brand} {vehicle.model} 
               {vehicle.plateNumber && ` (${vehicle.plateNumber})`}
+              {vehicle.plate_number && !vehicle.plateNumber && ` (${vehicle.plate_number})`}
             </span>
             {onRemove && (
               <Button 

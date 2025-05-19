@@ -17,10 +17,18 @@ import Parameters from "./pages/Parameters";
 import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
-import Resultados from "./pages/Resultados"; // Nova página
+import Resultados from "./pages/Resultados";
 
 // Create a client
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      retryDelay: 1000,
+      staleTime: 30000
+    }
+  }
+});
 
 // Componente para proteger rotas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -68,7 +76,7 @@ function App() {
               <Route path="/parametros" element={<ProtectedRoute><Parameters /></ProtectedRoute>} />
               <Route path="/usuarios" element={<ProtectedRoute><Users /></ProtectedRoute>} />
               
-              {/* Nova rota para Resultados */}
+              {/* Rota para Resultados */}
               <Route path="/resultados" element={<ProtectedRoute><Resultados /></ProtectedRoute>} />
               
               {/* Rota padrão para página não encontrada */}
