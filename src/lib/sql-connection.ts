@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 // Definição das interfaces
@@ -554,22 +553,29 @@ export const getVehicleModelsByGroup = async (groupCode: string, useOfflineMode 
     
     // Verificar no cache do Supabase primeiro
     try {
+      // Usamos uma tabela genérica do cache para armazenar os modelos
       const { data, error } = await supabase
-        .from('vehicle_models')
+        .from('system_settings')
         .select('*')
-        .eq('group_code', groupCode);
+        .eq('key', `vehicle_model_${groupCode}`);
       
       if (data && !error && data.length > 0) {
-        console.log(`Modelos encontrados no cache local para o grupo ${groupCode}:`, data.length);
-        
-        // Converter para o formato SqlVehicleModel
-        return data.map(model => ({
-          CodigoModelo: model.id.toString(),
-          Descricao: model.description || model.name,
-          CodigoGrupoVeiculo: model.group_id || "1",
-          LetraGrupo: model.group_code,
-          MaiorValorCompra: model.value || 75000
-        }));
+        try {
+          // Tentamos analisar o valor JSON armazenado
+          const cachedModels: VehicleModelCache[] = JSON.parse(data[0].value);
+          console.log(`Modelos encontrados no cache local para o grupo ${groupCode}:`, cachedModels.length);
+          
+          // Converter para o formato SqlVehicleModel
+          return cachedModels.map(model => ({
+            CodigoModelo: model.model_code,
+            Descricao: model.model_description,
+            CodigoGrupoVeiculo: model.group_id,
+            LetraGrupo: model.group_code,
+            MaiorValorCompra: model.value
+          }));
+        } catch (parseError) {
+          console.log('Erro ao analisar cache de modelos:', parseError);
+        }
       }
     } catch (cacheError) {
       console.log('Erro ao buscar modelos no cache, continuando com API:', cacheError);
@@ -635,17 +641,23 @@ export const getVehicleModelsByGroup = async (groupCode: string, useOfflineMode 
         // Salvar no cache do Supabase para uso futuro
         if (models && models.length > 0) {
           try {
-            const modelsForCache = models.map((model: SqlVehicleModel) => ({
+            // Convertemos os modelos para o formato que queremos armazenar
+            const modelsForCache: VehicleModelCache[] = models.map((model: SqlVehicleModel) => ({
               group_code: model.LetraGrupo,
               group_id: model.CodigoGrupoVeiculo,
-              description: model.Descricao,
-              name: model.Descricao.split(' ').slice(-2).join(' '),
+              model_description: model.Descricao,
+              model_code: model.CodigoModelo,
               value: model.MaiorValorCompra
             }));
             
+            // Armazenamos como uma configuração do sistema
             const { error } = await supabase
-              .from('vehicle_models')
-              .upsert(modelsForCache);
+              .from('system_settings')
+              .upsert({
+                key: `vehicle_model_${groupCode}`,
+                value: JSON.stringify(modelsForCache),
+                description: `Cache de modelos do grupo ${groupCode}`
+              });
             
             if (error) {
               console.error('Erro ao salvar modelos no cache:', error);

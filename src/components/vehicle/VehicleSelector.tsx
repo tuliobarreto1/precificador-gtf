@@ -35,6 +35,8 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     testingConnection, 
     detailedError, 
     diagnosticInfo,
+    lastCheckTime,
+    failureCount,
     testDatabaseConnection 
   } = useConnectionStatus({ offlineMode, onError });
 
@@ -54,6 +56,8 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
         error={null}
         detailedError={detailedError}
         diagnosticInfo={diagnosticInfo}
+        lastCheckTime={lastCheckTime}
+        failureCount={failureCount}
         onTestConnection={testDatabaseConnection}
       />
       

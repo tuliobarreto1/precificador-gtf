@@ -13,6 +13,8 @@ interface ConnectionStatusState {
   testingConnection: boolean;
   detailedError: string | null;
   diagnosticInfo: any;
+  lastCheckTime: Date | null;
+  failureCount: number;
 }
 
 export const useConnectionStatus = ({ offlineMode, onError }: UseConnectionStatusProps) => {
@@ -21,6 +23,8 @@ export const useConnectionStatus = ({ offlineMode, onError }: UseConnectionStatu
     testingConnection: false,
     detailedError: null,
     diagnosticInfo: null,
+    lastCheckTime: null,
+    failureCount: 0
   });
   
   const { toast } = useToast();
@@ -33,7 +37,8 @@ export const useConnectionStatus = ({ offlineMode, onError }: UseConnectionStatu
         setState(prev => ({ 
           ...prev, 
           status: 'offline', 
-          testingConnection: false 
+          testingConnection: false,
+          lastCheckTime: new Date()
         }));
         return;
       }
@@ -45,11 +50,17 @@ export const useConnectionStatus = ({ offlineMode, onError }: UseConnectionStatu
         ...prev, 
         status: status?.status as 'online' | 'offline',
         testingConnection: false,
-        diagnosticInfo: status
+        diagnosticInfo: status,
+        lastCheckTime: new Date(),
+        // Resetar o contador de falhas se a conexão for bem-sucedida
+        failureCount: status?.status === 'online' ? 0 : prev.failureCount + 1
       }));
       
       if (onError && status?.status !== 'online') {
-        onError(`Problemas na conexão com o banco de dados: ${status?.error || 'offline'}`);
+        const errorMessage = status?.error ? 
+          `Problemas na conexão com o banco de dados: ${status.error}` : 
+          'Servidor de banco de dados offline';
+        onError(errorMessage);
       } else if (onError) {
         onError(null);
       }
@@ -60,7 +71,9 @@ export const useConnectionStatus = ({ offlineMode, onError }: UseConnectionStatu
         ...prev, 
         status: 'offline', 
         testingConnection: false,
-        detailedError: error instanceof Error ? error.message : 'Erro desconhecido ao verificar conexão' 
+        detailedError: error instanceof Error ? error.message : 'Erro desconhecido ao verificar conexão',
+        lastCheckTime: new Date(),
+        failureCount: prev.failureCount + 1
       }));
       
       if (onError) {
@@ -117,7 +130,8 @@ export const useConnectionStatus = ({ offlineMode, onError }: UseConnectionStatu
           status: 'online',
           testingConnection: false,
           diagnosticInfo: data.config || {},
-          detailedError: null
+          detailedError: null,
+          failureCount: 0
         }));
         
         // Aguardar um pequeno delay e depois atualizar o status novamente
@@ -140,7 +154,8 @@ export const useConnectionStatus = ({ offlineMode, onError }: UseConnectionStatu
           ...prev,
           status: 'offline',
           detailedError: JSON.stringify(data, null, 2),
-          testingConnection: false
+          testingConnection: false,
+          failureCount: prev.failureCount + 1
         }));
       }
     } catch (error) {
@@ -159,7 +174,8 @@ export const useConnectionStatus = ({ offlineMode, onError }: UseConnectionStatu
         ...prev,
         status: 'offline',
         detailedError: errorMsg,
-        testingConnection: false
+        testingConnection: false,
+        failureCount: prev.failureCount + 1
       }));
     }
   };
