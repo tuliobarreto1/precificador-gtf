@@ -30,6 +30,9 @@ const ConnectionStatusAlert: React.FC<ConnectionStatusAlertProps> = ({
   failureCount = 0,
   onTestConnection
 }) => {
+  // Criando uma função auxiliar para verificar o status como string normal
+  const isOnline = () => status === 'online';
+  
   if (offlineMode) {
     return (
       <Alert variant="default" className="mb-4 bg-amber-100 border-amber-500 text-amber-800">
@@ -57,7 +60,7 @@ const ConnectionStatusAlert: React.FC<ConnectionStatusAlertProps> = ({
     );
   }
 
-  if (status === 'online') return null;
+  if (isOnline()) return null;
 
   return (
     <Alert variant="destructive">
@@ -104,10 +107,10 @@ const ConnectionStatusAlert: React.FC<ConnectionStatusAlertProps> = ({
                   <div className="mt-2 space-y-2 text-left">
                     <div className="flex items-center gap-2">
                       <Badge 
-                        variant={status === 'online' ? 'outline' : 'destructive'} 
-                        className={status === 'online' ? 'bg-green-100 text-green-800 px-2 py-1' : 'px-2 py-1'}
+                        variant={isOnline() ? 'outline' : 'destructive'} 
+                        className={isOnline() ? 'bg-green-100 text-green-800 px-2 py-1' : 'px-2 py-1'}
                       >
-                        {status === 'online' ? (
+                        {isOnline() ? (
                           <><Wifi className="h-3 w-3 mr-1" /> Online</>
                         ) : (
                           <><WifiOff className="h-3 w-3 mr-1" /> Offline</>
