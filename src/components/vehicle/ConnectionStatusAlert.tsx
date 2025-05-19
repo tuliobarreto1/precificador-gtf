@@ -125,9 +125,9 @@ const ConnectionStatusAlert: React.FC<ConnectionStatusAlertProps> = ({
                     
                     <p className="font-medium">Configurações de Servidor:</p>
                     <pre className="bg-muted p-2 rounded-md text-xs overflow-auto whitespace-pre-wrap">
-                      {`Servidor: ${process.env.DB_SERVER || 'Não definido'}
-Porta: ${process.env.DB_PORT || '1433'}
-Banco de dados: ${process.env.DB_DATABASE || 'Não definido'}
+                      {`Servidor: ${import.meta.env.VITE_DB_SERVER || 'Não definido'}
+Porta: ${import.meta.env.VITE_DB_PORT || '1433'}
+Banco de dados: ${import.meta.env.VITE_DB_DATABASE || 'Não definido'}
 Timeout: 30000ms`}
                     </pre>
                     
