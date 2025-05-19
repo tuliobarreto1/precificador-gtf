@@ -1,4 +1,3 @@
-
 // Removendo a referência ao '@prisma/client' que está causando erros
 
 export interface Client {
@@ -49,14 +48,18 @@ export interface QuoteResultVehicle {
   extraKmRate: number;
   protectionCost: number;
   protectionPlanId: string | null;
-  ipvaCost: number;
-  licensingCost: number;
-  taxCost: number;
+  ipvaCost?: number;
+  licensingCost?: number;
+  taxCost?: number;
   includeIpva: boolean;
   includeLicensing: boolean;
   includeTaxes: boolean;
   contractMonths: number;
-  monthlyKm?: number;
+  monthlyKm: number;
+  discountJustification?: {
+    reason: string;
+    authorizedBy: string;
+  };
 }
 
 export interface SavedQuote {

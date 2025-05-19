@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -31,6 +30,7 @@ const ResultStep: React.FC<ResultStepProps> = ({
   const { getTaxBreakdown } = useTaxIndices();
   const [adjustedVehicleCosts, setAdjustedVehicleCosts] = useState<{[key: string]: number}>({});
   const [currentRoic, setCurrentRoic] = useState<number | null>(null);
+  const [justifications, setJustifications] = useState<{[key: string]: {reason: string, authorizedBy: string}}>({});
   
   // Log detalhado para depuração
   console.log("ResultStep - quoteForm:", quoteForm);
@@ -93,11 +93,29 @@ const ResultStep: React.FC<ResultStepProps> = ({
   const displayTotalCost = getAdjustedTotal();
   
   // Handler para quando o ROIC é ajustado para um veículo específico
-  const handleVehicleRoicChange = (vehicleId: string, roicPercentage: number, adjustedCost: number) => {
+  const handleVehicleRoicChange = (
+    vehicleId: string, 
+    roicPercentage: number, 
+    adjustedCost: number,
+    justification?: { reason: string, authorizedBy: string }
+  ) => {
     setAdjustedVehicleCosts(prev => ({
       ...prev,
       [vehicleId]: adjustedCost
     }));
+    
+    if (justification) {
+      setJustifications(prev => ({
+        ...prev,
+        [vehicleId]: justification
+      }));
+    } else {
+      // Se não tem justificativa, remova qualquer justificativa anterior
+      const newJustifications = { ...justifications };
+      delete newJustifications[vehicleId];
+      setJustifications(newJustifications);
+    }
+    
     setCurrentRoic(roicPercentage);
   };
   
@@ -322,13 +340,26 @@ const ResultStep: React.FC<ResultStepProps> = ({
                       </div>
                     )}
                     
-                    {/* Slider ROIC para o veículo específico */}
+                    {/* Slider ROIC para o veículo específico com suporte para justificativa */}
                     <div className="mt-4 pt-3 border-t">
                       <RoicSlider 
                         totalCost={result.totalCost} 
                         vehicleValues={[vehicleItem.vehicle.value]} 
-                        onRoicChange={(roic, adjusted) => handleVehicleRoicChange(vehicleItem.vehicle.id, roic, adjusted)}
+                        onRoicChange={(roic, adjusted, justification) => 
+                          handleVehicleRoicChange(vehicleItem.vehicle.id, roic, adjusted, justification)
+                        }
                       />
+                      
+                      {/* Exibir a justificativa, se houver */}
+                      {justifications[vehicleItem.vehicle.id] && (
+                        <div className="mt-3 p-3 bg-yellow-50 border border-yellow-100 rounded-md text-sm">
+                          <p className="font-medium text-amber-800">Justificativa para desconto:</p>
+                          <p className="mt-1">{justifications[vehicleItem.vehicle.id].reason}</p>
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            Autorizado por: <span className="font-medium">{justifications[vehicleItem.vehicle.id].authorizedBy}</span>
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

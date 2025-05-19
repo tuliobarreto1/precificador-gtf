@@ -286,10 +286,18 @@ export function useQuoteCalculation(quoteForm: QuoteFormData) {
   };
   
   // Função para enviar orçamento por e-mail
-  const sendQuoteByEmail = async (quoteId: string, email: string, message?: string): Promise<boolean> => {
+  const sendQuoteByEmail = async (
+    quoteId: string, 
+    email: string, 
+    message?: string,
+    discountJustifications?: {[vehicleId: string]: {reason: string, authorizedBy: string}}
+  ): Promise<boolean> => {
     try {
       // Esta função seria integrada com o backend para envio de e-mails
-      console.log(`Enviando orçamento ${quoteId} para ${email}`, { message });
+      console.log(`Enviando orçamento ${quoteId} para ${email}`, { 
+        message,
+        discountJustifications: discountJustifications ? JSON.stringify(discountJustifications) : 'Sem justificativas'
+      });
       return true;
     } catch (error) {
       console.error("Erro ao enviar orçamento por e-mail:", error);

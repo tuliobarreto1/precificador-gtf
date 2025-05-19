@@ -2,11 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { formatCurrency } from '@/lib/utils';
 import { Slider } from "@/components/ui/slider";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface RoicSliderProps {
   totalCost: number;
   vehicleValues: number[];
-  onRoicChange: (roicPercentage: number, adjustedTotal: number) => void;
+  onRoicChange: (roicPercentage: number, adjustedTotal: number, justification?: { reason: string, authorizedBy: string }) => void;
 }
 
 const RoicSlider: React.FC<RoicSliderProps> = ({ 
@@ -33,6 +36,10 @@ const RoicSlider: React.FC<RoicSliderProps> = ({
   };
   
   const [roicPercentage, setRoicPercentage] = useState<number>(calculateInitialRoic());
+  const [showJustification, setShowJustification] = useState<boolean>(false);
+  const [justification, setJustification] = useState<string>('');
+  const [authorizedBy, setAuthorizedBy] = useState<string>('');
+  const [initialRoic] = useState<number>(calculateInitialRoic());
   
   // Recalcular o custo total baseado no ROIC atual
   const calculateAdjustedTotal = (roic: number) => {
@@ -55,8 +62,53 @@ const RoicSlider: React.FC<RoicSliderProps> = ({
     const newRoic = value[0];
     setRoicPercentage(newRoic);
     
+    // Verificar se o novo ROIC é menor que o sugerido
+    if (newRoic < initialRoic) {
+      setShowJustification(true);
+    } else {
+      setShowJustification(false);
+      // Resetar os campos quando não precisamos de justificativa
+      setJustification('');
+      setAuthorizedBy('');
+    }
+    
     const adjustedTotal = calculateAdjustedTotal(newRoic);
-    onRoicChange(newRoic, adjustedTotal);
+    
+    // Se não precisamos de justificativa ou se os campos estão preenchidos
+    if (!showJustification || (justification && authorizedBy)) {
+      onRoicChange(
+        newRoic, 
+        adjustedTotal, 
+        showJustification ? { reason: justification, authorizedBy } : undefined
+      );
+    } else {
+      // Caso contrário, apenas atualiza o valor sem passar a justificativa
+      onRoicChange(newRoic, adjustedTotal);
+    }
+  };
+
+  const handleJustificationChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setJustification(e.target.value);
+    
+    if (e.target.value && authorizedBy) {
+      onRoicChange(
+        roicPercentage, 
+        calculateAdjustedTotal(roicPercentage), 
+        { reason: e.target.value, authorizedBy }
+      );
+    }
+  };
+
+  const handleAuthorizedByChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAuthorizedBy(e.target.value);
+    
+    if (justification && e.target.value) {
+      onRoicChange(
+        roicPercentage, 
+        calculateAdjustedTotal(roicPercentage), 
+        { reason: justification, authorizedBy: e.target.value }
+      );
+    }
   };
 
   return (
@@ -85,10 +137,52 @@ const RoicSlider: React.FC<RoicSliderProps> = ({
         
         <div className="flex justify-between text-xs text-muted-foreground mt-1">
           <span>Min: {MIN_ROIC.toFixed(2)}% a.m.</span>
-          <span>Sugerido: {calculateInitialRoic().toFixed(2)}% a.m.</span>
+          <span>Sugerido: {initialRoic.toFixed(2)}% a.m.</span>
           <span>Max: {MAX_ROIC.toFixed(2)}% a.m.</span>
         </div>
       </div>
+      
+      {/* Campos de justificativa quando o ROIC é menor que o sugerido */}
+      {showJustification && (
+        <div className="mt-4 space-y-3 p-3 bg-yellow-50 border border-yellow-100 rounded-md">
+          <div>
+            <p className="text-sm font-medium text-amber-800 mb-2">
+              Justificativa obrigatória para ROIC abaixo do valor sugerido
+            </p>
+            <Label htmlFor="justification" className="text-sm text-muted-foreground">
+              Motivo da alteração <span className="text-red-500">*</span>
+            </Label>
+            <Textarea
+              id="justification"
+              placeholder="Informe o motivo para redução do ROIC"
+              value={justification}
+              onChange={handleJustificationChange}
+              required
+              className="mt-1"
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="authorizedBy" className="text-sm text-muted-foreground">
+              Autorizado por <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="authorizedBy"
+              placeholder="Nome do autorizador"
+              value={authorizedBy}
+              onChange={handleAuthorizedByChange}
+              required
+              className="mt-1"
+            />
+          </div>
+          
+          {(!justification || !authorizedBy) && (
+            <p className="text-xs text-red-500 mt-1">
+              Ambos os campos são obrigatórios para aplicar o desconto.
+            </p>
+          )}
+        </div>
+      )}
       
       <div className="text-xs text-muted-foreground bg-slate-50 p-3 rounded-md">
         <p>O ROIC (Retorno sobre o Capital Investido) representa o percentual mensal de retorno sobre o valor total dos veículos.</p>
