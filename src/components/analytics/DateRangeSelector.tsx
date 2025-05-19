@@ -11,9 +11,10 @@ import { CalendarIcon } from 'lucide-react';
 interface DateRangeSelectorProps {
   dateRange: { start: Date | null, end: Date | null };
   onDateRangeChange: (range: { start: Date | null, end: Date | null }) => void;
+  className?: string; // Adicionado como propriedade opcional
 }
 
-const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({ dateRange, onDateRangeChange }) => {
+const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({ dateRange, onDateRangeChange, className }) => {
   const [startDate, setStartDate] = React.useState<Date | undefined>(
     dateRange.start ? new Date(dateRange.start) : undefined
   );
@@ -52,7 +53,7 @@ const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({ dateRange, onDate
   };
 
   return (
-    <Card className="mb-6">
+    <Card className={className}>
       <CardContent className="flex flex-wrap items-center justify-between p-4 gap-4">
         <div className="flex flex-wrap gap-2">
           <Button 

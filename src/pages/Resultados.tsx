@@ -83,7 +83,7 @@ const Resultados: React.FC = () => {
             data={analytics?.monthlyTotals || []}
           />
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
             <StatusDistributionChart 
               data={analytics?.statusDistribution || []}
             />
@@ -92,13 +92,13 @@ const Resultados: React.FC = () => {
             />
           </div>
           
-          <div>
+          <div className="mt-8">
             <ClientDistributionTable 
               data={analytics?.clientDistribution || []}
             />
           </div>
           
-          <div className="mb-10">
+          <div className="mt-8 pb-10">
             <ContractMetricsChart 
               contractData={analytics?.contractDurationDistribution || []}
               kmData={analytics?.monthlyKmDistribution || []}
