@@ -19,13 +19,15 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Resultados from "./pages/Resultados";
 
-// Create a client
+// Criação do cliente com configurações mais robustas
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
-      retryDelay: 1000,
-      staleTime: 30000
+      retry: 2,          // Tentar 2 vezes em caso de erro
+      retryDelay: 1000,  // Esperar 1 segundo entre tentativas
+      staleTime: 60000,  // Cache válido por 1 minuto
+      refetchOnWindowFocus: false, // Não refetch automático ao focar na janela
+      refetchOnMount: true,       // Refetch ao montar componente
     }
   }
 });
