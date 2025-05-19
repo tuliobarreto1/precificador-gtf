@@ -32,15 +32,11 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     target: 'es2020',
-    sourcemap: 'hidden',
+    sourcemap: false, // Desativar sourcemaps para economizar memória
     chunkSizeWarningLimit: 1000,
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-      },
-    },
+    minify: 'esbuild', // Usar esbuild para minificação (mais leve que terser)
+    cssCodeSplit: true,
+    reportCompressedSize: false,
     rollupOptions: {
       output: {
         manualChunks: (id) => {
@@ -56,9 +52,6 @@ export default defineConfig(({ mode }) => ({
         },
       },
       context: 'window',
-    },
-    brotliSize: false,
-    cssCodeSplit: true,
-    reportCompressedSize: false
+    }
   }
 }))
