@@ -1,10 +1,11 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { useQuoteContext } from '@/context/QuoteContext';
+import { useQuote } from '@/context/QuoteContext';
 import GerarPropostaButton from '../GerarPropostaButton';
-import EmailDialog from '../EmailDialog';
+import { EmailDialog } from '../EmailDialog';
 import RoicSlider from '../RoicSlider';
 import ProposalHistory from '../ProposalHistory';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,6 +16,32 @@ interface ResultStepProps {
 }
 
 const ResultStep: React.FC<ResultStepProps> = ({ onPrevious, offlineMode = false }) => {
+  const { calculateQuote } = useQuote();
+  const [roicPercentage, setRoicPercentage] = useState(5.0);
+  const [adjustedTotal, setAdjustedTotal] = useState(0);
+  const [justification, setJustification] = useState<{
+    reason: string;
+    authorizedBy: string;
+  } | undefined>(undefined);
+  
+  // Calcular cotação e obter valores iniciais
+  const quoteResult = calculateQuote();
+  const totalCost = quoteResult?.totalCost || 0;
+  
+  // Obter valores dos veículos para o RoicSlider
+  const vehicleValues = quoteResult?.vehicleResults?.map(v => v.totalCost) || [];
+  
+  // Manipulador para alterações no ROIC
+  const handleRoicChange = (
+    newRoic: number, 
+    newAdjustedTotal: number, 
+    newJustification?: { reason: string; authorizedBy: string }
+  ) => {
+    setRoicPercentage(newRoic);
+    setAdjustedTotal(newAdjustedTotal);
+    setJustification(newJustification);
+  };
+  
   return (
     <Card>
       <CardContent className="pt-6">
@@ -35,14 +62,18 @@ const ResultStep: React.FC<ResultStepProps> = ({ onPrevious, offlineMode = false
                 <h3 className="text-lg font-medium mb-2">Ações</h3>
                 <div className="space-y-3">
                   <GerarPropostaButton offlineMode={offlineMode} />
-                  <EmailDialog />
+                  <EmailDialog quoteId="draft" />
                 </div>
               </div>
             </div>
           </TabsContent>
 
           <TabsContent value="roic" className="mt-4">
-            <RoicSlider />
+            <RoicSlider 
+              totalCost={totalCost} 
+              vehicleValues={vehicleValues} 
+              onRoicChange={handleRoicChange}
+            />
           </TabsContent>
 
           <TabsContent value="history" className="mt-4">

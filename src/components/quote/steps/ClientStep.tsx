@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import ClientForm from '../ClientForm';
-import { useQuoteContext } from '@/context/QuoteContext';
+import { useQuote } from '@/context/QuoteContext';
 
 interface ClientStepProps {
   onNext: () => void;
@@ -13,8 +13,8 @@ interface ClientStepProps {
 }
 
 const ClientStep: React.FC<ClientStepProps> = ({ onNext, onPrevious, offlineMode = false }) => {
-  const { quote } = useQuoteContext();
-  const hasClient = quote.client && quote.client.id;
+  const { quoteForm } = useQuote();
+  const hasClient = quoteForm.client && quoteForm.client.id;
 
   return (
     <Card>

@@ -1,22 +1,37 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
-import { useQuoteContext } from '@/context/QuoteContext';
+import { useQuote } from '@/context/QuoteContext';
 import { generateProposal } from '@/lib/proposal-generator';
 import { saveAs } from 'file-saver';
 import { useToast } from '@/hooks/use-toast';
+import { QuoteFormData, QuoteCalculationResult, SavedQuote } from '@/context/types/quoteTypes';
 
 interface GerarPropostaButtonProps {
   offlineMode?: boolean;
+  quoteForm?: QuoteFormData;
+  result?: QuoteCalculationResult | null;
+  currentQuoteId?: string;
+  savedQuote?: SavedQuote;
 }
 
-const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ offlineMode = false }) => {
-  const { quote } = useQuoteContext();
+const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ 
+  offlineMode = false,
+  quoteForm,
+  result,
+  currentQuoteId,
+  savedQuote
+}) => {
+  const { quoteForm: contextQuoteForm } = useQuote();
   const { toast } = useToast();
   
   const handleGenerateProposal = async () => {
     try {
-      const pdfBlob = await generateProposal(quote, offlineMode);
+      // Usar dados fornecidos via props ou do contexto
+      const dataToUse = quoteForm || contextQuoteForm;
+      
+      const pdfBlob = await generateProposal(dataToUse, offlineMode);
       saveAs(pdfBlob, `proposta-orcamento-${new Date().toISOString()}.pdf`);
       toast({
         title: "Proposta gerada com sucesso!",

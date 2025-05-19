@@ -8,7 +8,7 @@ import ResultStep from './steps/ResultStep';
 import { Button } from '@/components/ui/button';
 import { useQuoteForm } from '@/hooks/useQuoteForm';
 import { Loader2 } from 'lucide-react';
-import { useQuoteContext } from '@/context/QuoteContext';
+import { useQuote } from '@/context/QuoteContext';
 
 // Adicionando as propriedades ao tipo de componente
 interface QuoteFormProps {
@@ -19,13 +19,13 @@ interface QuoteFormProps {
 const QuoteForm: React.FC<QuoteFormProps> = ({ offlineMode = false, onOfflineModeChange }) => {
   const [activeTab, setActiveTab] = useState<string>("vehicle");
   const { isLoading, saveQuote } = useQuoteForm();
-  const { quote } = useQuoteContext();
+  const { quoteForm } = useQuote();
   
   // Verifica se a cotação tem veículos para habilitar navegação
-  const hasVehicles = quote.vehicles && quote.vehicles.length > 0;
+  const hasVehicles = quoteForm.vehicles && quoteForm.vehicles.length > 0;
   
   // Verifica se a cotação tem cliente para habilitar navegação
-  const hasClient = quote.client && quote.client.id;
+  const hasClient = quoteForm.client && quoteForm.client.id;
   
   // Função para avançar para a próxima etapa
   const goToNextStep = (currentTab: string) => {

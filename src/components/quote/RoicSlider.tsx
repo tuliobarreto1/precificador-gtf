@@ -24,7 +24,7 @@ const RoicSlider: React.FC<RoicSliderProps> = ({
   const MAX_ROIC = 8.0;
   
   // Calcular o valor total dos veículos
-  const totalVehicleValue = vehicleValues.reduce((sum, value) => sum + value, 0);
+  const totalVehicleValue = vehicleValues.reduce((sum, value) => sum + value, 0) || 1;
   
   // Calcular o ROIC inicial baseado no custo total mensal atual
   const calculateInitialRoic = () => {

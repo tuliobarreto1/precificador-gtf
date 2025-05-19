@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Form,
@@ -13,8 +14,8 @@ import { Button } from "@/components/ui/button"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { useQuoteContext } from '@/context/QuoteContext';
-import { SqlClient } from '@/lib/sql-connection';
+import { useQuote } from '@/context/QuoteContext';
+import { Client } from '@/context/types/quoteTypes';
 import { useToast } from '@/hooks/use-toast';
 
 const clientSchema = z.object({
@@ -34,15 +35,15 @@ interface ClientFormProps {
 }
 
 const ClientForm: React.FC<ClientFormProps> = ({ offlineMode = false }) => {
-  const { setClient, quote } = useQuoteContext();
+  const { setClient, quoteForm } = useQuote();
   const { toast } = useToast();
   
   const form = useForm<z.infer<typeof clientSchema>>({
     resolver: zodResolver(clientSchema),
     defaultValues: {
-      name: quote.client?.name || "",
-      email: quote.client?.email || "",
-      phone: quote.client?.phone || "",
+      name: quoteForm.client?.name || "",
+      email: quoteForm.client?.email || "",
+      phone: quoteForm.client?.phone || "",
     },
   })
   
@@ -71,8 +72,8 @@ const ClientForm: React.FC<ClientFormProps> = ({ offlineMode = false }) => {
       return;
     }
     
-    const newClient: SqlClient = {
-      id: quote.client?.id || Math.random().toString(36).substring(7),
+    const newClient: Client = {
+      id: quoteForm.client?.id || Math.random().toString(36).substring(7),
       name: values.name,
       email: values.email,
       phone: values.phone,

@@ -3,7 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { useQuoteContext } from '@/context/QuoteContext';
+import { useQuote } from '@/context/QuoteContext';
 import VehicleSelector from '@/components/vehicle/VehicleSelector';
 import { Vehicle, VehicleGroup } from '@/lib/models';
 import { useToast } from '@/hooks/use-toast';
@@ -15,12 +15,12 @@ interface VehicleStepProps {
 }
 
 const VehicleStep: React.FC<VehicleStepProps> = ({ onNext, offlineMode = false, onOfflineModeChange }) => {
-  const { quote, addVehicle, removeVehicle } = useQuoteContext();
+  const { quoteForm, addVehicle, removeVehicle } = useQuote();
   const { toast } = useToast();
   
   // Manipulador para adicionar um veículo à cotação
   const handleSelectVehicle = (vehicle: Vehicle, vehicleGroup: VehicleGroup) => {
-    addVehicle(vehicle);
+    addVehicle(vehicle, vehicleGroup);
     toast({
       title: "Veículo adicionado",
       description: `${vehicle.brand} ${vehicle.model} foi adicionado à cotação.`,
@@ -53,7 +53,7 @@ const VehicleStep: React.FC<VehicleStepProps> = ({ onNext, offlineMode = false, 
       <CardContent className="pt-6">
         <VehicleSelector 
           onSelectVehicle={handleSelectVehicle}
-          selectedVehicles={quote.vehicles}
+          selectedVehicles={quoteForm.vehicles.map(item => item.vehicle)}
           onRemoveVehicle={handleRemoveVehicle}
           onError={handleVehicleSelectorError}
           offlineMode={offlineMode}
@@ -63,7 +63,7 @@ const VehicleStep: React.FC<VehicleStepProps> = ({ onNext, offlineMode = false, 
         <div className="flex justify-end mt-6">
           <Button 
             onClick={onNext}
-            disabled={!quote.vehicles.length}
+            disabled={!quoteForm.vehicles.length}
             className="flex items-center"
           >
             Próximo
