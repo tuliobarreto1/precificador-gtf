@@ -42,7 +42,7 @@ const ContractMetricsChart: React.FC<ContractMetricsChartProps> = ({
         <CardTitle>Métricas de Contratos</CardTitle>
         <CardDescription>Análise de prazos, quilometragem e rentabilidade</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pb-8">
         <Tabs defaultValue="duration">
           <TabsList className="w-full mb-4">
             <TabsTrigger value="duration" className="flex-1">Duração</TabsTrigger>

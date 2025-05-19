@@ -123,8 +123,8 @@ const RoicDashboard: React.FC<RoicDashboardProps> = ({ data, isLoading }) => {
           Análise aprofundada do Retorno sobre o Capital Investido nas propostas
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+      <CardContent className="pb-10">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
           {statCards.map((stat, index) => (
             <Card key={index} className="bg-muted/40">
               <CardHeader className="pb-2">
@@ -139,73 +139,101 @@ const RoicDashboard: React.FC<RoicDashboardProps> = ({ data, isLoading }) => {
         </div>
 
         <Tabs defaultValue="monthly">
-          <TabsList className="mb-4">
+          <TabsList className="mb-6">
             <TabsTrigger value="monthly">Evolução Mensal</TabsTrigger>
             <TabsTrigger value="distribution">Distribuição de ROIC</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="monthly" className="h-80">
-            {lineChartData.length > 0 ? (
-              <ChartContainer config={roicLineConfig}>
-                <LineChart data={lineChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fontSize: 12 }}
-                  />
-                  <YAxis 
-                    yAxisId="left"
-                    orientation="left"
-                    tick={{ fontSize: 12 }}
-                    tickFormatter={(value) => `${value}%`}
-                  />
-                  <YAxis 
-                    yAxisId="right"
-                    orientation="right"
-                    tick={{ fontSize: 12 }}
-                    tickFormatter={(value) => `R$${value/1000}k`}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Legend />
-                  <Line 
-                    yAxisId="left"
-                    type="monotone" 
-                    dataKey="roic" 
-                    strokeWidth={2}
-                    activeDot={{ r: 6 }}
-                  />
-                </LineChart>
-              </ChartContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-muted-foreground">
-                Não há dados suficientes para exibir a evolução mensal do ROIC
-              </div>
-            )}
+          <TabsContent value="monthly">
+            <div className="h-[400px]">
+              {lineChartData.length > 0 ? (
+                <ChartContainer config={roicLineConfig}>
+                  <LineChart 
+                    data={lineChartData}
+                    margin={{
+                      top: 20,
+                      right: 30,
+                      left: 20,
+                      bottom: 30,
+                    }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="name" 
+                      tick={{ fontSize: 12 }}
+                      height={50}
+                      tickMargin={10}
+                    />
+                    <YAxis 
+                      yAxisId="left"
+                      orientation="left"
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value) => `${value}%`}
+                      width={60}
+                    />
+                    <YAxis 
+                      yAxisId="right"
+                      orientation="right"
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value) => `R$${value/1000}k`}
+                      width={60}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Legend verticalAlign="top" height={36} />
+                    <Line 
+                      yAxisId="left"
+                      type="monotone" 
+                      dataKey="roic" 
+                      strokeWidth={2}
+                      activeDot={{ r: 6 }}
+                    />
+                  </LineChart>
+                </ChartContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground">
+                  Não há dados suficientes para exibir a evolução mensal do ROIC
+                </div>
+              )}
+            </div>
           </TabsContent>
           
-          <TabsContent value="distribution" className="h-80">
-            {barChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={barChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip 
-                    formatter={(value: any, name: string) => {
-                      return name === 'percentual' 
-                        ? [`${parseFloat(value).toFixed(1)}%`, 'Percentual'] 
-                        : [value, 'Quantidade'];
+          <TabsContent value="distribution">
+            <div className="h-[400px]">
+              {barChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart 
+                    data={barChartData}
+                    margin={{
+                      top: 20,
+                      right: 30,
+                      left: 20,
+                      bottom: 30,
                     }}
-                  />
-                  <Legend />
-                  <Bar dataKey="value" name="Propostas" fill="#2563eb" />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-muted-foreground">
-                Não há dados suficientes para exibir a distribuição de ROIC
-              </div>
-            )}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="name"
+                      height={50}
+                      tickMargin={10}
+                    />
+                    <YAxis />
+                    <Tooltip 
+                      formatter={(value: any, name: string) => {
+                        return name === 'percentual' 
+                          ? [`${parseFloat(value).toFixed(1)}%`, 'Percentual'] 
+                          : [value, 'Quantidade'];
+                      }}
+                    />
+                    <Legend verticalAlign="top" height={36} />
+                    <Bar dataKey="value" name="Propostas" fill="#2563eb" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground">
+                  Não há dados suficientes para exibir a distribuição de ROIC
+                </div>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       </CardContent>

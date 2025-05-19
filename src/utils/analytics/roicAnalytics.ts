@@ -54,12 +54,27 @@ export function processRoicData(proposals: ProposalData[]): RoicData[] {
  * Processa dados detalhados de ROIC para análises avançadas
  */
 export function processDetailedRoicData(proposals: ProposalData[]): RoicDetailedData {
+  // Inicialização de valores padrão para caso de nenhuma proposta
+  if (!proposals || proposals.length === 0) {
+    return {
+      averageRoic: 0,
+      medianRoic: 0,
+      highestRoic: 0,
+      lowestRoic: 0,
+      totalInvestment: 0,
+      totalReturn: 0,
+      proposalsByRoicRange: [],
+      monthlyProjection: []
+    };
+  }
+  
   // Propostas válidas - apenas aquelas que têm veículos e valores
   const validProposals = proposals.filter(p => 
-    (p.quote_vehicles?.length > 0) && 
-    (p.total_value > 0)
+    (p?.quote_vehicles?.length > 0) && 
+    (p?.total_value > 0)
   );
   
+  // Segundo nível de verificação após o filtro
   if (validProposals.length === 0) {
     return {
       averageRoic: 0,
@@ -80,8 +95,13 @@ export function processDetailedRoicData(proposals: ProposalData[]): RoicDetailed
     let vehicleValue = 0;
     
     vehicles.forEach((v: any) => {
-      vehicleValue += v.vehicles?.value || 0;
+      // Usar valor do próprio veículo ou um valor padrão
+      const vValue = (v?.vehicles?.value || 0);
+      vehicleValue += vValue;
     });
+    
+    // Garantir que o valor do veículo não seja zero
+    vehicleValue = vehicleValue || 1; // Evita divisão por zero
     
     const monthlyValue = vehicles.reduce((sum: number, v: any) => sum + (v.monthly_value || 0), 0);
     const contractMonths = proposal.contract_months || 24;
@@ -121,17 +141,21 @@ export function processDetailedRoicData(proposals: ProposalData[]): RoicDetailed
   
   // Calcular estatísticas
   const roicValues = sortedProposals.map(p => p.roic).filter(r => !isNaN(r) && isFinite(r));
-  const averageRoic = roicValues.reduce((sum, r) => sum + r, 0) / roicValues.length;
+  const averageRoic = roicValues.length > 0 
+    ? roicValues.reduce((sum, r) => sum + r, 0) / roicValues.length 
+    : 0;
   
   // Mediana
   const sortedRoic = [...roicValues].sort((a, b) => a - b);
-  const medianRoic = sortedRoic.length % 2 === 0
-    ? (sortedRoic[sortedRoic.length / 2 - 1] + sortedRoic[sortedRoic.length / 2]) / 2
-    : sortedRoic[Math.floor(sortedRoic.length / 2)];
+  const medianRoic = sortedRoic.length > 0 
+    ? (sortedRoic.length % 2 === 0
+      ? (sortedRoic[sortedRoic.length / 2 - 1] + sortedRoic[sortedRoic.length / 2]) / 2
+      : sortedRoic[Math.floor(sortedRoic.length / 2)])
+    : 0;
   
   // Valor máximo e mínimo
-  const highestRoic = Math.max(...roicValues);
-  const lowestRoic = Math.min(...roicValues);
+  const highestRoic = roicValues.length > 0 ? Math.max(...roicValues) : 0;
+  const lowestRoic = roicValues.length > 0 ? Math.min(...roicValues) : 0;
   
   // Investimento total e retorno total
   const totalInvestment = sortedProposals.reduce((sum, p) => sum + p.initialInvestment, 0);
@@ -152,7 +176,7 @@ export function processDetailedRoicData(proposals: ProposalData[]): RoicDetailed
     return {
       range: range.label,
       count,
-      percentual: (count / sortedProposals.length) * 100
+      percentual: sortedProposals.length > 0 ? (count / sortedProposals.length) * 100 : 0
     };
   }).filter(item => item.count > 0);
   
@@ -205,7 +229,7 @@ export function processDetailedRoicData(proposals: ProposalData[]): RoicDetailed
     lowestRoic,
     totalInvestment,
     totalReturn,
-    proposalsByRoicRange: proposalsByRange,
-    monthlyProjection
+    proposalsByRoicRange: proposalsByRange || [],
+    monthlyProjection: monthlyProjection || []
   };
 }

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import { useAnalytics } from '@/hooks/useAnalytics';
@@ -40,7 +40,7 @@ const Resultados: React.FC = () => {
         ]}
       />
       
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end mb-6">
         <Button 
           variant="outline" 
           onClick={handleRefresh}
@@ -54,17 +54,18 @@ const Resultados: React.FC = () => {
       <DateRangeSelector 
         dateRange={dateRange}
         onDateRangeChange={setDateRange}
+        className="mb-6"
       />
       
       {error ? (
-        <div className="bg-destructive/10 text-destructive p-4 rounded-md mb-6">
+        <div className="bg-destructive/10 text-destructive p-4 rounded-md mb-8">
           <p className="font-semibold">Erro ao carregar dados:</p>
           <p>{error}</p>
         </div>
       ) : null}
       
-      <Tabs defaultValue="overview" className="mb-6">
-        <TabsList className="mb-6">
+      <Tabs defaultValue="overview" className="mb-8">
+        <TabsList className="mb-8">
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
           <TabsTrigger value="roic">Análise de Rentabilidade</TabsTrigger>
         </TabsList>
@@ -82,7 +83,7 @@ const Resultados: React.FC = () => {
             data={analytics?.monthlyTotals || []}
           />
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <StatusDistributionChart 
               data={analytics?.statusDistribution || []}
             />
@@ -91,13 +92,13 @@ const Resultados: React.FC = () => {
             />
           </div>
           
-          <div className="mt-8">
+          <div>
             <ClientDistributionTable 
               data={analytics?.clientDistribution || []}
             />
           </div>
           
-          <div className="mt-8">
+          <div className="mb-10">
             <ContractMetricsChart 
               contractData={analytics?.contractDurationDistribution || []}
               kmData={analytics?.monthlyKmDistribution || []}
@@ -106,7 +107,7 @@ const Resultados: React.FC = () => {
           </div>
         </TabsContent>
         
-        <TabsContent value="roic" className="space-y-6">
+        <TabsContent value="roic" className="space-y-8">
           <RoicDashboard 
             data={analytics?.detailedRoicAnalysis || {
               averageRoic: 0,
