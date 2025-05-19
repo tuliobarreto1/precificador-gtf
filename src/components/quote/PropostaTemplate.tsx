@@ -51,10 +51,11 @@ const PropostaTemplate = forwardRef<HTMLDivElement, PropostaTemplateProps>(
           backgroundSize: "100% auto",
           backgroundRepeat: "no-repeat",
           backgroundPosition: "top center",
-          position: "relative"
+          position: "relative",
+          paddingTop: "20px" // Adicionando padding superior para evitar corte do título
         }}
       >
-        <div className="p-8">
+        <div className="p-8 pt-12"> {/* Aumentando o padding-top para dar mais espaço ao título */}
           {/* Espaço para o cabeçalho que já está na imagem */}
           <div className="h-[180px]"></div>
 
@@ -151,16 +152,17 @@ const PropostaTemplate = forwardRef<HTMLDivElement, PropostaTemplateProps>(
             </div>
           </div>
 
-          <div className="mb-8">
+          {/* Área de assinatura corrigida - Agora posicionada logo após o texto e com mais espaço */}
+          <div className="mb-20"> {/* Aumentado o espaço para separar do rodapé */}
             <p className="mb-4">Validade da proposta: 10 dias.</p>
-            <p className="mb-10">Atenciosamente,</p>
+            <p className="mb-6">Atenciosamente,</p> {/* Aumentado o espaço antes da assinatura */}
             <p className="font-bold">{userName}</p>
             <p>Setor Comercial</p>
           </div>
         </div>
 
         {/* Rodapé já está na imagem de fundo */}
-        <div className="h-[80px]"></div>
+        <div className="h-[100px]"></div> {/* Aumentado o espaço do rodapé */}
       </div>
     );
   }

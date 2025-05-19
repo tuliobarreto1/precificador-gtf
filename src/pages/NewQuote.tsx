@@ -63,14 +63,16 @@ const NewQuote = () => {
   return (
     <MainLayout>
       <QuoteProvider>
-        <PageTitle
-          title="Criar orçamento"
-          breadcrumbs={[
-            { label: "Home", url: "/" },
-            { label: "Orçamentos", url: "/orcamentos" },
-            { label: "Novo Orçamento", url: "/orcamento/novo" }
-          ]}
-        />
+        <div className="mt-2"> {/* Adicionando margem superior para evitar corte do título */}
+          <PageTitle
+            title="Criar orçamento"
+            breadcrumbs={[
+              { label: "Home", url: "/" },
+              { label: "Orçamentos", url: "/orcamentos" },
+              { label: "Novo Orçamento", url: "/orcamento/novo" }
+            ]}
+          />
+        </div>
         
         {apiStatus === 'offline' && !offlineMode && (
           <Alert variant="destructive" className="mb-4">
