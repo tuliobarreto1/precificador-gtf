@@ -15,16 +15,18 @@ try {
   
   console.log('Executando o build com Vite diretamente...');
   
-  // Usamos o caminho relativo para o binário do Vite em node_modules
-  const vitePath = path.resolve(__dirname, 'node_modules/vite/bin/vite.js');
+  // Vamos usar o módulo Vite diretamente ao invés do script shell
+  const viteMainModule = path.resolve(__dirname, 'node_modules/vite/dist/node/index.js');
   
   // Verificar se o arquivo existe
-  if (!fs.existsSync(vitePath)) {
-    throw new Error(`Arquivo Vite não encontrado em: ${vitePath}`);
+  if (!fs.existsSync(viteMainModule)) {
+    throw new Error(`Módulo Vite não encontrado em: ${viteMainModule}`);
   }
   
-  // Executar o Vite diretamente sem usar o script shell
-  execSync(`node "${vitePath}" build`, { 
+  // Executar um comando node que importa o Vite e chama o método build
+  const buildCommand = `node -e "require('${viteMainModule.replace(/\\/g, '\\\\')}')" --mode production build`;
+  
+  execSync(buildCommand, { 
     stdio: 'inherit',
     env: {
       ...process.env,
