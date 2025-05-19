@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { testApiConnection } from '@/lib/sql-connection';
 
@@ -25,7 +25,7 @@ export const useConnectionStatus = ({ offlineMode, onError }: UseConnectionStatu
   
   const { toast } = useToast();
 
-  const checkConnection = async () => {
+  const checkConnection = useCallback(async () => {
     try {
       setState(prev => ({ ...prev, testingConnection: true, status: 'checking' }));
       
@@ -67,14 +67,19 @@ export const useConnectionStatus = ({ offlineMode, onError }: UseConnectionStatu
         onError('Falha ao verificar conexão com o banco de dados');
       }
     }
-  };
+  }, [offlineMode, onError]);
 
   const testDatabaseConnection = async () => {
     try {
       setState(prev => ({ ...prev, testingConnection: true, detailedError: null }));
       if (onError) onError(null);
       
-      const response = await fetch('/api/test-connection');
+      toast({
+        title: "Verificando conexão",
+        description: "Testando a conexão com o banco de dados. Isto pode levar alguns segundos.",
+      });
+      
+      const response = await fetch('http://localhost:3005/api/test-connection');
       let data;
       
       try {
@@ -111,8 +116,14 @@ export const useConnectionStatus = ({ offlineMode, onError }: UseConnectionStatu
           ...prev,
           status: 'online',
           testingConnection: false,
-          diagnosticInfo: data.config || {}
+          diagnosticInfo: data.config || {},
+          detailedError: null
         }));
+        
+        // Aguardar um pequeno delay e depois atualizar o status novamente
+        setTimeout(() => {
+          checkConnection();
+        }, 2000);
       } else {
         const errorMsg = data.message || "Não foi possível conectar ao banco de dados.";
         if (onError) onError(errorMsg);
@@ -127,6 +138,7 @@ export const useConnectionStatus = ({ offlineMode, onError }: UseConnectionStatu
         
         setState(prev => ({
           ...prev,
+          status: 'offline',
           detailedError: JSON.stringify(data, null, 2),
           testingConnection: false
         }));
@@ -145,15 +157,26 @@ export const useConnectionStatus = ({ offlineMode, onError }: UseConnectionStatu
       
       setState(prev => ({
         ...prev,
+        status: 'offline',
         detailedError: errorMsg,
         testingConnection: false
       }));
     }
   };
 
+  // Verificar status inicial da conexão
   useEffect(() => {
     checkConnection();
-  }, [offlineMode]);
+    
+    // Verificar conexão periodicamente a cada 5 minutos
+    const intervalId = setInterval(() => {
+      if (!offlineMode) {
+        checkConnection();
+      }
+    }, 5 * 60 * 1000);
+    
+    return () => clearInterval(intervalId);
+  }, [offlineMode, checkConnection]);
 
   return {
     ...state,

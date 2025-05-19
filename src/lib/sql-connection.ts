@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 // Definição das interfaces
@@ -53,9 +54,15 @@ export interface SupabaseVehicle {
 }
 
 // Variáveis para configurar o comportamento offline
-const CONNECTION_TIMEOUT = 10000; // 10 segundos
+const CONNECTION_TIMEOUT = 15000; // 15 segundos
+const MAX_RETRY_ATTEMPTS = 2; // Número máximo de tentativas
+const RETRY_DELAY = 3000; // 3 segundos entre tentativas
 let lastConnectionAttempt = 0;
+let connectionFailCount = 0;
 let cachedConnectionStatus: { status: 'online' | 'offline'; timestamp: number; error?: string } | null = null;
+
+// Função auxiliar para aguardar um tempo específico
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Função para testar conexão com a API
 export const testApiConnection = async () => {
@@ -86,20 +93,75 @@ export const testApiConnection = async () => {
     lastConnectionAttempt = now;
     console.log('Testando conexão com a API...');
     
-    // Usar AbortController para limitar o tempo de espera
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
-    
-    try {
-      const response = await fetch('http://localhost:3005/api/status', { 
-        signal: controller.signal 
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        const errorMessage = `Erro na API: ${response.status} ${response.statusText}`;
-        console.error(errorMessage);
+    // Implementar lógica de retry com backoff
+    for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
+      try {
+        // Usar AbortController para limitar o tempo de espera
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
+        
+        const response = await fetch('http://localhost:3005/api/ping', { 
+          signal: controller.signal 
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          const errorMessage = `Erro na API: ${response.status} ${response.statusText}`;
+          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou: ${errorMessage}`);
+          
+          if (attempt < MAX_RETRY_ATTEMPTS - 1) {
+            await delay(RETRY_DELAY);
+            continue;
+          }
+          
+          cachedConnectionStatus = { 
+            status: 'offline', 
+            timestamp: now,
+            error: errorMessage
+          };
+          
+          connectionFailCount++;
+          
+          return { 
+            status: 'offline', 
+            error: errorMessage,
+            failCount: connectionFailCount
+          };
+        }
+        
+        const data = await response.json();
+        console.log('Resposta do teste de conexão:', data);
+        
+        // Resetar contador de falhas após sucesso
+        connectionFailCount = 0;
+        
+        cachedConnectionStatus = { 
+          status: 'online',
+          timestamp: now
+        };
+        
+        return {
+          status: 'online',
+          timestamp: new Date().toISOString(),
+          responseTime: data.responseTimeMs,
+          serverTime: data.serverTime
+        };
+      } catch (fetchError: any) {
+        if (fetchError.name === 'AbortError') {
+          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou: Timeout ao conectar com a API`);
+        } else {
+          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou:`, fetchError);
+        }
+        
+        if (attempt < MAX_RETRY_ATTEMPTS - 1) {
+          await delay(RETRY_DELAY);
+          continue;
+        }
+        
+        const errorMessage = fetchError.name === 'AbortError' 
+          ? 'Timeout ao conectar com a API' 
+          : fetchError.message || 'Erro desconhecido';
         
         cachedConnectionStatus = { 
           status: 'offline', 
@@ -107,58 +169,26 @@ export const testApiConnection = async () => {
           error: errorMessage
         };
         
-        return { 
-          status: 'offline', 
-          error: errorMessage 
-        };
-      }
-      
-      const data = await response.json();
-      console.log('Resposta do teste de conexão:', data);
-      
-      cachedConnectionStatus = { 
-        status: data.status === 'online' ? 'online' : 'offline',
-        timestamp: now
-      };
-      
-      return data;
-    } catch (fetchError) {
-      clearTimeout(timeoutId);
-      
-      // Verificar se o erro foi por timeout
-      if (fetchError.name === 'AbortError') {
-        console.error('Timeout ao conectar com a API');
-        
-        cachedConnectionStatus = { 
-          status: 'offline', 
-          timestamp: now,
-          error: 'Timeout ao conectar com a API'
-        };
+        connectionFailCount++;
         
         return { 
           status: 'offline', 
-          error: 'Timeout ao conectar com a API' 
+          error: errorMessage,
+          failCount: connectionFailCount
         };
       }
-      
-      console.error('Erro ao testar conexão com a API:', fetchError);
-      
-      cachedConnectionStatus = { 
-        status: 'offline', 
-        timestamp: now,
-        error: fetchError.message || 'Erro desconhecido'
-      };
-      
-      return { 
-        status: 'offline', 
-        error: fetchError.message || 'Erro desconhecido' 
-      };
     }
-  } catch (error) {
+    
+    // Este código nunca deve ser alcançado, pois o loop de tentativas sempre retorna
+    throw new Error('Erro inesperado no sistema de tentativas');
+  } catch (error: any) {
     console.error('Erro ao testar conexão com a API:', error);
+    connectionFailCount++;
+    
     return { 
       status: 'offline', 
-      error: error instanceof Error ? error.message : 'Erro ao conectar com a API' 
+      error: error instanceof Error ? error.message : 'Erro ao conectar com a API',
+      failCount: connectionFailCount
     };
   }
 };
@@ -242,91 +272,112 @@ export const getVehicleByPlate = async (plate: string, useOfflineMode = false): 
       throw new Error(`Servidor de banco de dados offline: ${connectionStatus.error || 'Não foi possível conectar'}`);
     }
     
-    // Busca na API externa com timeout
-    console.log('Buscando na API externa...');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
-    
-    try {
-      const response = await fetch(`http://localhost:3005/api/vehicles/${encodeURIComponent(plate)}`, {
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        if (response.status === 404) {
-          console.log(`Nenhum veículo encontrado com a placa ${plate}`);
-          return null;
-        }
-        
-        // Tentar extrair mensagem do erro
-        let errorMessage = `Erro ao buscar veículo: ${response.status} ${response.statusText}`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
-        } catch (e) {
-          console.error('Erro ao analisar resposta de erro:', e);
-        }
-        
-        throw new Error(errorMessage);
-      }
-      
-      const responseText = await response.text();
-      if (!responseText) {
-        throw new Error('Resposta vazia do servidor');
-      }
-      
-      let vehicle: SqlVehicle;
+    // Implementar lógica de retry para buscar na API externa
+    for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
       try {
-        vehicle = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Erro ao analisar JSON da resposta:', parseError, 'Texto recebido:', responseText);
-        throw new Error(`Erro ao processar resposta do servidor: ${parseError.message}`);
-      }
-      
-      console.log('Veículo encontrado na API externa:', vehicle);
-      
-      // Após encontrar na API externa, armazenamos no Supabase para uso futuro
-      if (vehicle) {
-        try {
-          const { error: insertError } = await supabase
-            .from('vehicles')
-            .insert({
-              brand: vehicle.DescricaoModelo.split(' ')[0],
-              model: vehicle.DescricaoModelo.split(' ').slice(1).join(' '),
-              year: parseInt(vehicle.AnoFabricacaoModelo) || new Date().getFullYear(),
-              value: vehicle.ValorCompra || 0,
-              is_used: true,
-              plate_number: vehicle.Placa,
-              color: vehicle.Cor || '',
-              odometer: vehicle.OdometroAtual || 0,
-              fuel_type: vehicle.TipoCombustivel || '',
-              group_id: vehicle.LetraGrupo || 'A'
-            });
-          
-          if (insertError) {
-            console.error('Erro ao salvar veículo no Supabase:', insertError);
-          } else {
-            console.log('Veículo salvo no Supabase com sucesso');
+        // Usar AbortController para limitar o tempo de espera
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
+        
+        const response = await fetch(`http://localhost:3005/api/vehicles/${encodeURIComponent(plate)}`, {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            console.log(`Nenhum veículo encontrado com a placa ${plate}`);
+            return null;
           }
-        } catch (dbError) {
-          console.error('Erro ao inserir veículo no Supabase:', dbError);
-          // Não interromper o fluxo por erro no cache
+          
+          // Tentar extrair mensagem do erro
+          let errorMessage = `Erro ao buscar veículo: ${response.status} ${response.statusText}`;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorMessage;
+          } catch (e) {
+            console.error('Erro ao analisar resposta de erro:', e);
+          }
+          
+          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou: ${errorMessage}`);
+          
+          if (attempt < MAX_RETRY_ATTEMPTS - 1) {
+            await delay(RETRY_DELAY);
+            continue;
+          }
+          
+          throw new Error(errorMessage);
         }
+        
+        const responseText = await response.text();
+        if (!responseText) {
+          throw new Error('Resposta vazia do servidor');
+        }
+        
+        let vehicle: SqlVehicle;
+        try {
+          vehicle = JSON.parse(responseText);
+        } catch (parseError: any) {
+          console.error('Erro ao analisar JSON da resposta:', parseError, 'Texto recebido:', responseText);
+          throw new Error(`Erro ao processar resposta do servidor: ${parseError.message}`);
+        }
+        
+        console.log('Veículo encontrado na API externa:', vehicle);
+        
+        // Após encontrar na API externa, armazenamos no Supabase para uso futuro
+        if (vehicle) {
+          try {
+            const { error: insertError } = await supabase
+              .from('vehicles')
+              .insert({
+                brand: vehicle.DescricaoModelo.split(' ')[0],
+                model: vehicle.DescricaoModelo.split(' ').slice(1).join(' '),
+                year: parseInt(vehicle.AnoFabricacaoModelo) || new Date().getFullYear(),
+                value: vehicle.ValorCompra || 0,
+                is_used: true,
+                plate_number: vehicle.Placa,
+                color: vehicle.Cor || '',
+                odometer: vehicle.OdometroAtual || 0,
+                fuel_type: vehicle.TipoCombustivel || '',
+                group_id: vehicle.LetraGrupo || 'A'
+              });
+            
+            if (insertError) {
+              console.error('Erro ao salvar veículo no Supabase:', insertError);
+            } else {
+              console.log('Veículo salvo no Supabase com sucesso');
+            }
+          } catch (dbError) {
+            console.error('Erro ao inserir veículo no Supabase:', dbError);
+            // Não interromper o fluxo por erro no cache
+          }
+        }
+        
+        return vehicle;
+      } catch (fetchError: any) {
+        if (fetchError.name === 'AbortError') {
+          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou: Timeout ao buscar veículo`);
+        } else {
+          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou:`, fetchError);
+        }
+        
+        if (attempt < MAX_RETRY_ATTEMPTS - 1) {
+          await delay(RETRY_DELAY);
+          continue;
+        }
+        
+        if (fetchError.name === 'AbortError') {
+          throw new Error(`Timeout ao buscar veículo: A requisição demorou mais de ${CONNECTION_TIMEOUT/1000} segundos`);
+        }
+        
+        throw fetchError;
       }
-      
-      return vehicle;
-    } catch (fetchError) {
-      clearTimeout(timeoutId);
-      
-      if (fetchError.name === 'AbortError') {
-        throw new Error(`Timeout ao buscar veículo: A requisição demorou mais de ${CONNECTION_TIMEOUT/1000} segundos`);
-      }
-      
-      throw fetchError;
     }
-  } catch (error) {
+    
+    // Este código nunca deve ser alcançado, pois o loop de tentativas sempre retorna ou lança erro
+    throw new Error('Erro inesperado no sistema de tentativas');
+  } catch (error: any) {
     console.error('Erro ao buscar veículo:', error);
     throw error;
   }
@@ -362,10 +413,11 @@ export const getVehicleGroups = async (useOfflineMode = false): Promise<SqlVehic
       return [
         { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
         { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
-        { CodigoGrupo: "3", Letra: "C", Descricao: "Intermediário" },
-        { CodigoGrupo: "4", Letra: "D", Descricao: "Executivo" },
-        { CodigoGrupo: "5", Letra: "E", Descricao: "SUV" },
-        { CodigoGrupo: "6", Letra: "F", Descricao: "Luxo" }
+        { CodigoGrupo: "3", Letra: "B+", Descricao: "Intermediário Plus" },
+        { CodigoGrupo: "4", Letra: "C", Descricao: "Intermediário" },
+        { CodigoGrupo: "5", Letra: "D", Descricao: "Executivo" },
+        { CodigoGrupo: "6", Letra: "E", Descricao: "SUV" },
+        { CodigoGrupo: "7", Letra: "F", Descricao: "Luxo" }
       ];
     }
     
@@ -377,87 +429,107 @@ export const getVehicleGroups = async (useOfflineMode = false): Promise<SqlVehic
       return [
         { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
         { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
-        { CodigoGrupo: "3", Letra: "C", Descricao: "Intermediário" },
-        { CodigoGrupo: "4", Letra: "D", Descricao: "Executivo" },
-        { CodigoGrupo: "5", Letra: "E", Descricao: "SUV" },
-        { CodigoGrupo: "6", Letra: "F", Descricao: "Luxo" }
+        { CodigoGrupo: "3", Letra: "B+", Descricao: "Intermediário Plus" },
+        { CodigoGrupo: "4", Letra: "C", Descricao: "Intermediário" },
+        { CodigoGrupo: "5", Letra: "D", Descricao: "Executivo" },
+        { CodigoGrupo: "6", Letra: "E", Descricao: "SUV" },
+        { CodigoGrupo: "7", Letra: "F", Descricao: "Luxo" }
       ];
     }
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
-    
-    try {
-      const response = await fetch('http://localhost:3005/api/vehicle-groups', {
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Erro ao buscar grupos de veículos:', errorData);
+    // Implementar lógica de retry
+    for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
         
-        // Retornar dados padrão em caso de erro
-        if (errorData.fallbackData) {
-          console.log('Usando dados alternativos para grupos de veículos');
-          return errorData.fallbackData;
-        }
+        const response = await fetch('http://localhost:3005/api/vehicle-groups', {
+          signal: controller.signal
+        });
         
-        throw new Error(errorData.message || 'Erro ao buscar grupos de veículos');
-      }
-      
-      const groups = await response.json();
-      console.log(`Grupos de veículos encontrados: ${groups.length}`);
-      
-      // Salvar no cache do Supabase para uso futuro
-      if (groups && groups.length > 0) {
-        try {
-          const groupsForCache = groups.map((group: SqlVehicleGroup) => ({
-            code: group.Letra,
-            name: `Grupo ${group.Letra}`,
-            description: group.Descricao,
-            revision_km: 10000,
-            revision_cost: 500,
-            tire_km: 40000,
-            tire_cost: 2000
-          }));
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou: Erro ao buscar grupos de veículos:`, errorData);
           
-          const { error } = await supabase
-            .from('vehicle_groups')
-            .upsert(groupsForCache);
-          
-          if (error) {
-            console.error('Erro ao salvar grupos no cache:', error);
-          } else {
-            console.log('Grupos salvos no cache com sucesso');
+          if (attempt < MAX_RETRY_ATTEMPTS - 1) {
+            await delay(RETRY_DELAY);
+            continue;
           }
-        } catch (cacheError) {
-          console.error('Erro ao inserir grupos no cache:', cacheError);
+          
+          // Retornar dados do fallback se disponíveis
+          if (errorData.data) {
+            console.log('Usando dados alternativos para grupos de veículos');
+            return errorData.data;
+          }
+          
+          throw new Error(errorData.message || 'Erro ao buscar grupos de veículos');
         }
+        
+        const responseData = await response.json();
+        
+        // Verificar se a resposta tem o campo "data" (formato de fallback)
+        const groups = responseData.data || responseData;
+        
+        console.log(`Grupos de veículos encontrados: ${groups.length}`);
+        
+        // Salvar no cache do Supabase para uso futuro
+        if (groups && groups.length > 0) {
+          try {
+            const groupsForCache = groups.map((group: SqlVehicleGroup) => ({
+              code: group.Letra,
+              name: `Grupo ${group.Letra}`,
+              description: group.Descricao,
+              revision_km: 10000,
+              revision_cost: 500,
+              tire_km: 40000,
+              tire_cost: 2000
+            }));
+            
+            const { error } = await supabase
+              .from('vehicle_groups')
+              .upsert(groupsForCache);
+            
+            if (error) {
+              console.error('Erro ao salvar grupos no cache:', error);
+            } else {
+              console.log('Grupos salvos no cache com sucesso');
+            }
+          } catch (cacheError) {
+            console.error('Erro ao inserir grupos no cache:', cacheError);
+          }
+        }
+        
+        return groups;
+      } catch (fetchError: any) {
+        if (fetchError.name === 'AbortError') {
+          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou: Timeout ao buscar grupos de veículos`);
+        } else {
+          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou:`, fetchError);
+        }
+        
+        if (attempt < MAX_RETRY_ATTEMPTS - 1) {
+          await delay(RETRY_DELAY);
+          continue;
+        }
+        
+        // Dados padrão em caso de erro
+        console.log('Usando dados padrão para grupos de veículos devido a erro');
+        return [
+          { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
+          { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
+          { CodigoGrupo: "3", Letra: "B+", Descricao: "Intermediário Plus" },
+          { CodigoGrupo: "4", Letra: "C", Descricao: "Intermediário" },
+          { CodigoGrupo: "5", Letra: "D", Descricao: "Executivo" },
+          { CodigoGrupo: "6", Letra: "E", Descricao: "SUV" },
+          { CodigoGrupo: "7", Letra: "F", Descricao: "Luxo" }
+        ];
       }
-      
-      return groups;
-    } catch (fetchError) {
-      clearTimeout(timeoutId);
-      
-      if (fetchError.name === 'AbortError') {
-        console.error('Timeout ao buscar grupos de veículos');
-      } else {
-        console.error('Erro ao buscar grupos de veículos:', fetchError);
-      }
-      
-      // Dados padrão em caso de erro
-      console.log('Usando dados padrão para grupos de veículos devido a erro');
-      return [
-        { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
-        { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
-        { CodigoGrupo: "3", Letra: "C", Descricao: "Intermediário" },
-        { CodigoGrupo: "4", Letra: "D", Descricao: "Executivo" },
-        { CodigoGrupo: "5", Letra: "E", Descricao: "SUV" },
-        { CodigoGrupo: "6", Letra: "F", Descricao: "Luxo" }
-      ];
     }
+    
+    // Este código nunca deve ser alcançado
+    throw new Error('Erro inesperado no sistema de tentativas');
   } catch (error) {
     console.error('Erro ao buscar grupos de veículos:', error);
     
@@ -466,10 +538,11 @@ export const getVehicleGroups = async (useOfflineMode = false): Promise<SqlVehic
     return [
       { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
       { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
-      { CodigoGrupo: "3", Letra: "C", Descricao: "Intermediário" },
-      { CodigoGrupo: "4", Letra: "D", Descricao: "Executivo" },
-      { CodigoGrupo: "5", Letra: "E", Descricao: "SUV" },
-      { CodigoGrupo: "6", Letra: "F", Descricao: "Luxo" }
+      { CodigoGrupo: "3", Letra: "B+", Descricao: "Intermediário Plus" },
+      { CodigoGrupo: "4", Letra: "C", Descricao: "Intermediário" },
+      { CodigoGrupo: "5", Letra: "D", Descricao: "Executivo" },
+      { CodigoGrupo: "6", Letra: "E", Descricao: "SUV" },
+      { CodigoGrupo: "7", Letra: "F", Descricao: "Luxo" }
     ];
   }
 };
@@ -479,36 +552,145 @@ export const getVehicleModelsByGroup = async (groupCode: string, useOfflineMode 
   try {
     console.log(`Buscando modelos de veículos para o grupo: ${groupCode}`);
     
-    // Primeiro, tentamos buscar do cache ou Supabase
-    // Posteriormente, implementar cache
-    
-    const response = await fetch(`http://localhost:3005/api/vehicle-models/${encodeURIComponent(groupCode)}`);
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error(`Erro ao buscar modelos de veículos para o grupo ${groupCode}:`, errorData);
+    // Verificar no cache do Supabase primeiro
+    try {
+      const { data, error } = await supabase
+        .from('vehicle_models')
+        .select('*')
+        .eq('group_code', groupCode);
       
-      // Retornar dados padrão em caso de erro
-      if (errorData.fallbackData) {
-        console.log('Usando dados alternativos para modelos de veículos');
-        return errorData.fallbackData;
+      if (data && !error && data.length > 0) {
+        console.log(`Modelos encontrados no cache local para o grupo ${groupCode}:`, data.length);
+        
+        // Converter para o formato SqlVehicleModel
+        return data.map(model => ({
+          CodigoModelo: model.id.toString(),
+          Descricao: model.description || model.name,
+          CodigoGrupoVeiculo: model.group_id || "1",
+          LetraGrupo: model.group_code,
+          MaiorValorCompra: model.value || 75000
+        }));
       }
-      
-      throw new Error(errorData.message || 'Erro ao buscar modelos de veículos');
+    } catch (cacheError) {
+      console.log('Erro ao buscar modelos no cache, continuando com API:', cacheError);
     }
     
-    const models = await response.json();
-    console.log(`Modelos de veículos encontrados para o grupo ${groupCode}: ${models.length}`);
-    return models;
+    if (useOfflineMode) {
+      console.log(`Modo offline ativado, retornando dados padrão para modelos do grupo ${groupCode}`);
+      return [
+        { CodigoModelo: `${groupCode}1`, Descricao: `${groupCode} - Modelo Básico`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 75000 },
+        { CodigoModelo: `${groupCode}2`, Descricao: `${groupCode} - Modelo Intermediário`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 85000 },
+        { CodigoModelo: `${groupCode}3`, Descricao: `${groupCode} - Modelo Premium`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 95000 }
+      ];
+    }
+    
+    // Verificar status da conexão antes de tentar acessar a API
+    const connectionStatus = await testApiConnection();
+    if (connectionStatus.status !== 'online') {
+      console.log(`Servidor offline, usando dados padrão para modelos do grupo ${groupCode}`);
+      return [
+        { CodigoModelo: `${groupCode}1`, Descricao: `${groupCode} - Modelo Básico`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 75000 },
+        { CodigoModelo: `${groupCode}2`, Descricao: `${groupCode} - Modelo Intermediário`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 85000 },
+        { CodigoModelo: `${groupCode}3`, Descricao: `${groupCode} - Modelo Premium`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 95000 }
+      ];
+    }
+    
+    // Implementar lógica de retry
+    for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
+        
+        const response = await fetch(`http://localhost:3005/api/vehicle-models/${encodeURIComponent(groupCode)}`, {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou: Erro ao buscar modelos para o grupo ${groupCode}:`, errorData);
+          
+          if (attempt < MAX_RETRY_ATTEMPTS - 1) {
+            await delay(RETRY_DELAY);
+            continue;
+          }
+          
+          // Retornar dados do fallback se disponíveis
+          if (errorData.data) {
+            console.log(`Usando dados alternativos para modelos do grupo ${groupCode}`);
+            return errorData.data;
+          }
+          
+          throw new Error(errorData.message || `Erro ao buscar modelos para o grupo ${groupCode}`);
+        }
+        
+        const responseData = await response.json();
+        
+        // Verificar se a resposta tem o campo "data" (formato de fallback)
+        const models = responseData.data || responseData;
+        
+        console.log(`Modelos de veículos encontrados para o grupo ${groupCode}: ${models.length}`);
+        
+        // Salvar no cache do Supabase para uso futuro
+        if (models && models.length > 0) {
+          try {
+            const modelsForCache = models.map((model: SqlVehicleModel) => ({
+              group_code: model.LetraGrupo,
+              group_id: model.CodigoGrupoVeiculo,
+              description: model.Descricao,
+              name: model.Descricao.split(' ').slice(-2).join(' '),
+              value: model.MaiorValorCompra
+            }));
+            
+            const { error } = await supabase
+              .from('vehicle_models')
+              .upsert(modelsForCache);
+            
+            if (error) {
+              console.error('Erro ao salvar modelos no cache:', error);
+            } else {
+              console.log('Modelos salvos no cache com sucesso');
+            }
+          } catch (cacheError) {
+            console.error('Erro ao inserir modelos no cache:', cacheError);
+          }
+        }
+        
+        return models;
+      } catch (fetchError: any) {
+        if (fetchError.name === 'AbortError') {
+          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou: Timeout ao buscar modelos para o grupo ${groupCode}`);
+        } else {
+          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou:`, fetchError);
+        }
+        
+        if (attempt < MAX_RETRY_ATTEMPTS - 1) {
+          await delay(RETRY_DELAY);
+          continue;
+        }
+        
+        // Dados padrão em caso de erro
+        console.log(`Usando dados padrão para modelos do grupo ${groupCode} devido a erro`);
+        return [
+          { CodigoModelo: `${groupCode}1`, Descricao: `${groupCode} - Modelo Básico`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 75000 },
+          { CodigoModelo: `${groupCode}2`, Descricao: `${groupCode} - Modelo Intermediário`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 85000 },
+          { CodigoModelo: `${groupCode}3`, Descricao: `${groupCode} - Modelo Premium`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 95000 }
+        ];
+      }
+    }
+    
+    // Este código nunca deve ser alcançado
+    throw new Error('Erro inesperado no sistema de tentativas');
   } catch (error) {
     console.error(`Erro ao buscar modelos de veículos para o grupo ${groupCode}:`, error);
     
     // Dados padrão em caso de erro
-    console.log('Usando dados padrão para modelos de veículos devido a erro');
+    console.log(`Usando dados padrão para modelos do grupo ${groupCode} devido a erro`);
     return [
-      { CodigoModelo: `${groupCode}1`, Descricao: `Modelo 1 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 75000 },
-      { CodigoModelo: `${groupCode}2`, Descricao: `Modelo 2 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 80000 },
-      { CodigoModelo: `${groupCode}3`, Descricao: `Modelo 3 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 85000 }
+      { CodigoModelo: `${groupCode}1`, Descricao: `${groupCode} - Modelo Básico`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 75000 },
+      { CodigoModelo: `${groupCode}2`, Descricao: `${groupCode} - Modelo Intermediário`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 85000 },
+      { CodigoModelo: `${groupCode}3`, Descricao: `${groupCode} - Modelo Premium`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 95000 }
     ];
   }
 };
@@ -522,11 +704,28 @@ export const getCalculationParameters = async () => {
     const { data, error } = await supabase
       .from('calculation_params')
       .select('*')
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('Erro ao buscar parâmetros de cálculo:', error);
       throw error;
+    }
+
+    // Se não encontrou no cache, usar valores padrão
+    if (!data) {
+      console.log('Parâmetros não encontrados, usando valores padrão');
+      return {
+        ipva: 4.00,
+        licenciamento: 98.91,
+        ipca_rate: 3.50,
+        igpm_rate: 3.40,
+        tax_spread: 5.30,
+        tracking_cost: 50.00,
+        depreciation_base: 20.00,
+        depreciation_mileage_multiplier: 0.05,
+        depreciation_severity_multiplier: 0.10,
+        extra_km_percentage: 0.15
+      };
     }
 
     console.log('Parâmetros de cálculo recuperados:', data);
@@ -542,6 +741,18 @@ export const getCalculationParameters = async () => {
     return data;
   } catch (error) {
     console.error('Erro ao buscar parâmetros de cálculo:', error);
-    throw error;
+    // Retornar valores padrão em caso de erro
+    return {
+      ipva: 4.00,
+      licenciamento: 98.91,
+      ipca_rate: 3.50,
+      igpm_rate: 3.40,
+      tax_spread: 5.30,
+      tracking_cost: 50.00,
+      depreciation_base: 20.00,
+      depreciation_mileage_multiplier: 0.05,
+      depreciation_severity_multiplier: 0.10,
+      extra_km_percentage: 0.15
+    };
   }
 };

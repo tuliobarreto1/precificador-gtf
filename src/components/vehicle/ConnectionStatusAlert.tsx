@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, RefreshCw, Database } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Database, PieChart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Loader2 } from 'lucide-react';
@@ -44,7 +44,7 @@ const ConnectionStatusAlert: React.FC<ConnectionStatusAlertProps> = ({
       <AlertTriangle className="h-4 w-4" />
       <AlertTitle>Atenção: Problemas de conexão com o servidor</AlertTitle>
       <AlertDescription>
-        <p>A conexão com o servidor de banco de dados pode estar indisponível.</p>
+        <p>A conexão com o servidor de banco de dados pode estar indisponível. O sistema está usando dados em cache.</p>
         <div className="flex gap-2 mt-2">
           <Button 
             onClick={onTestConnection} 
@@ -59,7 +59,7 @@ const ConnectionStatusAlert: React.FC<ConnectionStatusAlertProps> = ({
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="outline" size="sm">
-                <RefreshCw className="mr-2 h-4 w-4" />
+                <PieChart className="mr-2 h-4 w-4" />
                 Informações de Diagnóstico
               </Button>
             </AlertDialogTrigger>
@@ -68,44 +68,55 @@ const ConnectionStatusAlert: React.FC<ConnectionStatusAlertProps> = ({
                 <AlertDialogTitle>Informações de Diagnóstico</AlertDialogTitle>
                 <AlertDialogDescription>
                   <div className="mt-2 space-y-2 text-left">
-                    <p className="font-medium">Arquivo .env:</p>
-                    <p>O arquivo está localizado na raiz do projeto e pode ser configurado com as seguintes variáveis:</p>
+                    <p className="font-medium">Configurações de Servidor:</p>
                     <pre className="bg-muted p-2 rounded-md text-xs overflow-auto whitespace-pre-wrap">
-                      {`PORT=3005
-NODE_ENV=development
-DB_SERVER=seu-servidor
-DB_PORT=1433
-DB_USER=seu-usuario
-DB_PASSWORD=sua-senha
-DB_DATABASE=seu-banco-de-dados`}
+                      {`Servidor: ${process.env.DB_SERVER || 'Não definido'}
+Porta: ${process.env.DB_PORT || '1433'}
+Banco de dados: ${process.env.DB_DATABASE || 'Não definido'}
+Timeout: 30000ms`}
                     </pre>
                     
-                    <p className="font-medium mt-4">Para iniciar o projeto:</p>
-                    <p>Use o comando <code className="bg-muted p-1 rounded">node start-dev.js</code> na raiz do projeto.</p>
+                    <p className="font-medium mt-4">Possíveis Causas:</p>
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li>O servidor SQL pode estar temporariamente indisponível</li>
+                      <li>Problemas de rede ou conexão com a internet</li>
+                      <li>Bloqueio por firewall ou VPN</li>
+                      <li>O servidor pode estar configurado para limitar conexões</li>
+                    </ul>
                     
-                    <p className="font-medium mt-4">Conexão com o Banco de Dados:</p>
+                    <p className="font-medium mt-4">Recomendações:</p>
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li>Verifique sua conexão com a internet</li>
+                      <li>Tente novamente em alguns minutos</li>
+                      <li>Aumente o timeout de conexão (atualmente 30 segundos)</li>
+                      <li>Utilize o modo offline para continuar trabalhando</li>
+                    </ul>
+                    
                     {status && (
-                      <pre className="bg-muted p-2 rounded-md text-xs overflow-auto">
-                        {JSON.stringify({ status }, null, 2)}
-                      </pre>
+                      <div className="mt-4">
+                        <p className="font-medium">Status da conexão:</p>
+                        <pre className="bg-muted p-2 rounded-md text-xs overflow-auto">
+                          {JSON.stringify({ status }, null, 2)}
+                        </pre>
+                      </div>
                     )}
                     
                     {diagnosticInfo && (
-                      <>
-                        <p className="font-medium mt-4">Últimas informações de diagnóstico:</p>
+                      <div className="mt-4">
+                        <p className="font-medium">Últimas informações de diagnóstico:</p>
                         <pre className="bg-muted p-2 rounded-md text-xs overflow-auto">
                           {JSON.stringify(diagnosticInfo, null, 2)}
                         </pre>
-                      </>
+                      </div>
                     )}
 
                     {detailedError && (
-                      <>
-                        <p className="font-medium mt-4">Detalhes do erro:</p>
+                      <div className="mt-4">
+                        <p className="font-medium">Detalhes do erro:</p>
                         <pre className="bg-destructive/10 border border-destructive text-destructive p-2 rounded-md text-xs overflow-auto">
                           {detailedError}
                         </pre>
-                      </>
+                      </div>
                     )}
                   </div>
                 </AlertDialogDescription>

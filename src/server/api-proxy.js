@@ -46,7 +46,14 @@ const config = {
   port: parseInt(process.env.DB_PORT || '1433', 10),
   options: {
     encrypt: true,
-    trustServerCertificate: true
+    trustServerCertificate: true,
+    connectTimeout: 30000, // Aumentar timeout para 30 segundos (de 15000ms para 30000ms)
+    requestTimeout: 30000, // Timeout para requisições
+    pool: {
+      max: 10, // Máximo de conexões no pool
+      min: 0, // Mínimo de conexões no pool
+      idleTimeoutMillis: 30000 // Tempo máximo de inatividade
+    }
   }
 };
 
@@ -61,13 +68,34 @@ console.log('- Banco de dados:', process.env.DB_DATABASE);
 console.log('- Senha configurada:', process.env.DB_PASSWORD ? 'Sim' : 'Não');
 console.log('- Comprimento da senha:', process.env.DB_PASSWORD ? process.env.DB_PASSWORD.length : 0);
 console.log('- Porta do API Proxy:', PORT);
+console.log('- Timeout de conexão:', config.options.connectTimeout, 'ms');
 console.log('=========================================');
+
+// Pool de conexão global para reutilização
+let globalPool = null;
 
 // Função auxiliar para conectar ao banco de dados
 async function connectToDatabase() {
   console.log('Tentando conectar ao banco de dados...');
+  
+  // Se já existe uma conexão global, tenta reutilizá-la
+  if (globalPool) {
+    try {
+      // Testar se a conexão ainda está ativa
+      await globalPool.request().query('SELECT 1 as ConnectionTest');
+      console.log('Reutilizando conexão existente no pool.');
+      return globalPool;
+    } catch (error) {
+      console.log('Conexão existente inválida. Criando nova conexão...');
+      globalPool = null; // Resetar a conexão inválida
+    }
+  }
+  
   try {
-    const pool = await sql.connect(config);
+    // Tentar estabelecer nova conexão
+    const pool = new sql.ConnectionPool(config);
+    await pool.connect();
+    globalPool = pool; // Salvar para reutilização
     console.log('Conexão com o banco de dados estabelecida com sucesso.');
     return pool;
   } catch (connError) {
@@ -85,11 +113,20 @@ async function connectToDatabase() {
   }
 }
 
+// Middleware para verificar status da conexão
+app.use((req, res, next) => {
+  res.locals.connectionAttempted = false;
+  next();
+});
+
 // Endpoint para buscar veículo por placa
 app.get('/api/vehicles/:plate', async (req, res) => {
   try {
     const { plate } = req.params;
     console.log(`Buscando veículo com placa: ${plate}`);
+    
+    // Definir que uma tentativa de conexão foi feita
+    res.locals.connectionAttempted = true;
     
     const pool = await connectToDatabase();
     
@@ -143,13 +180,6 @@ app.get('/api/vehicles/:plate', async (req, res) => {
       error: error.message,
       stack: error.stack
     });
-  } finally {
-    try {
-      await sql.close();
-      console.log('Conexão com o banco de dados fechada.');
-    } catch (err) {
-      console.error('Erro ao fechar conexão:', err);
-    }
   }
 });
 
@@ -158,22 +188,34 @@ app.get('/api/vehicle-groups', async (req, res) => {
   try {
     console.log('Buscando grupos de veículos...');
     
+    // Definir dados de fallback para quando a conexão falhar
+    const fallbackData = [
+      { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
+      { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
+      { CodigoGrupo: "3", Letra: "B+", Descricao: "Intermediário Plus" },
+      { CodigoGrupo: "4", Letra: "C", Descricao: "Intermediário" },
+      { CodigoGrupo: "5", Letra: "D", Descricao: "Executivo" },
+      { CodigoGrupo: "6", Letra: "E", Descricao: "SUV Compacto" },
+      { CodigoGrupo: "7", Letra: "F", Descricao: "SUV Médio" },
+      { CodigoGrupo: "8", Letra: "G", Descricao: "SUV Grande" },
+      { CodigoGrupo: "9", Letra: "H", Descricao: "Luxo" },
+      { CodigoGrupo: "10", Letra: "I", Descricao: "Pickup Compacta" },
+      { CodigoGrupo: "11", Letra: "J", Descricao: "Pickup Média" },
+      { CodigoGrupo: "12", Letra: "K", Descricao: "Pickup Grande" }
+    ];
+    
+    // Definir que uma tentativa de conexão foi feita
+    res.locals.connectionAttempted = true;
+    
     let pool;
     try {
       pool = await connectToDatabase();
     } catch (connError) {
       console.error('Erro ao conectar ao banco de dados para grupos:', connError);
-      return res.status(500).json({
-        message: 'Erro ao conectar ao banco de dados para grupos de veículos',
+      return res.status(200).json({
+        message: 'Usando dados de fallback devido a problemas de conexão com o banco de dados',
         error: connError.message,
-        fallbackData: [
-          { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
-          { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
-          { CodigoGrupo: "3", Letra: "C", Descricao: "Intermediário" },
-          { CodigoGrupo: "4", Letra: "D", Descricao: "Executivo" },
-          { CodigoGrupo: "5", Letra: "E", Descricao: "SUV" },
-          { CodigoGrupo: "6", Letra: "F", Descricao: "Luxo" }
-        ]
+        data: fallbackData
       });
     }
     
@@ -203,41 +245,26 @@ app.get('/api/vehicle-groups', async (req, res) => {
     } catch (queryError) {
       console.error('Erro na execução da consulta SQL de grupos:', queryError);
       // Fornecer dados padrão em caso de erro na consulta
-      return res.status(500).json({
-        message: 'Erro ao executar consulta SQL para grupos de veículos',
+      return res.status(200).json({
+        message: 'Erro ao executar consulta SQL. Usando dados padrão.',
         error: queryError.message,
-        fallbackData: [
-          { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
-          { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
-          { CodigoGrupo: "3", Letra: "C", Descricao: "Intermediário" },
-          { CodigoGrupo: "4", Letra: "D", Descricao: "Executivo" },
-          { CodigoGrupo: "5", Letra: "E", Descricao: "SUV" },
-          { CodigoGrupo: "6", Letra: "F", Descricao: "Luxo" }
-        ]
+        data: fallbackData
       });
     }
   } catch (error) {
     console.error('Erro geral na busca de grupos de veículos:', error);
-    res.status(500).json({
-      message: 'Erro ao buscar grupos de veículos',
+    res.status(200).json({
+      message: 'Erro ao buscar grupos de veículos. Usando dados padrão.',
       error: error.message,
-      stack: error.stack,
-      fallbackData: [
+      data: [
         { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
         { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
-        { CodigoGrupo: "3", Letra: "C", Descricao: "Intermediário" },
-        { CodigoGrupo: "4", Letra: "D", Descricao: "Executivo" },
-        { CodigoGrupo: "5", Letra: "E", Descricao: "SUV" },
-        { CodigoGrupo: "6", Letra: "F", Descricao: "Luxo" }
+        { CodigoGrupo: "3", Letra: "B+", Descricao: "Intermediário Plus" },
+        { CodigoGrupo: "4", Letra: "C", Descricao: "Intermediário" },
+        { CodigoGrupo: "5", Letra: "D", Descricao: "Executivo" },
+        { CodigoGrupo: "6", Letra: "E", Descricao: "SUV Compacto" }
       ]
     });
-  } finally {
-    try {
-      await sql.close();
-      console.log('Conexão com o banco de dados fechada após buscar grupos.');
-    } catch (err) {
-      console.error('Erro ao fechar conexão após buscar grupos:', err);
-    }
   }
 });
 
@@ -248,19 +275,25 @@ app.get('/api/vehicle-models/:groupCode', async (req, res) => {
     const groupCode = decodeURIComponent(req.params.groupCode);
     console.log(`Buscando modelos de veículos para o grupo: ${groupCode}`);
     
+    // Definir dados de fallback personalizados para o grupo solicitado
+    const fallbackData = [
+      { CodigoModelo: `${groupCode}1`, Descricao: `${groupCode} - Modelo Básico`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 75000 },
+      { CodigoModelo: `${groupCode}2`, Descricao: `${groupCode} - Modelo Intermediário`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 85000 },
+      { CodigoModelo: `${groupCode}3`, Descricao: `${groupCode} - Modelo Premium`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 95000 }
+    ];
+    
+    // Definir que uma tentativa de conexão foi feita
+    res.locals.connectionAttempted = true;
+    
     let pool;
     try {
       pool = await connectToDatabase();
     } catch (connError) {
       console.error('Erro ao conectar ao banco de dados para modelos:', connError);
-      return res.status(500).json({
-        message: 'Erro ao conectar ao banco de dados para modelos de veículos',
+      return res.status(200).json({
+        message: 'Usando dados de fallback devido a problemas de conexão',
         error: connError.message,
-        fallbackData: [
-          { CodigoModelo: `${groupCode}1`, Descricao: `Modelo 1 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 75000 },
-          { CodigoModelo: `${groupCode}2`, Descricao: `Modelo 2 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 80000 },
-          { CodigoModelo: `${groupCode}3`, Descricao: `Modelo 3 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 85000 }
-        ]
+        data: fallbackData
       });
     }
     
@@ -322,8 +355,6 @@ app.get('/api/vehicle-models/:groupCode', async (req, res) => {
     }
     
     console.log('Executando consulta SQL para buscar modelos...');
-    console.log('Query SQL:', query);
-    console.log('Parâmetro groupCode:', groupCode);
     
     try {
       const result = await pool.request()
@@ -340,38 +371,28 @@ app.get('/api/vehicle-models/:groupCode', async (req, res) => {
       res.json(result.recordset);
     } catch (queryError) {
       console.error('Erro na execução da consulta SQL de modelos:', queryError);
-      // Fornecer dados padrão em caso de erro na consulta
-      const modelosPadrao = [
-        { CodigoModelo: `${groupCode}1`, Descricao: `Modelo 1 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 75000 },
-        { CodigoModelo: `${groupCode}2`, Descricao: `Modelo 2 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 80000 },
-        { CodigoModelo: `${groupCode}3`, Descricao: `Modelo 3 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 85000 }
-      ];
-      
-      return res.status(500).json({
-        message: 'Erro ao executar consulta SQL para modelos de veículos',
+      // Fornecer dados padrão para o grupo específico
+      return res.status(200).json({
+        message: 'Erro ao executar consulta SQL para modelos. Usando dados padrão.',
         error: queryError.message,
-        fallbackData: modelosPadrao
+        data: fallbackData
       });
     }
   } catch (error) {
     console.error('Erro geral na busca de modelos de veículos:', error);
-    res.status(500).json({
-      message: 'Erro ao buscar modelos de veículos',
+    // Criar dados de fallback personalizados com o código do grupo
+    const groupCode = req.params.groupCode || 'X';
+    const fallbackData = [
+      { CodigoModelo: `${groupCode}1`, Descricao: `${groupCode} - Modelo Básico`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 75000 },
+      { CodigoModelo: `${groupCode}2`, Descricao: `${groupCode} - Modelo Intermediário`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 85000 },
+      { CodigoModelo: `${groupCode}3`, Descricao: `${groupCode} - Modelo Premium`, CodigoGrupoVeiculo: groupCode, LetraGrupo: groupCode, MaiorValorCompra: 95000 }
+    ];
+    
+    res.status(200).json({
+      message: 'Erro ao buscar modelos de veículos. Usando dados padrão.',
       error: error.message,
-      stack: error.stack,
-      fallbackData: [
-        { CodigoModelo: `${groupCode}1`, Descricao: `Modelo 1 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 75000 },
-        { CodigoModelo: `${groupCode}2`, Descricao: `Modelo 2 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 80000 },
-        { CodigoModelo: `${groupCode}3`, Descricao: `Modelo 3 Grupo ${groupCode}`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 85000 }
-      ]
+      data: fallbackData
     });
-  } finally {
-    try {
-      await sql.close();
-      console.log('Conexão com o banco de dados fechada após buscar modelos.');
-    } catch (err) {
-      console.error('Erro ao fechar conexão após buscar modelos:', err);
-    }
   }
 });
 
@@ -407,29 +428,48 @@ app.get('/api/test-connection', async (req, res) => {
       user: config.user,
       database: config.database,
       port: config.port,
-      options: config.options
+      options: {
+        connectTimeout: config.options.connectTimeout,
+        requestTimeout: config.options.requestTimeout
+      }
     });
     
-    await sql.connect(config);
+    // Limpar qualquer conexão existente
+    if (globalPool) {
+      try {
+        await globalPool.close();
+        globalPool = null;
+        console.log('Conexão anterior fechada para teste.');
+      } catch (closeError) {
+        console.error('Erro ao fechar conexão anterior:', closeError);
+      }
+    }
+    
+    // Estabelecer nova conexão
+    const pool = new sql.ConnectionPool(config);
+    await pool.connect();
     console.log('Conexão com o banco de dados estabelecida com sucesso!');
     
     // Testar consulta simples
-    const testResult = await sql.query`SELECT 1 as testValue`;
-    console.log('Consulta de teste executada com sucesso:', testResult);
+    const testResult = await pool.request().query`SELECT 1 as testValue, GETDATE() as serverTime`;
+    console.log('Consulta de teste executada com sucesso:', testResult.recordset);
     
     res.json({ 
       status: 'success', 
       message: 'Conexão com o banco de dados estabelecida com sucesso!',
       testResult: testResult.recordset,
+      serverTime: testResult.recordset[0].serverTime.toISOString(),
       config: {
         server: config.server,
         user: config.user,
         database: config.database,
-        port: config.port
+        port: config.port,
+        timeout: config.options.connectTimeout
       }
     });
     
-    await sql.close();
+    // Salvar conexão para reutilização
+    globalPool = pool;
   } catch (error) {
     console.error('Erro ao conectar ao banco de dados:', error);
     res.status(500).json({ 
@@ -441,10 +481,64 @@ app.get('/api/test-connection', async (req, res) => {
         server: config.server,
         user: config.user,
         database: config.database,
-        port: config.port
+        port: config.port,
+        timeout: config.options.connectTimeout
       }
     });
   }
+});
+
+// Endpoint para verificar o tempo de resposta do banco
+app.get('/api/ping', async (req, res) => {
+  const startTime = Date.now();
+  try {
+    // Verificar se existe uma conexão global para reutilizar
+    if (!globalPool) {
+      await connectToDatabase();
+    }
+    
+    // Realizar uma consulta simples
+    const pingResult = await globalPool.request().query('SELECT GETDATE() AS serverTime');
+    const endTime = Date.now();
+    
+    res.json({
+      status: 'success',
+      message: 'Ping realizado com sucesso',
+      responseTimeMs: endTime - startTime,
+      serverTime: pingResult.recordset[0].serverTime.toISOString(),
+      clientTime: new Date().toISOString()
+    });
+  } catch (error) {
+    const endTime = Date.now();
+    console.error('Erro ao realizar ping do banco de dados:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Erro ao realizar ping do banco de dados',
+      error: error.message,
+      responseTimeMs: endTime - startTime
+    });
+  }
+});
+
+// Processar erros de encerramento da aplicação
+process.on('exit', async () => {
+  if (globalPool) {
+    try {
+      await globalPool.close();
+      console.log('Conexão com o banco de dados fechada ao encerrar aplicação.');
+    } catch (error) {
+      console.error('Erro ao fechar conexão na saída:', error);
+    }
+  }
+});
+
+// Middleware para fechar conexões no final de cada requisição
+app.use(async (req, res, next) => {
+  // Já processou a request, mas não fechamos a conexão ainda
+  if (res.locals.connectionAttempted && globalPool) {
+    console.log('Mantendo conexão com o banco de dados ativa para reutilização.');
+  }
+  next();
 });
 
 // Iniciar o servidor com informações mais detalhadas
@@ -454,6 +548,7 @@ app.listen(PORT, () => {
   console.log(`Rotas disponíveis:`);
   console.log(`- GET /api/status`);
   console.log(`- GET /api/test-connection`);
+  console.log(`- GET /api/ping`);
   console.log(`- GET /api/vehicles/:plate`);
   console.log(`- GET /api/vehicle-groups`);
   console.log(`- GET /api/vehicle-models/:groupCode`);
