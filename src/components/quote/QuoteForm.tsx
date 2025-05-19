@@ -6,7 +6,7 @@ import ClientStep from './steps/ClientStep';
 import ResultStep from './steps/ResultStep';
 import ParamsStep from './steps/ParamsStep';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { Vehicle, VehicleGroup, Client } from '@/lib/models';
+import { Client } from '@/lib/models';
 import { useQuote } from '@/context/QuoteContext';
 
 interface QuoteFormProps {
@@ -36,21 +36,6 @@ const QuoteForm: React.FC<QuoteFormProps> = ({
   } = useQuote();
 
   const [activeStep, setActiveStep] = useState<'vehicle' | 'client' | 'params' | 'result'>('vehicle');
-
-  // Função para lidar com a seleção de veículos
-  const handleSelectVehicle = (vehicle: Vehicle, vehicleGroup: VehicleGroup) => {
-    addVehicle(vehicle, vehicleGroup);
-  };
-
-  // Função para lidar com a seleção de cliente
-  const handleSelectClient = (client: Client) => {
-    setClient(client);
-  };
-
-  // Função para lidar com a remoção de veículos
-  const handleRemoveVehicle = (vehicleId: string) => {
-    removeVehicle(vehicleId);
-  };
 
   // Função para avançar para o próximo passo
   const handleNext = () => {
@@ -107,8 +92,8 @@ const QuoteForm: React.FC<QuoteFormProps> = ({
         <Tabs value={activeStep} className="w-full">
           <TabsContent value="vehicle" className="mt-0">
             <VehicleStep 
-              onSelectVehicle={handleSelectVehicle} 
-              onRemoveVehicle={handleRemoveVehicle} 
+              onSelectVehicle={addVehicle} 
+              onRemoveVehicle={removeVehicle} 
               selectedVehicles={quoteForm.vehicles.map(v => v.vehicle)}
               offlineMode={offlineMode}
               onOfflineModeChange={onOfflineModeChange}
@@ -116,7 +101,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({
           </TabsContent>
           <TabsContent value="client" className="mt-0">
             <ClientStep 
-              onClientSelect={handleSelectClient} 
+              onClientSelect={setClient} 
               existingClients={[]}
             />
           </TabsContent>

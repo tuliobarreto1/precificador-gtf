@@ -3,10 +3,9 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
-import { Vehicle } from '@/lib/models';
 
 interface SelectedVehiclesListProps {
-  vehicles: Vehicle[];
+  vehicles: any[]; // Aceitando qualquer tipo de veículo que tenha as propriedades necessárias
   onRemove?: (vehicleId: string) => void;
 }
 

@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
 import VehicleSelector from '@/components/vehicle/VehicleSelector';
-import { Vehicle, VehicleGroup } from '@/lib/models';
+import { Vehicle as LibVehicle, VehicleGroup } from '@/lib/models';
+import { Vehicle as ContextVehicle } from '@/context/types/quoteTypes';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Database } from 'lucide-react';
@@ -9,9 +10,9 @@ import { useToast } from '@/hooks/use-toast';
 import { testApiConnection } from '@/lib/sql-connection';
 
 interface VehicleStepProps {
-  onSelectVehicle: (vehicle: Vehicle, vehicleGroup: VehicleGroup) => void;
+  onSelectVehicle: (vehicle: any, vehicleGroup: VehicleGroup) => void;
   onRemoveVehicle: (vehicleId: string) => void;
-  selectedVehicles: Vehicle[];
+  selectedVehicles: any[];
   offlineMode?: boolean;
   onOfflineModeChange?: (mode: boolean) => void;
 }
