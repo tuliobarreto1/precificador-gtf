@@ -12,15 +12,19 @@ interface VehicleStepProps {
   onSelectVehicle: (vehicle: Vehicle, vehicleGroup: VehicleGroup) => void;
   onRemoveVehicle: (vehicleId: string) => void;
   selectedVehicles: Vehicle[];
+  offlineMode?: boolean;
+  onOfflineModeChange?: (mode: boolean) => void;
 }
 
 const VehicleStep: React.FC<VehicleStepProps> = ({ 
   onSelectVehicle, 
   onRemoveVehicle,
-  selectedVehicles
+  selectedVehicles,
+  offlineMode = false,
+  onOfflineModeChange
 }) => {
   const [error, setError] = useState<string | null>(null);
-  const [offlineMode, setOfflineMode] = useState<boolean>(false);
+  const [localOfflineMode, setLocalOfflineMode] = useState<boolean>(offlineMode);
   const { toast } = useToast();
   
   // Lidar com erros no VehicleSelector
@@ -30,21 +34,27 @@ const VehicleStep: React.FC<VehicleStepProps> = ({
 
   // Ativar modo offline
   const enableOfflineMode = () => {
-    setOfflineMode(true);
+    setLocalOfflineMode(true);
+    if (onOfflineModeChange) {
+      onOfflineModeChange(true);
+    }
     toast({
       title: "Modo offline ativado",
       description: "Usando dados do cache local. Algumas funcionalidades podem estar limitadas."
     });
   };
 
+  // Usar valor do prop ou estado local
+  const effectiveOfflineMode = typeof offlineMode === 'boolean' ? offlineMode : localOfflineMode;
+
   return (
     <div className="space-y-4">
       <VehicleSelector 
         onSelectVehicle={onSelectVehicle}
         onRemoveVehicle={onRemoveVehicle}
-        selectedVehicles={selectedVehicles}
+        selectedVehicles={selectedVehicles as Vehicle[]}
         onError={handleVehicleSelectorError}
-        offlineMode={offlineMode}
+        offlineMode={effectiveOfflineMode}
       />
     </div>
   );

@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 // Definição das interfaces
@@ -43,7 +44,7 @@ export interface VehicleModelCache {
   value: number;
 }
 
-// Interface para o veículo do Supabase (para correção do erro de tipo)
+// Interface para o veículo do Supabase
 export interface SupabaseVehicle {
   brand: string;
   color: string | null;
@@ -58,7 +59,7 @@ export interface SupabaseVehicle {
   updated_at: string;
   value: number;
   year: number;
-  fuel_type?: string | null; // Propriedade fuel_type como opcional
+  fuel_type?: string | null;
 }
 
 // Variáveis para configurar o comportamento offline
@@ -68,6 +69,17 @@ const RETRY_DELAY = 1000; // 1 segundo entre tentativas
 let lastConnectionAttempt = 0;
 let connectionFailCount = 0;
 let cachedConnectionStatus: { status: 'online' | 'offline'; timestamp: number; error?: string } | null = null;
+
+// Determinar a URL da API baseada no ambiente
+const getApiUrl = (): string => {
+  // Verificar se estamos em ambiente de produção (ex: Vercel)
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    // URL do API proxy em produção (substitua pela sua URL real)
+    return 'https://precificador-gtf-api.vercel.app';
+  }
+  // URL local para desenvolvimento
+  return 'http://localhost:3005';
+};
 
 // Função auxiliar para aguardar um tempo específico
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -101,6 +113,10 @@ export const testApiConnection = async () => {
     lastConnectionAttempt = now;
     console.log('Testando conexão com a API...');
     
+    // Usar a função utilitária para obter a URL correta para o ambiente
+    const apiUrl = getApiUrl();
+    console.log(`Usando URL da API: ${apiUrl}`);
+    
     // Implementar lógica de retry com backoff
     for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
       try {
@@ -108,8 +124,7 @@ export const testApiConnection = async () => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
         
-        // Ajustando para usar a porta 3005 conforme mostrado no log
-        const response = await fetch('http://localhost:3005/api/ping', { 
+        const response = await fetch(`${apiUrl}/api/ping`, { 
           signal: controller.signal,
           // Adiciona um cache buster para evitar cache do navegador
           headers: {
@@ -285,6 +300,9 @@ export const getVehicleByPlate = async (plate: string, useOfflineMode = false): 
       throw new Error(`Servidor de banco de dados offline: ${connectionStatus.error || 'Não foi possível conectar'}`);
     }
     
+    // Obter a URL da API apropriada para o ambiente
+    const apiUrl = getApiUrl();
+    
     // Implementar lógica de retry para buscar na API externa
     for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
       try {
@@ -292,7 +310,7 @@ export const getVehicleByPlate = async (plate: string, useOfflineMode = false): 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
         
-        const response = await fetch(`http://localhost:3005/api/vehicles/${encodeURIComponent(plate)}`, {
+        const response = await fetch(`${apiUrl}/api/vehicles/${encodeURIComponent(plate)}`, {
           signal: controller.signal,
           headers: {
             'Cache-Control': 'no-cache',
@@ -454,13 +472,16 @@ export const getVehicleGroups = async (useOfflineMode = false): Promise<SqlVehic
       ];
     }
     
+    // Obter a URL da API apropriada para o ambiente
+    const apiUrl = getApiUrl();
+    
     // Implementar lógica de retry
     for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
         
-        const response = await fetch('http://localhost:3005/api/vehicle-groups', {
+        const response = await fetch(`${apiUrl}/api/vehicle-groups`, {
           signal: controller.signal
         });
         
@@ -619,13 +640,16 @@ export const getVehicleModelsByGroup = async (groupCode: string, useOfflineMode 
       ];
     }
     
+    // Obter a URL da API apropriada para o ambiente
+    const apiUrl = getApiUrl();
+    
     // Implementar lógica de retry
     for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
         
-        const response = await fetch(`http://localhost:3005/api/vehicle-models/${encodeURIComponent(groupCode)}`, {
+        const response = await fetch(`${apiUrl}/api/vehicle-models/${encodeURIComponent(groupCode)}`, {
           signal: controller.signal
         });
         
