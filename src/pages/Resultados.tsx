@@ -1,0 +1,102 @@
+
+import React, { useState } from 'react';
+import MainLayout from '@/components/layout/MainLayout';
+import PageTitle from '@/components/ui-custom/PageTitle';
+import { useAnalytics } from '@/hooks/useAnalytics';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
+import StatCards from '@/components/analytics/StatCards';
+import MonthlyChart from '@/components/analytics/MonthlyChart';
+import StatusDistributionChart from '@/components/analytics/StatusDistributionChart';
+import TopVehiclesChart from '@/components/analytics/TopVehiclesChart';
+import ClientDistributionTable from '@/components/analytics/ClientDistributionTable';
+import ContractMetricsChart from '@/components/analytics/ContractMetricsChart';
+import DateRangeSelector from '@/components/analytics/DateRangeSelector';
+
+const Resultados: React.FC = () => {
+  const { 
+    loading, 
+    analytics, 
+    error, 
+    dateRange,
+    setDateRange,
+    refreshAnalytics
+  } = useAnalytics();
+  
+  const handleRefresh = () => {
+    refreshAnalytics();
+  };
+
+  return (
+    <MainLayout>
+      <PageTitle
+        title="Resultados"
+        subtitle="Dashboards e análises de desempenho de propostas"
+        breadcrumbs={[
+          { label: "Home", url: "/" },
+          { label: "Resultados", url: "/resultados" }
+        ]}
+      />
+      
+      <div className="flex justify-end mb-4">
+        <Button 
+          variant="outline" 
+          onClick={handleRefresh}
+          disabled={loading}
+        >
+          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          Atualizar dados
+        </Button>
+      </div>
+      
+      <DateRangeSelector 
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
+      />
+      
+      {error ? (
+        <div className="bg-destructive/10 text-destructive p-4 rounded-md mb-6">
+          <p className="font-semibold">Erro ao carregar dados:</p>
+          <p>{error}</p>
+        </div>
+      ) : null}
+      
+      <StatCards
+        totalProposals={analytics?.totalProposals || 0}
+        totalApproved={analytics?.totalApproved || 0}
+        totalRejected={analytics?.totalRejected || 0}
+        averageValue={analytics?.averageValue || 0}
+        isLoading={loading}
+      />
+      
+      <MonthlyChart 
+        data={analytics?.monthlyTotals || []}
+      />
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <StatusDistributionChart 
+          data={analytics?.statusDistribution || []}
+        />
+        <TopVehiclesChart 
+          data={analytics?.topVehicles || []}
+        />
+      </div>
+      
+      <div className="mb-6">
+        <ClientDistributionTable 
+          data={analytics?.clientDistribution || []}
+        />
+      </div>
+      
+      <div className="mb-6">
+        <ContractMetricsChart 
+          contractData={analytics?.contractDurationDistribution || []}
+          kmData={analytics?.monthlyKmDistribution || []}
+          roicData={analytics?.roicDistribution || []}
+        />
+      </div>
+    </MainLayout>
+  );
+};
+
+export default Resultados;

@@ -17,6 +17,7 @@ import Parameters from "./pages/Parameters";
 import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
+import Resultados from "./pages/Resultados"; // Nova página
 
 // Create a client
 const queryClient = new QueryClient();
@@ -66,6 +67,9 @@ function App() {
               <Route path="/configuracoes" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/parametros" element={<ProtectedRoute><Parameters /></ProtectedRoute>} />
               <Route path="/usuarios" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+              
+              {/* Nova rota para Resultados */}
+              <Route path="/resultados" element={<ProtectedRoute><Resultados /></ProtectedRoute>} />
               
               {/* Rota padrão para página não encontrada */}
               <Route path="*" element={<NotFound />} />
