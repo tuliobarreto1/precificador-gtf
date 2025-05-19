@@ -69,7 +69,7 @@ const Resultados: React.FC = () => {
           <TabsTrigger value="roic">Análise de Rentabilidade</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="overview">
+        <TabsContent value="overview" className="space-y-8">
           <StatCards
             totalProposals={analytics?.totalProposals || 0}
             totalApproved={analytics?.totalApproved || 0}
@@ -78,13 +78,11 @@ const Resultados: React.FC = () => {
             isLoading={loading}
           />
           
-          <div className="mt-6">
-            <MonthlyChart 
-              data={analytics?.monthlyTotals || []}
-            />
-          </div>
+          <MonthlyChart 
+            data={analytics?.monthlyTotals || []}
+          />
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
             <StatusDistributionChart 
               data={analytics?.statusDistribution || []}
             />
@@ -93,13 +91,13 @@ const Resultados: React.FC = () => {
             />
           </div>
           
-          <div className="mt-6">
+          <div className="mt-8">
             <ClientDistributionTable 
               data={analytics?.clientDistribution || []}
             />
           </div>
           
-          <div className="mt-6">
+          <div className="mt-8">
             <ContractMetricsChart 
               contractData={analytics?.contractDurationDistribution || []}
               kmData={analytics?.monthlyKmDistribution || []}
@@ -108,7 +106,7 @@ const Resultados: React.FC = () => {
           </div>
         </TabsContent>
         
-        <TabsContent value="roic">
+        <TabsContent value="roic" className="space-y-6">
           <RoicDashboard 
             data={analytics?.detailedRoicAnalysis || {
               averageRoic: 0,

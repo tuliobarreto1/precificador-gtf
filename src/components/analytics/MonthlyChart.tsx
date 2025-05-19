@@ -22,12 +22,12 @@ const MonthlyChart: React.FC<{ data: MonthlyData[] }> = ({ data }) => {
   }, [data]);
 
   return (
-    <Card className="mb-6">
+    <Card className="mb-8">
       <CardHeader>
         <CardTitle>Volume de Orçamentos por Mês</CardTitle>
         <CardDescription>Análise de valores e quantidade mensais</CardDescription>
       </CardHeader>
-      <CardContent className="h-[300px]">
+      <CardContent className="h-[350px]">
         {data.length === 0 ? (
           <div className="h-full flex items-center justify-center text-muted-foreground">
             Dados insuficientes para gerar o gráfico
@@ -56,7 +56,7 @@ const MonthlyChart: React.FC<{ data: MonthlyData[] }> = ({ data }) => {
                   top: 10,
                   right: 30,
                   left: 0,
-                  bottom: 0,
+                  bottom: 10,
                 }}
               >
                 <defs>
