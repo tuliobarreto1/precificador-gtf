@@ -17,6 +17,7 @@ interface ConnectionStatusAlertProps {
   lastCheckTime?: Date | null;
   failureCount?: number;
   onTestConnection: () => void;
+  onEnableOfflineMode?: () => void;
 }
 
 const ConnectionStatusAlert: React.FC<ConnectionStatusAlertProps> = ({
@@ -28,7 +29,8 @@ const ConnectionStatusAlert: React.FC<ConnectionStatusAlertProps> = ({
   diagnosticInfo,
   lastCheckTime,
   failureCount = 0,
-  onTestConnection
+  onTestConnection,
+  onEnableOfflineMode
 }) => {
   // Criando uma função auxiliar para verificar o status
   const isOnline = () => status === 'online';
@@ -89,9 +91,21 @@ const ConnectionStatusAlert: React.FC<ConnectionStatusAlertProps> = ({
             size="sm"
             disabled={testingConnection}
           >
-            {testingConnection ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
-            Testar Conexão
+            {testingConnection ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+            Verificar novamente
           </Button>
+          
+          {onEnableOfflineMode && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={onEnableOfflineMode}
+              className="flex items-center gap-1"
+            >
+              <Database className="mr-2 h-4 w-4" /> 
+              Usar modo offline
+            </Button>
+          )}
           
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -123,53 +137,43 @@ const ConnectionStatusAlert: React.FC<ConnectionStatusAlertProps> = ({
                       )}
                     </div>
                     
-                    <p className="font-medium">Configurações de Servidor:</p>
+                    <p className="font-medium">Ambiente:</p>
                     <pre className="bg-muted p-2 rounded-md text-xs overflow-auto whitespace-pre-wrap">
-                      {`Servidor: ${import.meta.env.VITE_DB_SERVER || 'Não definido'}
-Porta: ${import.meta.env.VITE_DB_PORT || '1433'}
-Banco de dados: ${import.meta.env.VITE_DB_DATABASE || 'Não definido'}
-Timeout: 30000ms`}
+                      {`Ambiente: ${window.location.hostname.includes('lovableproject.com') ? 'Produção (Lovable)' : 'Desenvolvimento (Local)'}
+URL Base API: ${window.location.hostname.includes('lovableproject.com') ? 'https://precificador-api.vercel.app/api' : 'http://localhost:3005/api'}
+`}
                     </pre>
                     
-                    <p className="font-medium mt-4">Possíveis Causas:</p>
+                    <p className="font-medium">Possíveis Causas:</p>
                     <ul className="list-disc pl-5 space-y-1">
-                      <li>O servidor SQL pode estar temporariamente indisponível</li>
-                      <li>Problemas de rede ou conexão com a internet</li>
-                      <li>Bloqueio por firewall ou VPN</li>
-                      <li>O servidor pode estar configurado para limitar conexões</li>
+                      <li>Em produção: a API externa não está acessível</li>
+                      <li>Problemas de CORS (Cross-Origin Resource Sharing)</li>
+                      <li>Firewall bloqueando conexões</li>
+                      <li>API indisponível ou fora do ar</li>
                     </ul>
                     
                     <p className="font-medium mt-4">Recomendações:</p>
                     <ul className="list-disc pl-5 space-y-1">
-                      <li>Verifique sua conexão com a internet</li>
-                      <li>Tente novamente em alguns minutos</li>
-                      <li>Aumente o timeout de conexão (atualmente 30 segundos)</li>
+                      <li>Verifique se o serviço da API está rodando</li>
+                      <li>Confirme que a URL da API está correta</li>
+                      <li>Verifique se o servidor permite requisições CORS</li>
                       <li>Utilize o modo offline para continuar trabalhando</li>
                     </ul>
                     
-                    {status && (
-                      <div className="mt-4">
-                        <p className="font-medium">Status da conexão:</p>
-                        <pre className="bg-muted p-2 rounded-md text-xs overflow-auto">
-                          {JSON.stringify({ status }, null, 2)}
-                        </pre>
-                      </div>
-                    )}
-                    
-                    {diagnosticInfo && (
-                      <div className="mt-4">
-                        <p className="font-medium">Últimas informações de diagnóstico:</p>
-                        <pre className="bg-muted p-2 rounded-md text-xs overflow-auto">
-                          {JSON.stringify(diagnosticInfo, null, 2)}
-                        </pre>
-                      </div>
-                    )}
-
                     {detailedError && (
                       <div className="mt-4">
                         <p className="font-medium">Detalhes do erro:</p>
                         <pre className="bg-destructive/10 border border-destructive text-destructive p-2 rounded-md text-xs overflow-auto">
                           {detailedError}
+                        </pre>
+                      </div>
+                    )}
+
+                    {diagnosticInfo && (
+                      <div className="mt-4">
+                        <p className="font-medium">Últimas informações de diagnóstico:</p>
+                        <pre className="bg-muted p-2 rounded-md text-xs overflow-auto">
+                          {JSON.stringify(diagnosticInfo, null, 2)}
                         </pre>
                       </div>
                     )}

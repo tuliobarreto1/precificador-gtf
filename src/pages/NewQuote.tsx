@@ -26,15 +26,15 @@ const NewQuote = () => {
       setApiError(null);
       setIsCheckingApi(true);
       
-      console.log("Verificando status da API SQL Server...");
+      console.log("Verificando status da API...");
       const status = await testApiConnection();
       
       if (status && status.status === 'online') {
-        console.log("API SQL Server online:", status);
+        console.log("API online:", status);
         setApiStatus('online');
         setOfflineMode(false);
       } else {
-        console.warn("API SQL Server offline ou com problemas:", status);
+        console.warn("API offline ou com problemas:", status);
         setApiStatus('offline');
         setApiError(`API indisponível: ${status?.error || 'Erro desconhecido'}`);
       }
@@ -58,7 +58,16 @@ const NewQuote = () => {
   useEffect(() => {
     // Verificar status da API ao montar o componente
     checkApiStatus();
-  }, []);
+    
+    // Verificar status a cada 2 minutos (menos frequente para não sobrecarregar)
+    const interval = setInterval(() => {
+      if (!offlineMode) {
+        checkApiStatus();
+      }
+    }, 120000);
+    
+    return () => clearInterval(interval);
+  }, [offlineMode]);
   
   return (
     <MainLayout>
@@ -80,7 +89,17 @@ const NewQuote = () => {
             <AlertTitle>Problema de conexão com o banco de dados</AlertTitle>
             <AlertDescription className="flex flex-col gap-2">
               <p>O servidor de banco de dados não está respondendo. Você pode continuar em modo offline ou tentar reconectar.</p>
-              {apiError && <p className="text-sm bg-destructive/10 p-2 rounded-sm font-mono">{apiError}</p>}
+              {apiError && (
+                <div className="text-sm bg-destructive/10 p-2 rounded-sm font-mono text-destructive">
+                  {apiError}
+                  {window.location.hostname.includes('lovableproject.com') && (
+                    <div className="mt-2 text-xs">
+                      Ambiente: Produção (Lovable) - 
+                      API URL: https://precificador-api.vercel.app/api
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="flex justify-end mt-2 gap-2">
                 <Button 
                   variant="outline" 
@@ -130,7 +149,7 @@ const NewQuote = () => {
           </Alert>
         )}
         
-        <QuoteForm />
+        <QuoteForm offlineMode={offlineMode} onOfflineModeChange={setOfflineMode} />
       </QuoteProvider>
     </MainLayout>
   );
