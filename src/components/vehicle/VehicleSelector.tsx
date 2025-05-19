@@ -439,7 +439,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   return (
     <div className="space-y-6 animate-fadeIn">
       {offlineMode && (
-        <Alert variant="warning" className="mb-4 bg-amber-100 border-amber-500 text-amber-800">
+        <Alert variant="default" className="mb-4 bg-amber-100 border-amber-500 text-amber-800">
           <Database className="h-4 w-4 text-amber-800" />
           <AlertTitle>Modo Offline Ativado</AlertTitle>
           <AlertDescription>

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
@@ -152,7 +151,7 @@ const NewQuote = () => {
           </Alert>
         )}
         
-        <QuoteForm offlineMode={offlineMode} />
+        <QuoteForm />
       </QuoteProvider>
     </MainLayout>
   );

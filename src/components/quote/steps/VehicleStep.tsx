@@ -22,6 +22,7 @@ const VehicleStep: React.FC<VehicleStepProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'online' | 'offline' | 'checking'>('checking');
   const [isChecking, setIsChecking] = useState<boolean>(false);
+  const [offlineMode, setOfflineMode] = useState<boolean>(false);
   const { toast } = useToast();
 
   // Verificar status da conexão ao montar o componente
@@ -74,7 +75,7 @@ const VehicleStep: React.FC<VehicleStepProps> = ({
 
   return (
     <div className="space-y-4">
-      {connectionStatus === 'offline' && (
+      {connectionStatus === 'offline' && !offlineMode && (
         <Alert variant="destructive" className="mb-4">
           <AlertTitle>Problema de conexão com o banco de dados</AlertTitle>
           <AlertDescription className="flex flex-col gap-2">
@@ -97,6 +98,7 @@ const VehicleStep: React.FC<VehicleStepProps> = ({
                 size="sm"
                 className="flex items-center gap-1"
                 onClick={() => {
+                  setOfflineMode(true);
                   toast({
                     title: "Modo offline ativado",
                     description: "Usando dados do cache local. Algumas funcionalidades podem estar limitadas."
@@ -116,7 +118,7 @@ const VehicleStep: React.FC<VehicleStepProps> = ({
         selectedVehicles={selectedVehicles}
         onRemoveVehicle={onRemoveVehicle}
         onError={handleVehicleSelectorError}
-        offlineMode={connectionStatus === 'offline'}
+        offlineMode={offlineMode}
       />
     </div>
   );
