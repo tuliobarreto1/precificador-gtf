@@ -33,5 +33,13 @@
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ]
+  ],
+  "env": {
+    "DB_SERVER": "@db_server",
+    "DB_USER": "@db_user",
+    "DB_PASSWORD": "@db_password",
+    "DB_DATABASE": "@db_database",
+    "DB_PORT": "@db_port",
+    "NODE_ENV": "production"
+  }
 }

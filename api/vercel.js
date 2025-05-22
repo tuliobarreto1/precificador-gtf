@@ -17,18 +17,29 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Configurações do banco de dados
+// Logs para diagnóstico
+console.log('========= CONFIGURAÇÃO DO SERVIDOR VERCEL =========');
+console.log('Ambiente:', process.env.NODE_ENV);
+console.log('Servidor DB:', process.env.DB_SERVER ? 'Configurado' : 'NÃO CONFIGURADO');
+console.log('Porta DB:', process.env.DB_PORT || 'NÃO CONFIGURADA');
+console.log('Usuário DB:', process.env.DB_USER ? 'Configurado' : 'NÃO CONFIGURADO');
+console.log('Banco de dados DB:', process.env.DB_DATABASE ? 'Configurado' : 'NÃO CONFIGURADO');
+console.log('Senha DB configurada:', process.env.DB_PASSWORD ? 'Sim' : 'NÃO');
+console.log('Comprimento da senha DB:', process.env.DB_PASSWORD ? process.env.DB_PASSWORD.length : 0);
+console.log('=========================================');
+
+// Configurações do banco de dados com handling para valores indefinidos
 const config = {
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  server: process.env.DB_SERVER,
-  database: process.env.DB_DATABASE,
+  user: process.env.DB_USER || '',
+  password: process.env.DB_PASSWORD || '',
+  server: process.env.DB_SERVER || '',
+  database: process.env.DB_DATABASE || 'Locavia',
   port: parseInt(process.env.DB_PORT || '1433', 10),
   options: {
     encrypt: true,
     trustServerCertificate: true,
-    connectTimeout: 30000, 
-    requestTimeout: 30000, 
+    connectTimeout: 60000, // Aumentado para 60 segundos
+    requestTimeout: 60000, // Aumentado para 60 segundos
     pool: {
       max: 10,
       min: 0,
@@ -40,9 +51,13 @@ const config = {
 // Pool de conexão global para reutilização
 let globalPool = null;
 
-// Função auxiliar para conectar ao banco de dados
+// Função auxiliar para conectar ao banco de dados com mais logs
 async function connectToDatabase() {
   console.log('Tentando conectar ao banco de dados...');
+  console.log(`Servidor: ${config.server}`);
+  console.log(`Porta: ${config.port}`);
+  console.log(`Banco de dados: ${config.database}`);
+  console.log(`Timeout de conexão: ${config.options.connectTimeout}ms`);
   
   // Se já existe uma conexão global, tenta reutilizá-la
   if (globalPool) {
@@ -53,6 +68,7 @@ async function connectToDatabase() {
       return globalPool;
     } catch (error) {
       console.log('Conexão existente inválida. Criando nova conexão...');
+      console.error('Erro na conexão existente:', error.message);
       globalPool = null; // Resetar a conexão inválida
     }
   }
@@ -66,9 +82,15 @@ async function connectToDatabase() {
     return pool;
   } catch (connError) {
     console.error('Erro ao conectar ao banco de dados:', connError);
+    console.error('Detalhes do erro:', connError.message);
+    console.error('Código do erro:', connError.code);
+    console.error('Número do erro:', connError.number);
+    
     throw {
       message: 'Erro ao conectar ao banco de dados',
       error: connError.message,
+      code: connError.code,
+      number: connError.number,
       config: {
         server: config.server,
         user: config.user,
@@ -135,10 +157,11 @@ app.get('/api/vehicles/:plate', async (req, res) => {
     res.status(500).json({ 
       message: 'Erro ao buscar veículo', 
       error: error.message,
-      stack: error.stack
+      stack: error.stack,
+      details: error.code || error.number
     });
   }
-});
+}); 
 
 // Endpoint para buscar todos os grupos de veículos
 app.get('/api/vehicle-groups', async (req, res) => {
@@ -469,6 +492,23 @@ app.get('/api/ping', async (req, res) => {
       responseTimeMs: endTime - startTime
     });
   }
+});
+
+// Rota de fallback para lidar com acesso direto a /api
+app.get('/api', (req, res) => {
+  res.json({
+    message: 'API do Precificador GTF está online',
+    status: 'online',
+    timestamp: new Date().toISOString(),
+    rotas: [
+      '/api/status',
+      '/api/test-connection',
+      '/api/ping',
+      '/api/vehicles/:plate',
+      '/api/vehicle-groups',
+      '/api/vehicle-models/:groupCode'
+    ]
+  });
 });
 
 // Exportar o app Express para que a Vercel possa utilizá-lo

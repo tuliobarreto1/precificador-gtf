@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 // Definição das interfaces
@@ -63,7 +62,7 @@ export interface SupabaseVehicle {
 }
 
 // Variáveis para configurar o comportamento offline
-const CONNECTION_TIMEOUT = 15000; // 15 segundos
+const CONNECTION_TIMEOUT = 30000; // Aumentado para 30 segundos
 const MAX_RETRY_ATTEMPTS = 1; // Reduzido para 1 tentativa para evitar atrasos
 const RETRY_DELAY = 1000; // 1 segundo entre tentativas
 let lastConnectionAttempt = 0;
@@ -74,8 +73,8 @@ let cachedConnectionStatus: { status: 'online' | 'offline'; timestamp: number; e
 const getApiUrl = (): string => {
   // Verificar se estamos em ambiente de produção (ex: Vercel)
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-    // URL do API proxy em produção (substitua pela sua URL real)
-    return 'https://precificador-gtf-api.vercel.app';
+    // URL do site em produção
+    return window.location.origin;
   }
   // URL local para desenvolvimento
   return 'http://localhost:3005';
@@ -124,6 +123,8 @@ export const testApiConnection = async () => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
         
+        console.log(`Tentando ping em: ${apiUrl}/api/ping - Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS}`);
+        
         const response = await fetch(`${apiUrl}/api/ping`, { 
           signal: controller.signal,
           // Adiciona um cache buster para evitar cache do navegador
@@ -135,12 +136,15 @@ export const testApiConnection = async () => {
         
         clearTimeout(timeoutId);
         
-        if (!response.ok) {
-          const errorMessage = `Erro na API: ${response.status} ${response.statusText}`;
+        const data = await response.json();
+        console.log('Resposta do ping:', data);
+        
+        if (!response.ok || data.status === 'error') {
+          const errorMessage = data.message || `Erro na API: ${response.status} ${response.statusText}`;
           console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou: ${errorMessage}`);
           
           if (attempt < MAX_RETRY_ATTEMPTS - 1) {
-            await delay(RETRY_DELAY);
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
             continue;
           }
           
@@ -158,9 +162,6 @@ export const testApiConnection = async () => {
             failCount: connectionFailCount
           };
         }
-        
-        const data = await response.json();
-        console.log('Resposta do teste de conexão:', data);
         
         // Resetar contador de falhas após sucesso
         connectionFailCount = 0;
@@ -184,7 +185,7 @@ export const testApiConnection = async () => {
         }
         
         if (attempt < MAX_RETRY_ATTEMPTS - 1) {
-          await delay(RETRY_DELAY);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
           continue;
         }
         
