@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { getCurrentProfile, getAdminUser, signOutAdmin } from '@/lib/api';
+import { cleanupAuthState } from '@/lib/auth-cleanup';
 
 // Tipo para usuários administradores
 interface AdminUser {
@@ -15,7 +16,7 @@ interface AdminUser {
 interface AuthContextProps {
   session: Session | null;
   user: User | null;
-  adminUser: AdminUser | null;  // Adicionando usuário admin
+  adminUser: AdminUser | null;
   profile: any | null;
   isLoading: boolean;
   signOut: () => Promise<void>;
@@ -26,7 +27,7 @@ const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [adminUser, setAdminUser] = useState<AdminUser | null>(null);  // Estado para usuário admin
+  const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -36,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Verificar se há um usuário admin logado
     const checkAdminUser = () => {
       const admin = getAdminUser();
+      console.log('Usuário admin encontrado:', admin);
       setAdminUser(admin);
       if (admin) {
         setIsLoading(false);
@@ -79,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Verificar se já existe uma sessão Supabase
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      console.log('Sessão atual:', currentSession?.user?.id);
+      console.log('Sessão atual encontrada:', currentSession?.user?.id);
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       
@@ -111,15 +113,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    // Fazer logout do usuário admin, se houver
-    if (adminUser) {
-      await signOutAdmin();
-      setAdminUser(null);
-    }
+    console.log('Iniciando processo de logout...');
     
-    // Fazer logout do usuário Supabase, se houver
-    if (session) {
-      await supabase.auth.signOut();
+    try {
+      // Limpar estado de autenticação primeiro
+      cleanupAuthState();
+      
+      // Fazer logout do usuário admin, se houver
+      if (adminUser) {
+        await signOutAdmin();
+        setAdminUser(null);
+        console.log('Logout admin concluído');
+      }
+      
+      // Fazer logout do usuário Supabase, se houver
+      if (session) {
+        try {
+          await supabase.auth.signOut({ scope: 'global' });
+          console.log('Logout Supabase concluído');
+        } catch (error) {
+          console.error('Erro no logout Supabase:', error);
+        }
+      }
+      
+      // Limpar estados locais
+      setSession(null);
+      setUser(null);
+      setProfile(null);
+      
+      // Forçar recarregamento da página para garantir estado limpo
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 100);
+      
+    } catch (error) {
+      console.error('Erro no processo de logout:', error);
     }
   };
 
