@@ -1,8 +1,8 @@
 
 import { createClient } from '@/integrations/supabase/supabase-browser';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://lklccqyojapgmqeeazld.supabase.co';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrbGNjcXlvamFwZ21xZWVhemxkIiwicm9sZSI6ImFub24iLCJpYXQiOjE2ODkyNTk4NjMsImV4cCI6MjAwNDgzNTg2M30.-1jtHRgT0yQ3DEwJPsywJJim5KEDdM7CIdTLybZjXxk';
+const SUPABASE_URL = 'https://pvsjjqmsoauuxxfgdhfg.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2c2pqcW1zb2F1dXh4ZmdkaGZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMxMTI5NTUsImV4cCI6MjA1ODY4ODk1NX0.Mp6zyYRkHfHZTkBIkV_lpYv8nkAkJ9i7cI1y8dGGF6M';
 
 // Criar e exportar a instância do Supabase
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
