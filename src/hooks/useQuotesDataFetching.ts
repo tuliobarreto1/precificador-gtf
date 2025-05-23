@@ -94,9 +94,14 @@ export const useQuotesDataFetching = () => {
             ? `${quote.quote_vehicles[0].vehicles.brand} ${quote.quote_vehicles[0].vehicles.model}`
             : "Veículo não especificado";
           
+          // Corrigindo o acesso ao nome do cliente
+          const clientName = quote.clients && typeof quote.clients === 'object' && 'name' in quote.clients
+            ? (quote.clients as { name: string }).name
+            : "Cliente não especificado";
+          
           return {
             id: quote.id,
-            clientName: quote.clients?.name || "Cliente não especificado",
+            clientName: clientName,
             vehicleName: vehicleName,
             value: quote.total_value || 0,
             status: quote.status_flow || quote.status || "draft",

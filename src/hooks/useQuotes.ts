@@ -80,9 +80,10 @@ export const useQuotes = (): UseQuotesReturn => {
         setError(null);
         console.log('Verificando conexão com o Supabase...');
         
-        const { success } = await checkSupabaseConnection();
+        const connectionResult = await checkSupabaseConnection();
         
-        if (success) {
+        // Corrigindo o acesso à propriedade 'connected' ao invés de 'success'
+        if (connectionResult.connected) {
           console.log('Conexão com o Supabase estabelecida com sucesso');
           setSupabaseConnected(true);
           await loadSupabaseVehicles();
