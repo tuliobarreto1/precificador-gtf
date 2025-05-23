@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface SystemSetting {
@@ -51,12 +50,14 @@ export interface CalculationParams {
 
 export const fetchSystemSettings = async (): Promise<SystemSetting[]> => {
   try {
+    console.log('Buscando configurações do sistema...');
     const { data, error } = await supabase
       .from('system_settings')
       .select('*');
     
     if (error) {
       console.error('Erro ao buscar configurações do sistema:', error);
+      console.error('Detalhes do erro:', JSON.stringify(error));
       return [];
     }
     
@@ -64,12 +65,15 @@ export const fetchSystemSettings = async (): Promise<SystemSetting[]> => {
     return data || [];
   } catch (error) {
     console.error('Erro ao buscar configurações do sistema:', error);
+    console.error('Detalhes do erro:', JSON.stringify(error));
     return [];
   }
 };
 
 export const updateSystemSettings = async (settings: Record<string, string>): Promise<boolean> => {
   try {
+    console.log('Atualizando configurações do sistema:', settings);
+    
     for (const key in settings) {
       const value = settings[key];
       
@@ -108,19 +112,69 @@ export const updateSystemSettings = async (settings: Record<string, string>): Pr
     return true;
   } catch (error) {
     console.error('Erro ao atualizar configurações do sistema:', error);
+    console.error('Detalhes do erro:', JSON.stringify(error));
     return false;
   }
 };
 
 export const fetchVehicleGroups = async (): Promise<VehicleGroup[]> => {
   try {
+    console.log('Buscando grupos de veículos do Supabase...');
     const { data, error } = await supabase
       .from('vehicle_groups')
       .select('*');
     
     if (error) {
       console.error('Erro ao buscar grupos de veículos:', error);
-      return [];
+      console.error('Detalhes do erro:', JSON.stringify(error));
+      
+      // Retornar dados de fallback se houver erro
+      return [
+        {
+          id: 'fallback-1',
+          code: 'A',
+          description: 'Veículos de pequeno porte (fallback)',
+          revision_km: 10000,
+          revision_cost: 300,
+          tire_km: 40000,
+          tire_cost: 1200,
+          ipvaCost: 0.03,
+          licensingCost: 0,
+          name: 'Grupo A (fallback)'
+        },
+        {
+          id: 'fallback-2',
+          code: 'B',
+          description: 'Veículos de médio porte (fallback)',
+          revision_km: 15000,
+          revision_cost: 350,
+          tire_km: 45000,
+          tire_cost: 1400,
+          ipvaCost: 0.03,
+          licensingCost: 0,
+          name: 'Grupo B (fallback)'
+        }
+      ];
+    }
+    
+    console.log('Dados brutos de grupos recebidos:', data);
+    
+    if (!data || data.length === 0) {
+      console.log('Nenhum grupo encontrado no Supabase, retornando dados de fallback');
+      return [
+        {
+          id: 'empty-1',
+          code: 'A',
+          description: 'Veículos de pequeno porte (dados padrão)',
+          revision_km: 10000,
+          revision_cost: 300,
+          tire_km: 40000,
+          tire_cost: 1200,
+          ipvaCost: 0.03,
+          licensingCost: 0,
+          name: 'Grupo A (padrão)'
+        }
+      ];
     }
     
     const groups = data.map(group => ({
@@ -137,11 +191,27 @@ export const fetchVehicleGroups = async (): Promise<VehicleGroup[]> => {
       name: group.name || `Grupo ${group.code}`,
     }));
     
-    console.log('Grupos de veículos carregados:', groups);
+    console.log('Grupos de veículos mapeados:', groups);
     return groups;
   } catch (error) {
     console.error('Erro ao buscar grupos de veículos:', error);
-    return [];
+    console.error('Detalhes do erro:', JSON.stringify(error));
+    
+    // Retornar dados de fallback em caso de erro
+    return [
+      {
+        id: 'error-1',
+        code: 'A',
+        description: 'Veículos de pequeno porte (erro)',
+        revision_km: 10000,
+        revision_cost: 300,
+        tire_km: 40000,
+        tire_cost: 1200,
+        ipvaCost: 0.03,
+        licensingCost: 0,
+        name: 'Grupo A (erro)'
+      }
+    ];
   }
 };
 
@@ -195,6 +265,8 @@ export const updateCalculationParams = async (params: Partial<CalculationParams>
 
 export const addVehicleGroup = async (group: Omit<VehicleGroup, 'id' | 'created_at'>): Promise<VehicleGroup | null> => {
   try {
+    console.log('Adicionando novo grupo de veículo:', group);
+    
     const dbGroup = {
       code: group.code,
       description: group.description,
@@ -215,8 +287,11 @@ export const addVehicleGroup = async (group: Omit<VehicleGroup, 'id' | 'created_
     
     if (error) {
       console.error('Erro ao adicionar grupo de veículo:', error);
+      console.error('Detalhes do erro:', JSON.stringify(error));
       return null;
     }
+    
+    console.log('Grupo adicionado com sucesso:', data);
     
     return {
       id: data.id,
@@ -233,12 +308,15 @@ export const addVehicleGroup = async (group: Omit<VehicleGroup, 'id' | 'created_
     };
   } catch (error) {
     console.error('Erro ao adicionar grupo de veículo:', error);
+    console.error('Detalhes do erro:', JSON.stringify(error));
     return null;
   }
 };
 
 export const updateVehicleGroup = async (id: string, group: Partial<VehicleGroup>): Promise<boolean> => {
   try {
+    console.log(`Atualizando grupo de veículo ${id}:`, group);
+    
     const dbGroup: Record<string, any> = {};
     
     if (group.description !== undefined) dbGroup.description = group.description;
@@ -257,18 +335,23 @@ export const updateVehicleGroup = async (id: string, group: Partial<VehicleGroup
     
     if (error) {
       console.error('Erro ao atualizar grupo de veículo:', error);
+      console.error('Detalhes do erro:', JSON.stringify(error));
       return false;
     }
     
+    console.log('Grupo atualizado com sucesso');
     return true;
   } catch (error) {
     console.error('Erro ao atualizar grupo de veículo:', error);
+    console.error('Detalhes do erro:', JSON.stringify(error));
     return false;
   }
 };
 
 export const deleteVehicleGroup = async (id: string): Promise<boolean> => {
   try {
+    console.log(`Excluindo grupo de veículo com ID ${id}`);
+    
     const { error } = await supabase
       .from('vehicle_groups')
       .delete()
@@ -276,12 +359,15 @@ export const deleteVehicleGroup = async (id: string): Promise<boolean> => {
     
     if (error) {
       console.error('Erro ao excluir grupo de veículo:', error);
+      console.error('Detalhes do erro:', JSON.stringify(error));
       return false;
     }
     
+    console.log('Grupo excluído com sucesso');
     return true;
   } catch (error) {
     console.error('Erro ao excluir grupo de veículo:', error);
+    console.error('Detalhes do erro:', JSON.stringify(error));
     return false;
   }
 };

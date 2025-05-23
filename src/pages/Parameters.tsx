@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import MainLayout from '@/components/layout/MainLayout';
@@ -91,13 +92,15 @@ const Parameters = () => {
   const loadVehicleGroups = async () => {
     setLoadingGroups(true);
     try {
+      console.log('Iniciando carregamento de grupos de veículos...');
       const data = await fetchVehicleGroups();
+      console.log('Grupos de veículos recebidos:', data);
       setGroups(data);
     } catch (error) {
       console.error('Erro ao carregar grupos de veículos:', error);
       toast({
         title: 'Erro',
-        description: 'Não foi possível carregar os grupos de veículos',
+        description: 'Não foi possível carregar os grupos de veículos. Verifique o console para mais detalhes.',
         variant: 'destructive',
       });
     } finally {
