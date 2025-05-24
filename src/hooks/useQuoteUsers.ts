@@ -15,7 +15,7 @@ export function useQuoteUsers() {
   // Buscar usuários do sistema do Supabase
   const fetchSystemUsers = async () => {
     try {
-      console.log('Iniciando busca por usuários no Supabase...');
+      console.log('🔍 Buscando usuários no Supabase...');
       setLoading(true);
       
       const { data, error } = await supabase
@@ -24,12 +24,11 @@ export function useQuoteUsers() {
         .order('name');
       
       if (error) {
-        console.error('Erro ao buscar usuários do sistema:', error);
-        setLoading(false);
-        return [];
+        console.error('❌ Erro ao buscar usuários:', error);
+        throw error;
       }
       
-      console.log('Dados retornados do Supabase:', data);
+      console.log('📊 Dados retornados:', data);
       
       if (data && data.length > 0) {
         const mappedUsers: User[] = data.map(u => ({
@@ -40,7 +39,7 @@ export function useQuoteUsers() {
           status: u.status as 'active' | 'inactive'
         }));
         
-        console.log('Usuários mapeados:', mappedUsers);
+        console.log('✅ Usuários mapeados:', mappedUsers);
         setAvailableUsers(mappedUsers);
         
         // Se não houver usuário atual definido, usar o primeiro administrador ou o primeiro usuário disponível
@@ -50,23 +49,22 @@ export function useQuoteUsers() {
           if (adminUser) {
             setUser(adminUser);
             localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(adminUser));
-            console.log('Usuário padrão definido:', adminUser);
+            console.log('👤 Usuário padrão definido:', adminUser);
           }
         }
         
-        setLoading(false);
         return mappedUsers;
       } else {
-        console.warn('Nenhum usuário encontrado na tabela system_users');
+        console.warn('⚠️ Nenhum usuário encontrado na tabela system_users');
         setAvailableUsers([]);
-        setLoading(false);
         return [];
       }
     } catch (error) {
-      console.error('Erro inesperado ao buscar usuários:', error);
+      console.error('💥 Erro inesperado ao buscar usuários:', error);
       setAvailableUsers([]);
+      throw error;
+    } finally {
       setLoading(false);
-      return [];
     }
   };
   
@@ -117,14 +115,14 @@ export function useQuoteUsers() {
   // Carregar usuário do localStorage na inicialização e buscar usuários do sistema
   useEffect(() => {
     const initializeData = async () => {
-      console.log('Inicializando dados do useQuoteUsers...');
+      console.log('🚀 Inicializando dados do useQuoteUsers...');
       
       try {
         const storedUser = localStorage.getItem(CURRENT_USER_KEY);
         if (storedUser) {
           const parsedUser = JSON.parse(storedUser);
           setUser(parsedUser);
-          console.log('Usuário carregado do localStorage:', parsedUser);
+          console.log('💾 Usuário carregado do localStorage:', parsedUser);
         }
         
         // Buscar usuários do sistema
@@ -133,7 +131,7 @@ export function useQuoteUsers() {
         // Buscar cotações
         await fetchQuotes();
       } catch (error) {
-        console.error('Erro na inicialização:', error);
+        console.error('💥 Erro na inicialização:', error);
         setUser(defaultUser);
         setLoading(false);
       }
@@ -146,7 +144,7 @@ export function useQuoteUsers() {
   const setCurrentUser = (newUser: User) => {
     setUser(newUser);
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(newUser));
-    console.log('Usuário atual alterado para:', newUser);
+    console.log('👤 Usuário atual alterado para:', newUser);
   };
 
   // Function to authenticate a user by ID
@@ -156,7 +154,7 @@ export function useQuoteUsers() {
     if (foundUser) {
       if (password !== undefined) {
         if (password.trim() === '') {
-          console.log('Autenticação falhou: senha vazia');
+          console.log('🔒 Autenticação falhou: senha vazia');
           return false;
         }
         
@@ -165,16 +163,16 @@ export function useQuoteUsers() {
         };
         
         setCurrentUser(updatedUser);
-        console.log(`Usuário ${updatedUser.name} autenticado com senha`);
+        console.log(`✅ Usuário ${updatedUser.name} autenticado com senha`);
         return true;
       } else {
         setCurrentUser(foundUser);
-        console.log(`Usuário ${foundUser.name} autenticado sem senha (fluxo interno)`);
+        console.log(`✅ Usuário ${foundUser.name} autenticado sem senha (fluxo interno)`);
         return true;
       }
     }
     
-    console.log('Autenticação falhou: usuário não encontrado ou inativo');
+    console.log('❌ Autenticação falhou: usuário não encontrado ou inativo');
     return false;
   };
 

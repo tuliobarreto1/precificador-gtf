@@ -53,8 +53,7 @@ const UserStatusBadge = ({ status }: { status: string }) => {
 };
 
 const Users = () => {
-  const { user: currentUser, availableUsers, loading: quoteUsersLoading, fetchSystemUsers } = useQuoteUsers();
-  const [users, setUsers] = useState<UserType[]>([]);
+  const { user: currentUser, availableUsers, loading: hookLoading, fetchSystemUsers } = useQuoteUsers();
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [isEditUserOpen, setIsEditUserOpen] = useState(false);
@@ -69,79 +68,30 @@ const Users = () => {
     status: 'active', 
     password: '' 
   });
-  const [loading, setLoading] = useState(true);
   const [newPassword, setNewPassword] = useState('');
+
+  // Usar diretamente os usuários do hook
+  const users = availableUsers.map(user => ({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role as UserRole,
+    status: user.status as UserStatus,
+  }));
 
   const isCurrentUserAdmin = currentUser?.role === 'admin';
 
-  // Função para carregar usuários diretamente do Supabase
-  const loadUsers = async () => {
+  // Recarregar dados quando necessário
+  const handleRefreshUsers = async () => {
+    console.log('🔄 Atualizando lista de usuários...');
     try {
-      setLoading(true);
-      console.log('Carregando usuários diretamente do Supabase...');
-      
-      const { data, error } = await supabase
-        .from('system_users')
-        .select('*')
-        .order('name');
-      
-      if (error) {
-        console.error('Erro ao carregar usuários:', error);
-        toast.error("Erro ao carregar usuários");
-        return;
-      }
-      
-      console.log('Dados retornados do Supabase:', data);
-      
-      const typedUsers: UserType[] = (data || []).map((user: any) => ({
-        id: user.id.toString(),
-        name: user.name,
-        email: user.email,
-        role: user.role as UserRole,
-        status: user.status as UserStatus,
-        last_login: user.last_login || undefined,
-        created_at: user.created_at,
-        updated_at: user.updated_at
-      }));
-      
-      console.log('Usuários processados:', typedUsers);
-      setUsers(typedUsers);
-      
-      if (typedUsers.length === 0) {
-        console.warn('Nenhum usuário encontrado na tabela system_users');
-        toast.info('Nenhum usuário encontrado no sistema');
-      } else {
-        toast.success(`${typedUsers.length} usuários carregados com sucesso`);
-      }
+      await fetchSystemUsers();
+      toast.success('Lista de usuários atualizada com sucesso');
     } catch (error) {
-      console.error('Erro inesperado ao carregar usuários:', error);
-      toast.error("Erro inesperado ao carregar usuários");
-    } finally {
-      setLoading(false);
+      console.error('Erro ao atualizar usuários:', error);
+      toast.error('Erro ao atualizar lista de usuários');
     }
   };
-
-  // Carregar usuários na inicialização
-  useEffect(() => {
-    console.log('UseEffect executado - carregando usuários...');
-    loadUsers();
-  }, []);
-
-  // Também observar mudanças no hook para sincronizar
-  useEffect(() => {
-    if (!quoteUsersLoading && availableUsers.length > 0) {
-      console.log('Sincronizando com dados do hook:', availableUsers);
-      const mappedUsers = availableUsers.map(user => ({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role as UserRole,
-        status: user.status as UserStatus,
-      }));
-      setUsers(mappedUsers);
-      setLoading(false);
-    }
-  }, [availableUsers, quoteUsersLoading]);
 
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -170,18 +120,6 @@ const Users = () => {
         throw error;
       }
       
-      const newUserData: UserType = {
-        id: data[0].id.toString(),
-        name: data[0].name,
-        email: data[0].email,
-        role: data[0].role as UserRole,
-        status: data[0].status as UserStatus,
-        last_login: data[0].last_login || undefined,
-        created_at: data[0].created_at,
-        updated_at: data[0].updated_at
-      };
-      
-      setUsers([...users, newUserData]);
       setNewUser({ id: '', name: '', email: '', role: 'user', status: 'active', password: '' });
       setIsAddUserOpen(false);
       
@@ -197,7 +135,7 @@ const Users = () => {
     if (!editingUser) return;
     
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('system_users')
         .update({
           name: editingUser.name,
@@ -205,23 +143,11 @@ const Users = () => {
           role: editingUser.role,
           status: editingUser.status
         })
-        .eq('id', editingUser.id)
-        .select();
+        .eq('id', editingUser.id);
       
       if (error) {
         throw error;
       }
-      
-      setUsers(users.map(user => 
-        user.id === editingUser.id ? {
-          ...user,
-          name: data[0].name,
-          email: data[0].email,
-          role: data[0].role as UserRole,
-          status: data[0].status as UserStatus,
-          updated_at: data[0].updated_at
-        } : user
-      ));
       
       setIsEditUserOpen(false);
       await fetchSystemUsers();
@@ -251,7 +177,6 @@ const Users = () => {
         throw error;
       }
       
-      setUsers(users.filter(user => user.id !== editingUser.id));
       setIsDeleteConfirmOpen(false);
       await fetchSystemUsers();
       toast.success('Usuário removido com sucesso');
@@ -273,19 +198,14 @@ const Users = () => {
     const newStatus = userToUpdate.status === 'active' ? 'inactive' : 'active';
     
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('system_users')
         .update({ status: newStatus })
-        .eq('id', userId)
-        .select();
+        .eq('id', userId);
       
       if (error) {
         throw error;
       }
-      
-      setUsers(users.map(user => 
-        user.id === userId ? { ...user, status: newStatus } : user
-      ));
       
       await fetchSystemUsers();
       toast.success(`Usuário ${userToUpdate.name} agora está ${newStatus === 'active' ? 'ativo' : 'inativo'}`);
@@ -350,13 +270,13 @@ const Users = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <Button variant="outline" onClick={loadUsers}>
+            <Button variant="outline" onClick={handleRefreshUsers}>
               <RefreshCw size={16} className="mr-2" />
               Atualizar
             </Button>
           </div>
 
-          {loading ? (
+          {hookLoading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
               <p className="mt-2">Carregando usuários...</p>
@@ -382,7 +302,7 @@ const Users = () => {
                         <TableCell>{user.email}</TableCell>
                         <TableCell><UserRoleText role={user.role} /></TableCell>
                         <TableCell><UserStatusBadge status={user.status} /></TableCell>
-                        <TableCell>{user.last_login ? new Date(user.last_login).toLocaleString() : 'Nunca'}</TableCell>
+                        <TableCell>Nunca</TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
