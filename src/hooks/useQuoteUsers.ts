@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { SavedQuote, User, UserRole, defaultUser } from '@/context/types/quoteTypes';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,22 +8,26 @@ const CURRENT_USER_KEY = 'currentUser';
 
 export function useQuoteUsers() {
   const [user, setUser] = useState<User>(defaultUser);
-  const [availableUsers, setAvailableUsers] = useState<User[]>([defaultUser]);
+  const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Buscar usuários do sistema do Supabase
   const fetchSystemUsers = async () => {
     try {
+      console.log('Buscando usuários do sistema...');
+      
       const { data, error } = await supabase
         .from('system_users')
         .select('*')
-        .eq('status', 'active')
         .order('name');
       
       if (error) {
         console.error('Erro ao buscar usuários do sistema:', error);
         return;
       }
+      
+      console.log('Dados brutos do Supabase:', data);
       
       if (data && data.length > 0) {
         const mappedUsers: User[] = data.map(u => ({
@@ -33,8 +38,8 @@ export function useQuoteUsers() {
           status: u.status as 'active' | 'inactive'
         }));
         
+        console.log('Usuários mapeados:', mappedUsers);
         setAvailableUsers(mappedUsers);
-        console.log('Usuários carregados do Supabase:', mappedUsers);
         
         // Se não houver usuário atual definido, usar o primeiro administrador ou o primeiro usuário disponível
         const storedUser = localStorage.getItem(CURRENT_USER_KEY);
@@ -43,11 +48,18 @@ export function useQuoteUsers() {
           if (adminUser) {
             setUser(adminUser);
             localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(adminUser));
+            console.log('Usuário padrão definido:', adminUser);
           }
         }
+        
+        return mappedUsers;
+      } else {
+        console.warn('Nenhum usuário encontrado na tabela system_users');
+        return [];
       }
     } catch (error) {
-      console.error('Erro ao buscar usuários:', error);
+      console.error('Erro inesperado ao buscar usuários:', error);
+      return [];
     }
   };
   
@@ -97,24 +109,31 @@ export function useQuoteUsers() {
 
   // Carregar usuário do localStorage na inicialização e buscar usuários do sistema
   useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem(CURRENT_USER_KEY);
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        console.log('Usuário carregado do localStorage:', parsedUser);
+    const initializeData = async () => {
+      setLoading(true);
+      
+      try {
+        const storedUser = localStorage.getItem(CURRENT_USER_KEY);
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+          console.log('Usuário carregado do localStorage:', parsedUser);
+        }
+        
+        // Buscar usuários do sistema
+        await fetchSystemUsers();
+        
+        // Buscar cotações
+        await fetchQuotes();
+      } catch (error) {
+        console.error('Erro na inicialização:', error);
+        setUser(defaultUser);
+      } finally {
+        setLoading(false);
       }
-      
-      // Buscar usuários do sistema
-      fetchSystemUsers();
-      
-      // Buscar cotações
-      fetchQuotes();
-    } catch (error) {
-      console.error('Erro ao carregar usuário do localStorage:', error);
-      // Em caso de erro, definir o usuário padrão
-      setUser(defaultUser);
-    }
+    };
+
+    initializeData();
   }, []);
 
   // Função para obter o usuário atual
@@ -213,6 +232,8 @@ export function useQuoteUsers() {
     availableUsers,
     canEditQuote,
     canDeleteQuote,
-    savedQuotes
+    savedQuotes,
+    loading,
+    fetchSystemUsers // Exportar para poder ser chamado manualmente se necessário
   };
 }

@@ -15,7 +15,7 @@ import { MoreHorizontal, Search, User, UserPlus, Edit, Trash2, RefreshCw, Key } 
 import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/context/AuthContext';
+import { useQuoteUsers } from '@/hooks/useQuoteUsers';
 
 type UserRole = 'admin' | 'supervisor' | 'user';
 type UserStatus = 'active' | 'inactive';
@@ -66,14 +66,14 @@ const UserStatusBadge = ({ status }: { status: string }) => {
 };
 
 const Users = () => {
-  const { adminUser } = useAuth();
+  const { user: currentUser, availableUsers, loading: quoteUsersLoading, fetchSystemUsers } = useQuoteUsers();
   const [users, setUsers] = useState<UserType[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [isEditUserOpen, setIsEditUserOpen] = useState(false);
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState<UserType | null>(null);
+  const [editingUser, setEditingUser] = useState<UserType | null>(null);
   const [newUser, setNewUser] = useState<UserType>({ 
     id: '', 
     name: '', 
@@ -85,16 +85,32 @@ const Users = () => {
   const [loading, setLoading] = useState(true);
   const [newPassword, setNewPassword] = useState('');
 
-  const isCurrentUserAdmin = adminUser?.role === 'admin';
+  const isCurrentUserAdmin = currentUser?.role === 'admin';
 
+  // Carregar usuários quando o hook terminar de carregar
   useEffect(() => {
-    loadUsers();
-  }, []);
+    if (!quoteUsersLoading && availableUsers.length > 0) {
+      console.log('Carregando usuários do hook:', availableUsers);
+      const mappedUsers = availableUsers.map(user => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role as UserRole,
+        status: user.status as UserStatus,
+        last_login: user.lastLogin,
+      }));
+      setUsers(mappedUsers);
+      setLoading(false);
+    } else if (!quoteUsersLoading) {
+      // Se o hook terminou de carregar mas não há usuários, tentar carregar diretamente
+      loadUsers();
+    }
+  }, [availableUsers, quoteUsersLoading]);
 
   const loadUsers = async () => {
     try {
       setLoading(true);
-      console.log('Carregando usuários do Supabase...');
+      console.log('Carregando usuários diretamente do Supabase...');
       
       const { data, error } = await supabase
         .from('system_users')
@@ -125,6 +141,9 @@ const Users = () => {
       
       if (typedUsers.length === 0) {
         console.warn('Nenhum usuário encontrado na tabela system_users');
+        toast.info('Nenhum usuário encontrado no sistema');
+      } else {
+        toast.success(`${typedUsers.length} usuários carregados com sucesso`);
       }
     } catch (error) {
       console.error('Erro inesperado ao carregar usuários:', error);
@@ -176,6 +195,10 @@ const Users = () => {
       setUsers([...users, newUserData]);
       setNewUser({ id: '', name: '', email: '', role: 'user', status: 'active', password: '' });
       setIsAddUserOpen(false);
+      
+      // Atualizar o hook também
+      await fetchSystemUsers();
+      
       toast.success("Usuário adicionado com sucesso");
     } catch (error) {
       console.error('Erro ao adicionar usuário:', error);
@@ -184,18 +207,18 @@ const Users = () => {
   };
 
   const handleUpdateUser = async () => {
-    if (!currentUser) return;
+    if (!editingUser) return;
     
     try {
       const { data, error } = await supabase
         .from('system_users')
         .update({
-          name: currentUser.name,
-          email: currentUser.email,
-          role: currentUser.role,
-          status: currentUser.status
+          name: editingUser.name,
+          email: editingUser.email,
+          role: editingUser.role,
+          status: editingUser.status
         })
-        .eq('id', currentUser.id)
+        .eq('id', editingUser.id)
         .select();
       
       if (error) {
@@ -204,7 +227,7 @@ const Users = () => {
       
       // Atualizar o usuário na lista local
       setUsers(users.map(user => 
-        user.id === currentUser.id ? {
+        user.id === editingUser.id ? {
           ...user,
           name: data[0].name,
           email: data[0].email,
@@ -215,6 +238,10 @@ const Users = () => {
       ));
       
       setIsEditUserOpen(false);
+      
+      // Atualizar o hook também
+      await fetchSystemUsers();
+      
       toast.success("Usuário atualizado com sucesso");
     } catch (error) {
       console.error('Erro ao atualizar usuário:', error);
@@ -223,10 +250,10 @@ const Users = () => {
   };
 
   const handleDeleteUser = async () => {
-    if (!currentUser) return;
+    if (!editingUser) return;
     
     // Verificar se está tentando excluir o próprio admin (proteger o admin principal)
-    if (currentUser.role === 'admin' && !isCurrentUserAdmin) {
+    if (editingUser.role === 'admin' && !isCurrentUserAdmin) {
       toast.error('Você não tem permissão para excluir um administrador');
       setIsDeleteConfirmOpen(false);
       return;
@@ -236,14 +263,18 @@ const Users = () => {
       const { error } = await supabase
         .from('system_users')
         .delete()
-        .eq('id', currentUser.id);
+        .eq('id', editingUser.id);
       
       if (error) {
         throw error;
       }
       
-      setUsers(users.filter(user => user.id !== currentUser.id));
+      setUsers(users.filter(user => user.id !== editingUser.id));
       setIsDeleteConfirmOpen(false);
+      
+      // Atualizar o hook também
+      await fetchSystemUsers();
+      
       toast.success('Usuário removido com sucesso');
     } catch (error) {
       console.error('Erro ao remover usuário:', error);
@@ -278,6 +309,9 @@ const Users = () => {
         user.id === userId ? { ...user, status: newStatus } : user
       ));
       
+      // Atualizar o hook também
+      await fetchSystemUsers();
+      
       toast.success(`Usuário ${userToUpdate.name} agora está ${newStatus === 'active' ? 'ativo' : 'inativo'}`);
     } catch (error) {
       console.error('Erro ao atualizar status do usuário:', error);
@@ -286,7 +320,7 @@ const Users = () => {
   };
 
   const handleResetPassword = async () => {
-    if (!currentUser || !newPassword) {
+    if (!editingUser || !newPassword) {
       toast.error('Por favor, informe a nova senha');
       return;
     }
@@ -295,7 +329,7 @@ const Users = () => {
       const { error } = await supabase
         .from('system_users')
         .update({ password: newPassword })
-        .eq('id', currentUser.id);
+        .eq('id', editingUser.id);
       
       if (error) {
         throw error;
@@ -303,7 +337,7 @@ const Users = () => {
       
       setIsResetPasswordOpen(false);
       setNewPassword('');
-      toast.success(`Senha do usuário ${currentUser.name} foi redefinida`);
+      toast.success(`Senha do usuário ${editingUser.name} foi redefinida`);
     } catch (error) {
       console.error('Erro ao redefinir senha:', error);
       toast.error('Erro ao redefinir senha');
@@ -340,10 +374,17 @@ const Users = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+            <Button variant="outline" onClick={loadUsers}>
+              <RefreshCw size={16} className="mr-2" />
+              Atualizar
+            </Button>
           </div>
 
           {loading ? (
-            <div className="text-center py-8">Carregando usuários...</div>
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-2">Carregando usuários...</p>
+            </div>
           ) : (
             <div className="rounded-md border">
               <Table>
@@ -378,14 +419,14 @@ const Users = () => {
                               <DropdownMenuLabel>Ações</DropdownMenuLabel>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => {
-                                setCurrentUser(user);
+                                setEditingUser(user);
                                 setIsEditUserOpen(true);
                               }}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Editar
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => {
-                                setCurrentUser(user);
+                                setEditingUser(user);
                                 setNewPassword('');
                                 setIsResetPasswordOpen(true);
                               }}>
@@ -400,7 +441,7 @@ const Users = () => {
                               <DropdownMenuItem 
                                 className="text-destructive focus:text-destructive"
                                 onClick={() => {
-                                  setCurrentUser(user);
+                                  setEditingUser(user);
                                   setIsDeleteConfirmOpen(true);
                                 }}
                                 disabled={user.role === 'admin' && !isCurrentUserAdmin}
@@ -515,14 +556,14 @@ const Users = () => {
               Modifique os dados do usuário.
             </DialogDescription>
           </DialogHeader>
-          {currentUser && (
+          {editingUser && (
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
                 <Label htmlFor="edit-name">Nome</Label>
                 <Input
                   id="edit-name"
-                  value={currentUser.name}
-                  onChange={(e) => setCurrentUser({...currentUser, name: e.target.value})}
+                  value={editingUser.name}
+                  onChange={(e) => setEditingUser({...editingUser, name: e.target.value})}
                 />
               </div>
               <div className="grid gap-2">
@@ -530,23 +571,23 @@ const Users = () => {
                 <Input
                   id="edit-email"
                   type="email"
-                  value={currentUser.email}
-                  onChange={(e) => setCurrentUser({...currentUser, email: e.target.value})}
+                  value={editingUser.email}
+                  onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
                 />
               </div>
               <div className="grid gap-2">
                 <Label>Função</Label>
                 <RadioGroup
-                  value={currentUser.role}
+                  value={editingUser.role}
                   onValueChange={(value: 'admin' | 'supervisor' | 'user') => 
-                    setCurrentUser({...currentUser, role: value})
+                    setEditingUser({...editingUser, role: value})
                   }
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem 
                       value="admin" 
                       id="edit-admin" 
-                      disabled={!isCurrentUserAdmin || (currentUser.role === 'admin' && !isCurrentUserAdmin)}
+                      disabled={!isCurrentUserAdmin || (editingUser.role === 'admin' && !isCurrentUserAdmin)}
                     />
                     <Label htmlFor="edit-admin">Administrador</Label>
                   </div>
@@ -564,13 +605,13 @@ const Users = () => {
                 <Label>Status</Label>
                 <div className="flex items-center space-x-2">
                   <Switch
-                    checked={currentUser.status === 'active'}
+                    checked={editingUser.status === 'active'}
                     onCheckedChange={(checked) => 
-                      setCurrentUser({...currentUser, status: checked ? 'active' : 'inactive'})
+                      setEditingUser({...editingUser, status: checked ? 'active' : 'inactive'})
                     }
-                    disabled={currentUser.role === 'admin' && !isCurrentUserAdmin}
+                    disabled={editingUser.role === 'admin' && !isCurrentUserAdmin}
                   />
-                  <Label>{currentUser.status === 'active' ? 'Ativo' : 'Inativo'}</Label>
+                  <Label>{editingUser.status === 'active' ? 'Ativo' : 'Inativo'}</Label>
                 </div>
               </div>
             </div>
@@ -588,7 +629,7 @@ const Users = () => {
           <DialogHeader>
             <DialogTitle>Redefinir Senha</DialogTitle>
             <DialogDescription>
-              {currentUser && `Digite a nova senha para ${currentUser.name}`}
+              {editingUser && `Digite a nova senha para ${editingUser.name}`}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -616,7 +657,7 @@ const Users = () => {
           <DialogHeader>
             <DialogTitle>Confirmar Exclusão</DialogTitle>
             <DialogDescription>
-              {currentUser && `Tem certeza que deseja excluir o usuário ${currentUser.name}?`}
+              {editingUser && `Tem certeza que deseja excluir o usuário ${editingUser.name}?`}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
