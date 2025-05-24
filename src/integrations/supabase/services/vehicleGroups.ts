@@ -18,15 +18,23 @@ export interface VehicleGroup {
 // Função para buscar grupos de veículos
 export async function getVehicleGroups() {
   try {
+    console.log('🔍 Buscando grupos de veículos no Supabase...');
+    
+    // Verificar se há uma sessão ativa do Supabase
+    const { data: sessionData } = await supabase.auth.getSession();
+    console.log('📋 Sessão Supabase para grupos:', sessionData.session ? 'Ativa' : 'Inativa');
+    
     const { data, error } = await supabase
       .from('vehicle_groups')
       .select('*')
       .order('name', { ascending: true });
       
     if (error) {
-      console.error('Erro ao buscar grupos de veículos:', error);
+      console.error('❌ Erro ao buscar grupos de veículos:', error);
       return { success: false, error, groups: [] };
     }
+    
+    console.log('📊 Dados de grupos retornados:', data);
     
     // Converter dados do Supabase para o formato esperado pela aplicação
     const groups = data.map(group => ({
@@ -42,9 +50,10 @@ export async function getVehicleGroups() {
       licensingCost: group.licensing_cost || 0
     }));
     
+    console.log('✅ Grupos de veículos mapeados:', groups);
     return { success: true, groups };
   } catch (error) {
-    console.error('Erro inesperado ao buscar grupos de veículos:', error);
+    console.error('💥 Erro inesperado ao buscar grupos de veículos:', error);
     
     // Fornecer dados padrão em caso de erro
     const defaultGroups = [
@@ -83,6 +92,7 @@ export async function getVehicleGroups() {
       }
     ];
     
+    console.warn('⚠️ Usando grupos padrão devido ao erro');
     return { success: false, error, groups: defaultGroups };
   }
 }

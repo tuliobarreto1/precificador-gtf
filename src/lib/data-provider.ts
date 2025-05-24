@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase';
 import { Client, Vehicle, VehicleGroup, Quote, ClientType } from './models';
 
@@ -192,17 +191,25 @@ export async function getVehicleById(id: string): Promise<Vehicle | null> {
 // Funções para grupos de veículos
 export async function getVehicleGroups(): Promise<VehicleGroup[]> {
   try {
+    console.log('🔍 Buscando grupos de veículos via data-provider...');
+    
+    // Verificar se há uma sessão ativa do Supabase
+    const { data: sessionData } = await supabase.auth.getSession();
+    console.log('📋 Sessão Supabase para grupos (data-provider):', sessionData.session ? 'Ativa' : 'Inativa');
+    
     const { data, error } = await supabase
       .from('vehicle_groups')
       .select('*');
       
     if (error || !data) {
-      console.error("Erro ao buscar grupos de veículos do Supabase:", error);
+      console.error('❌ Erro ao buscar grupos de veículos do Supabase (data-provider):', error);
       return []; // Retornar array vazio
     }
     
+    console.log('📊 Dados de grupos retornados (data-provider):', data);
+    
     // Mapear os dados do Supabase para o formato VehicleGroup
-    return data.map(group => ({
+    const groups = data.map(group => ({
       id: group.code,
       name: group.name,
       description: group.description || '',
@@ -213,8 +220,11 @@ export async function getVehicleGroups(): Promise<VehicleGroup[]> {
       ipvaCost: group.ipva_cost || 0,
       licensingCost: group.licensing_cost || 0
     }));
+    
+    console.log('✅ Grupos de veículos mapeados (data-provider):', groups);
+    return groups;
   } catch (error) {
-    console.error("Erro inesperado ao buscar grupos de veículos:", error);
+    console.error('💥 Erro inesperado ao buscar grupos de veículos (data-provider):', error);
     return []; // Retornar array vazio
   }
 }

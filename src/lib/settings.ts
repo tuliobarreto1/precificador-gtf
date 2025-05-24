@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface SystemSetting {
@@ -114,15 +113,23 @@ export const updateSystemSettings = async (settings: Record<string, string>): Pr
 
 export const fetchVehicleGroups = async (): Promise<VehicleGroup[]> => {
   try {
+    console.log('🔍 Buscando grupos de veículos via settings.ts...');
+    
+    // Verificar se há uma sessão ativa do Supabase
+    const { data: sessionData } = await supabase.auth.getSession();
+    console.log('📋 Sessão Supabase para grupos (settings):', sessionData.session ? 'Ativa' : 'Inativa');
+    
     const { data, error } = await supabase
       .from('vehicle_groups')
       .select('*');
     
     if (error) {
-      console.error('Erro ao buscar grupos de veículos:', error);
+      console.error('❌ Erro ao buscar grupos de veículos (settings):', error);
       return [];
     }
     
+    console.log('📊 Dados de grupos retornados (settings):', data);
+
     const groups = data.map(group => ({
       id: group.id,
       created_at: group.created_at,
@@ -137,10 +144,10 @@ export const fetchVehicleGroups = async (): Promise<VehicleGroup[]> => {
       name: group.name || `Grupo ${group.code}`,
     }));
     
-    console.log('Grupos de veículos carregados:', groups);
+    console.log('✅ Grupos de veículos carregados (settings):', groups);
     return groups;
   } catch (error) {
-    console.error('Erro ao buscar grupos de veículos:', error);
+    console.error('💥 Erro ao buscar grupos de veículos (settings):', error);
     return [];
   }
 };
