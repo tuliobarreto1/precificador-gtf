@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -74,31 +74,7 @@ const Users = () => {
 
   const isCurrentUserAdmin = currentUser?.role === 'admin';
 
-  // Carregar usuários quando o hook terminar de carregar
-  useEffect(() => {
-    console.log('UseEffect executado:', { quoteUsersLoading, availableUsersLength: availableUsers.length });
-    
-    if (!quoteUsersLoading) {
-      if (availableUsers.length > 0) {
-        console.log('Carregando usuários do hook:', availableUsers);
-        const mappedUsers = availableUsers.map(user => ({
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role as UserRole,
-          status: user.status as UserStatus,
-        }));
-        setUsers(mappedUsers);
-        setLoading(false);
-        toast.success(`${mappedUsers.length} usuários carregados com sucesso`);
-      } else {
-        // Se o hook terminou de carregar mas não há usuários, tentar carregar diretamente
-        console.log('Hook carregou mas sem usuários, tentando carregar diretamente...');
-        loadUsers();
-      }
-    }
-  }, [availableUsers, quoteUsersLoading]);
-
+  // Função para carregar usuários diretamente do Supabase
   const loadUsers = async () => {
     try {
       setLoading(true);
@@ -118,7 +94,7 @@ const Users = () => {
       console.log('Dados retornados do Supabase:', data);
       
       const typedUsers: UserType[] = (data || []).map((user: any) => ({
-        id: user.id,
+        id: user.id.toString(),
         name: user.name,
         email: user.email,
         role: user.role as UserRole,
@@ -144,6 +120,28 @@ const Users = () => {
       setLoading(false);
     }
   };
+
+  // Carregar usuários na inicialização
+  useEffect(() => {
+    console.log('UseEffect executado - carregando usuários...');
+    loadUsers();
+  }, []);
+
+  // Também observar mudanças no hook para sincronizar
+  useEffect(() => {
+    if (!quoteUsersLoading && availableUsers.length > 0) {
+      console.log('Sincronizando com dados do hook:', availableUsers);
+      const mappedUsers = availableUsers.map(user => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role as UserRole,
+        status: user.status as UserStatus,
+      }));
+      setUsers(mappedUsers);
+      setLoading(false);
+    }
+  }, [availableUsers, quoteUsersLoading]);
 
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -172,9 +170,8 @@ const Users = () => {
         throw error;
       }
       
-      // Converter o resultado para UserType
       const newUserData: UserType = {
-        id: data[0].id,
+        id: data[0].id.toString(),
         name: data[0].name,
         email: data[0].email,
         role: data[0].role as UserRole,
@@ -188,9 +185,7 @@ const Users = () => {
       setNewUser({ id: '', name: '', email: '', role: 'user', status: 'active', password: '' });
       setIsAddUserOpen(false);
       
-      // Atualizar o hook também
       await fetchSystemUsers();
-      
       toast.success("Usuário adicionado com sucesso");
     } catch (error) {
       console.error('Erro ao adicionar usuário:', error);
@@ -217,7 +212,6 @@ const Users = () => {
         throw error;
       }
       
-      // Atualizar o usuário na lista local
       setUsers(users.map(user => 
         user.id === editingUser.id ? {
           ...user,
@@ -230,10 +224,7 @@ const Users = () => {
       ));
       
       setIsEditUserOpen(false);
-      
-      // Atualizar o hook também
       await fetchSystemUsers();
-      
       toast.success("Usuário atualizado com sucesso");
     } catch (error) {
       console.error('Erro ao atualizar usuário:', error);
@@ -244,7 +235,6 @@ const Users = () => {
   const handleDeleteUser = async () => {
     if (!editingUser) return;
     
-    // Verificar se está tentando excluir o próprio admin (proteger o admin principal)
     if (editingUser.role === 'admin' && !isCurrentUserAdmin) {
       toast.error('Você não tem permissão para excluir um administrador');
       setIsDeleteConfirmOpen(false);
@@ -263,10 +253,7 @@ const Users = () => {
       
       setUsers(users.filter(user => user.id !== editingUser.id));
       setIsDeleteConfirmOpen(false);
-      
-      // Atualizar o hook também
       await fetchSystemUsers();
-      
       toast.success('Usuário removido com sucesso');
     } catch (error) {
       console.error('Erro ao remover usuário:', error);
@@ -278,7 +265,6 @@ const Users = () => {
     const userToUpdate = users.find(user => user.id === userId);
     if (!userToUpdate) return;
     
-    // Verificar se está tentando desativar o próprio admin (proteger o admin principal)
     if (userToUpdate.role === 'admin' && userToUpdate.status === 'active' && !isCurrentUserAdmin) {
       toast.error('Você não tem permissão para desativar um administrador');
       return;
@@ -301,9 +287,7 @@ const Users = () => {
         user.id === userId ? { ...user, status: newStatus } : user
       ));
       
-      // Atualizar o hook também
       await fetchSystemUsers();
-      
       toast.success(`Usuário ${userToUpdate.name} agora está ${newStatus === 'active' ? 'ativo' : 'inativo'}`);
     } catch (error) {
       console.error('Erro ao atualizar status do usuário:', error);

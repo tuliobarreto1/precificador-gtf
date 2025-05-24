@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { SavedQuote, User, UserRole, defaultUser } from '@/context/types/quoteTypes';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,7 +15,8 @@ export function useQuoteUsers() {
   // Buscar usuários do sistema do Supabase
   const fetchSystemUsers = async () => {
     try {
-      console.log('Buscando usuários do sistema...');
+      console.log('Iniciando busca por usuários no Supabase...');
+      setLoading(true);
       
       const { data, error } = await supabase
         .from('system_users')
@@ -23,14 +25,15 @@ export function useQuoteUsers() {
       
       if (error) {
         console.error('Erro ao buscar usuários do sistema:', error);
+        setLoading(false);
         return [];
       }
       
-      console.log('Dados brutos do Supabase:', data);
+      console.log('Dados retornados do Supabase:', data);
       
       if (data && data.length > 0) {
         const mappedUsers: User[] = data.map(u => ({
-          id: u.id,
+          id: u.id.toString(),
           name: u.name,
           email: u.email,
           role: u.role as UserRole,
@@ -51,13 +54,18 @@ export function useQuoteUsers() {
           }
         }
         
+        setLoading(false);
         return mappedUsers;
       } else {
         console.warn('Nenhum usuário encontrado na tabela system_users');
+        setAvailableUsers([]);
+        setLoading(false);
         return [];
       }
     } catch (error) {
       console.error('Erro inesperado ao buscar usuários:', error);
+      setAvailableUsers([]);
+      setLoading(false);
       return [];
     }
   };
@@ -109,7 +117,7 @@ export function useQuoteUsers() {
   // Carregar usuário do localStorage na inicialização e buscar usuários do sistema
   useEffect(() => {
     const initializeData = async () => {
-      setLoading(true);
+      console.log('Inicializando dados do useQuoteUsers...');
       
       try {
         const storedUser = localStorage.getItem(CURRENT_USER_KEY);
@@ -127,18 +135,12 @@ export function useQuoteUsers() {
       } catch (error) {
         console.error('Erro na inicialização:', error);
         setUser(defaultUser);
-      } finally {
         setLoading(false);
       }
     };
 
     initializeData();
   }, []);
-
-  // Função para obter o usuário atual
-  const getCurrentUser = () => {
-    return user;
-  };
 
   // Função para definir o usuário atual
   const setCurrentUser = (newUser: User) => {
@@ -149,31 +151,23 @@ export function useQuoteUsers() {
 
   // Function to authenticate a user by ID
   const authenticateUser = (userId: string, password?: string): boolean => {
-    // Ajustando a comparação para usar string em vez de number
     const foundUser = availableUsers.find(u => u.id === userId && u.status === 'active');
     
     if (foundUser) {
-      // Se a senha foi fornecida, verificar
       if (password !== undefined) {
-        // Em um sistema real, isso seria uma verificação criptográfica adequada
-        // Para fins de simulação, vamos aceitar qualquer senha não vazia para o usuário correspondente
         if (password.trim() === '') {
           console.log('Autenticação falhou: senha vazia');
           return false;
         }
         
-        // Atualizar data de último login
         const updatedUser = {
-          ...foundUser,
-          lastLogin: new Date().toISOString().replace('T', ' ').substring(0, 16)
+          ...foundUser
         };
         
         setCurrentUser(updatedUser);
         console.log(`Usuário ${updatedUser.name} autenticado com senha`);
         return true;
       } else {
-        // Para compatibilidade com o código existente, permitir autenticação sem senha
-        // (isso será usado apenas em fluxos internos do sistema)
         setCurrentUser(foundUser);
         console.log(`Usuário ${foundUser.name} autenticado sem senha (fluxo interno)`);
         return true;
@@ -186,19 +180,16 @@ export function useQuoteUsers() {
 
   // Verificar se um usuário pode editar um orçamento
   const canEditQuote = (quoteId: string): boolean => {
-    // Encontrar a cotação no contexto
     const quote = savedQuotes.find(q => q.id === quoteId);
     if (!quote) return false;
     
     const currentUser = user;
     
-    // Se não houver informações sobre quem criou, verificar se o usuário atual tem permissões elevadas
     if (!quote.createdBy) {
       return currentUser.role === 'manager' || 
              currentUser.role === 'admin';
     }
     
-    // Caso contrário, verificar se o usuário atual é o criador ou tem permissões elevadas
     return quote.createdBy.id === currentUser.id || 
            currentUser.role === 'manager' || 
            currentUser.role === 'admin';
@@ -206,19 +197,16 @@ export function useQuoteUsers() {
 
   // Verificar se um usuário pode excluir um orçamento
   const canDeleteQuote = (quoteId: string): boolean => {
-    // Encontrar a cotação no contexto
     const quote = savedQuotes.find(q => q.id === quoteId);
     if (!quote) return false;
     
     const currentUser = user;
     
-    // Se não houver informações sobre quem criou, verificar se o usuário atual tem permissões elevadas
     if (!quote.createdBy) {
       return currentUser.role === 'manager' || 
              currentUser.role === 'admin';
     }
     
-    // Caso contrário, verificar se o usuário atual é o criador ou tem permissões elevadas
     return quote.createdBy.id === currentUser.id || 
            currentUser.role === 'manager' || 
            currentUser.role === 'admin';
@@ -227,73 +215,13 @@ export function useQuoteUsers() {
   return {
     user,
     getCurrentUser: () => user,
-    setCurrentUser: (newUser: User) => {
-      setUser(newUser);
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(newUser));
-      console.log('Usuário atual alterado para:', newUser);
-    },
+    setCurrentUser,
     availableUsers,
-    canEditQuote: (quoteId: string): boolean => {
-      const quote = savedQuotes.find(q => q.id === quoteId);
-      if (!quote) return false;
-      
-      const currentUser = user;
-      
-      if (!quote.createdBy) {
-        return currentUser.role === 'manager' || 
-               currentUser.role === 'admin';
-      }
-      
-      return quote.createdBy.id === currentUser.id || 
-             currentUser.role === 'manager' || 
-             currentUser.role === 'admin';
-    },
-    canDeleteQuote: (quoteId: string): boolean => {
-      const quote = savedQuotes.find(q => q.id === quoteId);
-      if (!quote) return false;
-      
-      const currentUser = user;
-      
-      if (!quote.createdBy) {
-        return currentUser.role === 'manager' || 
-               currentUser.role === 'admin';
-      }
-      
-      return quote.createdBy.id === currentUser.id || 
-             currentUser.role === 'manager' || 
-             currentUser.role === 'admin';
-    },
+    canEditQuote,
+    canDeleteQuote,
     savedQuotes,
     loading,
     fetchSystemUsers,
-    authenticateUser: (userId: string, password?: string): boolean => {
-      const foundUser = availableUsers.find(u => u.id === userId && u.status === 'active');
-      
-      if (foundUser) {
-        if (password !== undefined) {
-          if (password.trim() === '') {
-            console.log('Autenticação falhou: senha vazia');
-            return false;
-          }
-          
-          const updatedUser = {
-            ...foundUser
-          };
-          
-          setUser(updatedUser);
-          localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(updatedUser));
-          console.log(`Usuário ${updatedUser.name} autenticado com senha`);
-          return true;
-        } else {
-          setUser(foundUser);
-          localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(foundUser));
-          console.log(`Usuário ${foundUser.name} autenticado sem senha (fluxo interno)`);
-          return true;
-        }
-      }
-      
-      console.log('Autenticação falhou: usuário não encontrado ou inativo');
-      return false;
-    }
+    authenticateUser
   };
 }
