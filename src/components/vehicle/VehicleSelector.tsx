@@ -1,7 +1,6 @@
 
 import React from 'react';
-import { Vehicle as LibVehicle, VehicleGroup } from '@/lib/models';
-import { Vehicle as ContextVehicle } from '@/context/types/quoteTypes';
+import { Vehicle, VehicleGroup } from '@/lib/models';
 import { SqlVehicle, SqlVehicleModel } from '@/lib/sql-connection';
 
 // Componentes refatorados
@@ -16,8 +15,8 @@ import { useConnectionStatus } from './hooks/useConnectionStatus';
 import { useVehicleSelection } from './hooks/useVehicleSelection';
 
 type VehicleSelectorProps = {
-  onSelectVehicle: (vehicle: any, vehicleGroup: VehicleGroup) => void;
-  selectedVehicles: any[];
+  onSelectVehicle: (vehicle: Vehicle, vehicleGroup: VehicleGroup) => void;
+  selectedVehicles: Vehicle[];
   onRemoveVehicle?: (vehicleId: string) => void;
   onError?: (errorMessage: string | null) => void;
   offlineMode?: boolean;

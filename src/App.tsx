@@ -17,20 +17,10 @@ import Parameters from "./pages/Parameters";
 import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
-import Resultados from "./pages/Resultados";
+import Resultados from "./pages/Resultados"; // Nova página
 
-// Criação do cliente com configurações mais robustas
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 2,          // Tentar 2 vezes em caso de erro
-      retryDelay: 1000,  // Esperar 1 segundo entre tentativas
-      staleTime: 60000,  // Cache válido por 1 minuto
-      refetchOnWindowFocus: false, // Não refetch automático ao focar na janela
-      refetchOnMount: true,       // Refetch ao montar componente
-    }
-  }
-});
+// Create a client
+const queryClient = new QueryClient();
 
 // Componente para proteger rotas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -78,7 +68,7 @@ function App() {
               <Route path="/parametros" element={<ProtectedRoute><Parameters /></ProtectedRoute>} />
               <Route path="/usuarios" element={<ProtectedRoute><Users /></ProtectedRoute>} />
               
-              {/* Rota para Resultados */}
+              {/* Nova rota para Resultados */}
               <Route path="/resultados" element={<ProtectedRoute><Resultados /></ProtectedRoute>} />
               
               {/* Rota padrão para página não encontrada */}

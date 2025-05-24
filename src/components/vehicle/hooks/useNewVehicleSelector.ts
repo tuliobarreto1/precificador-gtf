@@ -29,7 +29,7 @@ export const useNewVehicleSelector = ({ offlineMode }: UseNewVehicleSelectorProp
     const loadVehicleGroups = async () => {
       try {
         setLoadingGroups(true);
-        const groups = await getVehicleGroups();
+        const groups = await getVehicleGroups(offlineMode);
         setVehicleGroups(groups);
         console.log('Grupos de veículos carregados:', groups);
       } catch (error) {
@@ -53,7 +53,7 @@ export const useNewVehicleSelector = ({ offlineMode }: UseNewVehicleSelectorProp
         try {
           setLoadingModels(true);
           setSelectedModel(null);
-          const models = await getVehicleModelsByGroup(selectedGroup);
+          const models = await getVehicleModelsByGroup(selectedGroup, offlineMode);
           setVehicleModels(models);
           console.log('Modelos de veículos carregados:', models);
         } catch (error) {

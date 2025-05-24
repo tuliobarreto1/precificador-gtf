@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { SavedQuote, User, UserRole, defaultUser } from '@/context/types/quoteTypes';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,8 +13,6 @@ export function useQuoteUsers() {
   // Buscar usuários do sistema do Supabase
   const fetchSystemUsers = async () => {
     try {
-      console.log('Buscando usuários da tabela system_users...');
-      
       const { data, error } = await supabase
         .from('system_users')
         .select('*')
@@ -26,18 +23,15 @@ export function useQuoteUsers() {
         return;
       }
       
-      console.log('Usuários encontrados:', data);
-      
       if (data && data.length > 0) {
         const mappedUsers: User[] = data.map(u => ({
-          id: u.id,
+          id: u.id || `user-${Math.random().toString(36).substring(2, 9)}`,
           name: u.name,
           email: u.email,
           role: u.role as UserRole,
           status: u.status as 'active' | 'inactive'
         }));
         
-        console.log('Usuários mapeados:', mappedUsers);
         setAvailableUsers(mappedUsers);
         
         // Se não houver usuário atual definido, usar o primeiro administrador ou o primeiro usuário disponível
@@ -83,10 +77,10 @@ export function useQuoteUsers() {
         clientName: quote.clients?.name || 'Cliente não encontrado',
         vehicles: [],
         totalValue: 0,
-        createdAt: new Date(quote.created_at),
+        createdAt: new Date(quote.created_at), // Convertendo para Date
         status: quote.status_flow || quote.status,
         createdBy: quote.created_by ? {
-          id: quote.created_by.toString(),
+          id: quote.created_by.toString(), // Converter para string
           name: '',
           email: '',
           role: 'user',
@@ -135,15 +129,20 @@ export function useQuoteUsers() {
 
   // Function to authenticate a user by ID
   const authenticateUser = (userId: string, password?: string): boolean => {
+    // Ajustando a comparação para usar string em vez de number
     const foundUser = availableUsers.find(u => u.id === userId && u.status === 'active');
     
     if (foundUser) {
+      // Se a senha foi fornecida, verificar
       if (password !== undefined) {
+        // Em um sistema real, isso seria uma verificação criptográfica adequada
+        // Para fins de simulação, vamos aceitar qualquer senha não vazia para o usuário correspondente
         if (password.trim() === '') {
           console.log('Autenticação falhou: senha vazia');
           return false;
         }
         
+        // Atualizar data de último login
         const updatedUser = {
           ...foundUser,
           lastLogin: new Date().toISOString().replace('T', ' ').substring(0, 16)
@@ -153,6 +152,8 @@ export function useQuoteUsers() {
         console.log(`Usuário ${updatedUser.name} autenticado com senha`);
         return true;
       } else {
+        // Para compatibilidade com o código existente, permitir autenticação sem senha
+        // (isso será usado apenas em fluxos internos do sistema)
         setCurrentUser(foundUser);
         console.log(`Usuário ${foundUser.name} autenticado sem senha (fluxo interno)`);
         return true;
@@ -165,16 +166,19 @@ export function useQuoteUsers() {
 
   // Verificar se um usuário pode editar um orçamento
   const canEditQuote = (quoteId: string): boolean => {
+    // Encontrar a cotação no contexto
     const quote = savedQuotes.find(q => q.id === quoteId);
     if (!quote) return false;
     
     const currentUser = getCurrentUser();
     
+    // Se não houver informações sobre quem criou, verificar se o usuário atual tem permissões elevadas
     if (!quote.createdBy) {
       return currentUser.role === 'manager' || 
              currentUser.role === 'admin';
     }
     
+    // Caso contrário, verificar se o usuário atual é o criador ou tem permissões elevadas
     return quote.createdBy.id === currentUser.id || 
            currentUser.role === 'manager' || 
            currentUser.role === 'admin';
@@ -182,16 +186,19 @@ export function useQuoteUsers() {
 
   // Verificar se um usuário pode excluir um orçamento
   const canDeleteQuote = (quoteId: string): boolean => {
+    // Encontrar a cotação no contexto
     const quote = savedQuotes.find(q => q.id === quoteId);
     if (!quote) return false;
     
     const currentUser = getCurrentUser();
     
+    // Se não houver informações sobre quem criou, verificar se o usuário atual tem permissões elevadas
     if (!quote.createdBy) {
       return currentUser.role === 'manager' || 
              currentUser.role === 'admin';
     }
     
+    // Caso contrário, verificar se o usuário atual é o criador ou tem permissões elevadas
     return quote.createdBy.id === currentUser.id || 
            currentUser.role === 'manager' || 
            currentUser.role === 'admin';

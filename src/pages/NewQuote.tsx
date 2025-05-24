@@ -63,7 +63,7 @@ const NewQuote = () => {
   return (
     <MainLayout>
       <QuoteProvider>
-        <div className="mt-2">
+        <div className="mt-2"> {/* Adicionando margem superior para evitar corte do título */}
           <PageTitle
             title="Criar orçamento"
             breadcrumbs={[
@@ -130,10 +130,7 @@ const NewQuote = () => {
           </Alert>
         )}
         
-        <QuoteForm 
-          offlineMode={offlineMode}
-          onOfflineModeChange={setOfflineMode}
-        />
+        <QuoteForm />
       </QuoteProvider>
     </MainLayout>
   );
