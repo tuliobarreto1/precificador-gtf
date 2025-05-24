@@ -18,6 +18,10 @@ export function useQuoteUsers() {
       console.log('🔍 Buscando usuários no Supabase...');
       setLoading(true);
       
+      // Primeiro, verificar se há uma sessão ativa do Supabase
+      const { data: sessionData } = await supabase.auth.getSession();
+      console.log('📋 Sessão Supabase:', sessionData.session ? 'Ativa' : 'Inativa');
+      
       const { data, error } = await supabase
         .from('system_users')
         .select('*')
@@ -184,12 +188,12 @@ export function useQuoteUsers() {
     const currentUser = user;
     
     if (!quote.createdBy) {
-      return currentUser.role === 'manager' || 
+      return currentUser.role === 'supervisor' || 
              currentUser.role === 'admin';
     }
     
     return quote.createdBy.id === currentUser.id || 
-           currentUser.role === 'manager' || 
+           currentUser.role === 'supervisor' || 
            currentUser.role === 'admin';
   };
 
@@ -201,12 +205,12 @@ export function useQuoteUsers() {
     const currentUser = user;
     
     if (!quote.createdBy) {
-      return currentUser.role === 'manager' || 
+      return currentUser.role === 'supervisor' || 
              currentUser.role === 'admin';
     }
     
     return quote.createdBy.id === currentUser.id || 
-           currentUser.role === 'manager' || 
+           currentUser.role === 'supervisor' || 
            currentUser.role === 'admin';
   };
 

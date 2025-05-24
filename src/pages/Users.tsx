@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
 import Card, { CardHeader } from '@/components/ui-custom/Card';
@@ -69,6 +69,13 @@ const Users = () => {
     password: '' 
   });
   const [newPassword, setNewPassword] = useState('');
+
+  console.log('🔍 Dados carregados na página Users:', {
+    currentUser,
+    availableUsersCount: availableUsers.length,
+    availableUsers,
+    hookLoading
+  });
 
   // Usar diretamente os usuários do hook
   const users = availableUsers.map(user => ({
