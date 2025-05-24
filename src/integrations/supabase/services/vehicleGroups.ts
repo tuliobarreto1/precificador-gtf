@@ -15,22 +15,18 @@ export interface VehicleGroup {
   licensingCost?: number;
 }
 
-// Função para buscar grupos de veículos com logs detalhados
+// Função para buscar grupos de veículos
 export async function getVehicleGroups() {
   try {
-    console.log('Iniciando busca por grupos de veículos no Supabase...');
-    
     const { data, error } = await supabase
       .from('vehicle_groups')
       .select('*')
       .order('name', { ascending: true });
       
     if (error) {
-      console.error('Erro ao buscar grupos de veículos do Supabase:', error);
+      console.error('Erro ao buscar grupos de veículos:', error);
       return { success: false, error, groups: [] };
     }
-    
-    console.log('Dados brutos recebidos do Supabase:', data);
     
     // Converter dados do Supabase para o formato esperado pela aplicação
     const groups = data.map(group => ({
@@ -46,11 +42,9 @@ export async function getVehicleGroups() {
       licensingCost: group.licensing_cost || 0
     }));
     
-    console.log('Grupos de veículos mapeados:', groups);
     return { success: true, groups };
   } catch (error) {
     console.error('Erro inesperado ao buscar grupos de veículos:', error);
-    console.error('Detalhes do erro:', JSON.stringify(error));
     
     // Fornecer dados padrão em caso de erro
     const defaultGroups = [
@@ -93,13 +87,10 @@ export async function getVehicleGroups() {
   }
 }
 
-// Função para obter um grupo de veículo pelo ID com logs detalhados
+// Função para obter um grupo de veículo pelo ID
 export async function getVehicleGroupById(id: string): Promise<VehicleGroup | null> {
   try {
-    console.log(`Buscando grupo de veículo com ID: ${id}`);
-    
     if (!id) {
-      console.log('ID não fornecido, retornando null');
       return null;
     }
 
@@ -107,12 +98,10 @@ export async function getVehicleGroupById(id: string): Promise<VehicleGroup | nu
     let query = supabase.from('vehicle_groups');
     
     // Tenta buscar pelo id primeiro
-    console.log(`Tentando buscar grupo por ID: ${id}`);
     let { data, error } = await query.select('*').eq('id', id).maybeSingle();
     
     // Se não encontrar, tenta buscar pelo código
     if (!data && !error) {
-      console.log(`Grupo não encontrado por ID, tentando buscar por código: ${id}`);
       ({ data, error } = await query.select('*').eq('code', id).maybeSingle());
     }
     
@@ -122,11 +111,8 @@ export async function getVehicleGroupById(id: string): Promise<VehicleGroup | nu
     }
     
     if (!data) {
-      console.log(`Nenhum grupo encontrado com ID ou código: ${id}`);
       return null;
     }
-    
-    console.log('Grupo encontrado:', data);
     
     return {
       id: data.id,
@@ -142,7 +128,6 @@ export async function getVehicleGroupById(id: string): Promise<VehicleGroup | nu
     };
   } catch (error) {
     console.error('Erro inesperado ao buscar grupo de veículo:', error);
-    console.error('Detalhes do erro:', JSON.stringify(error));
     return null;
   }
 }

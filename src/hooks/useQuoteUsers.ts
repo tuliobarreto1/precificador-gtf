@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { SavedQuote, User, UserRole, defaultUser } from '@/context/types/quoteTypes';
 import { supabase } from '@/integrations/supabase/client';
@@ -72,28 +71,21 @@ export function useQuoteUsers() {
       }
       
       // Mapear para SavedQuote
-      const quotes: SavedQuote[] = data.map(quote => {
-        // Corrigindo o acesso ao nome do cliente
-        const clientName = quote.clients && typeof quote.clients === 'object' && 'name' in quote.clients 
-          ? (quote.clients as { name: string }).name 
-          : 'Cliente não encontrado';
-
-        return {
-          id: quote.id,
-          clientId: quote.client_id,
-          clientName: clientName,
-          vehicles: [],
-          totalValue: 0,
-          createdAt: new Date(quote.created_at), // Convertendo para Date
-          status: quote.status_flow || quote.status,
-          createdBy: quote.created_by ? {
-            id: quote.created_by.toString(), // Converter para string
-            name: '',
-            email: '',
-            role: 'user',
-          } : undefined
-        };
-      });
+      const quotes: SavedQuote[] = data.map(quote => ({
+        id: quote.id,
+        clientId: quote.client_id,
+        clientName: quote.clients?.name || 'Cliente não encontrado',
+        vehicles: [],
+        totalValue: 0,
+        createdAt: new Date(quote.created_at), // Convertendo para Date
+        status: quote.status_flow || quote.status,
+        createdBy: quote.created_by ? {
+          id: quote.created_by.toString(), // Converter para string
+          name: '',
+          email: '',
+          role: 'user',
+        } : undefined
+      }));
       
       setSavedQuotes(quotes);
     } catch (error) {
