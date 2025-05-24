@@ -1,11 +1,12 @@
 
 import React from 'react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, RefreshCw, Database, PieChart, Server, Wifi, WifiOff } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Database, PieChart, Server, Wifi, WifiOff, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 
 interface ConnectionStatusAlertProps {
   status: 'online' | 'offline' | 'checking';
@@ -30,8 +31,19 @@ const ConnectionStatusAlert: React.FC<ConnectionStatusAlertProps> = ({
   failureCount = 0,
   onTestConnection
 }) => {
-  // Criando uma função auxiliar para verificar o status
+  const { toast } = useToast();
+  
   const isOnline = () => status === 'online';
+  
+  const copyDiagnosticInfo = () => {
+    const info = JSON.stringify(diagnosticInfo, null, 2);
+    navigator.clipboard.writeText(info).then(() => {
+      toast({
+        title: "Copiado!",
+        description: "Informações de diagnóstico copiadas para a área de transferência.",
+      });
+    });
+  };
   
   if (offlineMode) {
     return (
@@ -100,11 +112,11 @@ const ConnectionStatusAlert: React.FC<ConnectionStatusAlertProps> = ({
                 Informações de Diagnóstico
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent className="max-w-xl max-h-[80vh] overflow-auto">
+            <AlertDialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
               <AlertDialogHeader>
                 <AlertDialogTitle>Informações de Diagnóstico</AlertDialogTitle>
                 <AlertDialogDescription>
-                  <div className="mt-2 space-y-2 text-left">
+                  <div className="mt-2 space-y-4 text-left">
                     <div className="flex items-center gap-2">
                       <Badge 
                         variant={isOnline() ? 'outline' : 'destructive'} 
@@ -123,56 +135,68 @@ const ConnectionStatusAlert: React.FC<ConnectionStatusAlertProps> = ({
                       )}
                     </div>
                     
-                    <p className="font-medium">Configurações de Servidor:</p>
-                    <pre className="bg-muted p-2 rounded-md text-xs overflow-auto whitespace-pre-wrap">
-                      {`Servidor: ${import.meta.env.VITE_DB_SERVER || 'Não definido'}
-Porta: ${import.meta.env.VITE_DB_PORT || '1433'}
-Banco de dados: ${import.meta.env.VITE_DB_DATABASE || 'Não definido'}
-Timeout: 30000ms`}
-                    </pre>
+                    <div>
+                      <p className="font-medium">Configurações do Ambiente:</p>
+                      <pre className="bg-muted p-2 rounded-md text-xs overflow-auto whitespace-pre-wrap">
+                        {`Ambiente: ${import.meta.env.MODE}
+URL da API: ${import.meta.env.PROD ? 'https://precificador-gtf.vercel.app/api' : 'http://localhost:3005/api'}
+Servidor: asalocadora-prd-nlb-rds-4f4ca747cca4f9bf.elb.us-east-1.amazonaws.com
+Porta: 1433
+Banco de dados: Locavia
+Usuário: tulio.barreto`}
+                      </pre>
+                    </div>
                     
-                    <p className="font-medium mt-4">Possíveis Causas:</p>
-                    <ul className="list-disc pl-5 space-y-1">
-                      <li>O servidor SQL pode estar temporariamente indisponível</li>
-                      <li>Problemas de rede ou conexão com a internet</li>
-                      <li>Bloqueio por firewall ou VPN</li>
-                      <li>O servidor pode estar configurado para limitar conexões</li>
-                    </ul>
-                    
-                    <p className="font-medium mt-4">Recomendações:</p>
-                    <ul className="list-disc pl-5 space-y-1">
-                      <li>Verifique sua conexão com a internet</li>
-                      <li>Tente novamente em alguns minutos</li>
-                      <li>Aumente o timeout de conexão (atualmente 30 segundos)</li>
-                      <li>Utilize o modo offline para continuar trabalhando</li>
-                    </ul>
-                    
-                    {status && (
-                      <div className="mt-4">
-                        <p className="font-medium">Status da conexão:</p>
-                        <pre className="bg-muted p-2 rounded-md text-xs overflow-auto">
-                          {JSON.stringify({ status }, null, 2)}
-                        </pre>
-                      </div>
-                    )}
-                    
-                    {diagnosticInfo && (
-                      <div className="mt-4">
-                        <p className="font-medium">Últimas informações de diagnóstico:</p>
-                        <pre className="bg-muted p-2 rounded-md text-xs overflow-auto">
-                          {JSON.stringify(diagnosticInfo, null, 2)}
-                        </pre>
-                      </div>
-                    )}
-
                     {detailedError && (
-                      <div className="mt-4">
-                        <p className="font-medium">Detalhes do erro:</p>
-                        <pre className="bg-destructive/10 border border-destructive text-destructive p-2 rounded-md text-xs overflow-auto">
+                      <div>
+                        <p className="font-medium">Erro Detalhado:</p>
+                        <pre className="bg-destructive/10 border border-destructive text-destructive p-2 rounded-md text-xs overflow-auto whitespace-pre-wrap">
                           {detailedError}
                         </pre>
                       </div>
                     )}
+                    
+                    <div>
+                      <p className="font-medium">Possíveis Soluções:</p>
+                      <ul className="list-disc pl-5 space-y-1 text-sm">
+                        <li>Verifique se o servidor SQL Server está rodando e acessível</li>
+                        <li>Confirme se as credenciais do banco de dados estão corretas</li>
+                        <li>Teste a conectividade de rede com o servidor</li>
+                        <li>Verifique se não há firewall bloqueando a porta 1433</li>
+                        <li>Confirme se o serviço de API proxy está rodando na porta 3005</li>
+                        <li>Tente reiniciar o servidor de API local</li>
+                      </ul>
+                    </div>
+                    
+                    {diagnosticInfo && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <p className="font-medium">Informações Técnicas de Diagnóstico:</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={copyDiagnosticInfo}
+                            className="h-6 px-2"
+                          >
+                            <Copy className="h-3 w-3 mr-1" />
+                            Copiar
+                          </Button>
+                        </div>
+                        <pre className="bg-muted p-2 rounded-md text-xs overflow-auto max-h-60">
+                          {JSON.stringify(diagnosticInfo, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                    
+                    <div>
+                      <p className="font-medium">Comandos para Diagnóstico:</p>
+                      <div className="bg-muted p-2 rounded-md text-xs">
+                        <p>Para testar a conexão manualmente:</p>
+                        <code>curl -X GET http://localhost:3005/api/status</code>
+                        <br />
+                        <code>curl -X GET http://localhost:3005/api/test-connection</code>
+                      </div>
+                    </div>
                   </div>
                 </AlertDialogDescription>
               </AlertDialogHeader>
