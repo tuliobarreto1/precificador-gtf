@@ -16,7 +16,8 @@ export function useQuoteUsers() {
       const { data, error } = await supabase
         .from('system_users')
         .select('*')
-        .eq('status', 'active');
+        .eq('status', 'active')
+        .order('name');
       
       if (error) {
         console.error('Erro ao buscar usuários do sistema:', error);
@@ -25,7 +26,7 @@ export function useQuoteUsers() {
       
       if (data && data.length > 0) {
         const mappedUsers: User[] = data.map(u => ({
-          id: u.id || `user-${Math.random().toString(36).substring(2, 9)}`,
+          id: u.id,
           name: u.name,
           email: u.email,
           role: u.role as UserRole,
@@ -33,6 +34,7 @@ export function useQuoteUsers() {
         }));
         
         setAvailableUsers(mappedUsers);
+        console.log('Usuários carregados do Supabase:', mappedUsers);
         
         // Se não houver usuário atual definido, usar o primeiro administrador ou o primeiro usuário disponível
         const storedUser = localStorage.getItem(CURRENT_USER_KEY);
@@ -77,10 +79,10 @@ export function useQuoteUsers() {
         clientName: quote.clients?.name || 'Cliente não encontrado',
         vehicles: [],
         totalValue: 0,
-        createdAt: new Date(quote.created_at), // Convertendo para Date
+        createdAt: new Date(quote.created_at),
         status: quote.status_flow || quote.status,
         createdBy: quote.created_by ? {
-          id: quote.created_by.toString(), // Converter para string
+          id: quote.created_by.toString(),
           name: '',
           email: '',
           role: 'user',
@@ -116,7 +118,7 @@ export function useQuoteUsers() {
   }, []);
 
   // Função para obter o usuário atual
-  const getCurrentUser = (): User => {
+  const getCurrentUser = () => {
     return user;
   };
 
@@ -170,7 +172,7 @@ export function useQuoteUsers() {
     const quote = savedQuotes.find(q => q.id === quoteId);
     if (!quote) return false;
     
-    const currentUser = getCurrentUser();
+    const currentUser = user;
     
     // Se não houver informações sobre quem criou, verificar se o usuário atual tem permissões elevadas
     if (!quote.createdBy) {
@@ -190,7 +192,7 @@ export function useQuoteUsers() {
     const quote = savedQuotes.find(q => q.id === quoteId);
     if (!quote) return false;
     
-    const currentUser = getCurrentUser();
+    const currentUser = user;
     
     // Se não houver informações sobre quem criou, verificar se o usuário atual tem permissões elevadas
     if (!quote.createdBy) {

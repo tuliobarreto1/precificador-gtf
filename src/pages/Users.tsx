@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
@@ -26,12 +27,11 @@ type UserType = {
   role: UserRole;
   status: UserStatus;
   last_login?: string;
-  password?: string; // Para novos usuários
+  password?: string;
   created_at?: string;
   updated_at?: string;
 };
 
-// Interface para o retorno da API do Supabase
 interface SupabaseUser {
   id: string;
   name: string;
@@ -85,10 +85,8 @@ const Users = () => {
   const [loading, setLoading] = useState(true);
   const [newPassword, setNewPassword] = useState('');
 
-  // Verificar se o usuário atual é admin
   const isCurrentUserAdmin = adminUser?.role === 'admin';
 
-  // Carregar usuários do Supabase
   useEffect(() => {
     loadUsers();
   }, []);
@@ -96,6 +94,7 @@ const Users = () => {
   const loadUsers = async () => {
     try {
       setLoading(true);
+      console.log('Carregando usuários do Supabase...');
       
       const { data, error } = await supabase
         .from('system_users')
@@ -103,27 +102,33 @@ const Users = () => {
         .order('name');
       
       if (error) {
-        throw error;
+        console.error('Erro ao carregar usuários:', error);
+        toast.error("Erro ao carregar usuários");
+        return;
       }
       
-      console.log('Usuários carregados:', data);
+      console.log('Dados retornados do Supabase:', data);
       
-      // Converter os dados do Supabase para o formato UserType
       const typedUsers: UserType[] = (data || []).map((user: SupabaseUser) => ({
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role as UserRole, // Conversão segura
-        status: user.status as UserStatus, // Conversão segura
+        role: user.role as UserRole,
+        status: user.status as UserStatus,
         last_login: user.last_login || undefined,
         created_at: user.created_at,
         updated_at: user.updated_at
       }));
       
+      console.log('Usuários processados:', typedUsers);
       setUsers(typedUsers);
+      
+      if (typedUsers.length === 0) {
+        console.warn('Nenhum usuário encontrado na tabela system_users');
+      }
     } catch (error) {
-      console.error('Erro ao carregar usuários:', error);
-      toast.error("Erro ao carregar usuários");
+      console.error('Erro inesperado ao carregar usuários:', error);
+      toast.error("Erro inesperado ao carregar usuários");
     } finally {
       setLoading(false);
     }
@@ -315,7 +320,7 @@ const Users = () => {
       <Card>
         <CardHeader 
           title="Lista de Usuários" 
-          subtitle="Visualize, adicione, edite e remova usuários do sistema"
+          subtitle={`Visualize, adicione, edite e remova usuários do sistema (Total: ${users.length})`}
           action={
             <Button onClick={() => setIsAddUserOpen(true)}>
               <UserPlus size={16} className="mr-2" />
@@ -411,7 +416,7 @@ const Users = () => {
                   ) : (
                     <TableRow>
                       <TableCell colSpan={6} className="h-24 text-center">
-                        {searchQuery ? 'Nenhum usuário encontrado com esses critérios.' : 'Nenhum usuário cadastrado.'}
+                        {searchQuery ? 'Nenhum usuário encontrado com esses critérios.' : 'Nenhum usuário cadastrado no sistema.'}
                       </TableCell>
                     </TableRow>
                   )}
