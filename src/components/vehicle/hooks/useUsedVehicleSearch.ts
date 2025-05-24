@@ -49,7 +49,7 @@ export const useUsedVehicleSearch = ({ offlineMode, onError }: UseUsedVehicleSea
     
     try {
       console.log(`Iniciando busca de veículo com placa: ${formattedPlate}`);
-      const vehicle = await getVehicleByPlate(formattedPlate, offlineMode);
+      const vehicle = await getVehicleByPlate(formattedPlate);
       console.log('Resultado da busca:', vehicle);
       
       setFoundVehicle(vehicle);
