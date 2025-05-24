@@ -26,7 +26,7 @@ type UserType = {
   role: UserRole;
   status: UserStatus;
   last_login?: string;
-  password?: string; // Para novos usuários
+  password?: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -96,6 +96,7 @@ const Users = () => {
   const loadUsers = async () => {
     try {
       setLoading(true);
+      console.log('Carregando usuários da tabela system_users...');
       
       const { data, error } = await supabase
         .from('system_users')
@@ -103,26 +104,29 @@ const Users = () => {
         .order('name');
       
       if (error) {
-        throw error;
+        console.error('Erro ao carregar usuários:', error);
+        toast.error("Erro ao carregar usuários");
+        return;
       }
       
-      console.log('Usuários carregados:', data);
+      console.log('Usuários carregados do Supabase:', data);
       
       // Converter os dados do Supabase para o formato UserType
-      const typedUsers: UserType[] = (data || []).map((user: SupabaseUser) => ({
+      const typedUsers: UserType[] = (data || []).map((user: any) => ({
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role as UserRole, // Conversão segura
-        status: user.status as UserStatus, // Conversão segura
+        role: user.role as UserRole,
+        status: user.status as UserStatus,
         last_login: user.last_login || undefined,
         created_at: user.created_at,
         updated_at: user.updated_at
       }));
       
+      console.log('Usuários formatados:', typedUsers);
       setUsers(typedUsers);
     } catch (error) {
-      console.error('Erro ao carregar usuários:', error);
+      console.error('Erro inesperado ao carregar usuários:', error);
       toast.error("Erro ao carregar usuários");
     } finally {
       setLoading(false);
@@ -156,7 +160,6 @@ const Users = () => {
         throw error;
       }
       
-      // Converter o resultado para UserType
       const newUserData: UserType = {
         id: data[0].id,
         name: data[0].name,
@@ -197,7 +200,6 @@ const Users = () => {
         throw error;
       }
       
-      // Atualizar o usuário na lista local
       setUsers(users.map(user => 
         user.id === currentUser.id ? {
           ...user,
@@ -220,7 +222,6 @@ const Users = () => {
   const handleDeleteUser = async () => {
     if (!currentUser) return;
     
-    // Verificar se está tentando excluir o próprio admin (proteger o admin principal)
     if (currentUser.role === 'admin' && !isCurrentUserAdmin) {
       toast.error('Você não tem permissão para excluir um administrador');
       setIsDeleteConfirmOpen(false);
@@ -250,7 +251,6 @@ const Users = () => {
     const userToUpdate = users.find(user => user.id === userId);
     if (!userToUpdate) return;
     
-    // Verificar se está tentando desativar o próprio admin (proteger o admin principal)
     if (userToUpdate.role === 'admin' && userToUpdate.status === 'active' && !isCurrentUserAdmin) {
       toast.error('Você não tem permissão para desativar um administrador');
       return;
