@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { SavedQuote, User, UserRole, defaultUser } from '@/context/types/quoteTypes';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,7 +23,7 @@ export function useQuoteUsers() {
       
       if (error) {
         console.error('Erro ao buscar usuários do sistema:', error);
-        return;
+        return [];
       }
       
       console.log('Dados brutos do Supabase:', data);
@@ -227,13 +226,74 @@ export function useQuoteUsers() {
 
   return {
     user,
-    getCurrentUser,
-    setCurrentUser,
+    getCurrentUser: () => user,
+    setCurrentUser: (newUser: User) => {
+      setUser(newUser);
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(newUser));
+      console.log('Usuário atual alterado para:', newUser);
+    },
     availableUsers,
-    canEditQuote,
-    canDeleteQuote,
+    canEditQuote: (quoteId: string): boolean => {
+      const quote = savedQuotes.find(q => q.id === quoteId);
+      if (!quote) return false;
+      
+      const currentUser = user;
+      
+      if (!quote.createdBy) {
+        return currentUser.role === 'manager' || 
+               currentUser.role === 'admin';
+      }
+      
+      return quote.createdBy.id === currentUser.id || 
+             currentUser.role === 'manager' || 
+             currentUser.role === 'admin';
+    },
+    canDeleteQuote: (quoteId: string): boolean => {
+      const quote = savedQuotes.find(q => q.id === quoteId);
+      if (!quote) return false;
+      
+      const currentUser = user;
+      
+      if (!quote.createdBy) {
+        return currentUser.role === 'manager' || 
+               currentUser.role === 'admin';
+      }
+      
+      return quote.createdBy.id === currentUser.id || 
+             currentUser.role === 'manager' || 
+             currentUser.role === 'admin';
+    },
     savedQuotes,
     loading,
-    fetchSystemUsers // Exportar para poder ser chamado manualmente se necessário
+    fetchSystemUsers,
+    authenticateUser: (userId: string, password?: string): boolean => {
+      const foundUser = availableUsers.find(u => u.id === userId && u.status === 'active');
+      
+      if (foundUser) {
+        if (password !== undefined) {
+          if (password.trim() === '') {
+            console.log('Autenticação falhou: senha vazia');
+            return false;
+          }
+          
+          const updatedUser = {
+            ...foundUser
+          };
+          
+          setUser(updatedUser);
+          localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(updatedUser));
+          console.log(`Usuário ${updatedUser.name} autenticado com senha`);
+          return true;
+        } else {
+          setUser(foundUser);
+          localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(foundUser));
+          console.log(`Usuário ${foundUser.name} autenticado sem senha (fluxo interno)`);
+          return true;
+        }
+      }
+      
+      console.log('Autenticação falhou: usuário não encontrado ou inativo');
+      return false;
+    }
   };
 }

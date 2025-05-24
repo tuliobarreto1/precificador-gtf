@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import PageTitle from '@/components/ui-custom/PageTitle';
@@ -11,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { MoreHorizontal, Search, User, UserPlus, Edit, Trash2, RefreshCw, Key } from 'lucide-react';
+import { MoreHorizontal, Search, UserPlus, Edit, Trash2, RefreshCw, Key } from 'lucide-react';
 import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,18 +30,6 @@ type UserType = {
   created_at?: string;
   updated_at?: string;
 };
-
-interface SupabaseUser {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  status: string;
-  last_login: string | null;
-  password?: string;
-  created_at: string;
-  updated_at: string;
-}
 
 const UserRoleText = ({ role }: { role: string }) => {
   switch (role) {
@@ -89,21 +76,26 @@ const Users = () => {
 
   // Carregar usuários quando o hook terminar de carregar
   useEffect(() => {
-    if (!quoteUsersLoading && availableUsers.length > 0) {
-      console.log('Carregando usuários do hook:', availableUsers);
-      const mappedUsers = availableUsers.map(user => ({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role as UserRole,
-        status: user.status as UserStatus,
-        last_login: user.lastLogin,
-      }));
-      setUsers(mappedUsers);
-      setLoading(false);
-    } else if (!quoteUsersLoading) {
-      // Se o hook terminou de carregar mas não há usuários, tentar carregar diretamente
-      loadUsers();
+    console.log('UseEffect executado:', { quoteUsersLoading, availableUsersLength: availableUsers.length });
+    
+    if (!quoteUsersLoading) {
+      if (availableUsers.length > 0) {
+        console.log('Carregando usuários do hook:', availableUsers);
+        const mappedUsers = availableUsers.map(user => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role as UserRole,
+          status: user.status as UserStatus,
+        }));
+        setUsers(mappedUsers);
+        setLoading(false);
+        toast.success(`${mappedUsers.length} usuários carregados com sucesso`);
+      } else {
+        // Se o hook terminou de carregar mas não há usuários, tentar carregar diretamente
+        console.log('Hook carregou mas sem usuários, tentando carregar diretamente...');
+        loadUsers();
+      }
     }
   }, [availableUsers, quoteUsersLoading]);
 
@@ -125,7 +117,7 @@ const Users = () => {
       
       console.log('Dados retornados do Supabase:', data);
       
-      const typedUsers: UserType[] = (data || []).map((user: SupabaseUser) => ({
+      const typedUsers: UserType[] = (data || []).map((user: any) => ({
         id: user.id,
         name: user.name,
         email: user.email,
