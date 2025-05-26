@@ -1,4 +1,3 @@
-
 import { supabase } from '../client';
 
 // Interface para grupos de veículos do cache
@@ -19,6 +18,29 @@ export interface LocaviaVehicleModelCache {
   codigo_grupo_veiculo: string;
   letra_grupo: string;
   maior_valor_compra: number;
+  cached_at: string;
+  updated_at: string;
+}
+
+// Interface para veículos individuais do cache
+export interface LocaviaVehicleCache {
+  id: string;
+  codigo_mva: number;
+  placa: string;
+  codigo_modelo: string;
+  descricao_modelo: string;
+  codigo_grupo_veiculo: string;
+  letra_grupo: string;
+  descricao_grupo: string;
+  ano_fabricacao_modelo: string;
+  cor: string;
+  tipo_combustivel: string;
+  numero_passageiros: number;
+  odometro_atual: number;
+  status: string;
+  descricao_status: string;
+  valor_compra: number;
+  data_compra: string;
   cached_at: string;
   updated_at: string;
 }
@@ -202,6 +224,152 @@ export async function clearOldCache(tableName: 'locavia_vehicle_groups_cache' | 
     return { success: true };
   } catch (error) {
     console.error(`Erro inesperado ao limpar cache ${tableName}:`, error);
+    return { success: false, error };
+  }
+}
+
+// Função para buscar veículo por placa do cache
+export async function getVehicleByPlateFromCache(plate: string) {
+  try {
+    console.log(`🔍 Buscando veículo com placa ${plate} no cache Supabase...`);
+    
+    const { data, error } = await supabase
+      .from('locavia_vehicles_cache')
+      .select('*')
+      .eq('placa', plate)
+      .maybeSingle();
+      
+    if (error) {
+      console.error('❌ Erro ao buscar veículo do cache:', error);
+      return { success: false, error, vehicle: null };
+    }
+    
+    if (data) {
+      console.log(`✅ Veículo com placa ${plate} encontrado no cache`);
+      
+      // Converter para o formato esperado
+      const vehicle = {
+        CodigoMVA: data.codigo_mva,
+        Placa: data.placa,
+        CodigoModelo: data.codigo_modelo,
+        DescricaoModelo: data.descricao_modelo,
+        CodigoGrupoVeiculo: data.codigo_grupo_veiculo,
+        LetraGrupo: data.letra_grupo,
+        DescricaoGrupo: data.descricao_grupo,
+        AnoFabricacaoModelo: data.ano_fabricacao_modelo,
+        Cor: data.cor,
+        TipoCombustivel: data.tipo_combustivel,
+        NumeroPassageiros: data.numero_passageiros,
+        OdometroAtual: data.odometro_atual,
+        Status: data.status,
+        DescricaoStatus: data.descricao_status,
+        ValorCompra: data.valor_compra,
+        DataCompra: data.data_compra
+      };
+      
+      return { success: true, vehicle };
+    } else {
+      console.log(`ℹ️ Nenhum veículo com placa ${plate} encontrado no cache`);
+      return { success: true, vehicle: null };
+    }
+  } catch (error) {
+    console.error('💥 Erro inesperado ao buscar veículo do cache:', error);
+    return { success: false, error, vehicle: null };
+  }
+}
+
+// Função para salvar veículo no cache
+export async function saveVehicleToCache(vehicle: any) {
+  try {
+    console.log(`💾 Salvando veículo ${vehicle.Placa} no cache...`);
+    
+    // Preparar dados para inserção
+    const cacheData = {
+      codigo_mva: vehicle.CodigoMVA,
+      placa: vehicle.Placa,
+      codigo_modelo: vehicle.CodigoModelo,
+      descricao_modelo: vehicle.DescricaoModelo,
+      codigo_grupo_veiculo: vehicle.CodigoGrupoVeiculo,
+      letra_grupo: vehicle.LetraGrupo,
+      descricao_grupo: vehicle.DescricaoGrupo,
+      ano_fabricacao_modelo: vehicle.AnoFabricacaoModelo,
+      cor: vehicle.Cor,
+      tipo_combustivel: vehicle.TipoCombustivel,
+      numero_passageiros: vehicle.NumeroPassageiros,
+      odometro_atual: vehicle.OdometroAtual,
+      status: vehicle.Status,
+      descricao_status: vehicle.DescricaoStatus,
+      valor_compra: vehicle.ValorCompra,
+      data_compra: vehicle.DataCompra
+    };
+    
+    // Usar upsert para inserir ou atualizar
+    const { error } = await supabase
+      .from('locavia_vehicles_cache')
+      .upsert(cacheData, { 
+        onConflict: 'placa',
+        ignoreDuplicates: false 
+      });
+      
+    if (error) {
+      console.error('❌ Erro ao salvar veículo no cache:', error);
+      return { success: false, error };
+    }
+    
+    console.log('✅ Veículo salvo no cache com sucesso');
+    return { success: true };
+  } catch (error) {
+    console.error('💥 Erro inesperado ao salvar veículo no cache:', error);
+    return { success: false, error };
+  }
+}
+
+// Função para verificar se o cache de veículos está atualizado
+export async function isVehicleCacheRecent(hoursThreshold: number = 24) {
+  try {
+    const thresholdTime = new Date();
+    thresholdTime.setHours(thresholdTime.getHours() - hoursThreshold);
+    
+    const { data, error } = await supabase
+      .from('locavia_vehicles_cache')
+      .select('cached_at')
+      .gte('cached_at', thresholdTime.toISOString())
+      .limit(1);
+      
+    if (error) {
+      console.error('Erro ao verificar atualização do cache de veículos:', error);
+      return false;
+    }
+    
+    const isRecent = data && data.length > 0;
+    console.log(`Cache de veículos está ${isRecent ? 'atualizado' : 'desatualizado'}`);
+    return isRecent;
+  } catch (error) {
+    console.error('Erro inesperado ao verificar cache de veículos:', error);
+    return false;
+  }
+}
+
+// Função para limpar cache antigo de veículos
+export async function clearOldVehicleCache(hoursThreshold: number = 168) { // 7 dias
+  try {
+    const thresholdTime = new Date();
+    thresholdTime.setHours(thresholdTime.getHours() - hoursThreshold);
+    
+    const { error } = await supabase
+      .from('locavia_vehicles_cache')
+      .delete()
+      .lt('cached_at', thresholdTime.toISOString());
+      
+    if (error) {
+      console.error('Erro ao limpar cache antigo de veículos:', error);
+      return { success: false, error };
+    }
+    
+    console.log('Cache antigo de veículos limpo com sucesso');
+    return { success: true };
+  } catch (error) {
+    console.error('Erro inesperado ao limpar cache de veículos:', error);
     return { success: false, error };
   }
 }

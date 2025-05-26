@@ -68,6 +68,12 @@ import {
   getConnectionAndCacheStatus
 } from './sql-connection-with-cache';
 
+// Importar funções de cache de veículos
+import { 
+  getVehicleByPlateFromCache,
+  saveVehicleToCache
+} from '@/integrations/supabase/services/locaviaCache';
+
 // Variáveis para configurar o comportamento offline
 const CONNECTION_TIMEOUT = 15000; // 15 segundos
 const MAX_RETRY_ATTEMPTS = 1; // Reduzido para 1 tentativa para evitar atrasos
@@ -131,7 +137,20 @@ export const getVehicleByPlate = async (plate: string, useOfflineMode = false): 
       throw new Error('Formato de placa inválido');
     }
     
-    // Primeiro verifica no cache do Supabase
+    // Primeiro verifica no cache do Supabase (tabela de cache da Locavia)
+    console.log('Buscando veículo no cache da Locavia...');
+    try {
+      const cacheResult = await getVehicleByPlateFromCache(plate);
+      
+      if (cacheResult.success && cacheResult.vehicle) {
+        console.log('Veículo encontrado no cache da Locavia:', cacheResult.vehicle);
+        return cacheResult.vehicle;
+      }
+    } catch (cacheError) {
+      console.log('Erro ao buscar no cache da Locavia, continuando com outras opções:', cacheError);
+    }
+    
+    // Depois verifica no cache local (tabela vehicles)
     console.log('Buscando veículo no cache local...');
     try {
       const { data, error } = await supabase
@@ -164,7 +183,7 @@ export const getVehicleByPlate = async (plate: string, useOfflineMode = false): 
         };
       }
     } catch (cacheError) {
-      console.log('Erro ao buscar no cache, continuando com API:', cacheError);
+      console.log('Erro ao buscar no cache local, continuando com API:', cacheError);
     }
     
     if (useOfflineMode) {
@@ -253,8 +272,17 @@ export const getVehicleByPlate = async (plate: string, useOfflineMode = false): 
         
         console.log('Veículo encontrado na API externa:', vehicle);
         
-        // Após encontrar na API externa, armazenamos no Supabase para uso futuro
+        // Após encontrar na API externa, armazenamos no cache da Locavia
         if (vehicle) {
+          try {
+            await saveVehicleToCache(vehicle);
+            console.log('Veículo salvo no cache da Locavia com sucesso');
+          } catch (cacheError) {
+            console.error('Erro ao salvar veículo no cache da Locavia:', cacheError);
+            // Não interromper o fluxo por erro no cache
+          }
+          
+          // Também armazenar no cache local (tabela vehicles)
           try {
             const { error: insertError } = await supabase
               .from('vehicles')
