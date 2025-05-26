@@ -34,28 +34,76 @@ export const getAllVehiclesFromLocavia = async (
       });
     }
 
+    // Verificar se o servidor proxy está rodando primeiro
+    console.log('🔍 Verificando se o servidor proxy está rodando...');
+    try {
+      const statusResponse = await fetch('http://localhost:3005/api/status', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(10000) // 10 segundos
+      });
+
+      if (!statusResponse.ok) {
+        throw new Error(`Servidor proxy não está respondendo: ${statusResponse.status}`);
+      }
+      
+      console.log('✅ Servidor proxy está rodando');
+    } catch (statusError) {
+      console.error('❌ Servidor proxy não está acessível:', statusError);
+      throw new Error('Servidor proxy não está rodando. Certifique-se de que o comando "npm run dev:server" está executando na porta 3005.');
+    }
+
     // Buscar todos os veículos da API da Locavia
+    console.log('📡 Fazendo requisição para buscar todos os veículos...');
+    
     const response = await fetch('http://localhost:3005/api/vehicles/all', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
       },
       // Timeout maior para buscar todos os veículos
       signal: AbortSignal.timeout(120000) // 2 minutos
     });
 
+    console.log(`📡 Resposta recebida com status: ${response.status} ${response.statusText}`);
+
     if (!response.ok) {
-      throw new Error(`Erro na API da Locavia: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('❌ Erro na resposta da API:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      });
+      throw new Error(`Erro na API da Locavia: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
-    const vehicles = await response.json();
+    const responseText = await response.text();
+    console.log('📄 Tamanho da resposta recebida:', responseText.length, 'caracteres');
     
-    if (!Array.isArray(vehicles)) {
+    if (!responseText) {
+      throw new Error('Resposta vazia da API da Locavia');
+    }
+
+    let vehicles: SqlVehicle[];
+    try {
+      vehicles = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('❌ Erro ao fazer parse do JSON:', parseError);
+      console.error('📄 Conteúdo da resposta:', responseText.substring(0, 500) + '...');
       throw new Error('Formato de resposta inválido da API da Locavia');
     }
 
+    if (!Array.isArray(vehicles)) {
+      console.error('❌ Resposta não é um array:', typeof vehicles);
+      throw new Error('Formato de resposta inválido da API da Locavia - esperado array');
+    }
+
     allVehicles = vehicles;
-    console.log(`✅ ${allVehicles.length} veículos obtidos da API da Locavia`);
+    console.log(`✅ ${allVehicles.length} veículos obtidos da API da Locavia com sucesso`);
 
     if (onProgress) {
       onProgress({

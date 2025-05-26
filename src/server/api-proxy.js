@@ -395,13 +395,10 @@ app.get('/api/vehicle-models/:groupCode', async (req, res) => {
   }
 });
 
-// Endpoint para buscar todos os veículos (NOVO)
+// Endpoint para buscar todos os veículos (CORRIGIDO)
 app.get('/api/vehicles/all', async (req, res) => {
   try {
-    console.log('Buscando TODOS os veículos da base da Locavia...');
-    
-    // Definir dados de fallback para quando a conexão falhar
-    const fallbackData = [];
+    console.log('🔄 Buscando TODOS os veículos da base da Locavia...');
     
     // Definir que uma tentativa de conexão foi feita
     res.locals.connectionAttempted = true;
@@ -410,15 +407,15 @@ app.get('/api/vehicles/all', async (req, res) => {
     try {
       pool = await connectToDatabase();
     } catch (connError) {
-      console.error('Erro ao conectar ao banco de dados para buscar todos os veículos:', connError);
+      console.error('❌ Erro ao conectar ao banco de dados para buscar todos os veículos:', connError);
       return res.status(500).json({
         message: 'Erro de conexão com o banco de dados',
         error: connError.message,
-        data: fallbackData
+        data: []
       });
     }
     
-    console.log('Executando consulta SQL para buscar TODOS os veículos...');
+    console.log('✅ Conexão estabelecida, executando consulta SQL para buscar TODOS os veículos...');
     
     try {
       const result = await pool.request().query(`
@@ -451,30 +448,42 @@ app.get('/api/vehicles/all', async (req, res) => {
           v.Placa
       `);
       
-      console.log(`Consulta SQL executada com sucesso. Total de veículos encontrados: ${result.recordset.length}`);
+      console.log(`✅ Consulta SQL executada com sucesso. Total de veículos encontrados: ${result.recordset.length}`);
       
       if (result.recordset.length > 0) {
-        console.log('Primeiros 3 veículos:', result.recordset.slice(0, 3).map(v => ({
+        console.log('✅ Primeiros 3 veículos encontrados:', result.recordset.slice(0, 3).map(v => ({
           placa: v.Placa,
           modelo: v.DescricaoModelo,
-          grupo: v.LetraGrupo
+          grupo: v.LetraGrupo,
+          valor: v.ValorCompra
         })));
+      } else {
+        console.log('⚠️ Nenhum veículo encontrado na base de dados');
       }
       
-      res.json(result.recordset);
+      // Adicionar headers de CORS explicitamente
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+      
+      // Retornar dados com status 200
+      res.status(200).json(result.recordset);
+      
     } catch (queryError) {
-      console.error('Erro na execução da consulta SQL de todos os veículos:', queryError);
+      console.error('❌ Erro na execução da consulta SQL de todos os veículos:', queryError);
       return res.status(500).json({
         message: 'Erro ao executar consulta SQL para buscar todos os veículos',
         error: queryError.message,
-        data: fallbackData
+        details: queryError.stack,
+        data: []
       });
     }
   } catch (error) {
-    console.error('Erro geral na busca de todos os veículos:', error);
+    console.error('❌ Erro geral na busca de todos os veículos:', error);
     res.status(500).json({
-      message: 'Erro ao buscar todos os veículos',
+      message: 'Erro interno do servidor ao buscar todos os veículos',
       error: error.message,
+      stack: error.stack,
       data: []
     });
   }
