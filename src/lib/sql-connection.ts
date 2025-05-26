@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 // Definição das interfaces
@@ -120,6 +121,47 @@ export const testApiConnection = async (): Promise<ConnectionStatus> => {
       recommendedMode: 'cache',
       message: 'Erro ao verificar conexão'
     };
+  }
+};
+
+// Função auxiliar para salvar veículo no Supabase
+const saveVehicleToSupabase = async (vehicle: SqlVehicle): Promise<void> => {
+  try {
+    console.log(`💾 Salvando veículo ${vehicle.Placa} no Supabase...`);
+    
+    // Extrair marca e modelo da descrição
+    const descriptionParts = vehicle.DescricaoModelo.split(' ');
+    const brand = descriptionParts[0] || 'Não informado';
+    const model = descriptionParts.slice(1).join(' ') || 'Não informado';
+    
+    const vehicleData = {
+      brand: brand,
+      model: model,
+      year: parseInt(vehicle.AnoFabricacaoModelo) || new Date().getFullYear(),
+      value: vehicle.ValorCompra || 0,
+      is_used: true, // Veículos da Locavia são sempre usados
+      plate_number: vehicle.Placa,
+      color: vehicle.Cor || null,
+      odometer: vehicle.OdometroAtual || 0,
+      fuel_type: vehicle.TipoCombustivel || null,
+      group_id: vehicle.LetraGrupo || 'A'
+    };
+    
+    // Usar upsert para inserir ou atualizar baseado na placa
+    const { error } = await supabase
+      .from('vehicles')
+      .upsert(vehicleData, { 
+        onConflict: 'plate_number',
+        ignoreDuplicates: false 
+      });
+    
+    if (error) {
+      console.error('❌ Erro ao salvar veículo no Supabase:', error);
+    } else {
+      console.log('✅ Veículo salvo no Supabase com sucesso');
+    }
+  } catch (error) {
+    console.error('💥 Erro inesperado ao salvar veículo no Supabase:', error);
   }
 };
 
@@ -272,40 +314,22 @@ export const getVehicleByPlate = async (plate: string, useOfflineMode = false): 
         
         console.log('Veículo encontrado na API externa:', vehicle);
         
-        // Após encontrar na API externa, armazenamos no cache da Locavia
+        // *** CRUCIAL: Salvar nos dois locais quando encontrar na API externa ***
         if (vehicle) {
+          // 1. Salvar no cache da Locavia (tabela locavia_vehicles_cache)
           try {
             await saveVehicleToCache(vehicle);
-            console.log('Veículo salvo no cache da Locavia com sucesso');
+            console.log('✅ Veículo salvo no cache da Locavia com sucesso');
           } catch (cacheError) {
-            console.error('Erro ao salvar veículo no cache da Locavia:', cacheError);
+            console.error('❌ Erro ao salvar veículo no cache da Locavia:', cacheError);
             // Não interromper o fluxo por erro no cache
           }
           
-          // Também armazenar no cache local (tabela vehicles)
+          // 2. Salvar no Supabase (tabela vehicles) para uso offline
           try {
-            const { error: insertError } = await supabase
-              .from('vehicles')
-              .insert({
-                brand: vehicle.DescricaoModelo?.split(' ')[0] || '',
-                model: vehicle.DescricaoModelo?.split(' ').slice(1).join(' ') || '',
-                year: parseInt(vehicle.AnoFabricacaoModelo) || new Date().getFullYear(),
-                value: vehicle.ValorCompra || 0,
-                is_used: true,
-                plate_number: vehicle.Placa,
-                color: vehicle.Cor || '',
-                odometer: vehicle.OdometroAtual || 0,
-                fuel_type: vehicle.TipoCombustivel || '',
-                group_id: vehicle.LetraGrupo || 'A'
-              });
-            
-            if (insertError) {
-              console.error('Erro ao salvar veículo no Supabase:', insertError);
-            } else {
-              console.log('Veículo salvo no Supabase com sucesso');
-            }
+            await saveVehicleToSupabase(vehicle);
           } catch (dbError) {
-            console.error('Erro ao inserir veículo no Supabase:', dbError);
+            console.error('❌ Erro ao salvar veículo no Supabase:', dbError);
             // Não interromper o fluxo por erro no cache
           }
         }

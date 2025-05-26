@@ -104,7 +104,7 @@ export async function getAllVehicles(filter?: string, filterValue?: string) {
   }
 }
 
-// Função para criar ou atualizar um veículo
+// Função para criar ou atualizar um veículo - melhorada para lidar com dados da Locavia
 export async function createOrUpdateVehicle(vehicle: any) {
   try {
     const vehicleId = vehicle.id ? convertToValidUuid(vehicle.id) : uuidv4();
@@ -124,9 +124,14 @@ export async function createOrUpdateVehicle(vehicle: any) {
       updated_at: new Date().toISOString()
     };
     
+    // Usar upsert baseado na placa se ela existir, senão baseado no ID
+    const upsertOptions = vehicle.plateNumber || vehicle.plate_number 
+      ? { onConflict: 'plate_number', ignoreDuplicates: false }
+      : { onConflict: 'id', ignoreDuplicates: false };
+    
     const { data, error } = await supabase
       .from('vehicles')
-      .upsert(vehicleData)
+      .upsert(vehicleData, upsertOptions)
       .select()
       .single();
       
@@ -135,6 +140,7 @@ export async function createOrUpdateVehicle(vehicle: any) {
       return { success: false, error };
     }
     
+    console.log("✅ Veículo salvo no Supabase:", data);
     return { success: true, data };
   } catch (error) {
     console.error("Erro inesperado ao criar/atualizar veículo:", error);
@@ -142,12 +148,14 @@ export async function createOrUpdateVehicle(vehicle: any) {
   }
 }
 
-// Função para buscar veículo pela placa
+// Função para buscar veículo pela placa - melhorada para lidar com integração com Locavia
 export async function findVehicleByPlate(plateNumber: string) {
   try {
     if (!plateNumber) {
       return null;
     }
+    
+    console.log(`🔍 Buscando veículo com placa ${plateNumber} no Supabase...`);
     
     const { data, error } = await supabase
       .from('vehicles')
@@ -161,15 +169,20 @@ export async function findVehicleByPlate(plateNumber: string) {
     }
     
     if (data) {
+      console.log(`✅ Veículo encontrado no Supabase:`, data);
       return data;
     }
     
+    console.log(`ℹ️ Veículo com placa ${plateNumber} não encontrado no Supabase`);
+    
     // Se não encontrar no Supabase, buscar na API da Locavia
     try {
+      console.log(`🔄 Tentando buscar veículo ${plateNumber} na API da Locavia...`);
       const response = await fetch(`http://localhost:3005/api/vehicles/${plateNumber}`);
       
       if (!response.ok) {
         if (response.status === 404) {
+          console.log(`ℹ️ Veículo ${plateNumber} não encontrado na Locavia`);
           return null;
         }
         throw new Error('Erro ao buscar veículo da Locavia');
@@ -181,9 +194,10 @@ export async function findVehicleByPlate(plateNumber: string) {
         return null;
       }
       
-      // Transformar para o formato do frontend
-      return {
-        id: convertToValidUuid(locaviaVehicle.CodigoMVA || ''),
+      console.log(`✅ Veículo encontrado na Locavia:`, locaviaVehicle);
+      
+      // Transformar para o formato do frontend e salvar no Supabase
+      const vehicleForSupabase = {
         brand: locaviaVehicle.DescricaoModelo ? locaviaVehicle.DescricaoModelo.split(' ')[0] : 'Não especificado',
         model: locaviaVehicle.DescricaoModelo ? locaviaVehicle.DescricaoModelo.split(' ').slice(1).join(' ') : 'Não especificado',
         year: parseInt(locaviaVehicle.AnoFabricacaoModelo) || new Date().getFullYear(),
@@ -199,6 +213,20 @@ export async function findVehicleByPlate(plateNumber: string) {
         groupId: locaviaVehicle.LetraGrupo || 'A',
         group_id: locaviaVehicle.LetraGrupo || 'A'
       };
+      
+      // Salvar no Supabase para próximas consultas
+      const saveResult = await createOrUpdateVehicle(vehicleForSupabase);
+      if (saveResult.success) {
+        console.log(`💾 Veículo ${plateNumber} salvo no Supabase para uso futuro`);
+        return saveResult.data;
+      } else {
+        console.error(`❌ Erro ao salvar veículo ${plateNumber} no Supabase:`, saveResult.error);
+        // Retornar os dados mesmo se não conseguir salvar
+        return {
+          id: convertToValidUuid(locaviaVehicle.CodigoMVA || ''),
+          ...vehicleForSupabase
+        };
+      }
     } catch (error) {
       console.error("Erro ao buscar veículo da Locavia:", error);
       return null;
