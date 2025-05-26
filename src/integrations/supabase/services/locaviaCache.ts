@@ -1,3 +1,4 @@
+
 import { supabase } from '../client';
 
 // Interface para grupos de veículos do cache
@@ -228,43 +229,48 @@ export async function clearOldCache(tableName: 'locavia_vehicle_groups_cache' | 
   }
 }
 
-// Função para buscar veículo por placa do cache
+// Função para buscar veículo por placa do cache usando query SQL direta
 export async function getVehicleByPlateFromCache(plate: string) {
   try {
     console.log(`🔍 Buscando veículo com placa ${plate} no cache Supabase...`);
     
-    const { data, error } = await supabase
-      .from('locavia_vehicles_cache')
-      .select('*')
-      .eq('placa', plate)
-      .maybeSingle();
+    // Usando uma query SQL personalizada para acessar a tabela recém-criada
+    const { data, error } = await supabase.rpc('execute_sql', {
+      sql_query: `
+        SELECT * FROM public.locavia_vehicles_cache 
+        WHERE placa = $1 
+        LIMIT 1
+      `,
+      params: [plate]
+    });
       
     if (error) {
       console.error('❌ Erro ao buscar veículo do cache:', error);
       return { success: false, error, vehicle: null };
     }
     
-    if (data) {
+    if (data && Array.isArray(data) && data.length > 0) {
+      const vehicleData = data[0];
       console.log(`✅ Veículo com placa ${plate} encontrado no cache`);
       
       // Converter para o formato esperado
       const vehicle = {
-        CodigoMVA: data.codigo_mva,
-        Placa: data.placa,
-        CodigoModelo: data.codigo_modelo,
-        DescricaoModelo: data.descricao_modelo,
-        CodigoGrupoVeiculo: data.codigo_grupo_veiculo,
-        LetraGrupo: data.letra_grupo,
-        DescricaoGrupo: data.descricao_grupo,
-        AnoFabricacaoModelo: data.ano_fabricacao_modelo,
-        Cor: data.cor,
-        TipoCombustivel: data.tipo_combustivel,
-        NumeroPassageiros: data.numero_passageiros,
-        OdometroAtual: data.odometro_atual,
-        Status: data.status,
-        DescricaoStatus: data.descricao_status,
-        ValorCompra: data.valor_compra,
-        DataCompra: data.data_compra
+        CodigoMVA: vehicleData.codigo_mva,
+        Placa: vehicleData.placa,
+        CodigoModelo: vehicleData.codigo_modelo,
+        DescricaoModelo: vehicleData.descricao_modelo,
+        CodigoGrupoVeiculo: vehicleData.codigo_grupo_veiculo,
+        LetraGrupo: vehicleData.letra_grupo,
+        DescricaoGrupo: vehicleData.descricao_grupo,
+        AnoFabricacaoModelo: vehicleData.ano_fabricacao_modelo,
+        Cor: vehicleData.cor,
+        TipoCombustivel: vehicleData.tipo_combustivel,
+        NumeroPassageiros: vehicleData.numero_passageiros,
+        OdometroAtual: vehicleData.odometro_atual,
+        Status: vehicleData.status,
+        DescricaoStatus: vehicleData.descricao_status,
+        ValorCompra: vehicleData.valor_compra,
+        DataCompra: vehicleData.data_compra
       };
       
       return { success: true, vehicle };
@@ -278,38 +284,61 @@ export async function getVehicleByPlateFromCache(plate: string) {
   }
 }
 
-// Função para salvar veículo no cache
+// Função para salvar veículo no cache usando query SQL direta
 export async function saveVehicleToCache(vehicle: any) {
   try {
     console.log(`💾 Salvando veículo ${vehicle.Placa} no cache...`);
     
-    // Preparar dados para inserção
-    const cacheData = {
-      codigo_mva: vehicle.CodigoMVA,
-      placa: vehicle.Placa,
-      codigo_modelo: vehicle.CodigoModelo,
-      descricao_modelo: vehicle.DescricaoModelo,
-      codigo_grupo_veiculo: vehicle.CodigoGrupoVeiculo,
-      letra_grupo: vehicle.LetraGrupo,
-      descricao_grupo: vehicle.DescricaoGrupo,
-      ano_fabricacao_modelo: vehicle.AnoFabricacaoModelo,
-      cor: vehicle.Cor,
-      tipo_combustivel: vehicle.TipoCombustivel,
-      numero_passageiros: vehicle.NumeroPassageiros,
-      odometro_atual: vehicle.OdometroAtual,
-      status: vehicle.Status,
-      descricao_status: vehicle.DescricaoStatus,
-      valor_compra: vehicle.ValorCompra,
-      data_compra: vehicle.DataCompra
-    };
-    
-    // Usar upsert para inserir ou atualizar
-    const { error } = await supabase
-      .from('locavia_vehicles_cache')
-      .upsert(cacheData, { 
-        onConflict: 'placa',
-        ignoreDuplicates: false 
-      });
+    // Usando uma query SQL personalizada para inserir na tabela recém-criada
+    const { error } = await supabase.rpc('execute_sql', {
+      sql_query: `
+        INSERT INTO public.locavia_vehicles_cache (
+          codigo_mva, placa, codigo_modelo, descricao_modelo,
+          codigo_grupo_veiculo, letra_grupo, descricao_grupo,
+          ano_fabricacao_modelo, cor, tipo_combustivel,
+          numero_passageiros, odometro_atual, status,
+          descricao_status, valor_compra, data_compra
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+        )
+        ON CONFLICT (placa) 
+        DO UPDATE SET
+          codigo_mva = EXCLUDED.codigo_mva,
+          codigo_modelo = EXCLUDED.codigo_modelo,
+          descricao_modelo = EXCLUDED.descricao_modelo,
+          codigo_grupo_veiculo = EXCLUDED.codigo_grupo_veiculo,
+          letra_grupo = EXCLUDED.letra_grupo,
+          descricao_grupo = EXCLUDED.descricao_grupo,
+          ano_fabricacao_modelo = EXCLUDED.ano_fabricacao_modelo,
+          cor = EXCLUDED.cor,
+          tipo_combustivel = EXCLUDED.tipo_combustivel,
+          numero_passageiros = EXCLUDED.numero_passageiros,
+          odometro_atual = EXCLUDED.odometro_atual,
+          status = EXCLUDED.status,
+          descricao_status = EXCLUDED.descricao_status,
+          valor_compra = EXCLUDED.valor_compra,
+          data_compra = EXCLUDED.data_compra,
+          updated_at = now()
+      `,
+      params: [
+        vehicle.CodigoMVA,
+        vehicle.Placa,
+        vehicle.CodigoModelo,
+        vehicle.DescricaoModelo,
+        vehicle.CodigoGrupoVeiculo,
+        vehicle.LetraGrupo,
+        vehicle.DescricaoGrupo,
+        vehicle.AnoFabricacaoModelo,
+        vehicle.Cor,
+        vehicle.TipoCombustivel,
+        vehicle.NumeroPassageiros,
+        vehicle.OdometroAtual,
+        vehicle.Status,
+        vehicle.DescricaoStatus,
+        vehicle.ValorCompra,
+        vehicle.DataCompra
+      ]
+    });
       
     if (error) {
       console.error('❌ Erro ao salvar veículo no cache:', error);
@@ -330,18 +359,21 @@ export async function isVehicleCacheRecent(hoursThreshold: number = 24) {
     const thresholdTime = new Date();
     thresholdTime.setHours(thresholdTime.getHours() - hoursThreshold);
     
-    const { data, error } = await supabase
-      .from('locavia_vehicles_cache')
-      .select('cached_at')
-      .gte('cached_at', thresholdTime.toISOString())
-      .limit(1);
+    const { data, error } = await supabase.rpc('execute_sql', {
+      sql_query: `
+        SELECT cached_at FROM public.locavia_vehicles_cache 
+        WHERE cached_at >= $1 
+        LIMIT 1
+      `,
+      params: [thresholdTime.toISOString()]
+    });
       
     if (error) {
       console.error('Erro ao verificar atualização do cache de veículos:', error);
       return false;
     }
     
-    const isRecent = data && data.length > 0;
+    const isRecent = data && Array.isArray(data) && data.length > 0;
     console.log(`Cache de veículos está ${isRecent ? 'atualizado' : 'desatualizado'}`);
     return isRecent;
   } catch (error) {
@@ -356,10 +388,13 @@ export async function clearOldVehicleCache(hoursThreshold: number = 168) { // 7 
     const thresholdTime = new Date();
     thresholdTime.setHours(thresholdTime.getHours() - hoursThreshold);
     
-    const { error } = await supabase
-      .from('locavia_vehicles_cache')
-      .delete()
-      .lt('cached_at', thresholdTime.toISOString());
+    const { error } = await supabase.rpc('execute_sql', {
+      sql_query: `
+        DELETE FROM public.locavia_vehicles_cache 
+        WHERE cached_at < $1
+      `,
+      params: [thresholdTime.toISOString()]
+    });
       
     if (error) {
       console.error('Erro ao limpar cache antigo de veículos:', error);

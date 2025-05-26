@@ -233,6 +233,72 @@ export type Database = {
         }
         Relationships: []
       }
+      locavia_vehicles_cache: {
+        Row: {
+          ano_fabricacao_modelo: string
+          cached_at: string
+          codigo_grupo_veiculo: string
+          codigo_modelo: string
+          codigo_mva: number
+          cor: string | null
+          data_compra: string | null
+          descricao_grupo: string
+          descricao_modelo: string
+          descricao_status: string | null
+          id: string
+          letra_grupo: string
+          numero_passageiros: number | null
+          odometro_atual: number | null
+          placa: string
+          status: string | null
+          tipo_combustivel: string | null
+          updated_at: string
+          valor_compra: number | null
+        }
+        Insert: {
+          ano_fabricacao_modelo: string
+          cached_at?: string
+          codigo_grupo_veiculo: string
+          codigo_modelo: string
+          codigo_mva: number
+          cor?: string | null
+          data_compra?: string | null
+          descricao_grupo: string
+          descricao_modelo: string
+          descricao_status?: string | null
+          id?: string
+          letra_grupo: string
+          numero_passageiros?: number | null
+          odometro_atual?: number | null
+          placa: string
+          status?: string | null
+          tipo_combustivel?: string | null
+          updated_at?: string
+          valor_compra?: number | null
+        }
+        Update: {
+          ano_fabricacao_modelo?: string
+          cached_at?: string
+          codigo_grupo_veiculo?: string
+          codigo_modelo?: string
+          codigo_mva?: number
+          cor?: string | null
+          data_compra?: string | null
+          descricao_grupo?: string
+          descricao_modelo?: string
+          descricao_status?: string | null
+          id?: string
+          letra_grupo?: string
+          numero_passageiros?: number | null
+          odometro_atual?: number | null
+          placa?: string
+          status?: string | null
+          tipo_combustivel?: string | null
+          updated_at?: string
+          valor_compra?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
