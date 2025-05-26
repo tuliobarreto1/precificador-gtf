@@ -57,10 +57,15 @@ export async function getVehicleGroupsFromCache() {
       
     if (error) {
       console.error('❌ Erro ao buscar grupos do cache:', error);
-      return { success: false, error, groups: [] };
+      return { success: false, error, groups: [], lastUpdate: null };
     }
     
     console.log(`✅ ${data?.length || 0} grupos encontrados no cache`);
+    
+    // Pegar o timestamp mais recente
+    const lastUpdate = data && data.length > 0 
+      ? new Date(Math.max(...data.map(item => new Date(item.cached_at).getTime())))
+      : null;
     
     // Converter para o formato esperado
     const groups = data.map(group => ({
@@ -69,10 +74,10 @@ export async function getVehicleGroupsFromCache() {
       Descricao: group.descricao
     }));
     
-    return { success: true, groups };
+    return { success: true, groups, lastUpdate };
   } catch (error) {
     console.error('💥 Erro inesperado ao buscar grupos do cache:', error);
-    return { success: false, error, groups: [] };
+    return { success: false, error, groups: [], lastUpdate: null };
   }
 }
 
@@ -89,10 +94,15 @@ export async function getVehicleModelsFromCache(groupCode: string) {
       
     if (error) {
       console.error('❌ Erro ao buscar modelos do cache:', error);
-      return { success: false, error, models: [] };
+      return { success: false, error, models: [], lastUpdate: null };
     }
     
     console.log(`✅ ${data?.length || 0} modelos encontrados no cache para o grupo ${groupCode}`);
+    
+    // Pegar o timestamp mais recente
+    const lastUpdate = data && data.length > 0 
+      ? new Date(Math.max(...data.map(item => new Date(item.cached_at).getTime())))
+      : null;
     
     // Converter para o formato esperado
     const models = data.map(model => ({
@@ -103,10 +113,10 @@ export async function getVehicleModelsFromCache(groupCode: string) {
       MaiorValorCompra: model.maior_valor_compra
     }));
     
-    return { success: true, models };
+    return { success: true, models, lastUpdate };
   } catch (error) {
     console.error('💥 Erro inesperado ao buscar modelos do cache:', error);
-    return { success: false, error, models: [] };
+    return { success: false, error, models: [], lastUpdate: null };
   }
 }
 
@@ -192,15 +202,27 @@ export async function isCacheRecent(tableName: 'locavia_vehicle_groups_cache' | 
       
     if (error) {
       console.error(`Erro ao verificar atualização do cache ${tableName}:`, error);
-      return false;
+      return { isRecent: false, lastUpdate: null };
     }
     
     const isRecent = data && data.length > 0;
-    console.log(`Cache ${tableName} está ${isRecent ? 'atualizado' : 'desatualizado'}`);
-    return isRecent;
+    
+    // Buscar a data mais recente no cache
+    const { data: recentData } = await supabase
+      .from(tableName)
+      .select('cached_at')
+      .order('cached_at', { ascending: false })
+      .limit(1);
+    
+    const lastUpdate = recentData && recentData.length > 0 
+      ? new Date(recentData[0].cached_at)
+      : null;
+    
+    console.log(`Cache ${tableName} está ${isRecent ? 'atualizado' : 'desatualizado'}, última atualização: ${lastUpdate?.toLocaleString('pt-BR') || 'nunca'}`);
+    return { isRecent, lastUpdate };
   } catch (error) {
     console.error(`Erro inesperado ao verificar cache ${tableName}:`, error);
-    return false;
+    return { isRecent: false, lastUpdate: null };
   }
 }
 

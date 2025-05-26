@@ -23,12 +23,18 @@ export async function getVehicleGroupsWithCache(forceOffline: boolean = false): 
   
   try {
     // Primeiro, tentar buscar do SQL Server (via API proxy)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // Timeout mais curto
+    
     const response = await fetch('http://localhost:3005/api/vehicle-groups', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
     
     if (response.ok) {
       const data = await response.json();
@@ -42,13 +48,17 @@ export async function getVehicleGroupsWithCache(forceOffline: boolean = false): 
       }
     }
     
-    console.log('⚠️ Falha ao obter dados do SQL Server, tentando cache...');
+    console.log('⚠️ SQL Server indisponível - usando cache automaticamente');
   } catch (error) {
-    console.error('❌ Erro na conexão com SQL Server:', error);
+    if (error.name === 'AbortError') {
+      console.log('⏱️ Timeout na conexão - usando cache automaticamente');
+    } else {
+      console.log('🔄 Falha na conexão - usando cache automaticamente');
+    }
   }
   
-  // Se chegou aqui, houve problema com o SQL Server - usar cache
-  console.log('🔄 Usando dados do cache como fallback...');
+  // Se chegou aqui, houve problema com o SQL Server - usar cache sem mostrar erro
+  console.log('🔄 Usando dados do cache...');
   const cacheResult = await getVehicleGroupsFromCache();
   
   if (cacheResult.success && cacheResult.groups.length > 0) {
@@ -81,13 +91,19 @@ export async function getVehicleModelsByGroupWithCache(groupCode: string, forceO
   
   try {
     // Primeiro, tentar buscar do SQL Server (via API proxy)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // Timeout mais curto
+    
     const encodedGroupCode = encodeURIComponent(groupCode);
     const response = await fetch(`http://localhost:3005/api/vehicle-models/${encodedGroupCode}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
     
     if (response.ok) {
       const data = await response.json();
@@ -101,13 +117,17 @@ export async function getVehicleModelsByGroupWithCache(groupCode: string, forceO
       }
     }
     
-    console.log(`⚠️ Falha ao obter modelos do grupo ${groupCode} do SQL Server, tentando cache...`);
+    console.log(`⚠️ SQL Server indisponível - usando cache automaticamente para grupo ${groupCode}`);
   } catch (error) {
-    console.error('❌ Erro na conexão com SQL Server:', error);
+    if (error.name === 'AbortError') {
+      console.log(`⏱️ Timeout na conexão - usando cache automaticamente para grupo ${groupCode}`);
+    } else {
+      console.log(`🔄 Falha na conexão - usando cache automaticamente para grupo ${groupCode}`);
+    }
   }
   
-  // Se chegou aqui, houve problema com o SQL Server - usar cache
-  console.log('🔄 Usando dados do cache como fallback...');
+  // Se chegou aqui, houve problema com o SQL Server - usar cache sem mostrar erro
+  console.log('🔄 Usando dados do cache...');
   const cacheResult = await getVehicleModelsFromCache(groupCode);
   
   if (cacheResult.success && cacheResult.models.length > 0) {
@@ -131,6 +151,7 @@ export async function getConnectionAndCacheStatus(): Promise<{
     groupsRecent: boolean;
     modelsRecent: boolean;
     available: boolean;
+    lastUpdate?: Date | null;
   };
   recommendedMode: 'online' | 'cache';
 }> {
@@ -153,15 +174,21 @@ export async function getConnectionAndCacheStatus(): Promise<{
     }
     
     // Verificar status do cache
-    const groupsCacheRecent = await isCacheRecent('locavia_vehicle_groups_cache', 24);
-    const modelsCacheRecent = await isCacheRecent('locavia_vehicle_models_cache', 24);
+    const groupsCacheInfo = await isCacheRecent('locavia_vehicle_groups_cache', 24);
+    const modelsCacheInfo = await isCacheRecent('locavia_vehicle_models_cache', 24);
+    
+    // Pegar o timestamp mais recente entre os dois caches
+    const lastUpdate = [groupsCacheInfo.lastUpdate, modelsCacheInfo.lastUpdate]
+      .filter(date => date !== null)
+      .sort((a, b) => b.getTime() - a.getTime())[0] || null;
     
     return {
       sqlServer: sqlServerStatus,
       cache: {
-        groupsRecent: groupsCacheRecent,
-        modelsRecent: modelsCacheRecent,
-        available: groupsCacheRecent || modelsCacheRecent
+        groupsRecent: groupsCacheInfo.isRecent,
+        modelsRecent: modelsCacheInfo.isRecent,
+        available: groupsCacheInfo.isRecent || modelsCacheInfo.isRecent,
+        lastUpdate
       },
       recommendedMode: sqlServerStatus === 'online' ? 'online' : 'cache'
     };
@@ -172,7 +199,8 @@ export async function getConnectionAndCacheStatus(): Promise<{
       cache: {
         groupsRecent: false,
         modelsRecent: false,
-        available: false
+        available: false,
+        lastUpdate: null
       },
       recommendedMode: 'cache'
     };
