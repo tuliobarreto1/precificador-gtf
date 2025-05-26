@@ -69,11 +69,10 @@ const CacheUpdateButton: React.FC<CacheUpdateButtonProps> = ({ onUpdateComplete 
       }
 
       // Etapa 4: Finalizar
-      setCurrentTask('Finalizando atualização...');
+      setCurrentTask('Atualização de cache de grupos/modelos concluída!');
       setProgress(100);
       
       setUpdateStatus('success');
-      setCurrentTask('Cache atualizado com sucesso!');
       
       if (onUpdateComplete) {
         onUpdateComplete();
@@ -120,7 +119,7 @@ const CacheUpdateButton: React.FC<CacheUpdateButtonProps> = ({ onUpdateComplete 
     if (updateStatus === 'error') {
       return 'Erro na atualização';
     }
-    return 'Atualizar Cache';
+    return 'Atualizar Cache de Grupos/Modelos';
   };
 
   const getButtonVariant = () => {
@@ -139,7 +138,7 @@ const CacheUpdateButton: React.FC<CacheUpdateButtonProps> = ({ onUpdateComplete 
         onClick={updateCache}
         disabled={isUpdating}
         variant={getButtonVariant()}
-        className="w-full"
+        size="sm"
       >
         {getStatusIcon()}
         {getButtonText()}
@@ -169,7 +168,7 @@ const CacheUpdateButton: React.FC<CacheUpdateButtonProps> = ({ onUpdateComplete 
         <Alert className="border-green-200 bg-green-50">
           <CheckCircle className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-800">
-            Cache atualizado com sucesso! Os dados mais recentes da Locavia foram salvos no cache local.
+            Cache de grupos e modelos atualizado com sucesso!
           </AlertDescription>
         </Alert>
       )}

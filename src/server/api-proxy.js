@@ -1,4 +1,3 @@
-
 // Este arquivo é usado para configurar um proxy de API local durante o desenvolvimento
 // para contornar limitações de CORS e segurança em requisições diretas do navegador
 // para o SQL Server
@@ -396,6 +395,91 @@ app.get('/api/vehicle-models/:groupCode', async (req, res) => {
   }
 });
 
+// Endpoint para buscar todos os veículos (NOVO)
+app.get('/api/vehicles/all', async (req, res) => {
+  try {
+    console.log('Buscando TODOS os veículos da base da Locavia...');
+    
+    // Definir dados de fallback para quando a conexão falhar
+    const fallbackData = [];
+    
+    // Definir que uma tentativa de conexão foi feita
+    res.locals.connectionAttempted = true;
+    
+    let pool;
+    try {
+      pool = await connectToDatabase();
+    } catch (connError) {
+      console.error('Erro ao conectar ao banco de dados para buscar todos os veículos:', connError);
+      return res.status(500).json({
+        message: 'Erro de conexão com o banco de dados',
+        error: connError.message,
+        data: fallbackData
+      });
+    }
+    
+    console.log('Executando consulta SQL para buscar TODOS os veículos...');
+    
+    try {
+      const result = await pool.request().query(`
+        SELECT 
+          v.CodigoMVA,
+          v.Placa,
+          v.CodigoModelo,
+          vm.Descricao AS DescricaoModelo,
+          vm.CodigoGrupoVeiculo,
+          vg.Letra AS LetraGrupo,
+          vg.Descricao AS DescricaoGrupo,
+          v.AnoFabricacaoModelo,
+          v.Cor,
+          v.TipoCombustivel,
+          v.NumeroPassageiros,
+          v.OdometroAtual,
+          v.Status,
+          vs.Descricao AS DescricaoStatus,
+          v.ValorCompra,
+          v.DataCompra
+        FROM 
+          Veiculos v
+        LEFT JOIN 
+          VeiculosModelos vm ON v.CodigoModelo = vm.CodigoModelo
+        LEFT JOIN
+          VeiculosGrupos vg ON vm.CodigoGrupoVeiculo = vg.CodigoGrupo
+        LEFT JOIN
+          VeiculosStatus vs ON v.Status = vs.Status
+        ORDER BY 
+          v.Placa
+      `);
+      
+      console.log(`Consulta SQL executada com sucesso. Total de veículos encontrados: ${result.recordset.length}`);
+      
+      if (result.recordset.length > 0) {
+        console.log('Primeiros 3 veículos:', result.recordset.slice(0, 3).map(v => ({
+          placa: v.Placa,
+          modelo: v.DescricaoModelo,
+          grupo: v.LetraGrupo
+        })));
+      }
+      
+      res.json(result.recordset);
+    } catch (queryError) {
+      console.error('Erro na execução da consulta SQL de todos os veículos:', queryError);
+      return res.status(500).json({
+        message: 'Erro ao executar consulta SQL para buscar todos os veículos',
+        error: queryError.message,
+        data: fallbackData
+      });
+    }
+  } catch (error) {
+    console.error('Erro geral na busca de todos os veículos:', error);
+    res.status(500).json({
+      message: 'Erro ao buscar todos os veículos',
+      error: error.message,
+      data: []
+    });
+  }
+});
+
 // Rota de verificação de conexão
 app.get('/api/status', (req, res) => {
   try {
@@ -552,5 +636,6 @@ app.listen(PORT, () => {
   console.log(`- GET /api/vehicles/:plate`);
   console.log(`- GET /api/vehicle-groups`);
   console.log(`- GET /api/vehicle-models/:groupCode`);
+  console.log(`- GET /api/vehicles/all`);
   console.log(`Variáveis de ambiente carregadas do arquivo: ${envPath}`);
 });
