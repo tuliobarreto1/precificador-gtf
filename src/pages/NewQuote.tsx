@@ -14,7 +14,6 @@ import { useToast } from '@/hooks/use-toast';
 const NewQuote = () => {
   const { taxRates, ipvaRate, licensingFee } = useTaxIndices();
   const [apiStatus, setApiStatus] = useState<'online' | 'offline' | 'checking'>('checking');
-  const [apiError, setApiError] = useState<string | null>(null);
   const [isCheckingApi, setIsCheckingApi] = useState<boolean>(false);
   const [offlineMode, setOfflineMode] = useState<boolean>(false);
   const { toast } = useToast();
@@ -23,7 +22,6 @@ const NewQuote = () => {
   const checkApiStatus = async () => {
     try {
       setApiStatus('checking');
-      setApiError(null);
       setIsCheckingApi(true);
       
       console.log("Verificando status da API SQL Server...");
@@ -34,14 +32,14 @@ const NewQuote = () => {
         setApiStatus('online');
         setOfflineMode(false);
       } else {
-        console.warn("API SQL Server offline ou com problemas:", status);
+        console.log("API SQL Server offline, ativando modo offline automaticamente:", status);
         setApiStatus('offline');
-        setApiError(`API indisponível: ${status?.error || 'Erro desconhecido'}`);
+        setOfflineMode(true); // Ativar modo offline automaticamente
       }
     } catch (error) {
-      console.error("Erro ao verificar status da API:", error);
+      console.log("Erro ao verificar status da API, ativando modo offline automaticamente:", error);
       setApiStatus('offline');
-      setApiError(error instanceof Error ? error.message : 'Erro ao conectar com a API');
+      setOfflineMode(true); // Ativar modo offline automaticamente
     } finally {
       setIsCheckingApi(false);
     }
@@ -63,7 +61,7 @@ const NewQuote = () => {
   return (
     <MainLayout>
       <QuoteProvider>
-        <div className="mt-2"> {/* Adicionando margem superior para evitar corte do título */}
+        <div className="mt-2">
           <PageTitle
             title="Criar orçamento"
             breadcrumbs={[
@@ -74,45 +72,13 @@ const NewQuote = () => {
           />
         </div>
         
+        {/* Remover completamente o alerta de erro quando offline */}
         {apiStatus === 'offline' && !offlineMode && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Problema de conexão com o banco de dados</AlertTitle>
-            <AlertDescription className="flex flex-col gap-2">
-              <p>O servidor de banco de dados não está respondendo. Você pode continuar em modo offline ou tentar reconectar.</p>
-              {apiError && <p className="text-sm bg-destructive/10 p-2 rounded-sm font-mono">{apiError}</p>}
-              <div className="flex justify-end mt-2 gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={checkApiStatus}
-                  disabled={isCheckingApi}
-                  className="flex items-center gap-1"
-                >
-                  <RefreshCw className={`h-4 w-4 ${isCheckingApi ? 'animate-spin' : ''}`} /> 
-                  {isCheckingApi ? 'Verificando...' : 'Verificar novamente'}
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={enableOfflineMode}
-                  className="flex items-center gap-1"
-                >
-                  <Database className="h-4 w-4" /> 
-                  Usar modo offline
-                </Button>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-        
-        {offlineMode && (
-          <Alert className="mb-4 bg-amber-100 border-amber-500 text-amber-800">
-            <Database className="h-4 w-4 text-amber-800" />
-            <AlertTitle>Modo Offline Ativado</AlertTitle>
-            <AlertDescription>
-              <p>O sistema está operando com dados do cache local. Algumas funcionalidades podem estar limitadas.</p>
+          <Alert className="mb-4 bg-blue-50 border-blue-200">
+            <Database className="h-4 w-4 text-blue-600" />
+            <AlertTitle className="text-blue-800">Modo Offline Ativado</AlertTitle>
+            <AlertDescription className="text-blue-700">
+              <p>O sistema está operando com dados do cache local. Todos os recursos básicos estão disponíveis.</p>
               <div className="flex justify-end mt-2">
                 <Button 
                   variant="outline" 
@@ -121,7 +87,7 @@ const NewQuote = () => {
                     setOfflineMode(false);
                     checkApiStatus();
                   }}
-                  className="flex items-center gap-1 border-amber-500 text-amber-800 hover:bg-amber-200"
+                  className="flex items-center gap-1 border-blue-300 text-blue-700 hover:bg-blue-100"
                 >
                   <RefreshCw className="h-4 w-4" /> Tentar reconectar
                 </Button>
