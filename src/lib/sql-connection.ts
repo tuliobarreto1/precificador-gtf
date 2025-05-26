@@ -61,6 +61,13 @@ export interface SupabaseVehicle {
   fuel_type?: string | null; // Propriedade fuel_type como opcional
 }
 
+// Importar funções com cache
+import { 
+  getVehicleGroupsWithCache, 
+  getVehicleModelsByGroupWithCache,
+  getConnectionAndCacheStatus
+} from './sql-connection-with-cache';
+
 // Variáveis para configurar o comportamento offline
 const CONNECTION_TIMEOUT = 15000; // 15 segundos
 const MAX_RETRY_ATTEMPTS = 1; // Reduzido para 1 tentativa para evitar atrasos
@@ -73,135 +80,39 @@ let cachedConnectionStatus: { status: 'online' | 'offline'; timestamp: number; e
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Função para testar conexão com a API
-export const testApiConnection = async () => {
+export const testApiConnection = async (): Promise<ConnectionStatus> => {
+  console.log('🔄 Testando conexão com API e status do cache...');
+  
   try {
-    // Verificar se já temos um status de conexão recente (menos de 10 segundos)
-    const now = Date.now();
-    if (cachedConnectionStatus && (now - cachedConnectionStatus.timestamp < 10000)) {
-      console.log('Usando status de conexão em cache:', cachedConnectionStatus);
-      return { 
-        status: cachedConnectionStatus.status,
-        timestamp: new Date().toISOString(),
-        cached: true,
-        lastChecked: new Date(cachedConnectionStatus.timestamp).toISOString(),
-        error: cachedConnectionStatus.error
-      };
-    }
-
-    // Limitar tentativas de conexão (não tentar mais que uma vez a cada 3 segundos)
-    if (now - lastConnectionAttempt < 3000) {
-      console.log('Muitas tentativas de conexão. Aguarde antes de tentar novamente.');
-      return { 
-        status: cachedConnectionStatus?.status || 'offline', 
-        error: 'Muitas tentativas de conexão. Aguarde antes de tentar novamente.',
-        throttled: true
-      };
-    }
-
-    lastConnectionAttempt = now;
-    console.log('Testando conexão com a API...');
+    const status = await getConnectionAndCacheStatus();
     
-    // Implementar lógica de retry com backoff
-    for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
-      try {
-        // Usar AbortController para limitar o tempo de espera
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
-        
-        // Ajustando para usar a porta 3005 conforme mostrado no log
-        const response = await fetch('http://localhost:3005/api/ping', { 
-          signal: controller.signal,
-          // Adiciona um cache buster para evitar cache do navegador
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-          const errorMessage = `Erro na API: ${response.status} ${response.statusText}`;
-          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou: ${errorMessage}`);
-          
-          if (attempt < MAX_RETRY_ATTEMPTS - 1) {
-            await delay(RETRY_DELAY);
-            continue;
-          }
-          
-          cachedConnectionStatus = { 
-            status: 'offline', 
-            timestamp: now,
-            error: errorMessage
-          };
-          
-          connectionFailCount++;
-          
-          return { 
-            status: 'offline', 
-            error: errorMessage,
-            failCount: connectionFailCount
-          };
-        }
-        
-        const data = await response.json();
-        console.log('Resposta do teste de conexão:', data);
-        
-        // Resetar contador de falhas após sucesso
-        connectionFailCount = 0;
-        
-        cachedConnectionStatus = { 
-          status: 'online',
-          timestamp: now
-        };
-        
-        return {
-          status: 'online',
-          timestamp: new Date().toISOString(),
-          responseTime: data.responseTimeMs,
-          serverTime: data.serverTime
-        };
-      } catch (fetchError: any) {
-        if (fetchError.name === 'AbortError') {
-          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou: Timeout ao conectar com a API`);
-        } else {
-          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou:`, fetchError);
-        }
-        
-        if (attempt < MAX_RETRY_ATTEMPTS - 1) {
-          await delay(RETRY_DELAY);
-          continue;
-        }
-        
-        const errorMessage = fetchError.name === 'AbortError' 
-          ? 'Timeout ao conectar com a API' 
-          : fetchError.message || 'Erro desconhecido';
-        
-        cachedConnectionStatus = { 
-          status: 'offline', 
-          timestamp: now,
-          error: errorMessage
-        };
-        
-        connectionFailCount++;
-        
-        return { 
-          status: 'offline', 
-          error: errorMessage,
-          failCount: connectionFailCount
-        };
-      }
-    }
+    const connectionStatus: ConnectionStatus = {
+      status: status.sqlServer === 'online' ? 'online' : 'offline',
+      timestamp: new Date().toISOString(),
+      cache: status.cache,
+      recommendedMode: status.recommendedMode,
+      message: status.sqlServer === 'online' 
+        ? 'Conexão com SQL Server ativa' 
+        : status.cache.available 
+          ? 'SQL Server offline, cache disponível' 
+          : 'SQL Server offline, cache indisponível'
+    };
     
-    throw new Error('Erro inesperado no sistema de tentativas');
-  } catch (error: any) {
-    console.error('Erro ao testar conexão com a API:', error);
-    connectionFailCount++;
-    
-    return { 
-      status: 'offline', 
-      error: error instanceof Error ? error.message : 'Erro ao conectar com a API',
-      failCount: connectionFailCount
+    console.log('✅ Status da conexão verificado:', connectionStatus);
+    return connectionStatus;
+  } catch (error) {
+    console.error('❌ Erro ao testar conexão:', error);
+    return {
+      status: 'offline',
+      timestamp: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Erro desconhecido',
+      cache: {
+        groupsRecent: false,
+        modelsRecent: false,
+        available: false
+      },
+      recommendedMode: 'cache',
+      message: 'Erro ao verificar conexão'
     };
   }
 };
@@ -401,329 +312,50 @@ export const getVehicleByPlate = async (plate: string, useOfflineMode = false): 
 };
 
 // Função para buscar grupos de veículos
-export const getVehicleGroups = async (useOfflineMode = false): Promise<SqlVehicleGroup[]> => {
+export async function getVehicleGroups(offlineMode: boolean = false): Promise<SqlVehicleGroup[]> {
+  console.log(`🔍 Buscando grupos de veículos... Modo offline: ${offlineMode}`);
+  
   try {
-    console.log('Buscando grupos de veículos...');
+    const groups = await getVehicleGroupsWithCache(offlineMode);
     
-    // Verificar no cache do Supabase primeiro
-    try {
-      const { data, error } = await supabase
-        .from('vehicle_groups')
-        .select('*');
-      
-      if (data && !error && data.length > 0) {
-        console.log('Grupos encontrados no cache local:', data.length);
-        
-        // Converter para o formato SqlVehicleGroup
-        return data.map(group => ({
-          CodigoGrupo: group.id.toString(),
-          Letra: group.code || group.id.toString().charAt(0).toUpperCase(),
-          Descricao: group.name || group.description || `Grupo ${group.code}`
-        }));
-      }
-    } catch (cacheError) {
-      console.log('Erro ao buscar grupos no cache, continuando com API:', cacheError);
-    }
+    // Mapear para o formato SqlVehicleGroup
+    const mappedGroups: SqlVehicleGroup[] = groups.map(group => ({
+      CodigoGrupo: group.CodigoGrupo,
+      Letra: group.Letra,
+      Descricao: group.Descricao
+    }));
     
-    if (useOfflineMode) {
-      console.log('Modo offline ativado, retornando dados padrão para grupos');
-      return [
-        { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
-        { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
-        { CodigoGrupo: "3", Letra: "B+", Descricao: "Intermediário Plus" },
-        { CodigoGrupo: "4", Letra: "C", Descricao: "Intermediário" },
-        { CodigoGrupo: "5", Letra: "D", Descricao: "Executivo" },
-        { CodigoGrupo: "6", Letra: "E", Descricao: "SUV" },
-        { CodigoGrupo: "7", Letra: "F", Descricao: "Luxo" }
-      ];
-    }
-    
-    // Verificar status da conexão antes de tentar acessar a API
-    const connectionStatus = await testApiConnection();
-    if (connectionStatus.status !== 'online') {
-      console.log('Servidor offline, usando dados padrão para grupos');
-      // Dados padrão em caso de erro
-      return [
-        { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
-        { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
-        { CodigoGrupo: "3", Letra: "B+", Descricao: "Intermediário Plus" },
-        { CodigoGrupo: "4", Letra: "C", Descricao: "Intermediário" },
-        { CodigoGrupo: "5", Letra: "D", Descricao: "Executivo" },
-        { CodigoGrupo: "6", Letra: "E", Descricao: "SUV" },
-        { CodigoGrupo: "7", Letra: "F", Descricao: "Luxo" }
-      ];
-    }
-    
-    // Implementar lógica de retry
-    for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
-        
-        const response = await fetch('http://localhost:3005/api/vehicle-groups', {
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou: Erro ao buscar grupos de veículos:`, errorData);
-          
-          if (attempt < MAX_RETRY_ATTEMPTS - 1) {
-            await delay(RETRY_DELAY);
-            continue;
-          }
-          
-          // Retornar dados do fallback se disponíveis
-          if (errorData.data) {
-            console.log('Usando dados alternativos para grupos de veículos');
-            return errorData.data;
-          }
-          
-          throw new Error(errorData.message || 'Erro ao buscar grupos de veículos');
-        }
-        
-        const responseData = await response.json();
-        
-        // Verificar se a resposta tem o campo "data" (formato de fallback)
-        const groups = responseData.data || responseData;
-        
-        console.log(`Grupos de veículos encontrados: ${groups.length}`);
-        
-        // Salvar no cache do Supabase para uso futuro
-        if (groups && groups.length > 0) {
-          try {
-            const groupsForCache = groups.map((group: SqlVehicleGroup) => ({
-              code: group.Letra,
-              name: `Grupo ${group.Letra}`,
-              description: group.Descricao,
-              revision_km: 10000,
-              revision_cost: 500,
-              tire_km: 40000,
-              tire_cost: 2000
-            }));
-            
-            const { error } = await supabase
-              .from('vehicle_groups')
-              .upsert(groupsForCache);
-            
-            if (error) {
-              console.error('Erro ao salvar grupos no cache:', error);
-            } else {
-              console.log('Grupos salvos no cache com sucesso');
-            }
-          } catch (cacheError) {
-            console.error('Erro ao inserir grupos no cache:', cacheError);
-          }
-        }
-        
-        return groups;
-      } catch (fetchError: any) {
-        if (fetchError.name === 'AbortError') {
-          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou: Timeout ao buscar grupos de veículos`);
-        } else {
-          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou:`, fetchError);
-        }
-        
-        if (attempt < MAX_RETRY_ATTEMPTS - 1) {
-          await delay(RETRY_DELAY);
-          continue;
-        }
-        
-        // Dados padrão em caso de erro
-        console.log('Usando dados padrão para grupos de veículos devido a erro');
-        return [
-          { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
-          { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
-          { CodigoGrupo: "3", Letra: "B+", Descricao: "Intermediário Plus" },
-          { CodigoGrupo: "4", Letra: "C", Descricao: "Intermediário" },
-          { CodigoGrupo: "5", Letra: "D", Descricao: "Executivo" },
-          { CodigoGrupo: "6", Letra: "E", Descricao: "SUV" },
-          { CodigoGrupo: "7", Letra: "F", Descricao: "Luxo" }
-        ];
-      }
-    }
-    
-    // Este código nunca deve ser alcançado
-    throw new Error('Erro inesperado no sistema de tentativas');
+    console.log(`✅ ${mappedGroups.length} grupos de veículos carregados`);
+    return mappedGroups;
   } catch (error) {
-    console.error('Erro ao buscar grupos de veículos:', error);
-    
-    // Dados padrão em caso de erro
-    console.log('Usando dados padrão para grupos de veículos devido a erro');
-    return [
-      { CodigoGrupo: "1", Letra: "A", Descricao: "Compacto" },
-      { CodigoGrupo: "2", Letra: "B", Descricao: "Econômico" },
-      { CodigoGrupo: "3", Letra: "B+", Descricao: "Intermediário Plus" },
-      { CodigoGrupo: "4", Letra: "C", Descricao: "Intermediário" },
-      { CodigoGrupo: "5", Letra: "D", Descricao: "Executivo" },
-      { CodigoGrupo: "6", Letra: "E", Descricao: "SUV" },
-      { CodigoGrupo: "7", Letra: "F", Descricao: "Luxo" }
-    ];
+    console.error('❌ Erro ao buscar grupos de veículos:', error);
+    return [];
   }
-};
+}
 
 // Função para buscar modelos de veículos por grupo
-export const getVehicleModelsByGroup = async (groupCode: string, useOfflineMode = false): Promise<SqlVehicleModel[]> => {
+export async function getVehicleModelsByGroup(groupCode: string, offlineMode: boolean = false): Promise<SqlVehicleModel[]> {
+  console.log(`🔍 Buscando modelos do grupo ${groupCode}... Modo offline: ${offlineMode}`);
+  
   try {
-    console.log(`Buscando modelos de veículos para o grupo: ${groupCode}`);
+    const models = await getVehicleModelsByGroupWithCache(groupCode, offlineMode);
     
-    // Verificar no cache do Supabase primeiro
-    try {
-      // Usamos uma tabela genérica do cache para armazenar os modelos
-      const { data, error } = await supabase
-        .from('system_settings')
-        .select('*')
-        .eq('key', `vehicle_model_${groupCode}`);
-      
-      if (data && !error && data.length > 0) {
-        try {
-          // Tentamos analisar o valor JSON armazenado
-          const cachedModels: VehicleModelCache[] = JSON.parse(data[0].value);
-          console.log(`Modelos encontrados no cache local para o grupo ${groupCode}:`, cachedModels.length);
-          
-          // Converter para o formato SqlVehicleModel
-          return cachedModels.map(model => ({
-            CodigoModelo: model.model_code,
-            Descricao: model.model_description,
-            CodigoGrupoVeiculo: model.group_id,
-            LetraGrupo: model.group_code,
-            MaiorValorCompra: model.value
-          }));
-        } catch (parseError) {
-          console.log('Erro ao analisar cache de modelos:', parseError);
-        }
-      }
-    } catch (cacheError) {
-      console.log('Erro ao buscar modelos no cache, continuando com API:', cacheError);
-    }
+    // Mapear para o formato SqlVehicleModel
+    const mappedModels: SqlVehicleModel[] = models.map(model => ({
+      CodigoModelo: model.CodigoModelo,
+      Descricao: model.Descricao,
+      CodigoGrupoVeiculo: model.CodigoGrupoVeiculo,
+      LetraGrupo: model.LetraGrupo,
+      MaiorValorCompra: model.MaiorValorCompra
+    }));
     
-    if (useOfflineMode) {
-      console.log(`Modo offline ativado, retornando dados padrão para modelos do grupo ${groupCode}`);
-      return [
-        { CodigoModelo: `${groupCode}1`, Descricao: `${groupCode} - Modelo Básico`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 75000 },
-        { CodigoModelo: `${groupCode}2`, Descricao: `${groupCode} - Modelo Intermediário`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 85000 },
-        { CodigoModelo: `${groupCode}3`, Descricao: `${groupCode} - Modelo Premium`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 95000 }
-      ];
-    }
-    
-    // Verificar status da conexão antes de tentar acessar a API
-    const connectionStatus = await testApiConnection();
-    if (connectionStatus.status !== 'online') {
-      console.log(`Servidor offline, usando dados padrão para modelos do grupo ${groupCode}`);
-      return [
-        { CodigoModelo: `${groupCode}1`, Descricao: `${groupCode} - Modelo Básico`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 75000 },
-        { CodigoModelo: `${groupCode}2`, Descricao: `${groupCode} - Modelo Intermediário`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 85000 },
-        { CodigoModelo: `${groupCode}3`, Descricao: `${groupCode} - Modelo Premium`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 95000 }
-      ];
-    }
-    
-    // Implementar lógica de retry
-    for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
-        
-        const response = await fetch(`http://localhost:3005/api/vehicle-models/${encodeURIComponent(groupCode)}`, {
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou: Erro ao buscar modelos para o grupo ${groupCode}:`, errorData);
-          
-          if (attempt < MAX_RETRY_ATTEMPTS - 1) {
-            await delay(RETRY_DELAY);
-            continue;
-          }
-          
-          // Retornar dados do fallback se disponíveis
-          if (errorData.data) {
-            console.log(`Usando dados alternativos para modelos do grupo ${groupCode}`);
-            return errorData.data;
-          }
-          
-          throw new Error(errorData.message || `Erro ao buscar modelos para o grupo ${groupCode}`);
-        }
-        
-        const responseData = await response.json();
-        
-        // Verificar se a resposta tem o campo "data" (formato de fallback)
-        const models = responseData.data || responseData;
-        
-        console.log(`Modelos de veículos encontrados para o grupo ${groupCode}: ${models.length}`);
-        
-        // Salvar no cache do Supabase para uso futuro
-        if (models && models.length > 0) {
-          try {
-            // Convertemos os modelos para o formato que queremos armazenar
-            const modelsForCache: VehicleModelCache[] = models.map((model: SqlVehicleModel) => ({
-              group_code: model.LetraGrupo,
-              group_id: model.CodigoGrupoVeiculo,
-              model_description: model.Descricao,
-              model_code: model.CodigoModelo,
-              value: model.MaiorValorCompra
-            }));
-            
-            // Armazenamos como uma configuração do sistema
-            const { error } = await supabase
-              .from('system_settings')
-              .upsert({
-                key: `vehicle_model_${groupCode}`,
-                value: JSON.stringify(modelsForCache),
-                description: `Cache de modelos do grupo ${groupCode}`
-              });
-            
-            if (error) {
-              console.error('Erro ao salvar modelos no cache:', error);
-            } else {
-              console.log('Modelos salvos no cache com sucesso');
-            }
-          } catch (cacheError) {
-            console.error('Erro ao inserir modelos no cache:', cacheError);
-          }
-        }
-        
-        return models;
-      } catch (fetchError: any) {
-        if (fetchError.name === 'AbortError') {
-          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou: Timeout ao buscar modelos para o grupo ${groupCode}`);
-        } else {
-          console.error(`Tentativa ${attempt + 1}/${MAX_RETRY_ATTEMPTS} falhou:`, fetchError);
-        }
-        
-        if (attempt < MAX_RETRY_ATTEMPTS - 1) {
-          await delay(RETRY_DELAY);
-          continue;
-        }
-        
-        // Dados padrão em caso de erro
-        console.log(`Usando dados padrão para modelos do grupo ${groupCode} devido a erro`);
-        return [
-          { CodigoModelo: `${groupCode}1`, Descricao: `${groupCode} - Modelo Básico`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 75000 },
-          { CodigoModelo: `${groupCode}2`, Descricao: `${groupCode} - Modelo Intermediário`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 85000 },
-          { CodigoModelo: `${groupCode}3`, Descricao: `${groupCode} - Modelo Premium`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 95000 }
-        ];
-      }
-    }
-    
-    // Este código nunca deve ser alcançado
-    throw new Error('Erro inesperado no sistema de tentativas');
+    console.log(`✅ ${mappedModels.length} modelos do grupo ${groupCode} carregados`);
+    return mappedModels;
   } catch (error) {
-    console.error(`Erro ao buscar modelos de veículos para o grupo ${groupCode}:`, error);
-    
-    // Dados padrão em caso de erro
-    console.log(`Usando dados padrão para modelos do grupo ${groupCode} devido a erro`);
-    return [
-      { CodigoModelo: `${groupCode}1`, Descricao: `${groupCode} - Modelo Básico`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 75000 },
-      { CodigoModelo: `${groupCode}2`, Descricao: `${groupCode} - Modelo Intermediário`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 85000 },
-      { CodigoModelo: `${groupCode}3`, Descricao: `${groupCode} - Modelo Premium`, CodigoGrupoVeiculo: "1", LetraGrupo: groupCode, MaiorValorCompra: 95000 }
-    ];
+    console.error(`❌ Erro ao buscar modelos do grupo ${groupCode}:`, error);
+    return [];
   }
-};
+}
 
 // Função para buscar os parâmetros de cálculo do servidor SQL
 export const getCalculationParameters = async () => {
@@ -786,3 +418,18 @@ export const getCalculationParameters = async () => {
     };
   }
 };
+
+// Interface atualizada para incluir informações do cache
+export interface ConnectionStatus {
+  status: 'online' | 'offline';
+  timestamp: string;
+  error?: string;
+  cache?: {
+    groupsRecent: boolean;
+    modelsRecent: boolean;
+    available: boolean;
+  };
+  recommendedMode?: 'online' | 'cache';
+  message?: string;
+  failCount?: number;
+}

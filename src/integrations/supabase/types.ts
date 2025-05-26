@@ -173,6 +173,66 @@ export type Database = {
           },
         ]
       }
+      locavia_vehicle_groups_cache: {
+        Row: {
+          cached_at: string
+          codigo_grupo: string
+          descricao: string
+          id: string
+          letra: string
+          updated_at: string
+        }
+        Insert: {
+          cached_at?: string
+          codigo_grupo: string
+          descricao: string
+          id?: string
+          letra: string
+          updated_at?: string
+        }
+        Update: {
+          cached_at?: string
+          codigo_grupo?: string
+          descricao?: string
+          id?: string
+          letra?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      locavia_vehicle_models_cache: {
+        Row: {
+          cached_at: string
+          codigo_grupo_veiculo: string
+          codigo_modelo: string
+          descricao: string
+          id: string
+          letra_grupo: string
+          maior_valor_compra: number
+          updated_at: string
+        }
+        Insert: {
+          cached_at?: string
+          codigo_grupo_veiculo: string
+          codigo_modelo: string
+          descricao: string
+          id?: string
+          letra_grupo: string
+          maior_valor_compra?: number
+          updated_at?: string
+        }
+        Update: {
+          cached_at?: string
+          codigo_grupo_veiculo?: string
+          codigo_modelo?: string
+          descricao?: string
+          id?: string
+          letra_grupo?: string
+          maior_valor_compra?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string

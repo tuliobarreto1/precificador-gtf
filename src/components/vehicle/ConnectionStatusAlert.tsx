@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, RefreshCw, Database, PieChart, Server, Wifi, WifiOff } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Database, PieChart, Server, Wifi, WifiOff, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Loader2 } from 'lucide-react';
@@ -12,8 +11,8 @@ interface ConnectionStatusAlertProps {
   offlineMode: boolean;
   testingConnection: boolean;
   error: string | null;
-  detailedError: string | null;
-  diagnosticInfo: any;
+  detailedError?: string | null;
+  diagnosticInfo?: any;
   lastCheckTime?: Date | null;
   failureCount?: number;
   onTestConnection: () => void;
@@ -30,163 +29,154 @@ const ConnectionStatusAlert: React.FC<ConnectionStatusAlertProps> = ({
   failureCount = 0,
   onTestConnection
 }) => {
-  // Criando uma função auxiliar para verificar o status
-  const isOnline = () => status === 'online';
-  
+  // Função para renderizar informações do cache
+  const renderCacheInfo = () => {
+    if (!diagnosticInfo?.cache) return null;
+    
+    const { cache } = diagnosticInfo;
+    const cacheAvailable = cache.available;
+    const cacheRecent = cache.groupsRecent && cache.modelsRecent;
+    
+    return (
+      <div className="mt-2 p-2 bg-blue-50 rounded-md border border-blue-200">
+        <div className="flex items-center gap-2 text-sm">
+          <Database className="h-4 w-4 text-blue-600" />
+          <span className="font-medium text-blue-800">Status do Cache:</span>
+        </div>
+        <div className="mt-1 text-xs text-blue-700 space-y-1">
+          <div className="flex justify-between">
+            <span>Cache disponível:</span>
+            <span className={cacheAvailable ? 'text-green-600 font-medium' : 'text-red-600'}>
+              {cacheAvailable ? '✓ Sim' : '✗ Não'}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span>Dados recentes:</span>
+            <span className={cacheRecent ? 'text-green-600 font-medium' : 'text-yellow-600'}>
+              {cacheRecent ? '✓ Atualizados' : '⚠ Desatualizados'}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span>Grupos em cache:</span>
+            <span className={cache.groupsRecent ? 'text-green-600' : 'text-gray-500'}>
+              {cache.groupsRecent ? '✓' : '✗'}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span>Modelos em cache:</span>
+            <span className={cache.modelsRecent ? 'text-green-600' : 'text-gray-500'}>
+              {cache.modelsRecent ? '✓' : '✗'}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Renderização do alerta baseado no status
   if (offlineMode) {
     return (
-      <Alert variant="default" className="mb-4 bg-amber-100 border-amber-500 text-amber-800">
-        <Database className="h-4 w-4 text-amber-800" />
-        <AlertTitle className="flex items-center gap-2">
-          Modo Offline Ativado
-          <Badge variant="outline" className="ml-2 px-1 py-0 h-5 bg-amber-200">Manual</Badge>
-        </AlertTitle>
-        <AlertDescription>
-          <p>O sistema está operando com dados do cache local. Algumas funcionalidades podem estar limitadas.</p>
+      <Alert className="border-blue-200 bg-blue-50">
+        <Database className="h-4 w-4 text-blue-600" />
+        <AlertTitle className="text-blue-800">Modo Cache Ativado</AlertTitle>
+        <AlertDescription className="text-blue-700">
+          Usando dados do cache local. Funcionalidades limitadas, mas os dados básicos estão disponíveis.
+          {diagnosticInfo?.cache?.available && (
+            <span className="block mt-1 text-green-700 font-medium">
+              ✓ Cache disponível com dados salvos
+            </span>
+          )}
         </AlertDescription>
+        {renderCacheInfo()}
       </Alert>
     );
   }
 
-  if (status === 'checking') {
+  if (status === 'checking' || testingConnection) {
     return (
-      <Alert variant="default" className="mb-4 bg-blue-50 border-blue-300 text-blue-800">
-        <Loader2 className="h-4 w-4 animate-spin text-blue-800" />
-        <AlertTitle>Verificando conexão...</AlertTitle>
-        <AlertDescription>
-          <p>Aguarde enquanto verificamos a conexão com o servidor de banco de dados.</p>
+      <Alert className="border-yellow-200 bg-yellow-50">
+        <RefreshCw className="h-4 w-4 animate-spin text-yellow-600" />
+        <AlertTitle className="text-yellow-800">Verificando Conexão</AlertTitle>
+        <AlertDescription className="text-yellow-700">
+          Testando conexão com o banco de dados e verificando cache...
         </AlertDescription>
       </Alert>
     );
   }
 
-  if (isOnline()) return null;
+  if (status === 'online') {
+    return (
+      <Alert className="border-green-200 bg-green-50">
+        <CheckCircle className="h-4 w-4 text-green-600" />
+        <AlertTitle className="text-green-800">Conexão Online</AlertTitle>
+        <AlertDescription className="text-green-700">
+          Conectado ao SQL Server da Locavia. Todos os recursos estão disponíveis.
+          {lastCheckTime && (
+            <span className="block mt-1 text-xs text-green-600">
+              Última verificação: {lastCheckTime.toLocaleString()}
+            </span>
+          )}
+        </AlertDescription>
+        {renderCacheInfo()}
+      </Alert>
+    );
+  }
+
+  // Status offline
+  const hasCache = diagnosticInfo?.cache?.available;
+  const recommendedMode = diagnosticInfo?.recommendedMode;
 
   return (
-    <Alert variant="destructive">
-      <AlertTriangle className="h-4 w-4" />
-      <AlertTitle className="flex items-center">
-        Atenção: Problemas de conexão com o servidor
-        <Badge 
-          variant="outline" 
-          className={`ml-2 px-1 py-0 h-5 ${failureCount > 3 ? 'bg-red-200' : 'bg-amber-200'}`}
-        >
-          {failureCount > 0 && `${failureCount} falha${failureCount > 1 ? 's' : ''}`}
-          {!failureCount && 'Offline'}
-        </Badge>
-      </AlertTitle>
-      <AlertDescription>
-        <p>A conexão com o servidor de banco de dados pode estar indisponível. O sistema está usando dados em cache.</p>
-        {lastCheckTime && (
-          <p className="text-xs mt-1">
-            Última verificação: {lastCheckTime.toLocaleTimeString()}
+    <Alert className="border-red-200 bg-red-50">
+      <AlertCircle className="h-4 w-4 text-red-600" />
+      <AlertTitle className="text-red-800">Conexão Offline</AlertTitle>
+      <AlertDescription className="text-red-700">
+        <div className="space-y-2">
+          <p>
+            Não foi possível conectar ao SQL Server da Locavia.
+            {failureCount && failureCount > 1 && (
+              <span className="block text-xs">
+                Tentativas falharam: {failureCount}
+              </span>
+            )}
           </p>
-        )}
-        <div className="flex gap-2 mt-2">
-          <Button 
-            onClick={onTestConnection} 
-            variant="outline" 
-            size="sm"
-            disabled={testingConnection}
-          >
-            {testingConnection ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
-            Testar Conexão
-          </Button>
           
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                <PieChart className="mr-2 h-4 w-4" />
-                Informações de Diagnóstico
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent className="max-w-xl max-h-[80vh] overflow-auto">
-              <AlertDialogHeader>
-                <AlertDialogTitle>Informações de Diagnóstico</AlertDialogTitle>
-                <AlertDialogDescription>
-                  <div className="mt-2 space-y-2 text-left">
-                    <div className="flex items-center gap-2">
-                      <Badge 
-                        variant={isOnline() ? 'outline' : 'destructive'} 
-                        className={isOnline() ? 'bg-green-100 text-green-800 px-2 py-1' : 'px-2 py-1'}
-                      >
-                        {isOnline() ? (
-                          <><Wifi className="h-3 w-3 mr-1" /> Online</>
-                        ) : (
-                          <><WifiOff className="h-3 w-3 mr-1" /> Offline</>
-                        )}
-                      </Badge>
-                      {lastCheckTime && (
-                        <span className="text-xs text-muted-foreground">
-                          Verificado às {lastCheckTime.toLocaleTimeString()}
-                        </span>
-                      )}
-                    </div>
-                    
-                    <p className="font-medium">Configurações de Servidor:</p>
-                    <pre className="bg-muted p-2 rounded-md text-xs overflow-auto whitespace-pre-wrap">
-                      {`Servidor: ${import.meta.env.VITE_DB_SERVER || 'Não definido'}
-Porta: ${import.meta.env.VITE_DB_PORT || '1433'}
-Banco de dados: ${import.meta.env.VITE_DB_DATABASE || 'Não definido'}
-Timeout: 30000ms`}
-                    </pre>
-                    
-                    <p className="font-medium mt-4">Possíveis Causas:</p>
-                    <ul className="list-disc pl-5 space-y-1">
-                      <li>O servidor SQL pode estar temporariamente indisponível</li>
-                      <li>Problemas de rede ou conexão com a internet</li>
-                      <li>Bloqueio por firewall ou VPN</li>
-                      <li>O servidor pode estar configurado para limitar conexões</li>
-                    </ul>
-                    
-                    <p className="font-medium mt-4">Recomendações:</p>
-                    <ul className="list-disc pl-5 space-y-1">
-                      <li>Verifique sua conexão com a internet</li>
-                      <li>Tente novamente em alguns minutos</li>
-                      <li>Aumente o timeout de conexão (atualmente 30 segundos)</li>
-                      <li>Utilize o modo offline para continuar trabalhando</li>
-                    </ul>
-                    
-                    {status && (
-                      <div className="mt-4">
-                        <p className="font-medium">Status da conexão:</p>
-                        <pre className="bg-muted p-2 rounded-md text-xs overflow-auto">
-                          {JSON.stringify({ status }, null, 2)}
-                        </pre>
-                      </div>
-                    )}
-                    
-                    {diagnosticInfo && (
-                      <div className="mt-4">
-                        <p className="font-medium">Últimas informações de diagnóstico:</p>
-                        <pre className="bg-muted p-2 rounded-md text-xs overflow-auto">
-                          {JSON.stringify(diagnosticInfo, null, 2)}
-                        </pre>
-                      </div>
-                    )}
-
-                    {detailedError && (
-                      <div className="mt-4">
-                        <p className="font-medium">Detalhes do erro:</p>
-                        <pre className="bg-destructive/10 border border-destructive text-destructive p-2 rounded-md text-xs overflow-auto">
-                          {detailedError}
-                        </pre>
-                      </div>
-                    )}
-                  </div>
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Fechar</AlertDialogCancel>
-                <AlertDialogAction onClick={onTestConnection}>
-                  {testingConnection ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Server className="mr-2 h-4 w-4" />}
-                  Testar Conexão
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          {hasCache ? (
+            <div className="text-blue-700 bg-blue-100 p-2 rounded border border-blue-200">
+              <p className="font-medium">💾 Cache Disponível</p>
+              <p className="text-xs mt-1">
+                Dados salvos anteriormente estão disponíveis. 
+                {recommendedMode === 'cache' && ' Recomendamos usar o modo cache.'}
+              </p>
+            </div>
+          ) : (
+            <div className="text-yellow-700 bg-yellow-100 p-2 rounded border border-yellow-200">
+              <p className="font-medium">⚠ Cache Indisponível</p>
+              <p className="text-xs mt-1">
+                Nenhum dado foi encontrado no cache. Apenas dados padrão estarão disponíveis.
+              </p>
+            </div>
+          )}
+          
+          <div className="flex gap-2 mt-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onTestConnection}
+              disabled={testingConnection}
+              className="text-red-700 border-red-300 hover:bg-red-100"
+            >
+              {testingConnection ? (
+                <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3 w-3 mr-1" />
+              )}
+              Tentar Novamente
+            </Button>
+          </div>
         </div>
       </AlertDescription>
+      {renderCacheInfo()}
     </Alert>
   );
 };
