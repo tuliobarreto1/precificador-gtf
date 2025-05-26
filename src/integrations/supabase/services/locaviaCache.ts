@@ -157,7 +157,7 @@ export async function saveVehicleModelsToCache(models: any[]) {
 }
 
 // Função para verificar se o cache está atualizado (dados mais recentes que X horas)
-export async function isCacheRecent(tableName: string, hoursThreshold: number = 24) {
+export async function isCacheRecent(tableName: 'locavia_vehicle_groups_cache' | 'locavia_vehicle_models_cache', hoursThreshold: number = 24) {
   try {
     const thresholdTime = new Date();
     thresholdTime.setHours(thresholdTime.getHours() - hoursThreshold);
@@ -183,7 +183,7 @@ export async function isCacheRecent(tableName: string, hoursThreshold: number = 
 }
 
 // Função para limpar cache antigo
-export async function clearOldCache(tableName: string, hoursThreshold: number = 168) { // 7 dias
+export async function clearOldCache(tableName: 'locavia_vehicle_groups_cache' | 'locavia_vehicle_models_cache', hoursThreshold: number = 168) { // 7 dias
   try {
     const thresholdTime = new Date();
     thresholdTime.setHours(thresholdTime.getHours() - hoursThreshold);

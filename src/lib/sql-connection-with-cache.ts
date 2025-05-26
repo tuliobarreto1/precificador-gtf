@@ -125,15 +125,28 @@ export async function getVehicleModelsByGroupWithCache(groupCode: string, forceO
 }
 
 // Função para verificar status da conexão e do cache
-export async function getConnectionAndCacheStatus() {
+export async function getConnectionAndCacheStatus(): Promise<{
+  sqlServer: 'online' | 'offline';
+  cache: {
+    groupsRecent: boolean;
+    modelsRecent: boolean;
+    available: boolean;
+  };
+  recommendedMode: 'online' | 'cache';
+}> {
   try {
     // Testar conexão com SQL Server
-    let sqlServerStatus = 'offline';
+    let sqlServerStatus: 'online' | 'offline' = 'offline';
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
       const response = await fetch('http://localhost:3005/api/status', {
         method: 'GET',
-        timeout: 5000
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
       sqlServerStatus = response.ok ? 'online' : 'offline';
     } catch (error) {
       sqlServerStatus = 'offline';

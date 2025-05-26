@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, RefreshCw, Database, PieChart, Server, Wifi, WifiOff, CheckCircle } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Database, PieChart, Server, Wifi, WifiOff, CheckCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Loader2 } from 'lucide-react';
