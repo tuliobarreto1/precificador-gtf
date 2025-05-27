@@ -164,7 +164,7 @@ export default function Login() {
               </CardHeader>
               
               <CardFooter>
-                <Button type="button" className="w-full" onClick={() => window.location.href = "mailto:tulio.barreto@asalocadoa.com.br?subject=Solicitação de Acesso ao Sistema de Precificação"}>
+                <Button type="button" className="w-full" onClick={() => window.location.href = "mailto:tulio.barreto@asalocadora.com.br?subject=Solicitação de Acesso ao Sistema de Precificação"}>
                   Enviar email para administrador
                 </Button>
               </CardFooter>
