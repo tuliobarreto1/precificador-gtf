@@ -118,7 +118,101 @@ app.use((req, res, next) => {
   next();
 });
 
-// Endpoint para buscar veículo por placa
+// *** IMPORTANTE: Endpoint para buscar todos os veículos DEVE vir ANTES do endpoint por placa ***
+app.get('/api/vehicles/all', async (req, res) => {
+  try {
+    console.log('🔄 Buscando TODOS os veículos da base da Locavia...');
+    
+    // Definir que uma tentativa de conexão foi feita
+    res.locals.connectionAttempted = true;
+    
+    let pool;
+    try {
+      pool = await connectToDatabase();
+    } catch (connError) {
+      console.error('❌ Erro ao conectar ao banco de dados para buscar todos os veículos:', connError);
+      return res.status(500).json({
+        message: 'Erro de conexão com o banco de dados',
+        error: connError.message,
+        data: []
+      });
+    }
+    
+    console.log('✅ Conexão estabelecida, executando consulta SQL para buscar TODOS os veículos...');
+    
+    try {
+      const result = await pool.request().query(`
+        SELECT 
+          v.CodigoMVA,
+          v.Placa,
+          v.CodigoModelo,
+          vm.Descricao AS DescricaoModelo,
+          vm.CodigoGrupoVeiculo,
+          vg.Letra AS LetraGrupo,
+          vg.Descricao AS DescricaoGrupo,
+          v.AnoFabricacaoModelo,
+          v.Cor,
+          v.TipoCombustivel,
+          v.NumeroPassageiros,
+          v.OdometroAtual,
+          v.Status,
+          vs.Descricao AS DescricaoStatus,
+          v.ValorCompra,
+          v.DataCompra
+        FROM 
+          Veiculos v
+        LEFT JOIN 
+          VeiculosModelos vm ON v.CodigoModelo = vm.CodigoModelo
+        LEFT JOIN
+          VeiculosGrupos vg ON vm.CodigoGrupoVeiculo = vg.CodigoGrupo
+        LEFT JOIN
+          VeiculosStatus vs ON v.Status = vs.Status
+        ORDER BY 
+          v.Placa
+      `);
+      
+      console.log(`✅ Consulta SQL executada com sucesso. Total de veículos encontrados: ${result.recordset.length}`);
+      
+      if (result.recordset.length > 0) {
+        console.log('✅ Primeiros 3 veículos encontrados:', result.recordset.slice(0, 3).map(v => ({
+          placa: v.Placa,
+          modelo: v.DescricaoModelo,
+          grupo: v.LetraGrupo,
+          valor: v.ValorCompra
+        })));
+      } else {
+        console.log('⚠️ Nenhum veículo encontrado na base de dados');
+      }
+      
+      // Adicionar headers de CORS explicitamente
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+      
+      // Retornar dados com status 200
+      res.status(200).json(result.recordset);
+      
+    } catch (queryError) {
+      console.error('❌ Erro na execução da consulta SQL de todos os veículos:', queryError);
+      return res.status(500).json({
+        message: 'Erro ao executar consulta SQL para buscar todos os veículos',
+        error: queryError.message,
+        details: queryError.stack,
+        data: []
+      });
+    }
+  } catch (error) {
+    console.error('❌ Erro geral na busca de todos os veículos:', error);
+    res.status(500).json({
+      message: 'Erro interno do servidor ao buscar todos os veículos',
+      error: error.message,
+      stack: error.stack,
+      data: []
+    });
+  }
+});
+
+// Endpoint para buscar veículo por placa (DEVE vir DEPOIS do endpoint /all)
 app.get('/api/vehicles/:plate', async (req, res) => {
   try {
     const { plate } = req.params;
@@ -395,100 +489,6 @@ app.get('/api/vehicle-models/:groupCode', async (req, res) => {
   }
 });
 
-// Endpoint para buscar todos os veículos (CORRIGIDO)
-app.get('/api/vehicles/all', async (req, res) => {
-  try {
-    console.log('🔄 Buscando TODOS os veículos da base da Locavia...');
-    
-    // Definir que uma tentativa de conexão foi feita
-    res.locals.connectionAttempted = true;
-    
-    let pool;
-    try {
-      pool = await connectToDatabase();
-    } catch (connError) {
-      console.error('❌ Erro ao conectar ao banco de dados para buscar todos os veículos:', connError);
-      return res.status(500).json({
-        message: 'Erro de conexão com o banco de dados',
-        error: connError.message,
-        data: []
-      });
-    }
-    
-    console.log('✅ Conexão estabelecida, executando consulta SQL para buscar TODOS os veículos...');
-    
-    try {
-      const result = await pool.request().query(`
-        SELECT 
-          v.CodigoMVA,
-          v.Placa,
-          v.CodigoModelo,
-          vm.Descricao AS DescricaoModelo,
-          vm.CodigoGrupoVeiculo,
-          vg.Letra AS LetraGrupo,
-          vg.Descricao AS DescricaoGrupo,
-          v.AnoFabricacaoModelo,
-          v.Cor,
-          v.TipoCombustivel,
-          v.NumeroPassageiros,
-          v.OdometroAtual,
-          v.Status,
-          vs.Descricao AS DescricaoStatus,
-          v.ValorCompra,
-          v.DataCompra
-        FROM 
-          Veiculos v
-        LEFT JOIN 
-          VeiculosModelos vm ON v.CodigoModelo = vm.CodigoModelo
-        LEFT JOIN
-          VeiculosGrupos vg ON vm.CodigoGrupoVeiculo = vg.CodigoGrupo
-        LEFT JOIN
-          VeiculosStatus vs ON v.Status = vs.Status
-        ORDER BY 
-          v.Placa
-      `);
-      
-      console.log(`✅ Consulta SQL executada com sucesso. Total de veículos encontrados: ${result.recordset.length}`);
-      
-      if (result.recordset.length > 0) {
-        console.log('✅ Primeiros 3 veículos encontrados:', result.recordset.slice(0, 3).map(v => ({
-          placa: v.Placa,
-          modelo: v.DescricaoModelo,
-          grupo: v.LetraGrupo,
-          valor: v.ValorCompra
-        })));
-      } else {
-        console.log('⚠️ Nenhum veículo encontrado na base de dados');
-      }
-      
-      // Adicionar headers de CORS explicitamente
-      res.header('Access-Control-Allow-Origin', '*');
-      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-      
-      // Retornar dados com status 200
-      res.status(200).json(result.recordset);
-      
-    } catch (queryError) {
-      console.error('❌ Erro na execução da consulta SQL de todos os veículos:', queryError);
-      return res.status(500).json({
-        message: 'Erro ao executar consulta SQL para buscar todos os veículos',
-        error: queryError.message,
-        details: queryError.stack,
-        data: []
-      });
-    }
-  } catch (error) {
-    console.error('❌ Erro geral na busca de todos os veículos:', error);
-    res.status(500).json({
-      message: 'Erro interno do servidor ao buscar todos os veículos',
-      error: error.message,
-      stack: error.stack,
-      data: []
-    });
-  }
-});
-
 // Rota de verificação de conexão
 app.get('/api/status', (req, res) => {
   try {
@@ -642,9 +642,9 @@ app.listen(PORT, () => {
   console.log(`- GET /api/status`);
   console.log(`- GET /api/test-connection`);
   console.log(`- GET /api/ping`);
+  console.log(`- GET /api/vehicles/all`);
   console.log(`- GET /api/vehicles/:plate`);
   console.log(`- GET /api/vehicle-groups`);
   console.log(`- GET /api/vehicle-models/:groupCode`);
-  console.log(`- GET /api/vehicles/all`);
   console.log(`Variáveis de ambiente carregadas do arquivo: ${envPath}`);
 });
