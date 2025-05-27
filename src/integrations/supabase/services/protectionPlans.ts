@@ -3,12 +3,19 @@ import { ProtectionPlan, ProtectionPlanDetails, ProtectionBenefit, ProtectionDed
 
 export async function fetchProtectionPlans(): Promise<ProtectionPlan[]> {
   try {
+    console.log('Buscando planos de proteção via service...');
+    
     const { data, error } = await supabase
       .from('protection_plans')
       .select('*')
       .order('monthly_cost', { ascending: true });
     
-    if (error) throw error;
+    if (error) {
+      console.error('Erro no service ao buscar planos:', error);
+      throw error;
+    }
+    
+    console.log('Dados retornados pelo service:', data);
     
     // Validar e converter o tipo para garantir compatibilidade com a interface
     return data?.map(plan => ({
@@ -43,6 +50,8 @@ function validateIncidentType(type: string): 'total_loss' | 'partial_damage' {
 
 export async function fetchProtectionPlanDetails(planId: string): Promise<ProtectionPlanDetails> {
   try {
+    console.log(`Buscando detalhes do plano: ${planId}`);
+    
     // Buscar informações do plano
     const { data: planData, error: planError } = await supabase
       .from('protection_plans')
@@ -50,7 +59,10 @@ export async function fetchProtectionPlanDetails(planId: string): Promise<Protec
       .eq('id', planId)
       .single();
     
-    if (planError) throw planError;
+    if (planError) {
+      console.error('Erro ao buscar dados do plano:', planError);
+      throw planError;
+    }
     
     // Buscar benefícios do plano
     const { data: benefitsData, error: benefitsError } = await supabase
@@ -58,7 +70,10 @@ export async function fetchProtectionPlanDetails(planId: string): Promise<Protec
       .select('*')
       .eq('plan_id', planId);
     
-    if (benefitsError) throw benefitsError;
+    if (benefitsError) {
+      console.error('Erro ao buscar benefícios:', benefitsError);
+      throw benefitsError;
+    }
     
     // Buscar franquias do plano
     const { data: deductiblesData, error: deductiblesError } = await supabase
@@ -66,7 +81,16 @@ export async function fetchProtectionPlanDetails(planId: string): Promise<Protec
       .select('*')
       .eq('plan_id', planId);
     
-    if (deductiblesError) throw deductiblesError;
+    if (deductiblesError) {
+      console.error('Erro ao buscar franquias:', deductiblesError);
+      throw deductiblesError;
+    }
+    
+    console.log('Detalhes completos do plano carregados:', {
+      plan: planData,
+      benefits: benefitsData,
+      deductibles: deductiblesData
+    });
     
     // Converter para os tipos corretos
     const validatedPlan: ProtectionPlan = {

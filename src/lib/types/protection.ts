@@ -15,6 +15,8 @@ export interface ProtectionBenefit {
   benefit_name: string;
   is_included: boolean;
   details?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ProtectionDeductible {
@@ -22,6 +24,8 @@ export interface ProtectionDeductible {
   plan_id: string;
   incident_type: 'total_loss' | 'partial_damage';
   percentage: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ProtectionPlanDetails extends ProtectionPlan {

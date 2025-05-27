@@ -7,7 +7,7 @@ export interface ProtectionPlan {
   name: string;
   description?: string;
   type: 'basic' | 'intermediate' | 'premium';
-  monthlyCost: number;
+  monthly_cost: number;
 }
 
 export function useProtectionPlans() {
@@ -18,6 +18,9 @@ export function useProtectionPlans() {
   const fetchPlans = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
+      console.log('Buscando planos de proteção do Supabase...');
       
       const { data, error } = await supabase
         .from('protection_plans')
@@ -30,15 +33,18 @@ export function useProtectionPlans() {
         return;
       }
       
+      console.log('Dados dos planos de proteção retornados:', data);
+      
       // Transformar os dados para o formato esperado
       const formattedPlans = data.map((plan: any) => ({
         id: plan.id,
         name: plan.name,
         description: plan.description,
         type: plan.type || 'basic',
-        monthlyCost: plan.monthly_cost
+        monthly_cost: plan.monthly_cost
       }));
       
+      console.log('Planos formatados:', formattedPlans);
       setPlans(formattedPlans);
       setError(null);
     } catch (err) {
