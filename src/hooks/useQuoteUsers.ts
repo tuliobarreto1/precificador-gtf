@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { SavedQuote, User, UserRole, defaultUser } from '@/context/types/quoteTypes';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 
 // Chave para armazenar o usuário atual no localStorage
 const CURRENT_USER_KEY = 'currentUser';
@@ -11,6 +12,7 @@ export function useQuoteUsers() {
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>([]);
   const [loading, setLoading] = useState(true);
+  const { adminUser } = useAuth();
 
   // Buscar usuários do sistema do Supabase
   const fetchSystemUsers = async () => {
@@ -45,17 +47,6 @@ export function useQuoteUsers() {
         
         console.log('✅ Usuários mapeados:', mappedUsers);
         setAvailableUsers(mappedUsers);
-        
-        // Se não houver usuário atual definido, usar o primeiro administrador ou o primeiro usuário disponível
-        const storedUser = localStorage.getItem(CURRENT_USER_KEY);
-        if (!storedUser) {
-          const adminUser = mappedUsers.find(u => u.role === 'admin') || mappedUsers[0];
-          if (adminUser) {
-            setUser(adminUser);
-            localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(adminUser));
-            console.log('👤 Usuário padrão definido:', adminUser);
-          }
-        }
         
         return mappedUsers;
       } else {
@@ -116,6 +107,35 @@ export function useQuoteUsers() {
     }
   };
 
+  // Sincronizar usuário atual com adminUser quando disponível
+  useEffect(() => {
+    if (adminUser && availableUsers.length > 0) {
+      console.log('🔄 Sincronizando usuário atual com adminUser:', adminUser);
+      
+      // Encontrar o usuário correspondente na lista de usuários disponíveis
+      const foundUser = availableUsers.find(u => u.email === adminUser.email);
+      
+      if (foundUser) {
+        console.log('✅ Usuário encontrado na lista, definindo como atual:', foundUser);
+        setUser(foundUser);
+        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(foundUser));
+      } else {
+        // Se não encontrou, criar um usuário baseado no adminUser
+        const adminAsUser: User = {
+          id: adminUser.id,
+          name: adminUser.name,
+          email: adminUser.email,
+          role: adminUser.role as UserRole,
+          status: 'active'
+        };
+        
+        console.log('➕ Criando usuário baseado no adminUser:', adminAsUser);
+        setUser(adminAsUser);
+        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(adminAsUser));
+      }
+    }
+  }, [adminUser, availableUsers]);
+
   // Carregar usuário do localStorage na inicialização e buscar usuários do sistema
   useEffect(() => {
     const initializeData = async () => {
@@ -130,7 +150,17 @@ export function useQuoteUsers() {
         }
         
         // Buscar usuários do sistema
-        await fetchSystemUsers();
+        const users = await fetchSystemUsers();
+        
+        // Se não houver usuário atual definido, usar o primeiro administrador ou o primeiro usuário disponível
+        if (!storedUser && users && users.length > 0) {
+          const adminUser = users.find(u => u.role === 'admin') || users[0];
+          if (adminUser) {
+            setUser(adminUser);
+            localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(adminUser));
+            console.log('👤 Usuário padrão definido:', adminUser);
+          }
+        }
         
         // Buscar cotações
         await fetchQuotes();

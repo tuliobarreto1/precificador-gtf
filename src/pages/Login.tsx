@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { signIn, signInAdmin } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -16,6 +17,7 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { refreshAuth } = useAuth();
   
   // Obter o caminho de redirecionamento da URL ou usar o padrão
   const from = location.state?.from?.pathname || '/';
@@ -54,21 +56,34 @@ export default function Login() {
     setIsLoading(true);
     
     try {
+      console.log('🔐 Tentando login com:', email);
+      
       // Primeiro, tentamos login na tabela system_users (onde está o administrador)
       const adminLoginResult = await signInAdmin(email, password);
       
       if (adminLoginResult.success) {
+        console.log('✅ Login admin bem-sucedido');
         toast.success("Login realizado com sucesso", {
           description: "Bem-vindo(a) de volta!"
         });
-        navigate(from, { replace: true });
+        
+        // Forçar atualização do contexto de autenticação
+        refreshAuth();
+        
+        // Aguardar um pouco para o contexto ser atualizado
+        setTimeout(() => {
+          navigate(from, { replace: true });
+        }, 100);
         return;
       }
+      
+      console.log('⚠️ Login admin falhou, tentando Supabase auth...');
       
       // Se não encontrou na tabela system_users, tenta via Supabase auth
       const authLoginResult = await signIn(email, password);
       
       if (authLoginResult.success) {
+        console.log('✅ Login Supabase bem-sucedido');
         toast.success("Login realizado com sucesso", {
           description: "Bem-vindo(a) de volta!"
         });
@@ -76,12 +91,13 @@ export default function Login() {
       }
       
       // Se chegou aqui, não conseguiu autenticar
+      console.log('❌ Ambos os métodos de login falharam');
       toast.error("Erro de autenticação", {
         description: "Email ou senha incorretos. Por favor, tente novamente."
       });
       
     } catch (error) {
-      console.error('Erro no login:', error);
+      console.error('💥 Erro no login:', error);
       toast.error("Erro de autenticação", {
         description: "Ocorreu um erro ao tentar fazer login. Por favor, tente novamente."
       });
