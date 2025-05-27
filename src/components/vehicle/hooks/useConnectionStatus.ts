@@ -1,6 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { testApiConnection } from '@/lib/sql-connection';
+import { getLastSyncStatus } from '@/lib/vehicle-sync';
 
 interface UseConnectionStatusProps {
   offlineMode: boolean;
@@ -35,15 +36,27 @@ export const useConnectionStatus = ({ offlineMode, onError }: UseConnectionStatu
         if (onError) onError(null);
         setFailureCount(0);
       } else {
-        console.log("Conexão com o banco de dados: OFFLINE - Usando modo cache automaticamente");
+        console.log("Conexão com o banco de dados: OFFLINE - Verificando cache...");
         setStatus('offline');
         
-        // Não mostrar erro se há cache disponível - funcionamento normal
-        if (connectionStatus?.cache?.available) {
-          setDetailedError(null);
-          if (onError) onError(null);
-        } else {
-          const errorMsg = 'Cache indisponível - funcionalidade limitada';
+        // Verificar se há cache disponível antes de mostrar erro
+        try {
+          const cacheStatus = await getLastSyncStatus();
+          const hasCacheAvailable = cacheStatus.vehicleCount > 0;
+          
+          if (hasCacheAvailable) {
+            console.log("Cache disponível - funcionamento normal offline");
+            setDetailedError(null);
+            if (onError) onError(null);
+          } else {
+            console.log("Cache indisponível - funcionalidade limitada");
+            const errorMsg = 'Cache indisponível - funcionalidade limitada';
+            setDetailedError(errorMsg);
+            if (onError) onError(errorMsg);
+          }
+        } catch (cacheError) {
+          console.error("Erro ao verificar cache:", cacheError);
+          const errorMsg = 'Erro ao verificar cache local';
           setDetailedError(errorMsg);
           if (onError) onError(errorMsg);
         }
@@ -56,10 +69,26 @@ export const useConnectionStatus = ({ offlineMode, onError }: UseConnectionStatu
       console.error("Erro ao testar conexão:", error);
       setStatus('offline');
       
-      // Verificar se há cache disponível antes de mostrar erro
-      const errorMsg = 'Modo offline ativo - usando dados do cache';
-      setDetailedError(null); // Não mostrar erro se estamos funcionando com cache
-      if (onError) onError(null);
+      // Verificar cache mesmo em caso de erro na conexão
+      try {
+        const cacheStatus = await getLastSyncStatus();
+        const hasCacheAvailable = cacheStatus.vehicleCount > 0;
+        
+        if (hasCacheAvailable) {
+          console.log("Erro na conexão, mas cache disponível - funcionamento offline");
+          setDetailedError(null);
+          if (onError) onError(null);
+        } else {
+          const errorMsg = 'Modo offline ativo - cache indisponível';
+          setDetailedError(errorMsg);
+          if (onError) onError(errorMsg);
+        }
+      } catch (cacheError) {
+        const errorMsg = 'Erro ao verificar cache local';
+        setDetailedError(errorMsg);
+        if (onError) onError(errorMsg);
+      }
+      
       setFailureCount(prev => prev + 1);
     } finally {
       setTestingConnection(false);
