@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { VehicleParams } from '@/context/types/quoteTypes';
 import Card from '@/components/ui-custom/Card';
@@ -136,7 +135,7 @@ const GlobalParamsForm: React.FC<GlobalParamsFormProps> = ({
               <SelectItem value="none">Sem plano de proteção</SelectItem>
               {plans.map(plan => (
                 <SelectItem key={plan.id} value={plan.id}>
-                  {plan.name} - {Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(plan.monthlyCost)}
+                  {plan.name} - {Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(plan.monthly_cost)}
                 </SelectItem>
               ))}
             </SelectContent>
