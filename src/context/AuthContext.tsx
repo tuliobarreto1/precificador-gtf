@@ -20,6 +20,8 @@ interface AuthContextProps {
   isLoading: boolean;
   signOut: () => Promise<void>;
   refreshAuth: () => void;
+  switchUser: (userEmail: string, password: string) => Promise<boolean>;
+  availableUsers: AdminUser[];
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -30,6 +32,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [availableUsers, setAvailableUsers] = useState<AdminUser[]>([]);
+
+  // Função para buscar usuários disponíveis
+  const fetchAvailableUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('system_users')
+        .select('id, name, email, role')
+        .eq('status', 'active')
+        .order('name');
+      
+      if (!error && data) {
+        const users = data.map(u => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          role: u.role as 'admin' | 'supervisor' | 'user'
+        }));
+        setAvailableUsers(users);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar usuários disponíveis:', error);
+    }
+  };
 
   // Função para verificar usuário admin
   const checkAdminUser = () => {
@@ -37,6 +63,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     console.log('🔍 Verificando usuário admin:', admin);
     setAdminUser(admin);
     return admin;
+  };
+
+  // Função para trocar usuário
+  const switchUser = async (userEmail: string, password: string): Promise<boolean> => {
+    try {
+      console.log('🔄 Tentando trocar para usuário:', userEmail);
+      
+      // Buscar o usuário na base de dados
+      const { data, error } = await supabase
+        .from('system_users')
+        .select('id, name, email, password, role, status')
+        .eq('email', userEmail)
+        .eq('status', 'active')
+        .single();
+      
+      if (error || !data) {
+        console.error('❌ Usuário não encontrado:', error);
+        return false;
+      }
+      
+      // Verificar senha
+      if (data.password !== password.trim()) {
+        console.error('❌ Senha incorreta para troca de usuário');
+        return false;
+      }
+      
+      // Fazer logout do usuário atual
+      localStorage.removeItem('admin_user');
+      
+      // Fazer login com o novo usuário
+      const newUser = {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        role: data.role
+      };
+      
+      localStorage.setItem('admin_user', JSON.stringify(newUser));
+      setAdminUser(newUser);
+      
+      // Atualizar último login
+      await supabase
+        .from('system_users')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', data.id);
+      
+      console.log('✅ Troca de usuário realizada com sucesso:', newUser);
+      return true;
+    } catch (error) {
+      console.error('💥 Erro na troca de usuário:', error);
+      return false;
+    }
   };
 
   // Função para forçar atualização do estado de autenticação
@@ -60,14 +138,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (admin) {
       console.log('✅ Usuário admin encontrado na inicialização:', admin);
       setIsLoading(false);
-      return;
+    } else {
+      console.log('❌ Nenhum usuário admin encontrado na inicialização');
+      setIsLoading(false);
     }
     
-    console.log('❌ Nenhum usuário admin encontrado na inicialização');
-    setIsLoading(false);
+    // Buscar usuários disponíveis
+    fetchAvailableUsers();
   }, []);
 
-  // Listener para mudanças no localStorage (para detectar login/logout admin)
+  // Listener para mudanças no localStorage
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'admin_user') {
@@ -76,14 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    // Listener para mudanças entre abas
     window.addEventListener('storage', handleStorageChange);
-    
-    // Listener para mudanças na mesma aba
-    const handleLocalStorageChange = () => {
-      console.log('📦 Mudança local detectada no localStorage');
-      refreshAuth();
-    };
     
     // Verificar periodicamente se o usuário ainda está logado
     const checkAuth = setInterval(() => {
@@ -123,7 +196,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, adminUser, profile, isLoading, signOut, refreshAuth }}>
+    <AuthContext.Provider value={{ 
+      session, 
+      user, 
+      adminUser, 
+      profile, 
+      isLoading, 
+      signOut, 
+      refreshAuth, 
+      switchUser,
+      availableUsers 
+    }}>
       {children}
     </AuthContext.Provider>
   );

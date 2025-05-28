@@ -8,10 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Search, Plus, Filter } from 'lucide-react';
 import Card from '@/components/ui-custom/Card';
 import QuoteTable from '@/components/quotes/QuoteTable';
-import { useQuote } from '@/context/QuoteContext';
 import { QuoteItem, User } from '@/context/types/quoteTypes';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { DataService } from '@/services/dataService';
 
 const Quotes = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -29,44 +29,12 @@ const Quotes = () => {
     setLoading(true);
     
     try {
-      const { data, error } = await supabase
-        .from('quotes')
-        .select(`
-          id,
-          title,
-          client_id,
-          total_value,
-          created_at,
-          status,
-          status_flow,
-          contract_months,
-          created_by,
-          clients (
-            id,
-            name
-          ),
-          quote_vehicles (
-            *,
-            vehicle_id,
-            vehicles:vehicle_id (
-              brand,
-              model
-            )
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error("Erro ao buscar orçamentos:", error);
-        toast({
-          title: "Erro ao carregar orçamentos",
-          description: error.message,
-          variant: "destructive"
-        });
-      } else {
-        console.log("Orçamentos carregados:", data);
+      const result = await DataService.getQuotes();
+      
+      if (result.success) {
+        console.log("Orçamentos carregados:", result.data);
         
-        const mappedQuotes: QuoteItem[] = await Promise.all((data || []).map(async quote => {
+        const mappedQuotes: QuoteItem[] = await Promise.all((result.data || []).map(async quote => {
           let createdBy: User = {
             id: "system",
             name: "Sistema",
@@ -76,20 +44,24 @@ const Quotes = () => {
           };
           
           if (quote.created_by) {
-            const { data: userData, error: userError } = await supabase
-              .from('system_users')
-              .select('id, name, email, role')
-              .eq('id', quote.created_by)
-              .single();
-              
-            if (!userError && userData) {
-              createdBy = {
-                id: userData.id || "system",
-                name: userData.name || "Sistema",
-                email: userData.email || "system@example.com",
-                role: userData.role || "system",
-                status: "active"
-              };
+            try {
+              const { data: userData, error: userError } = await supabase
+                .from('system_users')
+                .select('id, name, email, role')
+                .eq('id', quote.created_by)
+                .single();
+                
+              if (!userError && userData) {
+                createdBy = {
+                  id: userData.id || "system",
+                  name: userData.name || "Sistema",
+                  email: userData.email || "system@example.com",
+                  role: userData.role || "system",
+                  status: "active"
+                };
+              }
+            } catch (userFetchError) {
+              console.warn('Erro ao buscar dados do usuário:', userFetchError);
             }
           }
           
@@ -108,6 +80,13 @@ const Quotes = () => {
         }));
         
         setQuotes(mappedQuotes);
+      } else {
+        console.error("Erro ao buscar orçamentos:", result.error);
+        toast({
+          title: "Erro ao carregar orçamentos",
+          description: result.error?.message || "Erro desconhecido",
+          variant: "destructive"
+        });
       }
     } catch (err) {
       console.error("Erro inesperado:", err);

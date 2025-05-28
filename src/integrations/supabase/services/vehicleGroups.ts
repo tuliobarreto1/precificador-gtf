@@ -1,5 +1,6 @@
 
 import { supabase } from '../client';
+import { DataService } from '@/services/dataService';
 
 // Interface para grupo de veículo
 export interface VehicleGroup {
@@ -18,22 +19,16 @@ export interface VehicleGroup {
 // Função para buscar grupos de veículos
 export async function getVehicleGroups() {
   try {
-    console.log('🔍 Buscando grupos de veículos no Supabase...');
+    console.log('🔍 Buscando grupos de veículos...');
     
-    // Verificar se há uma sessão ativa do Supabase
-    const { data: sessionData } = await supabase.auth.getSession();
-    console.log('📋 Sessão Supabase para grupos:', sessionData.session ? 'Ativa' : 'Inativa');
+    const result = await DataService.getVehicleGroups();
     
-    const { data, error } = await supabase
-      .from('vehicle_groups')
-      .select('*')
-      .order('name', { ascending: true });
-      
-    if (error) {
-      console.error('❌ Erro ao buscar grupos de veículos:', error);
-      return { success: false, error, groups: [] };
+    if (!result.success) {
+      console.error('❌ Erro ao buscar grupos de veículos:', result.error);
+      return { success: false, error: result.error, groups: [] };
     }
     
+    const data = result.data;
     console.log('📊 Dados de grupos retornados:', data);
     
     // Converter dados do Supabase para o formato esperado pela aplicação
