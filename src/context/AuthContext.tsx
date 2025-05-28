@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -92,12 +91,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Fazer logout do usuário atual
       localStorage.removeItem('admin_user');
       
-      // Fazer login com o novo usuário
-      const newUser = {
+      // Fazer login com o novo usuário - garantindo que role seja do tipo correto
+      const newUser: AdminUser = {
         id: data.id,
         name: data.name,
         email: data.email,
-        role: data.role
+        role: data.role as 'admin' | 'supervisor' | 'user'
       };
       
       localStorage.setItem('admin_user', JSON.stringify(newUser));
