@@ -1,3 +1,4 @@
+
 // Mock data for clients
 export interface Client {
   id: string;
@@ -133,10 +134,9 @@ interface AuthResponse {
   error?: any;
 }
 
-// Função de login para autenticação
+// Função de login para autenticação via Supabase Auth (não usado no sistema atual)
 export async function signIn(email: string, password: string): Promise<AuthResponse> {
   try {
-    // Usar a importação do arquivo correto
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
@@ -154,10 +154,9 @@ export async function signIn(email: string, password: string): Promise<AuthRespo
   }
 }
 
-// Função de registro para autenticação
+// Função de registro para autenticação (não usado no sistema atual)
 export async function signUp(email: string, password: string, name: string): Promise<AuthResponse> {
   try {
-    // Usar a importação do arquivo correto
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -180,7 +179,7 @@ export async function signUp(email: string, password: string, name: string): Pro
   }
 }
 
-// Função para obter o perfil do usuário atual
+// Função para obter o perfil do usuário atual (não usado no sistema atual)
 export async function getCurrentProfile() {
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -212,10 +211,10 @@ export async function getCurrentProfile() {
   }
 }
 
-// Função para autenticação de admin usando a tabela system_users
+// Função principal de autenticação usando a tabela system_users
 export async function signInAdmin(email: string, password: string): Promise<AuthResponse> {
   try {
-    const { supabase } = await import('@/integrations/supabase/client');
+    console.log('🔐 Tentando login admin para:', email);
     
     const { data, error } = await supabase
       .from('system_users')
@@ -225,38 +224,52 @@ export async function signInAdmin(email: string, password: string): Promise<Auth
       .single();
     
     if (error || !data) {
-      console.error('Usuário não encontrado ou inativo:', error);
+      console.error('❌ Usuário não encontrado ou inativo:', error);
       return { success: false, error: { message: 'Usuário não encontrado ou inativo' } };
     }
     
-    if (data.password !== password) {
-      console.error('Senha incorreta');
+    console.log('👤 Usuário encontrado:', { id: data.id, name: data.name, email: data.email, role: data.role });
+    console.log('🔑 Senha fornecida:', password);
+    console.log('🔑 Senha no banco:', data.password);
+    
+    // Comparar senhas
+    if (data.password !== password.trim()) {
+      console.error('❌ Senha incorreta');
       return { success: false, error: { message: 'Credenciais inválidas' } };
     }
     
-    localStorage.setItem('admin_user', JSON.stringify({
+    console.log('✅ Senha correta, criando sessão...');
+    
+    // Criar objeto do usuário para o localStorage
+    const adminUser = {
       id: data.id,
       name: data.name,
       email: data.email,
       role: data.role
-    }));
+    };
     
-    await supabase
-      .from('system_users')
-      .update({ last_login: new Date().toISOString() })
-      .eq('id', data.id);
+    // Armazenar no localStorage
+    localStorage.setItem('admin_user', JSON.stringify(adminUser));
     
+    // Atualizar último login
+    try {
+      await supabase
+        .from('system_users')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', data.id);
+      
+      console.log('📅 Último login atualizado');
+    } catch (updateError) {
+      console.warn('⚠️ Erro ao atualizar último login:', updateError);
+    }
+    
+    console.log('✅ Login admin realizado com sucesso');
     return { 
       success: true, 
-      user: {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        role: data.role
-      } 
+      user: adminUser
     };
   } catch (error) {
-    console.error('Erro na autenticação de admin:', error);
+    console.error('💥 Erro na autenticação de admin:', error);
     return { success: false, error };
   }
 }
@@ -265,11 +278,16 @@ export async function signInAdmin(email: string, password: string): Promise<Auth
 export function getAdminUser() {
   try {
     const adminUserStr = localStorage.getItem('admin_user');
-    if (!adminUserStr) return null;
+    if (!adminUserStr) {
+      console.log('❌ Nenhum usuário admin no localStorage');
+      return null;
+    }
     
-    return JSON.parse(adminUserStr);
+    const adminUser = JSON.parse(adminUserStr);
+    console.log('✅ Usuário admin encontrado no localStorage:', adminUser);
+    return adminUser;
   } catch (error) {
-    console.error('Erro ao obter usuário admin:', error);
+    console.error('💥 Erro ao obter usuário admin:', error);
     return null;
   }
 }
@@ -277,10 +295,12 @@ export function getAdminUser() {
 // Função para logout do usuário admin
 export async function signOutAdmin(): Promise<{ success: boolean }> {
   try {
+    console.log('🚪 Fazendo logout do usuário admin...');
     localStorage.removeItem('admin_user');
+    console.log('✅ Logout realizado com sucesso');
     return { success: true };
   } catch (error) {
-    console.error('Erro ao fazer logout de admin:', error);
+    console.error('💥 Erro ao fazer logout de admin:', error);
     return { success: false };
   }
 }

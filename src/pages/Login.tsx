@@ -7,8 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { signIn, signInAdmin } from '@/lib/api';
-import { supabase } from '@/integrations/supabase/client';
+import { signInAdmin } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 
 export default function Login() {
@@ -17,31 +16,18 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { refreshAuth } = useAuth();
+  const { adminUser, refreshAuth } = useAuth();
   
   // Obter o caminho de redirecionamento da URL ou usar o padrão
   const from = location.state?.from?.pathname || '/';
   
   useEffect(() => {
-    // Verificar se o usuário já está autenticado
-    const checkUser = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        navigate(from, { replace: true });
-      }
-    };
-    
-    checkUser();
-    
-    // Configurar listener para alterações no estado de autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        navigate(from, { replace: true });
-      }
-    });
-    
-    return () => subscription.unsubscribe();
-  }, [navigate, from]);
+    // Se já está autenticado, redirecionar
+    if (adminUser) {
+      console.log('✅ Usuário já autenticado, redirecionando...');
+      navigate(from, { replace: true });
+    }
+  }, [adminUser, navigate, from]);
   
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,50 +42,41 @@ export default function Login() {
     setIsLoading(true);
     
     try {
-      console.log('🔐 Tentando login com:', email);
+      console.log('🔐 Iniciando processo de login...');
+      console.log('📧 Email:', email);
       
-      // Primeiro, tentamos login na tabela system_users (onde está o administrador)
-      const adminLoginResult = await signInAdmin(email, password);
+      // Tentar login na tabela system_users
+      const adminLoginResult = await signInAdmin(email.trim(), password);
       
       if (adminLoginResult.success) {
-        console.log('✅ Login admin bem-sucedido');
+        console.log('✅ Login realizado com sucesso:', adminLoginResult.user);
+        
         toast.success("Login realizado com sucesso", {
-          description: "Bem-vindo(a) de volta!"
+          description: `Bem-vindo(a), ${adminLoginResult.user.name}!`
         });
         
         // Forçar atualização do contexto de autenticação
         refreshAuth();
         
-        // Aguardar um pouco para o contexto ser atualizado
+        // Aguardar um pouco para o contexto ser atualizado e navegar
         setTimeout(() => {
+          console.log('🔄 Navegando para:', from);
           navigate(from, { replace: true });
         }, 100);
-        return;
-      }
-      
-      console.log('⚠️ Login admin falhou, tentando Supabase auth...');
-      
-      // Se não encontrou na tabela system_users, tenta via Supabase auth
-      const authLoginResult = await signIn(email, password);
-      
-      if (authLoginResult.success) {
-        console.log('✅ Login Supabase bem-sucedido');
-        toast.success("Login realizado com sucesso", {
-          description: "Bem-vindo(a) de volta!"
-        });
+        
         return;
       }
       
       // Se chegou aqui, não conseguiu autenticar
-      console.log('❌ Ambos os métodos de login falharam');
+      console.log('❌ Falha na autenticação:', adminLoginResult.error);
       toast.error("Erro de autenticação", {
-        description: "Email ou senha incorretos. Por favor, tente novamente."
+        description: adminLoginResult.error?.message || "Email ou senha incorretos. Por favor, tente novamente."
       });
       
     } catch (error) {
-      console.error('💥 Erro no login:', error);
+      console.error('💥 Erro inesperado no login:', error);
       toast.error("Erro de autenticação", {
-        description: "Ocorreu um erro ao tentar fazer login. Por favor, tente novamente."
+        description: "Ocorreu um erro inesperado ao tentar fazer login. Por favor, tente novamente."
       });
     } finally {
       setIsLoading(false);
@@ -143,6 +120,7 @@ export default function Login() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
+                      disabled={isLoading}
                     />
                   </div>
                   
@@ -159,13 +137,14 @@ export default function Login() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
+                      disabled={isLoading}
                     />
                   </div>
                 </CardContent>
                 
                 <CardFooter>
                   <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Carregando..." : "Entrar"}
+                    {isLoading ? "Entrando..." : "Entrar"}
                   </Button>
                 </CardFooter>
               </form>

@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { getCurrentProfile, getAdminUser, signOutAdmin } from '@/lib/api';
+import { getAdminUser, signOutAdmin } from '@/lib/api';
 
 // Tipo para usuários administradores
 interface AdminUser {
@@ -15,11 +15,11 @@ interface AdminUser {
 interface AuthContextProps {
   session: Session | null;
   user: User | null;
-  adminUser: AdminUser | null;  // Adicionando usuário admin
+  adminUser: AdminUser | null;
   profile: any | null;
   isLoading: boolean;
   signOut: () => Promise<void>;
-  refreshAuth: () => void;  // Nova função para forçar atualização
+  refreshAuth: () => void;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -27,7 +27,7 @@ const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [adminUser, setAdminUser] = useState<AdminUser | null>(null);  // Estado para usuário admin
+  const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -44,95 +44,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     console.log('🔄 Forçando atualização do estado de autenticação...');
     const admin = checkAdminUser();
     if (admin) {
+      console.log('✅ Usuário admin encontrado, definindo como autenticado');
       setIsLoading(false);
     } else {
-      // Verificar sessão Supabase se não há admin
-      supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        setIsLoading(false);
-      });
+      console.log('❌ Nenhum usuário admin encontrado');
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     console.log('🚀 Inicializando AuthProvider...');
     
-    // Verificar se há um usuário admin logado primeiro
+    // Verificar se há um usuário admin logado
     const admin = checkAdminUser();
     if (admin) {
-      console.log('👤 Usuário admin encontrado:', admin);
+      console.log('✅ Usuário admin encontrado na inicialização:', admin);
       setIsLoading(false);
       return;
     }
     
-    // Configurar o listener de mudança de estado de autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        console.log('📡 Evento de autenticação:', event, currentSession?.user?.id);
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        
-        if (currentSession?.user) {
-          // Buscar o perfil do usuário, mas com setTimeout para evitar deadlock
-          setTimeout(async () => {
-            try {
-              const { success, profile } = await getCurrentProfile();
-              console.log('👤 Perfil obtido:', success, profile);
-              if (success && profile) {
-                setProfile(profile);
-              }
-            } catch (error) {
-              console.error('❌ Erro ao buscar perfil:', error);
-            } finally {
-              setIsLoading(false);
-            }
-          }, 0);
-        } else {
-          // Se não há usuário Supabase, verificar se há admin
-          const currentAdmin = checkAdminUser();
-          if (!currentAdmin) {
-            setProfile(null);
-            setIsLoading(false);
-          }
-        }
-      }
-    );
-
-    // Verificar se já existe uma sessão Supabase
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      console.log('📋 Sessão atual:', currentSession?.user?.id);
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      
-      if (currentSession?.user) {
-        getCurrentProfile().then(({ success, profile }) => {
-          console.log('👤 Perfil obtido (inicial):', success, profile);
-          if (success && profile) {
-            setProfile(profile);
-          }
-          setIsLoading(false);
-        }).catch(error => {
-          console.error('❌ Erro ao buscar perfil inicial:', error);
-          setIsLoading(false);
-        });
-      } else {
-        // Se não há usuário Supabase, só verificar admin
-        if (!admin) {
-          setIsLoading(false);
-        }
-      }
-    }).catch(error => {
-      console.error('❌ Erro ao buscar sessão:', error);
-      setIsLoading(false);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    console.log('❌ Nenhum usuário admin encontrado na inicialização');
+    setIsLoading(false);
   }, []);
 
-  // Listener para mudanças no localStorage (para detectar login admin)
+  // Listener para mudanças no localStorage (para detectar login/logout admin)
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'admin_user') {
@@ -141,21 +76,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
+    // Listener para mudanças entre abas
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+    
+    // Listener para mudanças na mesma aba
+    const handleLocalStorageChange = () => {
+      console.log('📦 Mudança local detectada no localStorage');
+      refreshAuth();
+    };
+    
+    // Verificar periodicamente se o usuário ainda está logado
+    const checkAuth = setInterval(() => {
+      const currentAdmin = getAdminUser();
+      if (adminUser && !currentAdmin) {
+        console.log('⚠️ Usuário admin removido, atualizando contexto...');
+        setAdminUser(null);
+      } else if (!adminUser && currentAdmin) {
+        console.log('✅ Novo usuário admin encontrado, atualizando contexto...');
+        setAdminUser(currentAdmin);
+      }
+    }, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(checkAuth);
+    };
+  }, [adminUser]);
 
   const signOut = async () => {
-    // Fazer logout do usuário admin, se houver
+    console.log('🚪 Iniciando processo de logout...');
+    
+    // Fazer logout do usuário admin
     if (adminUser) {
+      console.log('🔓 Fazendo logout do usuário admin...');
       await signOutAdmin();
       setAdminUser(null);
     }
     
     // Fazer logout do usuário Supabase, se houver
     if (session) {
+      console.log('🔓 Fazendo logout do usuário Supabase...');
       await supabase.auth.signOut();
     }
+    
+    console.log('✅ Logout realizado com sucesso');
   };
 
   return (
