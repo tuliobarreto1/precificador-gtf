@@ -46,7 +46,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
               alt="ASA Rent a Car" 
               className="h-8 mr-3"
             />
-            <h1 className="font-semibold text-gray-900">GTF System</h1>
+            <h1 className="font-semibold text-gray-900">ASA Rent a Car</h1>
           </div>
 
           {/* Navigation */}
@@ -80,7 +80,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
           <div className="flex items-center justify-between h-16 px-6">
             <div className="flex items-center">
               <h2 className="text-lg font-semibold text-gray-900">
-                Gerador de Propostas GTF
+                Gerador de Propostas de Frota
               </h2>
             </div>
             

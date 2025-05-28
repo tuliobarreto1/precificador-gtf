@@ -7,7 +7,7 @@ export class DataService {
   // Buscar orçamentos
   static async getQuotes() {
     try {
-      console.log('🔍 Buscando orçamentos...');
+      console.log('🔍 Buscando orçamentos via DataService...');
       
       const { data, error } = await supabase
         .from('quotes')
@@ -42,6 +42,7 @@ export class DataService {
       }
 
       console.log(`✅ ${data?.length || 0} orçamentos encontrados`);
+      console.log('📊 Primeiro orçamento:', data?.[0]);
       return { success: true, data: data || [] };
     } catch (error) {
       console.error('💥 Erro inesperado ao buscar orçamentos:', error);
@@ -139,6 +140,29 @@ export class DataService {
     } catch (error) {
       console.error('💥 Erro inesperado ao buscar parâmetros de cálculo:', error);
       return { success: false, error, data: null };
+    }
+  }
+
+  // Testar conexão com o Supabase
+  static async testConnection() {
+    try {
+      console.log('🔄 Testando conexão com Supabase...');
+      
+      const { data, error } = await supabase
+        .from('system_users')
+        .select('count(*)')
+        .limit(1);
+
+      if (error) {
+        console.error('❌ Erro na conexão:', error);
+        return { success: false, error };
+      }
+
+      console.log('✅ Conexão com Supabase OK');
+      return { success: true, data };
+    } catch (error) {
+      console.error('💥 Erro inesperado na conexão:', error);
+      return { success: false, error };
     }
   }
 }
