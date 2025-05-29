@@ -9,7 +9,7 @@ import { QuoteItem, User } from '@/context/types/quoteTypes';
 import QuoteTable from '@/components/quotes/QuoteTable';
 import QuoteStats from '@/components/quotes/QuoteStats';
 import Card from '@/components/ui-custom/Card';
-import { ArrowDownRight, ArrowUpRight, FileText, Clock, Plus } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, FileText, Clock, Plus, RefreshCw } from 'lucide-react';
 import { DataService } from '@/services/dataService';
 import { toast } from 'sonner';
 
@@ -22,12 +22,13 @@ const Index = () => {
   const fetchQuotes = async () => {
     try {
       setLoading(true);
-      console.log('🔍 Buscando orçamentos no dashboard...');
+      setError(null);
+      console.log('🔍 Iniciando busca de orçamentos no dashboard...');
       
       const result = await DataService.getQuotes();
       
       if (result.success && result.data) {
-        console.log(`✅ ${result.data.length} orçamentos carregados`);
+        console.log(`✅ ${result.data.length} orçamentos carregados no dashboard`);
         
         const mappedQuotes: QuoteItem[] = result.data.map(quote => {
           let createdBy: User = {
@@ -63,7 +64,8 @@ const Index = () => {
         });
         
         setAllQuotes(mappedQuotes);
-        setError(null);
+        console.log('✅ Orçamentos mapeados com sucesso para o dashboard');
+        toast.success("Dados carregados com sucesso!");
       } else {
         console.error('❌ Erro ao buscar orçamentos:', result.error);
         setError("Erro ao carregar orçamentos");
@@ -79,12 +81,12 @@ const Index = () => {
   };
 
   useEffect(() => {
-    if (adminUser) {
-      fetchQuotes();
-    }
+    console.log('🚀 Dashboard carregando - Status do adminUser:', adminUser ? 'Logado' : 'Não logado');
+    fetchQuotes();
   }, [adminUser]);
 
   const handleRefresh = () => {
+    console.log('🔄 Atualizando dashboard...');
     fetchQuotes();
   };
 
@@ -108,6 +110,7 @@ const Index = () => {
           <div className="text-center text-red-500">
             <p>Erro: {error}</p>
             <Button onClick={handleRefresh} className="mt-4">
+              <RefreshCw className="h-4 w-4 mr-2" />
               Tentar Novamente
             </Button>
           </div>
@@ -129,6 +132,24 @@ const Index = () => {
       <PageTitle title="Dashboard" subtitle="Acompanhe seus orçamentos e estatísticas" />
 
       <div className="space-y-6">
+        {/* Indicador de status de dados */}
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="h-2 w-2 bg-green-500 rounded-full mr-2"></div>
+            <span className="text-green-700 text-sm">
+              Sistema conectado - {totalQuotes} orçamentos carregados
+            </span>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleRefresh}
+              className="ml-auto"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
         {/* Estatísticas */}
         <QuoteStats 
           totalQuotes={totalQuotes} 
@@ -162,17 +183,31 @@ const Index = () => {
             </Button>
           </div>
           
-          <div className="rounded-md border">
-            <QuoteTable 
-              quotes={recentQuotes}
-              onRefresh={handleRefresh} 
-            />
-          </div>
-          
-          {recentQuotes.length > 0 && (
-            <div className="mt-4 text-right">
-              <Link to="/orcamentos">
-                <Button variant="link">Ver todos os orçamentos →</Button>
+          {recentQuotes.length > 0 ? (
+            <>
+              <div className="rounded-md border">
+                <QuoteTable 
+                  quotes={recentQuotes}
+                  onRefresh={handleRefresh} 
+                />
+              </div>
+              
+              <div className="mt-4 text-right">
+                <Link to="/orcamentos">
+                  <Button variant="link">Ver todos os orçamentos →</Button>
+                </Link>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-8">
+              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Nenhum orçamento encontrado</h3>
+              <p className="text-gray-600 mb-4">Comece criando seu primeiro orçamento</p>
+              <Link to="/orcamento/novo">
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Criar Orçamento
+                </Button>
               </Link>
             </div>
           )}
