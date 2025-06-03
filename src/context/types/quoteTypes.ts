@@ -49,6 +49,8 @@ export interface QuoteVehicleResult {
   includeIpva: boolean;
   includeLicensing: boolean;
   includeTaxes: boolean;
+  protectionPlanId?: string | null;
+  contractMonths?: number;
 }
 
 export interface QuoteCalculationResult {
@@ -68,6 +70,12 @@ export interface SavedQuoteVehicle {
   taxCost?: number;
   plateNumber?: string;
   vehicleGroupId?: string;
+  groupId?: string;
+  vehicleValue?: number;
+  protectionPlanId?: string | null;
+  includeIpva?: boolean;
+  includeLicensing?: boolean;
+  includeTaxes?: boolean;
 }
 
 export interface SavedQuote {
@@ -81,6 +89,12 @@ export interface SavedQuote {
   status: string;
   source?: 'local' | 'supabase';
   globalParams?: VehicleParams;
+  contractMonths?: number;
+  monthlyKm?: number;
+  createdBy?: {
+    id: string;
+    name: string;
+  };
 }
 
 export interface User {
@@ -104,6 +118,13 @@ export interface EditRecord {
   description: string;
   data: any;
 }
+
+// Tipos adicionais que estavam ausentes
+export interface QuoteParams extends VehicleParams {}
+export interface QuoteVehicleItem extends VehicleItem {}
+export interface QuoteResultVehicle extends QuoteVehicleResult {}
+export interface SavedVehicle extends SavedQuoteVehicle {}
+export interface QuoteItem extends SavedQuote {}
 
 export interface QuoteContextType {
   quoteForm: QuoteFormData;
@@ -135,6 +156,6 @@ export interface QuoteContextType {
   deleteQuote: (quoteId: string) => Promise<boolean>;
   canEditQuote: (quoteId: string) => boolean;
   canDeleteQuote: (quoteId: string) => boolean;
-  sendQuoteByEmail: (quoteId: string, emailData: any) => Promise<boolean>;
+  sendQuoteByEmail: (quoteId: string, email: string, message: string) => Promise<boolean>;
   savedQuotes: SavedQuote[];
 }

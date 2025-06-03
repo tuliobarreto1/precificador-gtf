@@ -126,10 +126,6 @@ export const QuoteProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   
   // Hooks extraídos
   const { sendQuoteByEmail } = useQuoteEmails(getCurrentUser);
-  const { canEditQuoteAdapter, canDeleteQuoteAdapter } = useQuoteAdapters(
-    canEditQuoteById,
-    canDeleteQuoteById
-  );
 
   // Adicionando log para depurar se os valores de impostos estão definidos corretamente
   useEffect(() => {
@@ -202,9 +198,19 @@ export const QuoteProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }
     },
     deleteQuote: deleteQuote,
-    canEditQuote: canEditQuoteAdapter,
-    canDeleteQuote: canDeleteQuoteAdapter,
-    sendQuoteByEmail,
+    canEditQuote: (quoteId: string) => {
+      const quote = savedQuotes.find(q => q.id === quoteId);
+      if (!quote) return false;
+      return canEditQuoteById(quote, getCurrentUser());
+    },
+    canDeleteQuote: (quoteId: string) => {
+      const quote = savedQuotes.find(q => q.id === quoteId);
+      if (!quote) return false;
+      return canDeleteQuoteById(quote, getCurrentUser());
+    },
+    sendQuoteByEmail: async (quoteId: string, email: string, message: string) => {
+      return await sendQuoteByEmail(quoteId, { email, message });
+    },
     savedQuotes
   };
 
