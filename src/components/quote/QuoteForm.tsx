@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Users, Car, Wrench, Calculator, Target } from 'lucide-react';
@@ -5,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Client, ClientType } from '@/lib/models';
 import { useQuote } from '@/context/QuoteContext';
-import { CustomClient } from '@/components/quote/ClientForm';
+import { CustomClient } from '@/context/types/quoteTypes';
+import { supabase } from '@/integrations/supabase/client';
 
 // Componentes de etapa
 import SegmentStep from './steps/SegmentStep';
@@ -21,6 +23,26 @@ const STEPS = [
   { id: 'params', name: 'Parâmetros', icon: <Wrench size={18} /> },
   { id: 'result', name: 'Resultado', icon: <Calculator size={18} /> },
 ];
+
+// Função para buscar clientes do Supabase
+const getClientsFromSupabase = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .order('name');
+    
+    if (error) {
+      console.error('Erro ao buscar clientes:', error);
+      return { success: false, clients: [], error };
+    }
+    
+    return { success: true, clients: data || [], error: null };
+  } catch (error) {
+    console.error('Erro na função getClientsFromSupabase:', error);
+    return { success: false, clients: [], error };
+  }
+};
 
 const QuoteForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();

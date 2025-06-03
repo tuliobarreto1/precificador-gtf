@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Client, Vehicle, VehicleGroup } from '@/lib/models';
 import { QuoteFormData, SavedQuote, QuoteContextType, QuoteCalculationResult, User, defaultUser, VehicleItem } from './types/quoteTypes';
@@ -70,8 +71,6 @@ const QuoteContext = createContext<QuoteContextType>(defaultContextValue);
 // Provider component
 export const QuoteProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [quoteForm, setQuoteForm] = useState<QuoteFormData>(initialQuoteForm);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [currentEditingQuoteId, setCurrentEditingQuoteId] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Utilizando os hooks específicos
@@ -92,6 +91,7 @@ export const QuoteProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   } = useQuoteVehicles(quoteForm, setQuoteForm);
   
   const {
+    setSegment,
     setGlobalContractMonths,
     setGlobalMonthlyKm,
     setGlobalOperationSeverity,
@@ -130,14 +130,6 @@ export const QuoteProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     canEditQuoteById,
     canDeleteQuoteById
   );
-
-  // Função para definir segmento
-  const setSegment = (segment: 'GTF' | 'Assinatura' | undefined) => {
-    setQuoteForm(prev => ({
-      ...prev,
-      segment
-    }));
-  };
 
   // Adicionando log para depurar se os valores de impostos estão definidos corretamente
   useEffect(() => {
