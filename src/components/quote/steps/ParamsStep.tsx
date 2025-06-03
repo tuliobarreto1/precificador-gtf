@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   Card,
@@ -10,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { ProtectionPlanSelector } from '@/components/protection/ProtectionPlanSelector';
+import ProtectionPlanSelector from '@/components/protection/ProtectionPlanSelector';
 import { VehicleParamsCard } from '@/components/vehicle/VehicleParamsCard';
 import { QuoteFormData, VehicleParams } from '@/context/types/quoteTypes';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
