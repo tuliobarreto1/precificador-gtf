@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Client, Vehicle, VehicleGroup } from '@/lib/models';
-import { QuoteFormData, SavedQuote, QuoteContextType, QuoteCalculationResult, User, defaultUser, VehicleItem } from './types/quoteTypes';
+import { QuoteFormData, SavedQuote, QuoteContextType, QuoteCalculationResult, User, defaultUser } from './types/quoteTypes';
 import { useQuoteUsers } from '@/hooks/useQuoteUsers';
 import { useQuoteVehicles } from '@/hooks/useQuoteVehicles';
 import { useQuoteParams } from '@/hooks/useQuoteParams';
@@ -14,7 +14,6 @@ import { useToast } from '@/hooks/use-toast';
 
 // Initial state com impostos habilitados por padrão
 const initialQuoteForm: QuoteFormData = {
-  segment: undefined,
   client: null,
   vehicles: [],
   useGlobalParams: true,
@@ -24,16 +23,15 @@ const initialQuoteForm: QuoteFormData = {
     operationSeverity: 3,
     hasTracking: false,
     protectionPlanId: null,
-    includeIpva: true,      
-    includeLicensing: true, 
-    includeTaxes: true,     
+    includeIpva: true,      // IPVA habilitado por padrão
+    includeLicensing: true, // Licenciamento habilitado por padrão
+    includeTaxes: true,     // Custos financeiros habilitados por padrão
   },
 };
 
 // Criar o contexto com um valor padrão para evitar undefined
 const defaultContextValue: QuoteContextType = {
   quoteForm: initialQuoteForm,
-  setSegment: () => {},
   setClient: () => {},
   addVehicle: () => {},
   removeVehicle: () => {},
@@ -69,10 +67,10 @@ const defaultContextValue: QuoteContextType = {
 const QuoteContext = createContext<QuoteContextType>(defaultContextValue);
 
 // Provider component
-export const QuoteProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   const [quoteForm, setQuoteForm] = useState<QuoteFormData>(initialQuoteForm);
   const { toast } = useToast();
-
+  
   // Utilizando os hooks específicos
   const {
     user,
@@ -91,7 +89,6 @@ export const QuoteProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   } = useQuoteVehicles(quoteForm, setQuoteForm);
   
   const {
-    setSegment,
     setGlobalContractMonths,
     setGlobalMonthlyKm,
     setGlobalOperationSeverity,
@@ -126,6 +123,10 @@ export const QuoteProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   
   // Hooks extraídos
   const { sendQuoteByEmail } = useQuoteEmails(getCurrentUser);
+  const { canEditQuoteAdapter, canDeleteQuoteAdapter } = useQuoteAdapters(
+    canEditQuoteById,
+    canDeleteQuoteById
+  );
 
   // Adicionando log para depurar se os valores de impostos estão definidos corretamente
   useEffect(() => {
@@ -139,7 +140,6 @@ export const QuoteProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // Export the context
   const contextValue: QuoteContextType = {
     quoteForm,
-    setSegment,
     setClient,
     addVehicle,
     removeVehicle,
@@ -197,20 +197,10 @@ export const QuoteProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         return false;
       }
     },
-    deleteQuote: deleteQuote,
-    canEditQuote: (quoteId: string) => {
-      const quote = savedQuotes.find(q => q.id === quoteId);
-      if (!quote) return false;
-      return canEditQuoteById(quote, getCurrentUser());
-    },
-    canDeleteQuote: (quoteId: string) => {
-      const quote = savedQuotes.find(q => q.id === quoteId);
-      if (!quote) return false;
-      return canDeleteQuoteById(quote, getCurrentUser());
-    },
-    sendQuoteByEmail: async (quoteId: string, email: string, message: string) => {
-      return await sendQuoteByEmail(quoteId, { email, message });
-    },
+    deleteQuote,
+    canEditQuote: canEditQuoteAdapter,
+    canDeleteQuote: canDeleteQuoteAdapter,
+    sendQuoteByEmail,
     savedQuotes
   };
 

@@ -7,23 +7,21 @@ import { fetchProtectionPlans } from '@/integrations/supabase/services/protectio
 interface ProtectionPlanSelectorProps {
   selectedPlanId: string | null;
   onChange: (planId: string | null) => void;
-  segment?: 'GTF' | 'Assinatura';
 }
 
-const ProtectionPlanSelector = ({ selectedPlanId, onChange, segment = 'GTF' }: ProtectionPlanSelectorProps) => {
+const ProtectionPlanSelector = ({ selectedPlanId, onChange }: ProtectionPlanSelectorProps) => {
   const [plans, setPlans] = useState<ProtectionPlan[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadProtectionPlans();
-  }, [segment]);
+  }, []);
 
   const loadProtectionPlans = async () => {
     try {
       setLoading(true);
-      const plansData = await fetchProtectionPlans(segment);
+      const plansData = await fetchProtectionPlans();
       setPlans(plansData);
-      console.log(`Planos carregados para segmento ${segment}:`, plansData);
     } catch (error) {
       console.error('Erro ao carregar planos de proteção:', error);
     } finally {

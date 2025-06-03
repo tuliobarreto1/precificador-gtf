@@ -1,6 +1,19 @@
+// Removendo a referência ao '@prisma/client' que está causando erros
 
-import { Client, Vehicle, VehicleGroup } from '@/lib/models';
+export interface Client {
+  id: string;
+  name: string;
+  document?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  responsible?: string;
+  contact?: string;
+}
 
+// Interface VehicleParams para parâmetros de veículos
 export interface VehicleParams {
   contractMonths: number;
   monthlyKm: number;
@@ -12,130 +25,91 @@ export interface VehicleParams {
   includeTaxes: boolean;
 }
 
-export interface VehicleItem {
-  vehicle: Vehicle;
-  params?: VehicleParams;
-  vehicleGroup?: VehicleGroup;
-}
-
-export interface CustomClient {
-  id?: string;
-  name: string;
-  type: 'PF' | 'PJ';
-  document: string;
-  email?: string;
-  contact?: string;
-  responsible?: string;
-}
+// Alias para manter compatibilidade com código existente
+export type QuoteParams = VehicleParams;
 
 export interface QuoteFormData {
-  segment?: 'GTF' | 'Assinatura';
-  client: Client | CustomClient | null;
-  vehicles: VehicleItem[];
+  client: Client | null;
+  vehicles: QuoteVehicleItem[];
   useGlobalParams: boolean;
   globalParams: VehicleParams;
 }
 
-export interface QuoteVehicleResult {
+export interface QuoteCalculationResult {
+  vehicleResults: QuoteResultVehicle[];
+  totalCost: number;
+}
+
+export interface QuoteResultVehicle {
   vehicleId: string;
+  totalCost: number;
   depreciationCost: number;
   maintenanceCost: number;
   extraKmRate: number;
   protectionCost: number;
-  ipvaCost: number;
-  licensingCost: number;
-  taxCost: number;
-  totalCost: number;
-  includeIpva: boolean;
-  includeLicensing: boolean;
-  includeTaxes: boolean;
-  protectionPlanId?: string | null;
-  contractMonths?: number;
-  monthlyKm?: number;
-}
-
-export interface QuoteCalculationResult {
-  vehicleResults: QuoteVehicleResult[];
-  totalCost: number;
-}
-
-export interface SavedQuoteVehicle {
-  vehicleId: string;
-  vehicleBrand: string;
-  vehicleModel: string;
-  totalCost: number;
-  contractMonths: number;
-  monthlyKm: number;
+  protectionPlanId: string | null;
   ipvaCost?: number;
   licensingCost?: number;
   taxCost?: number;
-  plateNumber?: string;
-  vehicleGroupId?: string;
-  groupId?: string;
-  vehicleValue?: number;
-  protectionPlanId?: string | null;
-  includeIpva?: boolean;
-  includeLicensing?: boolean;
-  includeTaxes?: boolean;
+  includeIpva: boolean;
+  includeLicensing: boolean;
+  includeTaxes: boolean;
+  contractMonths: number;
+  monthlyKm: number;
+  discountJustification?: {
+    reason: string;
+    authorizedBy: string;
+  };
 }
 
 export interface SavedQuote {
   id: string;
-  clientId: string;
   clientName: string;
-  vehicles: SavedQuoteVehicle[];
+  clientId?: string; 
   totalValue: number;
-  createdAt: string;
-  updatedAt?: string;
-  status: string;
-  source?: 'local' | 'supabase';
-  globalParams?: VehicleParams;
+  totalCost?: number; // Adicionando para compatibilidade
   contractMonths?: number;
   monthlyKm?: number;
+  operationSeverity?: number;
+  hasTracking?: boolean;
+  includeIpva?: boolean;
+  includeLicensing?: boolean;
+  includeTaxes?: boolean;
+  status: string;
+  vehicles: SavedVehicle[];
+  createdAt: Date | string;
+  updatedAt?: Date | string; // Adicionando campo que estava sendo usado
   createdBy?: {
-    id: string;
+    id: string; // Mudando para string para compatibilidade
     name: string;
+    email?: string;
+    role?: string;
   };
+  globalParams?: VehicleParams;
+  source?: string; // Adicionando para compatibilidade
 }
-
-export type UserRole = 'admin' | 'supervisor' | 'user';
 
 export interface User {
   id: string;
   name: string;
-  role: UserRole;
-  email?: string;
+  email: string;
+  role?: string;
   status?: string;
 }
 
+// Definindo UserRole como tipo
+export type UserRole = 'admin' | 'manager' | 'user' | 'guest';
+
 export const defaultUser: User = {
-  id: 'user-1',
-  name: 'Usuário Padrão',
-  role: 'user'
+  id: 'system',
+  name: 'System User',
+  email: 'system@example.com',
 };
-
-export interface EditRecord {
-  id: string;
-  type: 'quote' | 'vehicle' | 'client';
-  timestamp: string;
-  userId: string;
-  userName: string;
-  description: string;
-  data: any;
-}
-
-// Tipos adicionais que estavam ausentes
-export interface QuoteParams extends VehicleParams {}
-export interface QuoteVehicleItem extends VehicleItem {}
-export interface QuoteResultVehicle extends QuoteVehicleResult {}
-export interface SavedVehicle extends SavedQuoteVehicle {}
-export interface QuoteItem extends SavedQuote {}
 
 export interface QuoteContextType {
   quoteForm: QuoteFormData;
-  setSegment: (segment: 'GTF' | 'Assinatura' | undefined) => void;
-  setClient: (client: Client | CustomClient | null) => void;
-  addVehicle: (vehicle: Vehicle, vehicleGroup?: VehicleGroup) => void;
+  setClient: (client: Client | null) => void;
+  addVehicle: (vehicle: Vehicle, vehicleGroup: VehicleGroup) => void;
   removeVehicle: (vehicleId: string) => void;
   setGlobalContractMonths: (months: number) => void;
   setGlobalMonthlyKm: (km: number) => void;
@@ -146,7 +120,7 @@ export interface QuoteContextType {
   setGlobalIncludeLicensing: (include: boolean) => void;
   setGlobalIncludeTaxes: (include: boolean) => void;
   setUseGlobalParams: (useGlobal: boolean) => void;
-  setVehicleParams: (vehicleId: string, params: VehicleParams) => void;
+  setVehicleParams: (vehicleId: string, params: Partial<VehicleParams>) => void;
   resetForm: () => void;
   calculateQuote: () => QuoteCalculationResult | null;
   saveQuote: () => Promise<boolean>;
@@ -155,12 +129,95 @@ export interface QuoteContextType {
   availableUsers: User[];
   isEditMode: boolean;
   currentEditingQuoteId: string | null;
-  getClientById: (id: string) => Promise<Client | null>;
-  getVehicleById: (id: string) => Promise<Vehicle | null>;
+  getClientById: (clientId: string) => Promise<Client | null>;
+  getVehicleById: (vehicleId: string) => Promise<Vehicle | null>;
   loadQuoteForEditing: (quoteId: string) => Promise<boolean>;
   deleteQuote: (quoteId: string) => Promise<boolean>;
-  canEditQuote: (quoteId: string) => boolean;
-  canDeleteQuote: (quoteId: string) => boolean;
-  sendQuoteByEmail: (quoteId: string, email: string, message: string) => Promise<boolean>;
+  canEditQuote: (quote: SavedQuote, user: User) => boolean;
+  canDeleteQuote: (quote: SavedQuote, user: User) => boolean;
+  sendQuoteByEmail: (quoteId: string, email: string, message?: string) => Promise<boolean>;
   savedQuotes: SavedQuote[];
+}
+
+export interface SavedVehicle {
+  id: string;  // Garantindo que o campo id é obrigatório
+  vehicleId: string;
+  vehicleBrand: string;
+  vehicleModel: string;
+  plateNumber?: string;
+  totalCost: number;
+  monthlyKm?: number;
+  contractMonths?: number;
+  depreciationCost?: number;
+  maintenanceCost?: number;
+  extraKmRate?: number;
+  protectionCost?: number;
+  protectionPlanId?: string | null;
+  ipvaCost?: number;
+  licensingCost?: number;
+  includeIpva?: boolean;
+  includeLicensing?: boolean;
+  includeTaxes?: boolean;
+  taxCost?: number;
+  vehicleValue?: number;
+  vehicleGroupId?: string;
+  groupId?: string; // Adicionando para compatibilidade
+}
+
+// Interface para item de orçamento na lista
+export interface QuoteItem {
+  id: string;
+  clientName: string;
+  vehicleName?: string;
+  value?: number;
+  status: string;
+  createdAt: string | Date;
+  contractMonths?: number;
+  createdBy?: {
+    id: string; // Mudando para string para compatibilidade
+    name: string;
+    email?: string;
+    role?: string;
+  };
+}
+
+// Interface para item de veículo no orçamento
+export interface QuoteVehicleItem {
+  vehicle: Vehicle;
+  vehicleGroup: VehicleGroup;
+  params: VehicleParams | null;
+}
+
+// Interface para veículo
+export interface Vehicle {
+  id: string;
+  brand: string;
+  model: string;
+  year: number;
+  value: number;
+  plateNumber?: string;
+  status?: string;
+  isUsed?: boolean; // Adicionando para compatibilidade
+  groupId?: string; // Adicionando para compatibilidade
+}
+
+// Interface para grupo de veículos
+export interface VehicleGroup {
+  id: string;
+  name: string;
+  description?: string;
+  revisionKm?: number;
+  revisionCost?: number;
+  tireKm?: number;
+  tireCost?: number;
+  ipvaCost?: number;
+  licensingCost?: number;
+}
+
+// Interface para registros de edição
+export interface EditRecord {
+  id: string;
+  type: string;
+  data: any;
+  editedAt?: string; // Adicionando para compatibilidade
 }

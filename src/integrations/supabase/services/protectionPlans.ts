@@ -1,15 +1,13 @@
-
 import { supabase } from '../client';
 import { ProtectionPlan, ProtectionPlanDetails, ProtectionBenefit, ProtectionDeductible } from '@/lib/types/protection';
 
-export async function fetchProtectionPlans(segment: 'GTF' | 'Assinatura' = 'GTF'): Promise<ProtectionPlan[]> {
+export async function fetchProtectionPlans(): Promise<ProtectionPlan[]> {
   try {
-    console.log(`Buscando planos de proteção para segmento: ${segment}`);
+    console.log('Buscando planos de proteção via service...');
     
     const { data, error } = await supabase
       .from('protection_plans')
       .select('*')
-      .eq('segment', segment)
       .order('monthly_cost', { ascending: true });
     
     if (error) {
@@ -66,24 +64,22 @@ export async function fetchProtectionPlanDetails(planId: string): Promise<Protec
       throw planError;
     }
     
-    // Buscar benefícios do plano com filtro por segmento
+    // Buscar benefícios do plano
     const { data: benefitsData, error: benefitsError } = await supabase
       .from('protection_benefits')
       .select('*')
-      .eq('plan_id', planId)
-      .eq('segment', planData.segment);
+      .eq('plan_id', planId);
     
     if (benefitsError) {
       console.error('Erro ao buscar benefícios:', benefitsError);
       throw benefitsError;
     }
     
-    // Buscar franquias do plano com filtro por segmento
+    // Buscar franquias do plano
     const { data: deductiblesData, error: deductiblesError } = await supabase
       .from('protection_deductibles')
       .select('*')
-      .eq('plan_id', planId)
-      .eq('segment', planData.segment);
+      .eq('plan_id', planId);
     
     if (deductiblesError) {
       console.error('Erro ao buscar franquias:', deductiblesError);

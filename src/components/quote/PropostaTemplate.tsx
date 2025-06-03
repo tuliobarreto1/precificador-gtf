@@ -1,6 +1,7 @@
 
 import React, { forwardRef } from 'react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { SavedQuote, SavedVehicle } from '@/context/types/quoteTypes';
 import { QuoteFormData, QuoteCalculationResult } from '@/context/types/quoteTypes';
 
 interface PropostaTemplateProps {

@@ -6,14 +6,6 @@ export function useQuoteParams(
   quoteForm: QuoteFormData,
   setQuoteForm: Dispatch<SetStateAction<QuoteFormData>>
 ) {
-  // Segmento
-  const setSegment = (segment: 'GTF' | 'Assinatura' | undefined) => {
-    setQuoteForm(prev => ({
-      ...prev,
-      segment
-    }));
-  };
-
   // Cliente
   const setClient = (client: Client | null) => {
     setQuoteForm(prev => ({
@@ -133,7 +125,6 @@ export function useQuoteParams(
   };
 
   return {
-    setSegment,
     setClient,
     setGlobalContractMonths,
     setGlobalMonthlyKm,
@@ -142,7 +133,7 @@ export function useQuoteParams(
     setGlobalProtectionPlanId,
     setGlobalIncludeIpva,
     setGlobalIncludeLicensing,
-    setGlobalIncludeTaxes,
+    setGlobalIncludeTaxes, // Novo método
     setUseGlobalParams,
     resetForm
   };

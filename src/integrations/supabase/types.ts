@@ -334,7 +334,6 @@ export type Database = {
           id: string
           is_included: boolean
           plan_id: string
-          segment: string
           updated_at: string
         }
         Insert: {
@@ -344,7 +343,6 @@ export type Database = {
           id?: string
           is_included?: boolean
           plan_id: string
-          segment?: string
           updated_at?: string
         }
         Update: {
@@ -354,7 +352,6 @@ export type Database = {
           id?: string
           is_included?: boolean
           plan_id?: string
-          segment?: string
           updated_at?: string
         }
         Relationships: [
@@ -374,7 +371,6 @@ export type Database = {
           incident_type: string
           percentage: number
           plan_id: string
-          segment: string
           updated_at: string
         }
         Insert: {
@@ -383,7 +379,6 @@ export type Database = {
           incident_type: string
           percentage: number
           plan_id: string
-          segment?: string
           updated_at?: string
         }
         Update: {
@@ -392,7 +387,6 @@ export type Database = {
           incident_type?: string
           percentage?: number
           plan_id?: string
-          segment?: string
           updated_at?: string
         }
         Relationships: [
@@ -412,7 +406,6 @@ export type Database = {
           id: string
           monthly_cost: number
           name: string
-          segment: string
           type: string
           updated_at: string
         }
@@ -422,7 +415,6 @@ export type Database = {
           id?: string
           monthly_cost?: number
           name: string
-          segment?: string
           type: string
           updated_at?: string
         }
@@ -432,7 +424,6 @@ export type Database = {
           id?: string
           monthly_cost?: number
           name?: string
-          segment?: string
           type?: string
           updated_at?: string
         }
