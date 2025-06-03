@@ -51,6 +51,7 @@ export interface QuoteVehicleResult {
   includeTaxes: boolean;
   protectionPlanId?: string | null;
   contractMonths?: number;
+  monthlyKm?: number;
 }
 
 export interface QuoteCalculationResult {
@@ -97,10 +98,14 @@ export interface SavedQuote {
   };
 }
 
+export type UserRole = 'admin' | 'supervisor' | 'user';
+
 export interface User {
   id: string;
   name: string;
-  role: 'admin' | 'supervisor' | 'user';
+  role: UserRole;
+  email?: string;
+  status?: string;
 }
 
 export const defaultUser: User = {

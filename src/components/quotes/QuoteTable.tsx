@@ -9,13 +9,15 @@ interface QuoteTableProps {
   onViewQuote: (quote: SavedQuote) => void;
   onEditQuote: (quote: SavedQuote) => void;
   onDeleteQuote: (quote: SavedQuote) => void;
+  onRefresh?: () => void;
 }
 
 const QuoteTable: React.FC<QuoteTableProps> = ({ 
   quotes, 
   onViewQuote, 
   onEditQuote, 
-  onDeleteQuote 
+  onDeleteQuote,
+  onRefresh 
 }) => {
   return (
     <div className="overflow-x-auto">

@@ -42,6 +42,7 @@ const QuoteDetail: React.FC<QuoteDetailProps> = ({
     client: {
       id: quote.clientId || '',
       name: quote.clientName || 'Cliente',
+      type: 'PJ' as const,
       document: '',
       email: '',
       contact: ''

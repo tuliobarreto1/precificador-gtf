@@ -3,7 +3,7 @@ import React from 'react';
 import { useToast } from '@/hooks/use-toast';
 import ClientForm from '@/components/quote/ClientForm';
 import { Client } from '@/lib/models';
-import { CustomClient } from '@/components/quote/ClientForm';
+import { CustomClient } from '@/context/types/quoteTypes';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
 
@@ -30,7 +30,9 @@ const ClientStep: React.FC<ClientStepProps> = ({
       )}
       
       <ClientForm 
+        onClientCreate={onClientSelect}
         onClientSelect={onClientSelect} 
+        onCancel={() => {}}
         existingClients={existingClients}
         segment={segment}
       />

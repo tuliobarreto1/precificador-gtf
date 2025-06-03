@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { FileText } from 'lucide-react';
@@ -70,6 +69,7 @@ const GerarPropostaButton: React.FC<GerarPropostaButtonProps> = ({ quoteForm, re
         client: {
           id: savedQuote.clientId || '',
           name: savedQuote.clientName || 'Cliente',
+          type: 'PJ',
           document: '',
           email: '',
           contact: ''
