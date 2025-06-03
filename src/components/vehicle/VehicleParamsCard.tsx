@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Vehicle, VehicleGroup } from '@/lib/models';
 import { VehicleParams } from '@/context/types/quoteTypes';
-import { ProtectionPlanSelector } from '@/components/protection/ProtectionPlanSelector';
+import ProtectionPlanSelector from '@/components/protection/ProtectionPlanSelector';
 
 interface VehicleParamsCardProps {
   vehicle: Vehicle;
