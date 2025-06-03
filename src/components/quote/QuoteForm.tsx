@@ -1,22 +1,21 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Users, Car, Wrench, Calculator } from 'lucide-react';
+import { Users, Car, Wrench, Calculator, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Client, ClientType } from '@/lib/models';
 import { useQuote } from '@/context/QuoteContext';
-import { getAllVehicles } from '@/integrations/supabase';
-import { getClientsFromSupabase } from '@/integrations/supabase/services/clients';
 import { CustomClient } from '@/components/quote/ClientForm';
 
 // Componentes de etapa
+import SegmentStep from './steps/SegmentStep';
 import ClientStep from './steps/ClientStep';
 import VehicleStep from './steps/VehicleStep';
 import ParamsStep from './steps/ParamsStep';
 import ResultStep from './steps/ResultStep';
 
 const STEPS = [
+  { id: 'segment', name: 'Segmento', icon: <Target size={18} /> },
   { id: 'client', name: 'Cliente', icon: <Users size={18} /> },
   { id: 'vehicle', name: 'Veículos', icon: <Car size={18} /> },
   { id: 'params', name: 'Parâmetros', icon: <Wrench size={18} /> },
@@ -25,7 +24,7 @@ const STEPS = [
 
 const QuoteForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const [currentStep, setCurrentStep] = useState('client');
+  const [currentStep, setCurrentStep] = useState('segment');
   const [loadingQuote, setLoadingQuote] = useState<boolean>(!!id);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadAttempted, setLoadAttempted] = useState<boolean>(false);
@@ -35,6 +34,7 @@ const QuoteForm: React.FC = () => {
   const { toast } = useToast();
   
   const emptyQuoteForm = {
+    segment: undefined,
     client: null,
     vehicles: [],
     useGlobalParams: true,
@@ -54,6 +54,7 @@ const QuoteForm: React.FC = () => {
   
   const { 
     quoteForm = emptyQuoteForm, 
+    setSegment = () => {},
     setClient = () => {}, 
     addVehicle = () => {},
     removeVehicle = () => {},
@@ -161,8 +162,20 @@ const QuoteForm: React.FC = () => {
   }, [id, loadQuoteForEditing, toast]);
 
   const handleNextStep = async () => {
-    logState();
     console.log(`👆 Botão CONTINUAR clicado: avançando de ${currentStep} para o próximo passo.`);
+    
+    if (currentStep === 'segment') {
+      if (!quoteForm?.segment) {
+        toast({
+          title: "Selecione um segmento",
+          description: "É necessário selecionar um segmento para continuar."
+        });
+        return;
+      }
+      console.log("✅ Avançando para etapa de cliente");
+      setCurrentStep('client');
+      return;
+    }
     
     if (currentStep === 'client') {
       if (!quoteForm?.client) {
@@ -172,6 +185,22 @@ const QuoteForm: React.FC = () => {
         });
         return;
       }
+      
+      // Validação específica para Assinatura: apenas CPF
+      if (quoteForm.segment === 'Assinatura') {
+        const isPersonaFisica = quoteForm.client.type === 'PF' || 
+          (quoteForm.client.document && quoteForm.client.document.replace(/\D/g, '').length === 11);
+        
+        if (!isPersonaFisica) {
+          toast({
+            title: "Segmento inválido para cliente",
+            description: "O segmento Assinatura é exclusivo para Pessoa Física (CPF).",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+      
       console.log("✅ Avançando para etapa de veículo");
       setCurrentStep('vehicle');
       return;
@@ -198,6 +227,31 @@ const QuoteForm: React.FC = () => {
     
     if (currentStep === 'result') {
       console.log("✅ Finalizando orçamento");
+      
+      // Validação ROIC para Assinatura
+      if (quoteForm.segment === 'Assinatura') {
+        const result = calculateQuote();
+        if (result && result.vehicleResults) {
+          const hasLowROIC = result.vehicleResults.some(vehicle => {
+            const vehicleInfo = quoteForm.vehicles.find(v => v.vehicle.id === vehicle.vehicleId);
+            if (vehicleInfo) {
+              const roic = (vehicle.totalCost * 12) / vehicleInfo.vehicle.value;
+              return roic < 0.027; // 2.7%
+            }
+            return false;
+          });
+          
+          if (hasLowROIC) {
+            toast({
+              title: "ROIC insuficiente",
+              description: "Para o segmento Assinatura, o ROIC deve ser no mínimo 2,7%.",
+              variant: "destructive"
+            });
+            return;
+          }
+        }
+      }
+      
       try {
         const success = await saveQuote();
         if (success) {
@@ -229,6 +283,9 @@ const QuoteForm: React.FC = () => {
 
   const goToPreviousStep = () => {
     switch (currentStep) {
+      case 'client':
+        setCurrentStep('segment');
+        break;
       case 'vehicle':
         setCurrentStep('client');
         break;
@@ -241,6 +298,16 @@ const QuoteForm: React.FC = () => {
     }
   };
 
+  const handleSegmentSelect = (segment: 'GTF' | 'Assinatura') => {
+    console.log("Segmento selecionado:", segment);
+    setSegment(segment);
+    
+    // Para Assinatura, definir severidade operacional como 1
+    if (segment === 'Assinatura') {
+      setGlobalOperationSeverity(1);
+    }
+  };
+
   const handleClientSelect = (client: Client | CustomClient) => {
     console.log("Cliente selecionado:", client);
     if (client) {
@@ -250,11 +317,16 @@ const QuoteForm: React.FC = () => {
 
   const renderStepContent = () => {
     switch (currentStep) {
+      case 'segment':
+        return (
+          <SegmentStep onSegmentSelect={handleSegmentSelect} />
+        );
       case 'client':
         return (
           <ClientStep 
             onClientSelect={handleClientSelect} 
-            existingClients={existingClients} 
+            existingClients={existingClients}
+            segment={quoteForm?.segment}
           />
         );
       case 'vehicle':
@@ -320,6 +392,11 @@ const QuoteForm: React.FC = () => {
             <div>
               <h1 className="text-2xl font-bold tracking-tight">
                 {isEditMode ? "Editar Orçamento" : "Novo Orçamento"}
+                {quoteForm?.segment && (
+                  <span className="ml-2 text-sm font-normal text-muted-foreground">
+                    ({quoteForm.segment})
+                  </span>
+                )}
               </h1>
               <p className="text-muted-foreground">
                 {isEditMode 
@@ -355,14 +432,15 @@ const QuoteForm: React.FC = () => {
             <Button 
               type="button" 
               variant="outline" 
-              onClick={currentStep === 'client' ? () => navigate('/orcamentos') : goToPreviousStep}
+              onClick={currentStep === 'segment' ? () => navigate('/orcamentos') : goToPreviousStep}
             >
-              {currentStep === 'client' ? 'Cancelar' : 'Voltar'}
+              {currentStep === 'segment' ? 'Cancelar' : 'Voltar'}
             </Button>
             <Button 
               type="button" 
               onClick={handleNextStep} 
               disabled={
+                (currentStep === 'segment' && !quoteForm?.segment) ||
                 (currentStep === 'client' && !quoteForm?.client) || 
                 (currentStep === 'vehicle' && (!quoteForm?.vehicles || quoteForm.vehicles.length === 0))
               }

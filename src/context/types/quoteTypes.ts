@@ -28,9 +28,12 @@ export interface VehicleParams {
 // Alias para manter compatibilidade com código existente
 export type QuoteParams = VehicleParams;
 
+export type QuoteSegment = 'GTF' | 'Assinatura';
+
 export interface QuoteFormData {
-  client: Client | null;
-  vehicles: QuoteVehicleItem[];
+  segment?: QuoteSegment;
+  client: Client | CustomClient | null;
+  vehicles: VehicleItem[];
   useGlobalParams: boolean;
   globalParams: VehicleParams;
 }
@@ -108,7 +111,7 @@ export const defaultUser: User = {
 
 export interface QuoteContextType {
   quoteForm: QuoteFormData;
-  setClient: (client: Client | null) => void;
+  setClient: (client: Client | CustomClient | null) => void;
   addVehicle: (vehicle: Vehicle, vehicleGroup: VehicleGroup) => void;
   removeVehicle: (vehicleId: string) => void;
   setGlobalContractMonths: (months: number) => void;
@@ -182,7 +185,7 @@ export interface QuoteItem {
 }
 
 // Interface para item de veículo no orçamento
-export interface QuoteVehicleItem {
+export interface VehicleItem {
   vehicle: Vehicle;
   vehicleGroup: VehicleGroup;
   params: VehicleParams | null;

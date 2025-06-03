@@ -1,339 +1,280 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Client } from '@/lib/models';
-import { addClient, getClientByDocument } from '@/lib/data-provider';
+import React, { useState } from 'react';
+import {
+  Card,
+  CardContent,
+} from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Check, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { Client, ClientType } from '@/lib/models';
 
-export interface CustomClient extends Client {
-  isCustom: boolean;
+export interface CustomClient {
+  id: string;
+  name: string;
+  type: ClientType;
+  document: string;
+  email?: string;
+  contact?: string;
+  responsible?: string;
+  isNew?: boolean;
 }
 
-export interface ClientFormProps {
-  onClientSelect?: (client: Client | CustomClient) => void;
-  existingClients?: Client[];
+interface ClientFormProps {
+  onClientSelect: (client: Client | CustomClient) => void;
+  existingClients: Client[];
+  segment?: 'GTF' | 'Assinatura';
 }
 
-export default function ClientForm({ onClientSelect, existingClients = [] }: ClientFormProps) {
-  const [loading, setLoading] = useState(false);
-  const [clients, setClients] = useState<Client[]>(existingClients);
-  const [formData, setFormData] = useState({
-    document: '',
+const ClientForm: React.FC<ClientFormProps> = ({ 
+  onClientSelect, 
+  existingClients,
+  segment 
+}) => {
+  const [newClient, setNewClient] = useState<Omit<Client, 'id'> & { id?: string }>({
     name: '',
+    type: 'PF',
+    document: '',
     email: '',
     contact: '',
-    responsible: '',
+    responsible: ''
   });
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-
-  const documentType = formData.document.replace(/\D/g, '').length === 11 ? 'PF' : 'PJ';
+  const [selectedExistingClient, setSelectedExistingClient] = useState<Client | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (existingClients.length === 0) {
-      const fetchClients = async () => {
-        setLoading(true);
-        try {
-          const { data, error } = await supabase
-            .from('clients')
-            .select('*')
-            .order('name', { ascending: true });
-          
-          if (error) {
-            console.error('Erro ao buscar clientes:', error);
-            return;
-          }
-          
-          const mappedClients: Client[] = data.map(client => ({
-            id: client.id,
-            name: client.name,
-            type: client.type as 'PF' | 'PJ',
-            document: client.document || '',
-            email: client.email || '',
-            contact: client.phone || '',
-            responsible: client.responsible_person || ''
-          }));
-          
-          setClients(mappedClients);
-        } catch (error) {
-          console.error('Erro ao buscar clientes:', error);
-        } finally {
-          setLoading(false);
-        }
-      };
-      
-      fetchClients();
-    }
-  }, [existingClients]);
+  // Filtrar clientes existentes baseado no segmento
+  const filteredExistingClients = segment === 'Assinatura' 
+    ? existingClients.filter(client => {
+        return client.type === 'PF' || 
+          (client.document && client.document.replace(/\D/g, '').length === 11);
+      })
+    : existingClients;
 
-  const formatPhone = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
-    return numbers
-      .replace(/(\d{2})(\d)/, '($1) $2')
-      .replace(/(\d{5})(\d)/, '$1-$2')
-      .slice(0, 15);
-  };
-
-  const formatDocument = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
-    if (numbers.length <= 11) {
-      return numbers
-        .replace(/(\d{3})(\d)/, '$1.$2')
-        .replace(/(\d{3})(\d)/, '$1.$2')
-        .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
-        .slice(0, 14);
-    } else {
-      return numbers
-        .replace(/(\d{2})(\d)/, '$1.$2')
-        .replace(/(\d{3})(\d)/, '$1.$2')
-        .replace(/(\d{3})(\d)/, '$1/$2')
-        .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
-        .slice(0, 18);
-    }
-  };
-
-  const searchCNPJ = async (numbers: string) => {
-    if (numbers.length !== 14) return;
+  const handleExistingClientSelect = (client: Client) => {
+    console.log("Cliente existente selecionado:", client);
     
-    setLoading(true);
-    try {
-      const response = await fetch(`https://publica.cnpj.ws/cnpj/${numbers}`);
-      if (!response.ok) throw new Error('Falha ao buscar CNPJ');
+    // Validação para segmento Assinatura
+    if (segment === 'Assinatura') {
+      const isPersonaFisica = client.type === 'PF' || 
+        (client.document && client.document.replace(/\D/g, '').length === 11);
       
-      const data = await response.json();
-      setFormData(prev => ({
-        ...prev,
-        name: data.razao_social,
-      }));
-    } catch (error) {
-      console.error('Erro ao buscar CNPJ:', error);
-    } finally {
-      setLoading(false);
+      if (!isPersonaFisica) {
+        toast({
+          title: "Cliente não permitido",
+          description: "O segmento Assinatura é exclusivo para Pessoa Física (CPF).",
+          variant: "destructive"
+        });
+        return;
+      }
     }
+    
+    setSelectedExistingClient(client);
+    onClientSelect(client);
   };
 
-  const handleDocumentChange = (value: string) => {
-    const formatted = formatDocument(value);
-    setFormData(prev => ({ ...prev, document: formatted }));
-
-    const numbers = value.replace(/\D/g, '');
-    if (numbers.length === 14) {
-      searchCNPJ(numbers);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!formData.document || !formData.name) {
+  const handleNewClientSubmit = () => {
+    if (!newClient.name || !newClient.document) {
       toast({
-        title: "Campos obrigatórios",
-        description: "Por favor, preencha todos os campos obrigatórios",
-        variant: "destructive",
+        title: "Dados obrigatórios",
+        description: "Nome e documento são obrigatórios.",
+        variant: "destructive"
       });
       return;
     }
 
-    setLoading(true);
-    try {
-      // Verificar se já existe um cliente com esse documento
-      const existingClient = await getClientByDocument(formData.document);
-      if (existingClient) {
+    // Validação para segmento Assinatura
+    if (segment === 'Assinatura') {
+      const documentNumbers = newClient.document.replace(/\D/g, '');
+      if (documentNumbers.length !== 11) {
         toast({
-          title: "Cliente já cadastrado",
-          description: "Já existe um cliente cadastrado com este documento.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Criar novo cliente no Supabase
-      const { data, error } = await supabase
-        .from('clients')
-        .insert({
-          name: formData.name,
-          type: documentType,
-          document: formData.document,
-          email: formData.email,
-          phone: formData.contact,
-          responsible_person: formData.responsible
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Erro ao salvar cliente:', error);
-        toast({
-          title: "Erro ao cadastrar cliente",
-          description: error.message,
-          variant: "destructive",
+          title: "Documento inválido",
+          description: "Para o segmento Assinatura, apenas CPF (11 dígitos) é permitido.",
+          variant: "destructive"
         });
         return;
       }
-
-      const newClient: Client = {
-        id: data.id,
-        name: data.name,
-        type: data.type as 'PF' | 'PJ',
-        document: data.document || '',
-        email: data.email || '',
-        contact: data.phone || '',
-        responsible: data.responsible_person
-      };
-
-      // Atualizar lista local de clientes
-      setClients(prev => [...prev, newClient]);
-      
-      if (onClientSelect) {
-        const customClient: CustomClient = {
-          ...newClient,
-          isCustom: true
-        };
-        onClientSelect(customClient);
-        
-        setSelectedClientId(newClient.id);
-      }
-      
-      toast({
-        title: "Cliente adicionado",
-        description: "Cliente adicionado com sucesso!",
-      });
-
-      // Limpar formulário
-      setFormData({
-        document: '',
-        name: '',
-        email: '',
-        contact: '',
-        responsible: '',
-      });
-    } catch (error) {
-      console.error('Erro ao salvar cliente:', error);
-      toast({
-        title: "Erro ao cadastrar cliente",
-        description: "Ocorreu um erro ao tentar cadastrar o cliente.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
     }
-  };
 
-  const handleSelectClient = (client: Client) => {
-    if (onClientSelect) {
-      console.log("Cliente selecionado no ClientForm:", client);
-      onClientSelect(client);
-      setSelectedClientId(client.id);
-    }
+    const customClient: CustomClient = {
+      id: `new-${Date.now()}`,
+      name: newClient.name,
+      type: newClient.type,
+      document: newClient.document,
+      email: newClient.email || undefined,
+      contact: newClient.contact || undefined,
+      responsible: newClient.responsible || undefined,
+      isNew: true
+    };
+
+    console.log("Novo cliente criado:", customClient);
+    onClientSelect(customClient);
   };
 
   return (
     <div className="space-y-6">
-      {clients.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">Selecione um Cliente Existente</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {clients.map((client) => (
-              <div
-                key={client.id}
-                className={`p-4 rounded-lg border cursor-pointer transition-all hover:border-primary/30 ${
-                  selectedClientId === client.id ? 'border-primary bg-primary/5' : ''
-                }`}
-                onClick={() => handleSelectClient(client)}
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h4 className="font-medium">{client.name}</h4>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {client.type === 'PJ' ? 'CNPJ' : 'CPF'}: {client.document}
-                    </p>
-                  </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    client.type === 'PJ' 
-                      ? 'bg-blue-100 text-blue-800' 
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {client.type === 'PJ' ? 'Pessoa Jurídica' : 'Pessoa Física'}
-                  </span>
-                </div>
-                {client.email && (
-                  <p className="text-sm mt-2">{client.email}</p>
+      <div>
+        <h3 className="text-lg font-semibold mb-4">Selecione ou cadastre um cliente</h3>
+        
+        <Tabs defaultValue="existing" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="existing">Cliente Existente</TabsTrigger>
+            <TabsTrigger value="new">Novo Cliente</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="existing" className="space-y-4">
+            {filteredExistingClients.length > 0 ? (
+              <div className="grid gap-2">
+                {filteredExistingClients.map((client) => (
+                  <Card 
+                    key={client.id}
+                    className={`cursor-pointer transition-colors ${
+                      selectedExistingClient?.id === client.id 
+                        ? 'border-primary bg-primary/5' 
+                        : 'hover:bg-muted/50'
+                    }`}
+                    onClick={() => handleExistingClientSelect(client)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-medium">{client.name}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {client.type === 'PF' ? 'Pessoa Física' : 'Pessoa Jurídica'}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {client.document}
+                          </p>
+                          {client.email && (
+                            <p className="text-sm text-muted-foreground">
+                              {client.email}
+                            </p>
+                          )}
+                        </div>
+                        {selectedExistingClient?.id === client.id && (
+                          <Check className="h-5 w-5 text-primary" />
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {segment === 'Assinatura' 
+                    ? 'Nenhum cliente Pessoa Física encontrado' 
+                    : 'Nenhum cliente encontrado'
+                  }
+                </h3>
+                <p className="text-gray-600">
+                  {segment === 'Assinatura'
+                    ? 'Cadastre um novo cliente com CPF para continuar'
+                    : 'Cadastre um novo cliente para continuar'
+                  }
+                </p>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="new" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="name">Nome *</Label>
+                <Input
+                  id="name"
+                  value={newClient.name}
+                  onChange={(e) => setNewClient(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Digite o nome"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="type">Tipo *</Label>
+                <Select 
+                  value={newClient.type} 
+                  onValueChange={(value: ClientType) => setNewClient(prev => ({ ...prev, type: value }))}
+                  disabled={segment === 'Assinatura'}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PF">Pessoa Física</SelectItem>
+                    {segment !== 'Assinatura' && (
+                      <SelectItem value="PJ">Pessoa Jurídica</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                {segment === 'Assinatura' && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Apenas Pessoa Física é permitida no segmento Assinatura
+                  </p>
                 )}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
 
-      <div className="border-t pt-6 mt-6">
-        <h3 className="text-lg font-medium mb-4">Ou Cadastre um Novo Cliente</h3>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid gap-4">
-            <div>
-              <Label htmlFor="document">
-                {documentType === 'PJ' ? 'CNPJ' : 'CPF'} *
-              </Label>
-              <Input
-                id="document"
-                value={formData.document}
-                onChange={(e) => handleDocumentChange(e.target.value)}
-                placeholder="Digite o CPF ou CNPJ"
-                maxLength={18}
-                disabled={loading}
-              />
+              <div>
+                <Label htmlFor="document">
+                  {newClient.type === 'PF' ? 'CPF' : 'CNPJ'} *
+                </Label>
+                <Input
+                  id="document"
+                  value={newClient.document}
+                  onChange={(e) => setNewClient(prev => ({ ...prev, document: e.target.value }))}
+                  placeholder={newClient.type === 'PF' ? 'Digite o CPF' : 'Digite o CNPJ'}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="email">E-mail</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={newClient.email}
+                  onChange={(e) => setNewClient(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="Digite o e-mail"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="contact">Telefone</Label>
+                <Input
+                  id="contact"
+                  value={newClient.contact}
+                  onChange={(e) => setNewClient(prev => ({ ...prev, contact: e.target.value }))}
+                  placeholder="Digite o telefone"
+                />
+              </div>
+
+              {newClient.type === 'PJ' && (
+                <div>
+                  <Label htmlFor="responsible">Responsável</Label>
+                  <Input
+                    id="responsible"
+                    value={newClient.responsible}
+                    onChange={(e) => setNewClient(prev => ({ ...prev, responsible: e.target.value }))}
+                    placeholder="Digite o nome do responsável"
+                  />
+                </div>
+              )}
             </div>
 
-            <div>
-              <Label htmlFor="name">
-                {documentType === 'PJ' ? 'Razão Social' : 'Nome'} *
-              </Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                disabled={documentType === 'PJ' && loading}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="contact">Contato</Label>
-              <Input
-                id="contact"
-                value={formData.contact}
-                onChange={(e) => setFormData(prev => ({ ...prev, contact: formatPhone(e.target.value) }))}
-                placeholder="(00) 00000-0000"
-                maxLength={15}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="email">E-mail</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="responsible">Pessoa Responsável</Label>
-              <Input
-                id="responsible"
-                value={formData.responsible}
-                onChange={(e) => setFormData(prev => ({ ...prev, responsible: e.target.value }))}
-              />
-            </div>
-          </div>
-
-          <Button type="submit" disabled={loading}>
-            {loading ? 'Cadastrando...' : 'Cadastrar Novo Cliente'}
-          </Button>
-        </form>
+            <Button onClick={handleNewClientSubmit} className="w-full">
+              Cadastrar Cliente
+            </Button>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
-}
+};
+
+export default ClientForm;

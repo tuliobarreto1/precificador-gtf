@@ -1,7 +1,6 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Client, Vehicle, VehicleGroup } from '@/lib/models';
-import { QuoteFormData, SavedQuote, QuoteContextType, QuoteCalculationResult, User, defaultUser } from './types/quoteTypes';
+import { QuoteFormData, SavedQuote, QuoteContextType, QuoteCalculationResult, User, defaultUser, VehicleItem } from './types/quoteTypes';
 import { useQuoteUsers } from '@/hooks/useQuoteUsers';
 import { useQuoteVehicles } from '@/hooks/useQuoteVehicles';
 import { useQuoteParams } from '@/hooks/useQuoteParams';
@@ -14,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 
 // Initial state com impostos habilitados por padrão
 const initialQuoteForm: QuoteFormData = {
+  segment: undefined,
   client: null,
   vehicles: [],
   useGlobalParams: true,
@@ -23,15 +23,16 @@ const initialQuoteForm: QuoteFormData = {
     operationSeverity: 3,
     hasTracking: false,
     protectionPlanId: null,
-    includeIpva: true,      // IPVA habilitado por padrão
-    includeLicensing: true, // Licenciamento habilitado por padrão
-    includeTaxes: true,     // Custos financeiros habilitados por padrão
+    includeIpva: true,      
+    includeLicensing: true, 
+    includeTaxes: true,     
   },
 };
 
 // Criar o contexto com um valor padrão para evitar undefined
 const defaultContextValue: QuoteContextType = {
   quoteForm: initialQuoteForm,
+  setSegment: () => {},
   setClient: () => {},
   addVehicle: () => {},
   removeVehicle: () => {},
@@ -67,10 +68,12 @@ const defaultContextValue: QuoteContextType = {
 const QuoteContext = createContext<QuoteContextType>(defaultContextValue);
 
 // Provider component
-export const QuoteProvider = ({ children }: { children: ReactNode }) => {
+export const QuoteProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [quoteForm, setQuoteForm] = useState<QuoteFormData>(initialQuoteForm);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [currentEditingQuoteId, setCurrentEditingQuoteId] = useState<string | null>(null);
   const { toast } = useToast();
-  
+
   // Utilizando os hooks específicos
   const {
     user,
@@ -128,6 +131,14 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
     canDeleteQuoteById
   );
 
+  // Função para definir segmento
+  const setSegment = (segment: 'GTF' | 'Assinatura' | undefined) => {
+    setQuoteForm(prev => ({
+      ...prev,
+      segment
+    }));
+  };
+
   // Adicionando log para depurar se os valores de impostos estão definidos corretamente
   useEffect(() => {
     console.log("QuoteContext: Estado atual dos impostos:", {
@@ -140,6 +151,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
   // Export the context
   const contextValue: QuoteContextType = {
     quoteForm,
+    setSegment,
     setClient,
     addVehicle,
     removeVehicle,
@@ -197,7 +209,7 @@ export const QuoteProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
     },
-    deleteQuote,
+    deleteQuote: deleteQuote,
     canEditQuote: canEditQuoteAdapter,
     canDeleteQuote: canDeleteQuoteAdapter,
     sendQuoteByEmail,
